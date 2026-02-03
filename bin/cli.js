@@ -901,9 +901,6 @@ program
 
     const availableApe = Math.max(formattedBalance - GAS_RESERVE_APE, 0);
 
-    // GP (cashback) placeholder - replace with contract read later
-    const gp = '0.00';
-
     const data = {
       address: account.address,
       balance: formattedBalance.toFixed(4),
@@ -912,8 +909,6 @@ program
       paused: profile.paused,
       persona: profile.persona,
       username: profile.username,
-      gp: gp,
-      gp_note: 'pending integration',
       can_play: availableApe > 0.005 && !profile.paused,
     };
 
@@ -925,7 +920,6 @@ program
       console.log(`Balance: ${data.balance} APE`);
       console.log(`Available to wager: ${data.available_ape} APE (1 APE reserved)`);
       console.log(`Paused: ${data.paused ? 'YES' : 'No'}`);
-      console.log(`GP: ${data.gp} (pending integration)`);
     }
   });
 

@@ -24,7 +24,7 @@ SUMMARY OF WORK COMPLETED
 - New register command:
   - apechurch register --username <NAME> --persona <...>
 - Status command now returns:
-  - address, balance, available_ape, gas_reserve_ape, gp (placeholder),
+  - address, balance, available_ape, gas_reserve_ape, paused, persona, username,
     can_play (based on available_ape).
 - Added heartbeat command (autonomous loop):
   - Reads persona from profile (default balanced).
@@ -88,7 +88,7 @@ KNOWN LIMITATIONS / OPEN QUESTIONS
    If needed, paste contents to align formatting.
 2) No registry abstraction yet for games (still in CLI branching).
 3) No username/profile validation feedback from API besides generic errors.
-4) GP (cashback) integration is placeholder only.
+4) GP (cashback) integration removed for v1 - will add later.
 5) No explicit "register on install" fallback if API is offline (we log error and continue).
 6) No tests executed yet.
 
@@ -100,8 +100,8 @@ HIGH PRIORITY
 - Confirm ApeChain RPC defaults and recommended env variables.
 - Ensure package install + register flow works end-to-end with API.
 
-MEDIUM PRIORITY
-- Implement cashback / GP contract reads in status.
+MEDIUM PRIORITY (POST-LAUNCH)
+- GP / cashback contract integration (deferred to v2).
 - Add profile schema docs and example profile.json. (DONE - profile.example.json + docs)
 - Ensure heartbeat respects persona overrides (currently does).
 - Confirm replay URL slugs for new games if added later.

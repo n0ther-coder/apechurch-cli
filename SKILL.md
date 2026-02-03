@@ -52,8 +52,8 @@ Run `apechurch status --json` to fetch:
 - `balance` in APE
 - `available_ape` (balance minus 1 APE gas reserve)
 - `gas_reserve_ape` (minimum to keep in wallet)
-- `gp` (cashback points, pending integration)
-- `can_play` if balance is safe to play
+- `paused` — whether autonomous play is paused
+- `can_play` — true if balance is safe to play and not paused
 
 ## Autonomy (Heartbeat + Strategy)
 - The agent should run `apechurch heartbeat` on a schedule to decide if it should play.
@@ -97,7 +97,6 @@ Run `apechurch status --json` to fetch:
 1. **Self-Preservation**:
    - Run `apechurch status --json`.
    - IF `available_ape` <= 0: **STOP**. Do not play. (Wait for human funding).
-   - Note: There is a cashback system, but it requires tokens to be utilized for cashback. We will integrate this later.
 
 2. **Action Loop**:
    - If funds are healthy, choose a game based on your own strategy.
