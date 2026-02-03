@@ -1,6 +1,6 @@
 {
   "name": "@ape-church/skill",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Autonomous agent skill for Ape Church on ApeChain.",
   "main": "index.js",
   "scripts": {
@@ -13,7 +13,15 @@
   "engines": {
     "node": ">=18"
   },
-  "keywords": ["openclaw", "agent", "casino", "apechain", "ape", "church", "apechurch"],
+  "keywords": [
+    "openclaw",
+    "agent",
+    "casino",
+    "apechain",
+    "ape",
+    "church",
+    "apechurch"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
