@@ -7,13 +7,25 @@ import path from 'path';
 import {
   createPublicClient,
   createWalletClient,
+  defineChain,
   encodeAbiParameters,
   formatEther,
   http,
   parseEther,
 } from 'viem';
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
-import { apechain } from 'viem/chains';
+
+const apechain = defineChain({
+  id: 33139,
+  name: 'ApeChain',
+  nativeCurrency: { name: 'ApeCoin', symbol: 'APE', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc.apechain.com/http'] },
+  },
+  blockExplorers: {
+    default: { name: 'ApeScan', url: 'https://apescan.io' },
+  },
+});
 import { SiweMessage } from 'siwe';
 import { GAME_REGISTRY, listGames, resolveGame } from '../registry.js';
 
