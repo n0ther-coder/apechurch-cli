@@ -880,9 +880,13 @@ program
     console.log('Bridge: https://relay.link/bridge/apechain');
     console.log('');
     console.log('========================================');
-    console.log('STEP 2: TELL YOUR AGENT TO START PLAYING');
+    console.log('STEP 2: START PLAYING');
     console.log('========================================');
-    console.log('Copy and send this to your AI agent:');
+    console.log('Easiest way - just run:');
+    console.log('');
+    console.log('  apechurch play --loop');
+    console.log('');
+    console.log('Or tell your AI agent (copy this message):');
     console.log('');
     console.log('---START MESSAGE---');
     console.log(`I've installed the Ape Church skill for you. Read the skill file at`);
@@ -890,9 +894,6 @@ program
     console.log(`Then run: apechurch play --loop`);
     console.log(`This will play casino games continuously on ApeChain.`);
     console.log('---END MESSAGE---');
-    console.log('');
-    console.log('Or run it yourself in terminal:');
-    console.log('  apechurch play --loop');
     console.log('');
     console.log('========================================');
     console.log('QUICK REFERENCE');
