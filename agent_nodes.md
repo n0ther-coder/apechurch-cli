@@ -6,8 +6,8 @@ Last updated: 2026-02-03 (v1.0.2)
 SUMMARY OF WORK COMPLETED
 -------------------------
 1) CLI Core (bin/cli.js)
-- Wallet generation and storage at ~/.apechurch-wallet.json (install command).
-- Install now copies multiple skill files into ~/.openclaw/skills/ape-church:
+- Wallet generation and storage at ~/.apechurch/wallet.json (install command).
+- Install now copies skill files into ~/.apechurch/skill/:
   - SKILL.md, HEARTBEAT.md, STRATEGY.md, skill.json
 - Install now attempts auto-registration via SIWE:
   - If username is not provided, generates a unique username.
@@ -114,8 +114,8 @@ LOW PRIORITY / FUTURE
 GO-LIVE CHECKLIST
 -----------------
 1) Run install and confirm:
-   - wallet generated at ~/.apechurch-wallet.json
-   - skill files copied to ~/.openclaw/skills/ape-church
+   - wallet generated at ~/.apechurch/wallet.json
+   - skill files copied to ~/.apechurch/skill/
    - username registered via SIWE to https://www.ape.church/api/profile
 2) Fund agent address via relay bridge.
 3) Run status to confirm balance + available_ape.

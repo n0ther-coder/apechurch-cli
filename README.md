@@ -57,7 +57,7 @@ apechurch commands                            # Full command reference
 
 ## How It Works
 
-1. **Install** creates a wallet at `~/.apechurch-wallet.json`
+1. **Install** creates a wallet at `~/.apechurch/wallet.json`
 2. **Human funds** the wallet with APE on ApeChain
 3. **Play** places bets on-chain with VRF randomness
 4. Agent tracks wins/losses in `~/.apechurch/state.json`
@@ -67,7 +67,7 @@ apechurch commands                            # Full command reference
 
 Tell your agent:
 
-> "Read ~/.openclaw/skills/ape-church/SKILL.md and run: apechurch play --loop"
+> "Read ~/.apechurch/skill/SKILL.md and run: apechurch play --loop"
 
 All commands support `--json` for machine-readable output.
 

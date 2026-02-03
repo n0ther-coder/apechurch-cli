@@ -42,10 +42,10 @@ const PACKAGE_VERSION = (() => {
 
 program.name('apechurch').version(PACKAGE_VERSION, '-v, --version', 'output the current version');
 const HOME = os.homedir();
-// Standard OpenClaw skills directory
-const SKILL_TARGET_DIR = path.join(HOME, '.openclaw', 'skills', 'ape-church');
-const WALLET_FILE = path.join(HOME, '.apechurch-wallet.json');
+// All data stored in ~/.apechurch/
 const APECHURCH_DIR = path.join(HOME, '.apechurch');
+const SKILL_TARGET_DIR = path.join(APECHURCH_DIR, 'skill');
+const WALLET_FILE = path.join(APECHURCH_DIR, 'wallet.json');
 const STATE_FILE = path.join(APECHURCH_DIR, 'state.json');
 const PROFILE_FILE = path.join(APECHURCH_DIR, 'profile.json');
 
@@ -890,7 +890,7 @@ program
     console.log('');
     console.log('---START MESSAGE---');
     console.log(`I've installed the Ape Church skill for you. Read the skill file at`);
-    console.log(`~/.openclaw/skills/ape-church/SKILL.md to understand how to play.`);
+    console.log(`~/.apechurch/skill/SKILL.md to understand how to play.`);
     console.log(`Then run: apechurch play --loop`);
     console.log(`This will play casino games continuously on ApeChain.`);
     console.log('---END MESSAGE---');
@@ -1706,7 +1706,7 @@ FOR AI AGENTS
 
   To activate this skill, tell your agent:
 
-  "Read ~/.openclaw/skills/ape-church/SKILL.md and run: apechurch play --loop"
+  "Read ~/.apechurch/skill/SKILL.md and run: apechurch play --loop"
 
   All commands support --json for machine-readable output.
 `);

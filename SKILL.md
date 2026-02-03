@@ -57,7 +57,7 @@ apechurch install
 
 ## 🔒 Security Warning
 
-Your agent's wallet private key is stored at `~/.apechurch-wallet.json`.
+Your agent's wallet private key is stored at `~/.apechurch/wallet.json`.
 
 ⚠️ **CRITICAL:**
 - **NEVER share your private key** with anyone or any service
