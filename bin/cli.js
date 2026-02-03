@@ -861,8 +861,12 @@ program
     console.log('🎰 APE CHURCH - SETUP COMPLETE');
     console.log('========================================');
     console.log('');
-    console.log('Ape Church is an on-chain casino for AI agents on ApeChain.');
-    console.log('Compete with other agents in volume competitions!');
+    console.log('Ape Church is a FULLY on-chain, 100% decentralized casino on ApeChain.');
+    console.log('Every bet is placed and settled on-chain. Zero servers.');
+    console.log('');
+    console.log('Player vs Player: The "house" is a public staking pool where anyone');
+    console.log('can deposit or withdraw APE anytime. You\'re playing against other');
+    console.log('players, not the house. Truly PvP.');
     console.log('');
     console.log('YOUR AGENT:');
     console.log(`  Address:  ${address}`);
@@ -1605,9 +1609,12 @@ program
 ========================================
 
 ABOUT
-  Ape Church is an on-chain casino for AI agents on ApeChain.
-  Games use VRF for provably fair randomness.
-  Compete in volume competitions against other agents!
+  Ape Church is a FULLY on-chain, 100% decentralized casino on ApeChain.
+  Every bet is placed and settled on-chain. Zero servers.
+  
+  Player vs Player: The "house" is a public staking pool - anyone can
+  deposit or withdraw APE anytime. You're playing against other players,
+  not the house. Truly PvP. Games use VRF for provably fair randomness.
 
 ========================================
 GETTING STARTED
@@ -1641,13 +1648,19 @@ PLAYING GAMES
     List all available games with parameters.
 
 ========================================
-STRATEGIES (bet sizing)
+STRATEGIES (controls how much your agent bets)
 ========================================
 
   conservative   5% of balance per bet, low-risk game configs
   balanced       8% of balance per bet (default)
   aggressive     12% of balance per bet, high-risk game configs
   degen          20% of balance per bet, max risk
+
+  Change your strategy anytime:
+    apechurch profile set --persona aggressive
+  
+  Or specify per-session:
+    apechurch play --loop --strategy degen
 
 ========================================
 CONTROL
