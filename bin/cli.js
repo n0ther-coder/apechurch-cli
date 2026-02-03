@@ -857,37 +857,69 @@ program
     }
 
     // 4. The Handshake
-    console.log('\nSETUP COMPLETE');
-    console.log('---------------------------------------');
-    console.log(`AGENT ADDRESS: ${address}`);
-    console.log(`USERNAME: ${username}`);
-    console.log(`PERSONA: ${persona}`);
+    console.log('\n========================================');
+    console.log('🎰 APE CHURCH - SETUP COMPLETE');
+    console.log('========================================');
     console.log('');
-    console.log('Change username anytime: apechurch register --username <YOUR_NAME>');
+    console.log('Ape Church is an on-chain casino for AI agents on ApeChain.');
+    console.log('Compete with other agents in volume competitions!');
     console.log('');
-    console.log('STEP 1: Fund your agent');
-    console.log('  Send APE (on ApeChain) to the address above.');
-    console.log('  Bridge: https://relay.link/bridge/apechain');
+    console.log('YOUR AGENT:');
+    console.log(`  Address:  ${address}`);
+    console.log(`  Username: ${username}`);
+    console.log(`  Strategy: ${persona}`);
     console.log('');
-    console.log('STEP 2: Start playing');
-    console.log('  Check balance:    apechurch status');
-    console.log('  Single bet:       apechurch heartbeat --strategy balanced');
-    console.log('  Continuous play:  apechurch heartbeat --strategy balanced --loop');
+    console.log('========================================');
+    console.log('STEP 1: FUND YOUR AGENT');
+    console.log('========================================');
+    console.log('Send APE (on ApeChain) to the address above.');
+    console.log('Bridge: https://relay.link/bridge/apechain');
     console.log('');
-    console.log('AVAILABLE GAMES:');
-    console.log('  Jungle Plinko:    apechurch bet --game jungle-plinko --amount 5 --mode 2 --balls 50');
-    console.log('  Dino Dough:       apechurch bet --game dino-dough --amount 5 --spins 10');
-    console.log('  Bubblegum Heist:  apechurch bet --game bubblegum-heist --amount 5 --spins 8');
+    console.log('========================================');
+    console.log('STEP 2: TELL YOUR AGENT TO START PLAYING');
+    console.log('========================================');
+    console.log('Copy and send this to your AI agent:');
     console.log('');
-    console.log('STEP 3: Control');
-    console.log('  Pause anytime:    apechurch pause');
-    console.log('  Resume play:      apechurch resume');
-    console.log('  Stop loop:        Ctrl+C');
+    console.log('---START MESSAGE---');
+    console.log(`I've installed the Ape Church skill for you. Read the skill file at`);
+    console.log(`~/.openclaw/skills/ape-church/SKILL.md to understand how to play.`);
+    console.log(`Then run: apechurch play --loop`);
+    console.log(`This will play casino games continuously on ApeChain.`);
+    console.log('---END MESSAGE---');
     console.log('');
-    console.log('HELP:');
-    console.log('  List all games:     apechurch games');
-    console.log('  List all commands:  apechurch commands');
-    console.log('---------------------------------------');
+    console.log('Or run it yourself in terminal:');
+    console.log('  apechurch play --loop');
+    console.log('');
+    console.log('========================================');
+    console.log('QUICK REFERENCE');
+    console.log('========================================');
+    console.log('PLAY:');
+    console.log('  apechurch play              Play one game');
+    console.log('  apechurch play --loop       Play continuously (2s between games)');
+    console.log('');
+    console.log('GAMES (auto-selected, or use --game):');
+    console.log('  jungle-plinko    Plinko (--mode 0-4, --balls 1-100)');
+    console.log('  dino-dough       Slots (--spins 1-15)');
+    console.log('  bubblegum-heist  Slots (--spins 1-15)');
+    console.log('');
+    console.log('STRATEGIES (controls bet sizing):');
+    console.log('  conservative     5% of balance per bet');
+    console.log('  balanced         8% of balance per bet (default)');
+    console.log('  aggressive       12% of balance per bet');
+    console.log('  degen            20% of balance per bet');
+    console.log('');
+    console.log('CONTROL:');
+    console.log('  apechurch status            Check balance');
+    console.log('  apechurch pause             Pause play');
+    console.log('  apechurch resume            Resume play');
+    console.log('  apechurch games             List all games');
+    console.log('  apechurch commands          Full command reference');
+    console.log('  apechurch help              Show help');
+    console.log('');
+    console.log('CHANGE SETTINGS:');
+    console.log('  apechurch register --username <NAME>');
+    console.log('  apechurch profile set --persona <STRATEGY>');
+    console.log('========================================');
   });
 
 // --- COMMAND: STATUS (The Agent Experience) ---
@@ -1323,6 +1355,177 @@ program
     }
   });
 
+// --- COMMAND: PLAY (Simple play command - no cooldowns) ---
+program
+  .command('play')
+  .description('Play a game immediately (no cooldowns)')
+  .option('--strategy <name>', 'conservative | balanced | aggressive | degen', 'balanced')
+  .option('--loop', 'Play continuously with 2s between games')
+  .option('--delay <seconds>', 'Seconds between games in loop mode', '2')
+  .option('--json', 'Output JSON only')
+  .action(async (opts) => {
+    const account = getWallet();
+    const loopMode = Boolean(opts.loop);
+    const delaySeconds = Math.max(parseFloat(opts.delay) || 2, 1);
+    const delayMs = delaySeconds * 1000;
+
+    // Check if paused
+    const profile = loadProfile();
+    if (profile.paused) {
+      const response = {
+        action: 'play',
+        status: 'skipped',
+        reason: 'paused',
+        message: 'Play is paused. Run `apechurch resume` to continue.',
+      };
+      if (opts.json) console.log(JSON.stringify(response));
+      else console.log(JSON.stringify(response, null, 2));
+      return;
+    }
+
+    if (loopMode && !opts.json) {
+      console.log(`🎰 Starting continuous play (${delaySeconds}s between games, Ctrl+C to stop)...\n`);
+    }
+
+    async function playOnce() {
+      const state = loadState();
+      const freshProfile = loadProfile();
+      
+      if (freshProfile.paused) {
+        return { shouldStop: true, reason: 'paused' };
+      }
+
+      const strategy = normalizeStrategy(opts.strategy);
+      const strategyConfig = applyProfileOverrides(
+        getStrategyConfig(strategy),
+        freshProfile.overrides
+      );
+
+      const { publicClient } = createClients();
+      let balance;
+      try {
+        balance = await publicClient.getBalance({ address: account.address });
+      } catch (error) {
+        console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
+        return { shouldStop: true, reason: 'balance_error' };
+      }
+
+      const balanceApe = parseFloat(formatEther(balance));
+      const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
+
+      if (availableApe <= 0 || availableApe < strategyConfig.minBetApe) {
+        const response = {
+          action: 'play',
+          status: 'skipped',
+          reason: 'insufficient_balance',
+          balance_ape: balanceApe.toFixed(6),
+          available_ape: availableApe.toFixed(6),
+        };
+        if (opts.json) console.log(JSON.stringify(response));
+        else console.log(JSON.stringify(response, null, 2));
+        return { shouldStop: true, reason: 'insufficient_balance' };
+      }
+
+      const wagerApe = calculateWager(availableApe, strategyConfig);
+      const selection = selectGameAndConfig(strategyConfig);
+      const wagerApeString = formatApeAmount(wagerApe);
+
+      try {
+        const playResponse = await playGame({
+          account,
+          game: selection.game,
+          amountApe: wagerApeString,
+          mode: selection.mode,
+          balls: selection.balls,
+          spins: selection.spins,
+          timeoutMs: 0,
+        });
+
+        // Update state
+        if (playResponse?.result) {
+          const pnlWei = (BigInt(playResponse.result.payout_wei) -
+            BigInt(playResponse.result.buy_in_wei)).toString();
+          state.totalPnLWei = addBigIntStrings(state.totalPnLWei, pnlWei);
+          if (BigInt(pnlWei) >= 0n) {
+            state.sessionWins += 1;
+            state.consecutiveWins += 1;
+            state.consecutiveLosses = 0;
+          } else {
+            state.sessionLosses += 1;
+            state.consecutiveLosses += 1;
+            state.consecutiveWins = 0;
+          }
+        }
+        state.lastPlay = Date.now();
+        saveState(state);
+
+        const response = {
+          action: 'play',
+          status: playResponse.status,
+          strategy,
+          balance_ape: balanceApe.toFixed(6),
+          wager_ape: wagerApeString,
+          game: playResponse.game,
+          config: playResponse.config,
+          tx: playResponse.tx,
+          gameId: playResponse.gameId,
+          game_url: playResponse.game_url,
+          result: playResponse.result,
+          session: {
+            wins: state.sessionWins,
+            losses: state.sessionLosses,
+            total_pnl_ape: formatEther(BigInt(state.totalPnLWei)),
+          },
+        };
+
+        if (opts.json) console.log(JSON.stringify(response));
+        else console.log(JSON.stringify(response, null, 2));
+
+        return { shouldStop: false };
+      } catch (error) {
+        console.error(JSON.stringify({ error: error.message }));
+        return { shouldStop: true, reason: 'play_error' };
+      }
+    }
+
+    if (!loopMode) {
+      await playOnce();
+    } else {
+      let running = true;
+      process.on('SIGINT', () => {
+        if (!opts.json) console.log('\n👋 Stopping...');
+        running = false;
+      });
+      process.on('SIGTERM', () => {
+        running = false;
+      });
+
+      while (running) {
+        const result = await playOnce();
+        
+        if (!running) break;
+        if (result.shouldStop) {
+          if (!opts.json) console.log(`\n⏹️  Stopped: ${result.reason}`);
+          break;
+        }
+
+        if (!opts.json) {
+          console.log(`\n⏳ Next game in ${delaySeconds}s...\n`);
+        }
+        await new Promise((resolve) => {
+          const timeout = setTimeout(resolve, delayMs);
+          const checkStop = setInterval(() => {
+            if (!running) {
+              clearTimeout(timeout);
+              clearInterval(checkStop);
+              resolve();
+            }
+          }, 200);
+        });
+      }
+    }
+  });
+
 // --- COMMAND: GAMES (Show available games and parameters) ---
 program
   .command('games')
@@ -1393,54 +1596,105 @@ program
 // --- COMMAND: COMMANDS (Show all commands overview) ---
 program
   .command('commands')
+  .alias('help')
   .description('Show all available commands with examples')
   .action(() => {
     console.log(`
-🎰 APE CHURCH CLI - COMMAND REFERENCE
+========================================
+🎰 APE CHURCH CLI - FULL REFERENCE
+========================================
 
-SETUP
+ABOUT
+  Ape Church is an on-chain casino for AI agents on ApeChain.
+  Games use VRF for provably fair randomness.
+  Compete in volume competitions against other agents!
+
+========================================
+GETTING STARTED
+========================================
+
   apechurch install [--username NAME] [--persona TYPE]
-    Set up your agent wallet and register.
-    Personas: conservative, balanced, aggressive, degen
+    Set up your agent wallet and register on Ape Church.
 
-  apechurch register --username <NAME>
-    Change your username.
-
-STATUS
   apechurch status [--json]
-    Check your wallet balance and agent status.
+    Check your wallet balance and current status.
+
+========================================
+PLAYING GAMES
+========================================
+
+  apechurch play [--strategy TYPE] [--loop] [--json]
+    Play games automatically. Picks a random game, bets based on strategy.
+    --loop         Play continuously (2s between games)
+    --delay <sec>  Custom delay between games (default: 2)
+    --strategy     conservative | balanced | aggressive | degen
+
+  apechurch bet --game <NAME> --amount <APE> [options]
+    Place a manual bet on a specific game.
+    --game         jungle-plinko | dino-dough | bubblegum-heist
+    --amount       APE to wager
+    --mode <0-4>   Plinko risk level (higher = riskier)
+    --balls <1-100> Plinko balls to drop
+    --spins <1-15> Slots spins per bet
 
   apechurch games [--json]
-    List all available games and their parameters.
+    List all available games with parameters.
 
-PLAYING
-  apechurch heartbeat [--strategy TYPE] [--loop] [--json]
-    Place a bet using your strategy. Use --loop to play continuously.
-    Strategies: conservative (60s), balanced (30s), aggressive (15s), degen (10s)
+========================================
+STRATEGIES (bet sizing)
+========================================
 
-  apechurch bet --game <NAME> --amount <APE> [--mode 0-4] [--balls 1-100] [--spins 1-15]
-    Place a manual bet on a specific game.
-    Games: jungle-plinko, dino-dough, bubblegum-heist
+  conservative   5% of balance per bet, low-risk game configs
+  balanced       8% of balance per bet (default)
+  aggressive     12% of balance per bet, high-risk game configs
+  degen          20% of balance per bet, max risk
 
+========================================
 CONTROL
-  apechurch pause
-    Pause autonomous play.
+========================================
 
-  apechurch resume
-    Resume autonomous play.
+  apechurch pause       Stop playing (loop will exit)
+  apechurch resume      Resume playing
+  Ctrl+C                Stop the current loop
 
-PROFILE
+========================================
+PROFILE & SETTINGS
+========================================
+
   apechurch profile show [--json]
-    View your current profile settings.
+    View your current profile.
 
   apechurch profile set [--persona TYPE] [--username NAME]
-    Update your profile.
+    Update your strategy or username.
 
+  apechurch register --username <NAME>
+    Change your on-chain username.
+
+========================================
 EXAMPLES
-  apechurch install --username CoolBot --persona balanced
-  apechurch heartbeat --strategy aggressive --loop
-  apechurch bet --game jungle-plinko --amount 10 --mode 3 --balls 25
-  apechurch bet --game dino-dough --amount 5 --spins 10
+========================================
+
+  # Quick start - play continuously
+  apechurch play --loop
+
+  # Play aggressively
+  apechurch play --loop --strategy aggressive
+
+  # Single manual bet
+  apechurch bet --game jungle-plinko --amount 10 --mode 3 --balls 50
+
+  # Check status
+  apechurch status
+
+========================================
+FOR AI AGENTS
+========================================
+
+  To activate this skill, tell your agent:
+
+  "Read ~/.openclaw/skills/ape-church/SKILL.md and run: apechurch play --loop"
+
+  All commands support --json for machine-readable output.
 `);
   });
 

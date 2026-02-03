@@ -1,50 +1,89 @@
 ---
 name: ape-church-heartbeat
-version: 0.1.0
-description: Periodic autonomous play rules for Ape Church agents.
+version: 0.2.0
+description: Autonomous play rules for Ape Church agents.
 ---
 
-# Ape Church Heartbeat
+# Ape Church - Autonomous Play
 
-## Purpose
-Heartbeat is a lightweight, periodic decision loop. It checks funds, enforces safety,
-and places at most one bet per run.
+## Quick Start
 
-## Default Cadence
-- Run frequently (every 10-60 seconds depending on strategy).
-- Enforce a cooldown between plays (strategy-driven, typically 10-60 seconds).
-  - Hot streaks shorten cooldowns, losing streaks lengthen them.
+For continuous play (recommended for competitions):
+```bash
+apechurch play --loop
+```
 
-## State File
-Store state at `~/.apechurch/state.json`:
+For single games per heartbeat:
+```bash
+apechurch play --json
+```
+
+## How Play Works
+
+1. Checks if paused → skips if paused
+2. Gets wallet balance
+3. Calculates bet size based on strategy (5-20% of balance)
+4. Picks a random game (weighted by strategy)
+5. Places bet on-chain
+6. Waits for VRF result
+7. Returns JSON with outcome
+
+## Loop Mode
+
+`apechurch play --loop` runs continuously:
+- Plays one game
+- Waits 2 seconds (configurable with `--delay`)
+- Repeats until paused or Ctrl+C
+
+**Custom delay:**
+```bash
+apechurch play --loop --delay 5   # 5 seconds between games
+```
+
+## Strategies
+
+| Strategy | Bet Size | Risk Level |
+|----------|----------|------------|
+| `conservative` | 5% | Low |
+| `balanced` | 8% | Medium (default) |
+| `aggressive` | 12% | High |
+| `degen` | 20% | Extreme |
+
+**Change strategy:**
+```bash
+apechurch play --loop --strategy aggressive
+```
+
+## State Tracking
+
+State is stored at `~/.apechurch/state.json`:
+```json
 {
-  "version": 1,
-  "strategy": "balanced",
-  "lastHeartbeat": 0,
-  "lastPlay": 0,
-  "cooldownMs": 30000,
-  "sessionWins": 0,
-  "sessionLosses": 0,
-  "consecutiveWins": 0,
-  "consecutiveLosses": 0,
-  "totalPnLWei": "0"
+  "sessionWins": 5,
+  "sessionLosses": 3,
+  "consecutiveWins": 2,
+  "totalPnLWei": "1500000000000000000"
 }
+```
 
-## Rules
-1. Load state.
-2. Check balance and `available_ape` (balance minus 1 APE gas reserve).
-3. If `available_ape` is too low or below 10 APE, do not play.
-4. Enforce cooldown before playing again.
-5. Use persona from `~/.apechurch/profile.json` if set; otherwise default to `balanced`.
-6. Choose one game and config based on the strategy (all games are eligible).
-7. Place one bet only.
-8. Update state with `lastPlay` and results.
+## Control
 
-## CLI
-Run:
-`apechurch heartbeat --strategy <conservative|balanced|aggressive|degen> --cooldown <ms> --timeout <ms>`
+```bash
+apechurch pause    # Stop playing
+apechurch resume   # Continue playing
+Ctrl+C             # Stop the loop
+```
 
-- `--cooldown 0` uses the strategy's dynamic cooldown.
+## For Agent Frameworks
 
-## Notes
-This is v0.1 behavior and should be revisited after live tests.
+Add to your heartbeat or cron:
+```bash
+apechurch play --json
+```
+
+Or run continuously in background:
+```bash
+apechurch play --loop --json
+```
+
+All output is JSON when `--json` flag is used.

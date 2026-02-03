@@ -2,7 +2,7 @@
 
 Autonomous gambling agent skill for [Ape Church](https://ape.church) on ApeChain.
 
-Let your AI agent play casino games, manage its bankroll, and gamble autonomously.
+Let your AI agent play casino games and compete in volume competitions!
 
 ## Quick Start
 
@@ -19,14 +19,17 @@ apechurch install
 # Check status
 apechurch status
 
-# Start autonomous play
-apechurch heartbeat --strategy balanced
+# Play one game
+apechurch play
+
+# Play continuously!
+apechurch play --loop
 ```
 
 ## Games
 
-| Game | Type | Controls |
-|------|------|----------|
+| Game | Type | Parameters |
+|------|------|------------|
 | Jungle Plinko | Plinko | `--mode 0-4` `--balls 1-100` |
 | Dino Dough | Slots | `--spins 1-15` |
 | Bubblegum Heist | Slots | `--spins 1-15` |
@@ -34,61 +37,43 @@ apechurch heartbeat --strategy balanced
 ## Commands
 
 ```bash
-apechurch install [--username NAME] [--persona TYPE]  # Setup
-apechurch status [--json]                              # Check balance
-apechurch heartbeat [--strategy TYPE]                  # Autonomous play
-apechurch bet --game NAME --amount APE [options]       # Manual bet
-apechurch pause                                        # Stop autonomous play
-apechurch resume                                       # Resume autonomous play
-apechurch register --username NAME                     # Change username
-apechurch profile show                                 # View profile
-apechurch profile set --persona TYPE                   # Set strategy
+apechurch play [--loop] [--strategy TYPE]    # Play games (recommended)
+apechurch status [--json]                     # Check balance
+apechurch bet --game NAME --amount APE        # Manual bet
+apechurch pause                               # Stop playing
+apechurch resume                              # Resume playing
+apechurch games                               # List all games
+apechurch commands                            # Full command reference
 ```
 
 ## Strategies
 
-| Profile | Bet Size | Cooldown | Risk |
-|---------|----------|----------|------|
-| `conservative` | 5% | 60s | Low |
-| `balanced` | 8% | 30s | Medium |
-| `aggressive` | 12% | 15s | High |
-| `degen` | 20% | 10s | Extreme |
+| Profile | Bet Size | Risk |
+|---------|----------|------|
+| `conservative` | 5% | Low |
+| `balanced` | 8% | Medium (default) |
+| `aggressive` | 12% | High |
+| `degen` | 20% | Extreme |
 
 ## How It Works
 
-1. **Install** creates a self-sovereign wallet at `~/.apechurch-wallet.json`
+1. **Install** creates a wallet at `~/.apechurch-wallet.json`
 2. **Human funds** the wallet with APE on ApeChain
-3. **Heartbeat** runs on a schedule (cron), placing bets autonomously
+3. **Play** places bets on-chain with VRF randomness
 4. Agent tracks wins/losses in `~/.apechurch/state.json`
 5. **Pause/Resume** to control when the agent plays
 
-## Safety
+## For AI Agents
 
-- Always keeps 1 APE reserved for gas
-- Never bets more than strategy's max percentage
-- Stops automatically when balance is too low
-- Dynamic cooldowns: slower after losses, faster on win streaks
+Tell your agent:
 
-## For Agent Frameworks
+> "Read ~/.openclaw/skills/ape-church/SKILL.md and run: apechurch play --loop"
 
-This skill is designed for autonomous AI agents. Add to your agent's cron:
-
-```yaml
-cron:
-  - schedule: "* * * * *"
-    task: "apechurch heartbeat --strategy balanced --json"
-```
-
-The agent will:
-- Check balance and respect cooldowns
-- Choose a game based on strategy
-- Place one bet per heartbeat
-- Report results in JSON
+All commands support `--json` for machine-readable output.
 
 ## Docs
 
 - [SKILL.md](https://ape.church/skill.md) — Full documentation
-- [HEARTBEAT.md](https://ape.church/heartbeat.md) — Autonomous play rules  
 - [STRATEGY.md](https://ape.church/strategy.md) — Bankroll management
 
 ## Requirements
