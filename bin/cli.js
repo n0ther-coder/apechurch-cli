@@ -414,7 +414,7 @@ function getStrategyConfig(strategy) {
   );
   const configs = {
     conservative: {
-      minBetApe: 10,
+      minBetApe: 1,
       targetBetPct: 0.05,
       maxBetPct: 0.1,
       baseCooldownMs: 60 * 1000, // 60 seconds
@@ -423,7 +423,7 @@ function getStrategyConfig(strategy) {
       gameWeights: defaultWeights,
     },
     balanced: {
-      minBetApe: 10,
+      minBetApe: 1,
       targetBetPct: 0.08,
       maxBetPct: 0.15,
       baseCooldownMs: 30 * 1000, // 30 seconds
@@ -432,7 +432,7 @@ function getStrategyConfig(strategy) {
       gameWeights: defaultWeights,
     },
     aggressive: {
-      minBetApe: 10,
+      minBetApe: 1,
       targetBetPct: 0.12,
       maxBetPct: 0.25,
       baseCooldownMs: 15 * 1000, // 15 seconds
@@ -441,7 +441,7 @@ function getStrategyConfig(strategy) {
       gameWeights: defaultWeights,
     },
     degen: {
-      minBetApe: 10,
+      minBetApe: 1,
       targetBetPct: 0.2,
       maxBetPct: 0.35,
       baseCooldownMs: 10 * 1000, // 10 seconds
@@ -856,7 +856,7 @@ program
       console.log('You can retry later with: apechurch register --username <NAME>');
     }
 
-    // 4. The Handshake (Replacing the Claim Link)
+    // 4. The Handshake
     console.log('\nSETUP COMPLETE');
     console.log('---------------------------------------');
     console.log(`AGENT ADDRESS: ${address}`);
@@ -866,15 +866,18 @@ program
     }
     console.log(`PERSONA: ${persona}`);
     console.log('');
-    console.log('ACTION REQUIRED: Send APE (ApeChain) to this address.');
-    console.log('FUNDING GUIDE:');
-    console.log(
-      '1) Open https://relay.link/bridge/apechain?toCurrency=0x0000000000000000000000000000000000000000'
-    );
-    console.log('2) Connect your wallet.');
-    console.log('3) Paste the agent address in ApeChain buy area:');
-    console.log('   Select wallet -> Paste wallet address');
-    console.log('The Agent will wake up automatically once funded.');
+    console.log('STEP 1: Fund your agent');
+    console.log('  Send APE (on ApeChain) to the address above.');
+    console.log('  Bridge: https://relay.link/bridge/apechain');
+    console.log('');
+    console.log('STEP 2: Start playing');
+    console.log('  Check balance:    apechurch status');
+    console.log('  Place one bet:    apechurch heartbeat --strategy balanced');
+    console.log('  Manual bet:       apechurch bet --game jungle-plinko --amount 5 --mode 2 --balls 50');
+    console.log('');
+    console.log('STEP 3: Automate (optional)');
+    console.log('  Add to your agent\'s cron/heartbeat to play continuously.');
+    console.log('  Control: apechurch pause / apechurch resume');
     console.log('---------------------------------------');
   });
 
