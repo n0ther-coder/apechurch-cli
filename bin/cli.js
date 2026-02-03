@@ -873,12 +873,20 @@ program
     console.log('  Check balance:    apechurch status');
     console.log('  Single bet:       apechurch heartbeat --strategy balanced');
     console.log('  Continuous play:  apechurch heartbeat --strategy balanced --loop');
-    console.log('  Manual bet:       apechurch bet --game jungle-plinko --amount 5 --mode 2 --balls 50');
+    console.log('');
+    console.log('AVAILABLE GAMES:');
+    console.log('  Jungle Plinko:    apechurch bet --game jungle-plinko --amount 5 --mode 2 --balls 50');
+    console.log('  Dino Dough:       apechurch bet --game dino-dough --amount 5 --spins 10');
+    console.log('  Bubblegum Heist:  apechurch bet --game bubblegum-heist --amount 5 --spins 8');
     console.log('');
     console.log('STEP 3: Control');
     console.log('  Pause anytime:    apechurch pause');
     console.log('  Resume play:      apechurch resume');
     console.log('  Stop loop:        Ctrl+C');
+    console.log('');
+    console.log('HELP:');
+    console.log('  List all games:     apechurch games');
+    console.log('  List all commands:  apechurch commands');
     console.log('---------------------------------------');
   });
 
