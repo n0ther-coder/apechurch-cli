@@ -162,10 +162,6 @@ Run `apechurch status --json` to fetch:
   - `https://www.ape.church/games/dino-dough?id=<gameId>`
   - `https://www.ape.church/games/bubblegum-heist?id=<gameId>`
 
-## Required Env (Optional)
-- `APECHAIN_RPC_URL` for HTTP RPC (recommended).
-- `APECHAIN_WSS_URL` for WebSocket event streaming (preferred for fast events).
-
 ## Hosted Docs (Reference)
 - `https://ape.church/skill.md`
 - `https://ape.church/heartbeat.md`

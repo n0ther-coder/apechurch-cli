@@ -11,7 +11,6 @@ import {
   formatEther,
   http,
   parseEther,
-  webSocket,
 } from 'viem';
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
 import { apechain } from 'viem/chains';
@@ -103,23 +102,10 @@ function getWallet() {
   return privateKeyToAccount(data.privateKey);
 }
 
-function getRpcUrl() {
-  if (process.env.APECHAIN_RPC_URL) return process.env.APECHAIN_RPC_URL;
-  if (apechain?.rpcUrls?.default?.http?.[0]) return apechain.rpcUrls.default.http[0];
-  if (apechain?.rpcUrls?.public?.http?.[0]) return apechain.rpcUrls.public.http[0];
-  return null;
-}
-
 function getTransport() {
-  if (process.env.APECHAIN_WSS_URL) {
-    return webSocket(process.env.APECHAIN_WSS_URL);
-  }
-  const rpcUrl = getRpcUrl();
-  if (!rpcUrl) {
-    console.error(JSON.stringify({ error: 'Missing APECHAIN_RPC_URL for HTTP transport.' }));
-    process.exit(1);
-  }
-  return http(rpcUrl);
+  // Use viem's built-in ApeChain RPC (https://rpc.apechain.com/http)
+  // HTTP transport works for everything including event polling
+  return http();
 }
 
 function createClients(account) {

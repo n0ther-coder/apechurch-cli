@@ -97,7 +97,7 @@ WHAT'S LEFT BEFORE GO-LIVE
 HIGH PRIORITY
 - Refactor game definitions into a registry so adding games is data-only. (DONE - registry.js)
 - Registry updates are shipped inside package (Option A). New games require package update.
-- Confirm ApeChain RPC defaults and recommended env variables.
+- ✅ ApeChain RPC uses viem defaults (no env vars needed).
 - Ensure package install + register flow works end-to-end with API.
 
 MEDIUM PRIORITY (POST-LAUNCH)
