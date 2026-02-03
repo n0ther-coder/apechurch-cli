@@ -39,7 +39,7 @@ const STATE_FILE = path.join(APECHURCH_DIR, 'state.json');
 const PROFILE_FILE = path.join(APECHURCH_DIR, 'profile.json');
 
 const GAS_RESERVE_APE = 1;
-const DEFAULT_COOLDOWN_MS = 15 * 60 * 1000;
+const DEFAULT_COOLDOWN_MS = 30 * 1000; // 30 seconds default
 const PROFILE_API_URL =
   process.env.APECHURCH_PROFILE_URL || 'https://www.ape.church/api/profile';
 const SIWE_DOMAIN = 'ape.church';
@@ -282,26 +282,20 @@ function saveProfile(profile) {
 
 function generateUsername() {
   const suffix = crypto.randomBytes(4).toString('hex').toUpperCase();
-  return `BOT_${suffix}`;
+  return `APE_BOT_${suffix}`;
 }
 
 function normalizeUsername(value) {
-  const suffix = '_CLAWBOT';
   let name = String(value || '').trim();
   if (!name) {
     name = generateUsername();
   }
-  if (name.toUpperCase().endsWith(suffix)) {
-    name = name.slice(0, name.length - suffix.length) + suffix;
-  } else {
-    name = `${name}${suffix}`;
-  }
   const valid = /^[A-Za-z0-9_]+$/.test(name);
   if (!valid) {
-    throw new Error('username must contain only letters, numbers, and underscores.');
+    throw new Error('Username must contain only letters, numbers, and underscores.');
   }
   if (name.length > 32) {
-    throw new Error('username must be 32 characters or fewer (including _CLAWBOT).');
+    throw new Error('Username must be 32 characters or fewer.');
   }
   return name;
 }
@@ -379,7 +373,7 @@ function getStrategyConfig(strategy) {
       minBetApe: 10,
       targetBetPct: 0.05,
       maxBetPct: 0.1,
-      baseCooldownMs: 20 * 60 * 1000,
+      baseCooldownMs: 60 * 1000, // 60 seconds
       plinko: { mode: [0, 1], balls: [80, 100] },
       slots: { spins: [10, 15] },
       gameWeights: defaultWeights,
@@ -388,7 +382,7 @@ function getStrategyConfig(strategy) {
       minBetApe: 10,
       targetBetPct: 0.08,
       maxBetPct: 0.15,
-      baseCooldownMs: 10 * 60 * 1000,
+      baseCooldownMs: 30 * 1000, // 30 seconds
       plinko: { mode: [1, 2], balls: [50, 90] },
       slots: { spins: [7, 12] },
       gameWeights: defaultWeights,
@@ -397,7 +391,7 @@ function getStrategyConfig(strategy) {
       minBetApe: 10,
       targetBetPct: 0.12,
       maxBetPct: 0.25,
-      baseCooldownMs: 5 * 60 * 1000,
+      baseCooldownMs: 15 * 1000, // 15 seconds
       plinko: { mode: [2, 4], balls: [20, 70] },
       slots: { spins: [3, 10] },
       gameWeights: defaultWeights,
@@ -406,7 +400,7 @@ function getStrategyConfig(strategy) {
       minBetApe: 10,
       targetBetPct: 0.2,
       maxBetPct: 0.35,
-      baseCooldownMs: 2 * 60 * 1000,
+      baseCooldownMs: 10 * 1000, // 10 seconds
       plinko: { mode: [3, 4], balls: [10, 40] },
       slots: { spins: [2, 6] },
       gameWeights: defaultWeights,
@@ -808,7 +802,8 @@ program
     state.strategy = persona;
     saveState(state);
 
-    console.log(`Username: ${username}`);
+    const usernameWasProvided = opts.username && opts.username.trim().length > 0;
+    console.log(`Username: ${username}${usernameWasProvided ? '' : ' (auto-generated)'}`);
     try {
       await registerUsername({ account: getWallet(), username, persona });
       console.log('Username registered via SIWE.');
@@ -821,6 +816,12 @@ program
     console.log('\nSETUP COMPLETE');
     console.log('---------------------------------------');
     console.log(`AGENT ADDRESS: ${address}`);
+    console.log(`USERNAME: ${username}`);
+    if (!usernameWasProvided) {
+      console.log('  (Change anytime: apechurch register --username <YOUR_NAME>)');
+    }
+    console.log(`PERSONA: ${persona}`);
+    console.log('');
     console.log('ACTION REQUIRED: Send APE (ApeChain) to this address.');
     console.log('FUNDING GUIDE:');
     console.log(

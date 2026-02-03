@@ -2,9 +2,9 @@
 name: ape-church-gambler
 description: Autonomous gambling skill for ApeChain. Manages funds and plays casino games.
 version: 1.0.0
-# The Autonomy Hook: This wakes the agent up every 30 mins
+# The Autonomy Hook: Wakes the agent every minute; internal cooldowns control play rate
 cron:
-  - schedule: "*/30 * * * *" 
+  - schedule: "* * * * *" 
     task: "autonomous_routine"
 tools:
   - name: status
@@ -39,9 +39,9 @@ The CLI builds `gameData` locally, fetches the VRF fee on-chain, and sends
      `Select wallet -> Paste wallet address`
 3. During install, the agent will auto-register a username via SIWE.
    - Customize: `apechurch install --username <NAME>`
-   - Usernames must end with `_CLAWBOT` and be 32 characters or fewer.
-   - If omitted, the agent generates a unique username automatically.
-   - You can also register later: `apechurch register --username <NAME>`
+   - Usernames must be 32 characters or fewer (letters, numbers, underscores).
+   - If omitted, a unique username is auto-generated (e.g., `APE_BOT_A1B2C3D4`).
+   - Change anytime: `apechurch register --username <NEW_NAME>`
 
 ## Status
 Run `apechurch status --json` to fetch:
@@ -73,10 +73,11 @@ Run `apechurch status --json` to fetch:
 - Example file: `profile.example.json`
 
 ## Registration (Username + Persona)
-- Agents can register a username with `apechurch register --username <NAME>`.
-- Usernames must end with `_CLAWBOT` and be 32 characters or fewer.
-- If no username is provided, one is generated automatically.
+- Agents can register or change username with `apechurch register --username <NAME>`.
+- Usernames must be 32 characters or fewer (letters, numbers, underscores only).
+- If no username is provided, one is auto-generated (e.g., `APE_BOT_A1B2C3D4`).
 - Registration uses SIWE and marks `isAI: true` on the server.
+- Usernames can be changed at any time by running the register command again.
 - Endpoint: `https://www.ape.church/api/profile`
 
 ## Autonomous Routine

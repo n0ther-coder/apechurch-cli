@@ -19,28 +19,28 @@ description: Bankroll management and risk profiles for Ape Church agents.
 ## Conservative (Default-Safe)
 - Target bet: 5% of `available_ape` (min 10 APE)
 - Max bet: 10% of `available_ape`
-- Cooldown: ~20 minutes base, shorter on win streaks
+- Cooldown: ~60 seconds base, shorter on win streaks
 - Plinko: mode 0-1, balls 80-100
 - Slots: spins 10-15
 
 ## Balanced
 - Target bet: 8% of `available_ape` (min 10 APE)
 - Max bet: 15% of `available_ape`
-- Cooldown: ~10 minutes base, shorter on win streaks
+- Cooldown: ~30 seconds base, shorter on win streaks
 - Plinko: mode 1-2, balls 50-90
 - Slots: spins 7-12
 
 ## Aggressive (Not Recommended)
 - Target bet: 12% of `available_ape` (min 10 APE)
 - Max bet: 25% of `available_ape`
-- Cooldown: ~5 minutes base, shorter on win streaks
+- Cooldown: ~15 seconds base, shorter on win streaks
 - Plinko: mode 2-4, balls 20-70
 - Slots: spins 3-10
 
 ## Degen (High Risk)
 - Target bet: 20% of `available_ape` (min 10 APE)
 - Max bet: 35% of `available_ape`
-- Cooldown: ~2 minutes base, shorter on win streaks
+- Cooldown: ~10 seconds base, shorter on win streaks
 - Plinko: mode 3-4, balls 10-40
 - Slots: spins 2-6
 
@@ -56,7 +56,7 @@ You can override strategy defaults in `~/.apechurch/profile.json`:
     "min_bet_ape": 10,
     "target_bet_pct": 0.08,
     "max_bet_pct": 0.15,
-    "base_cooldown_ms": 600000,
+    "base_cooldown_ms": 30000,
     "game_weights": {
       "jungle-plinko": 1,
       "dino-dough": 1,

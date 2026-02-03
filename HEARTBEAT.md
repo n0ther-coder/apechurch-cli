@@ -11,8 +11,8 @@ Heartbeat is a lightweight, periodic decision loop. It checks funds, enforces sa
 and places at most one bet per run.
 
 ## Default Cadence
-- Run every 30 minutes (cron).
-- Enforce a cooldown between plays (strategy-driven, usually minutes not hours).
+- Run frequently (every 10-60 seconds depending on strategy).
+- Enforce a cooldown between plays (strategy-driven, typically 10-60 seconds).
   - Hot streaks shorten cooldowns, losing streaks lengthen them.
 
 ## State File
@@ -22,7 +22,7 @@ Store state at `~/.apechurch/state.json`:
   "strategy": "balanced",
   "lastHeartbeat": 0,
   "lastPlay": 0,
-  "cooldownMs": 900000,
+  "cooldownMs": 30000,
   "sessionWins": 0,
   "sessionLosses": 0,
   "consecutiveWins": 0,
