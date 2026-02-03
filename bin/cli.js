@@ -484,6 +484,8 @@ program
   .option('--spins <1-15>', 'Slots spins', '10')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
   .option('--range <5-95>', 'ApeStrong range', '50')
+  .option('--picks <1-10>', 'Keno pick count', '5')
+  .option('--numbers <nums>', 'Keno numbers (e.g., 1,7,13,25,40)')
   .option('--timeout <ms>', 'Max wait for result (0 = no wait)', '0')
   .action(async (opts) => {
     const account = getWallet();
@@ -523,6 +525,8 @@ program
         spins: opts.spins,
         bet: opts.bet,
         range: opts.range,
+        picks: opts.picks,
+        numbers: opts.numbers,
         timeoutMs,
         referral: profile.referral,
       });
@@ -549,6 +553,8 @@ program
   .option('--spins <1-15>', 'Slots spins')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
   .option('--range <5-95>', 'ApeStrong range')
+  .option('--picks <1-10>', 'Keno pick count')
+  .option('--numbers <nums>', 'Keno numbers (e.g., 1,7,13,25,40)')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
   .option('--delay <seconds>', 'Delay between games in loop', '3')
@@ -583,6 +589,20 @@ program
         positionalConfig.bet = configArgs.join(',');
       } else if (fixedGame.type === 'apestrong') {
         if (configArgs[0]) positionalConfig.range = parseInt(configArgs[0]);
+      } else if (fixedGame.type === 'keno') {
+        // For keno: configArgs can be [picks] or [numbers] or [picks, numbers]
+        // If first arg is a small number (1-10), treat as picks; otherwise as numbers
+        if (configArgs[0]) {
+          const first = configArgs[0];
+          const num = parseInt(first);
+          if (!isNaN(num) && num >= 1 && num <= 10 && !first.includes(',')) {
+            positionalConfig.picks = num;
+            if (configArgs[1]) positionalConfig.numbers = configArgs.slice(1).join(',');
+          } else {
+            // Treat as numbers
+            positionalConfig.numbers = configArgs.join(',');
+          }
+        }
       }
     }
 
@@ -710,6 +730,17 @@ program
           const [min, max] = strategyConfig.apestrong?.range || [40, 60];
           gameConfig.range = randomIntInclusive(min, max);
         }
+      } else if (gameEntry.type === 'keno') {
+        // Pick count
+        if (opts.picks !== undefined) gameConfig.picks = parseInt(opts.picks);
+        else if (positionalConfig.picks !== undefined) gameConfig.picks = positionalConfig.picks;
+        else if (gameConfig.picks === undefined) {
+          const [min, max] = strategyConfig.keno?.picks || [3, 6];
+          gameConfig.picks = randomIntInclusive(min, max);
+        }
+        // Numbers (optional - will be random if not specified)
+        if (opts.numbers) gameConfig.numbers = opts.numbers;
+        else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
       }
 
       const wagerApeString = formatApeAmount(wagerApe);
@@ -724,6 +755,8 @@ program
         gameDesc += ` — ${gameConfig.bet}`;
       } else if (gameEntry.type === 'apestrong') {
         gameDesc += ` (${gameConfig.range}% chance)`;
+      } else if (gameEntry.type === 'keno') {
+        gameDesc += ` (${gameConfig.picks} picks)`;
       }
 
       // Human-friendly output: show what we're playing
@@ -742,6 +775,8 @@ program
           spins: gameConfig.spins,
           bet: gameConfig.bet,
           range: gameConfig.range,
+          picks: gameConfig.picks,
+          numbers: gameConfig.numbers,
           timeoutMs: 30000, // Wait up to 30s for result (usually 1-2s)
           referral: freshProfile.referral,
         });

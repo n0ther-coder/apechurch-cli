@@ -1,5 +1,29 @@
 export const GAME_REGISTRY = [
   {
+    key: 'keno',
+    name: 'Keno',
+    slug: 'keno',
+    type: 'keno',
+    description: 'Pick 1-10 numbers from 1-40. More picks = riskier but bigger payouts. Hit 10/10 for up to 1,000,000x!',
+    contract: '0xc936D6691737afe5240975622f0597fA2d122FAd',
+    aliases: ['k'],
+    config: {
+      picks: {
+        min: 1,
+        max: 10,
+        default: 5,
+        description: 'How many numbers to pick (1-10). More picks = higher risk/reward.',
+      },
+      numbers: {
+        description: 'Which numbers to bet on (1-40). If not specified, random picks are used.',
+        examples: ['1,7,13,25,40', '5,10,15,20,25,30,35,40', 'random'],
+      },
+    },
+    vrf: {
+      type: 'static',
+    },
+  },
+  {
     key: 'ape-strong',
     name: 'ApeStrong',
     slug: 'ape-strong',
