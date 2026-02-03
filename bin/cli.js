@@ -994,6 +994,109 @@ program
     console.log('========================================');
   });
 
+// --- COMMAND: UNINSTALL ---
+program
+  .command('uninstall')
+  .description('Remove Ape Church data (keeps wallet by default)')
+  .option('--include-wallet', 'Also delete wallet (DANGEROUS - shows private key first)')
+  .action(async (opts) => {
+    const includeWallet = Boolean(opts.includeWallet);
+    
+    console.log('');
+    
+    if (includeWallet) {
+      // Scary warning with private key display
+      if (fs.existsSync(WALLET_FILE)) {
+        let privateKey = '';
+        try {
+          const data = JSON.parse(fs.readFileSync(WALLET_FILE, 'utf8'));
+          privateKey = data.privateKey;
+        } catch {
+          console.log('⚠️  Could not read wallet file.');
+        }
+        
+        console.log('⚠️  WARNING: This will permanently DELETE your wallet!');
+        console.log('');
+        console.log('Your private key (COPY THIS NOW if you have funds):');
+        console.log('────────────────────────────────────────────────────────────────');
+        console.log(privateKey);
+        console.log('────────────────────────────────────────────────────────────────');
+        console.log('');
+        
+        // Require confirmation
+        const readline = await import('readline');
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        });
+        
+        const answer = await new Promise((resolve) => {
+          rl.question('Type DELETE to confirm, or Ctrl+C to cancel: ', resolve);
+        });
+        rl.close();
+        
+        if (answer !== 'DELETE') {
+          console.log('\n❌ Cancelled. Nothing was deleted.');
+          return;
+        }
+        
+        console.log('');
+      }
+      
+      // Delete everything
+      const filesToDelete = [WALLET_FILE, PROFILE_FILE, STATE_FILE, HISTORY_FILE];
+      for (const file of filesToDelete) {
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+      }
+      
+      // Delete skill directory
+      if (fs.existsSync(SKILL_TARGET_DIR)) {
+        fs.rmSync(SKILL_TARGET_DIR, { recursive: true });
+      }
+      
+      // Try to remove the .apechurch directory if empty
+      try {
+        fs.rmdirSync(APECHURCH_DIR);
+      } catch {
+        // Directory not empty or doesn't exist, that's fine
+      }
+      
+      console.log('✅ Uninstalled completely. Wallet and all data deleted.');
+      console.log('');
+      console.log('To remove the CLI itself, run:');
+      console.log('  npm uninstall -g @ape-church/skill');
+      
+    } else {
+      // Safe uninstall - keep wallet
+      const filesToDelete = [PROFILE_FILE, STATE_FILE, HISTORY_FILE];
+      let deletedCount = 0;
+      
+      for (const file of filesToDelete) {
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+          deletedCount++;
+        }
+      }
+      
+      // Delete skill directory
+      if (fs.existsSync(SKILL_TARGET_DIR)) {
+        fs.rmSync(SKILL_TARGET_DIR, { recursive: true });
+        deletedCount++;
+      }
+      
+      console.log('✅ Removed config, history, and skill files.');
+      console.log('');
+      console.log('🔐 Wallet preserved at: ~/.apechurch/wallet.json');
+      console.log('   (Use --include-wallet to delete wallet too)');
+      console.log('');
+      console.log('To remove the CLI itself, run:');
+      console.log('  npm uninstall -g @ape-church/skill');
+    }
+    console.log('');
+  });
+
 // --- COMMAND: STATUS (The Agent Experience) ---
 program
   .command('status')
