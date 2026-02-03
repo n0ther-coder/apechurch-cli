@@ -1141,58 +1141,114 @@ async function playGame({
   };
 }
 
+// --- Helper: Interactive Prompts ---
+async function prompt(question) {
+  const readline = await import('readline');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
 // --- COMMAND: INSTALL (The Human Experience) ---
 program
   .command('install')
   .description('Setup the Ape Church Agent')
-  .option('--username <name>', 'Username (must end with _CLAWBOT)')
+  .option('--username <name>', 'Username for your bot')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
-  .option('--private-key <key>', 'Import existing private key (skips username registration)')
+  .option('--private-key <key>', 'Import existing private key')
+  .option('-y, --quick', 'Skip interactive prompts, use defaults')
   .action(async (opts) => {
-    console.log('Initializing Ape Church Protocol...');
-
-    // 1. Setup Wallet (Self-Sovereign)
+    const isInteractive = !opts.quick && !opts.privateKey && !opts.username;
+    
     // Ensure ~/.apechurch/ directory exists
     ensureDir(APECHURCH_DIR);
     
     let address;
     let walletWasImported = false;
+    let walletExisted = fs.existsSync(WALLET_FILE);
+
+    // ═══════════════════════════════════════════════════════════════
+    // STEP 1: WALLET SETUP
+    // ═══════════════════════════════════════════════════════════════
     
-    if (opts.privateKey) {
-      // User provided a private key - import it
+    if (walletExisted) {
+      // Wallet already exists - use it
+      const data = JSON.parse(fs.readFileSync(WALLET_FILE));
+      address = privateKeyToAccount(data.privateKey).address;
+      console.log(`\n✅ Using existing wallet: ${address}`);
+    } else if (opts.privateKey) {
+      // Private key provided via flag
       let pk = opts.privateKey.trim();
-      // Ensure it has 0x prefix
-      if (!pk.startsWith('0x')) {
-        pk = '0x' + pk;
-      }
-      // Validate the key
+      if (!pk.startsWith('0x')) pk = '0x' + pk;
       try {
         const account = privateKeyToAccount(pk);
         address = account.address;
         fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey: pk }));
         walletWasImported = true;
-        console.log('Imported existing wallet.');
+        console.log(`\n✅ Imported wallet: ${address}`);
       } catch (error) {
-        console.error(`Invalid private key: ${error.message}`);
+        console.error(`\n❌ Invalid private key: ${error.message}`);
         process.exit(1);
       }
-    } else if (fs.existsSync(WALLET_FILE)) {
-      const data = JSON.parse(fs.readFileSync(WALLET_FILE));
-      address = privateKeyToAccount(data.privateKey).address;
-      console.log('Wallet already exists.');
+    } else if (isInteractive) {
+      // Interactive wallet setup
+      console.log('\n🎰 Welcome to Ape Church!\n');
+      console.log('┌─────────────────────────────────────────────────────────────────┐');
+      console.log('│                        WALLET SETUP                             │');
+      console.log('├─────────────────────────────────────────────────────────────────┤');
+      console.log('│  (1) Generate a new wallet (recommended)                        │');
+      console.log('│  (2) Import an existing private key                             │');
+      console.log('└─────────────────────────────────────────────────────────────────┘');
+      
+      const walletChoice = await prompt('\nYour choice (1 or 2): ');
+      
+      if (walletChoice.trim() === '2') {
+        // Import existing key
+        const pkInput = await prompt('Enter your private key: ');
+        let pk = pkInput.trim();
+        if (!pk.startsWith('0x')) pk = '0x' + pk;
+        try {
+          const account = privateKeyToAccount(pk);
+          address = account.address;
+          fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey: pk }));
+          walletWasImported = true;
+          console.log(`\n✅ Imported wallet: ${address}`);
+        } catch (error) {
+          console.error(`\n❌ Invalid private key: ${error.message}`);
+          process.exit(1);
+        }
+      } else {
+        // Generate new wallet
+        const pk = generatePrivateKey();
+        const account = privateKeyToAccount(pk);
+        fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey: pk }));
+        address = account.address;
+        console.log(`\n✅ Generated new wallet: ${address}`);
+        console.log('   (Export anytime with: apechurch wallet export)');
+      }
     } else {
+      // Non-interactive, no key provided - generate
       const pk = generatePrivateKey();
       const account = privateKeyToAccount(pk);
       fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey: pk }));
       address = account.address;
-      console.log('Generated new Agent Wallet.');
+      console.log(`\n✅ Generated new wallet: ${address}`);
     }
 
-    // 2. Inject the Brain (SKILL.md)
+    // ═══════════════════════════════════════════════════════════════
+    // STEP 2: INJECT SKILL FILES
+    // ═══════════════════════════════════════════════════════════════
+    
     if (!fs.existsSync(SKILL_TARGET_DIR)) {
       fs.mkdirSync(SKILL_TARGET_DIR, { recursive: true });
     }
-    // Robust path finding for ESM modules
     const assetsDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../assets');
     const assetFiles = ['SKILL.md', 'HEARTBEAT.md', 'STRATEGY.md', 'skill.json'];
     for (const file of assetFiles) {
@@ -1201,37 +1257,116 @@ program
         fs.copyFileSync(source, path.join(SKILL_TARGET_DIR, file));
       }
     }
-    console.log('Injected skill files into Agent brain.');
 
-    // 3. Register username (skip if wallet was imported)
+    // ═══════════════════════════════════════════════════════════════
+    // STEP 3: USERNAME SETUP
+    // ═══════════════════════════════════════════════════════════════
+    
     const localProfile = loadProfile();
     const persona = normalizeStrategy(opts.persona || localProfile.persona || 'balanced');
     let username;
-    try {
-      username = normalizeUsername(opts.username || localProfile.username || '');
-    } catch (error) {
-      console.error(`Invalid username provided; generating one. Reason: ${error.message}`);
-      username = normalizeUsername('');
+    let usernameRegistered = false;
+
+    if (opts.username) {
+      // Username provided via flag
+      try {
+        username = normalizeUsername(opts.username);
+      } catch (error) {
+        console.error(`\n❌ Invalid username: ${error.message}`);
+        username = generateUsername();
+        console.log(`   Using auto-generated: ${username}`);
+      }
+    } else if (isInteractive && !walletWasImported) {
+      // Interactive username setup
+      console.log('\n┌─────────────────────────────────────────────────────────────────┐');
+      console.log('│                       USERNAME SETUP                            │');
+      console.log('├─────────────────────────────────────────────────────────────────┤');
+      console.log('│  Choose a username for your bot on Ape Church.                  │');
+      console.log('│  (Letters, numbers, underscores only. Max 32 characters)        │');
+      console.log('│  Leave blank for auto-generated name.                           │');
+      console.log('└─────────────────────────────────────────────────────────────────┘');
+      
+      let usernameValid = false;
+      while (!usernameValid) {
+        const usernameInput = await prompt('\nUsername: ');
+        
+        if (!usernameInput.trim()) {
+          username = generateUsername();
+          console.log(`Using auto-generated: ${username}`);
+          usernameValid = true;
+        } else {
+          try {
+            username = normalizeUsername(usernameInput);
+            usernameValid = true;
+          } catch (error) {
+            console.log(`❌ ${error.message}`);
+            console.log('   Try again (letters, numbers, underscores, max 32 chars)');
+          }
+        }
+      }
+      
+      // Try to register the username
+      console.log(`\nRegistering "${username}"...`);
+      try {
+        await registerUsername({ account: getWallet(), username, persona });
+        console.log(`✅ Username "${username}" registered!`);
+        usernameRegistered = true;
+      } catch (error) {
+        const errorMsg = error.message || 'Unknown error';
+        if (errorMsg.includes('taken') || errorMsg.includes('exists')) {
+          console.log(`❌ Username "${username}" is already taken.`);
+          // Let them try again
+          let retrying = true;
+          while (retrying) {
+            const retryInput = await prompt('Try another username (or press Enter for auto): ');
+            if (!retryInput.trim()) {
+              username = generateUsername();
+              console.log(`Using auto-generated: ${username}`);
+            } else {
+              try {
+                username = normalizeUsername(retryInput);
+              } catch (e) {
+                console.log(`❌ ${e.message}`);
+                continue;
+              }
+            }
+            console.log(`Registering "${username}"...`);
+            try {
+              await registerUsername({ account: getWallet(), username, persona });
+              console.log(`✅ Username "${username}" registered!`);
+              usernameRegistered = true;
+              retrying = false;
+            } catch (retryError) {
+              console.log(`❌ ${retryError.message || 'Registration failed'}`);
+            }
+          }
+        } else {
+          console.log(`⚠️  Registration failed: ${errorMsg}`);
+          console.log('   You can retry later with: apechurch register --username <NAME>');
+        }
+      }
+    } else {
+      // Non-interactive or imported wallet
+      username = generateUsername();
+      if (!walletWasImported) {
+        try {
+          await registerUsername({ account: getWallet(), username, persona });
+          usernameRegistered = true;
+        } catch (error) {
+          // Silent fail for non-interactive
+        }
+      }
     }
+
+    // Save profile and state
     saveProfile({ ...localProfile, persona, username });
     const state = loadState();
     state.strategy = persona;
     saveState(state);
 
-    if (walletWasImported) {
-      // Skip SIWE registration for imported wallets - user likely already has an account
-      console.log(`Username: ${username} (local only - SIWE registration skipped for imported wallet)`);
-      console.log('If you need to register/update your username, run: apechurch register --username <NAME>');
-    } else {
-      const usernameWasProvided = opts.username && opts.username.trim().length > 0;
-      console.log(`Username: ${username}${usernameWasProvided ? '' : ' (auto-generated)'}`);
-      try {
-        await registerUsername({ account: getWallet(), username, persona });
-        console.log('Username registered via SIWE.');
-      } catch (error) {
-        console.error(`Username registration failed: ${error.message}`);
-        console.log('You can retry later with: apechurch register --username <NAME>');
-      }
+    if (walletWasImported && !usernameRegistered) {
+      console.log(`\nUsername: ${username} (local only)`);
+      console.log('To register on Ape Church, run: apechurch register --username <NAME>');
     }
 
     // 4. The Handshake
@@ -1278,32 +1413,30 @@ program
     console.log('QUICK REFERENCE');
     console.log('========================================');
     console.log('PLAY:');
-    console.log('  apechurch play              Play one game');
-    console.log('  apechurch play --loop       Play continuously (3s between games)');
+    console.log('  apechurch play roulette 50 RED    Play roulette');
+    console.log('  apechurch play baccarat 50 BANKER Play baccarat');
+    console.log('  apechurch play --loop             Play continuously');
     console.log('');
-    console.log('GAMES (auto-selected, or use --game):');
-    console.log('  jungle-plinko    Plinko (--mode 0-4, --balls 1-100)');
-    console.log('  dino-dough       Slots (--spins 1-15)');
-    console.log('  bubblegum-heist  Slots (--spins 1-15)');
+    console.log('GAMES:');
+    console.log('  baccarat         PLAYER | BANKER | TIE');
+    console.log('  roulette         Numbers, colors, sections');
+    console.log('  jungle-plinko    Plinko (mode, balls)');
+    console.log('  dino-dough       Slots (spins)');
+    console.log('  bubblegum-heist  Slots (spins)');
     console.log('');
-    console.log('STRATEGIES (controls bet sizing):');
-    console.log('  conservative     5% of balance per bet');
-    console.log('  balanced         8% of balance per bet (default)');
-    console.log('  aggressive       12% of balance per bet');
-    console.log('  degen            20% of balance per bet');
+    console.log('WALLET:');
+    console.log('  apechurch wallet show       View wallet address');
+    console.log('  apechurch wallet export     Export private key');
     console.log('');
     console.log('STATUS & INFO:');
-    console.log('  apechurch status            View wallet address & balance');
-    console.log('  apechurch games             List all available games');
-    console.log('  apechurch commands          Full command reference');
+    console.log('  apechurch status            View balance & status');
+    console.log('  apechurch games             List all games');
+    console.log('  apechurch game <name>       Game details');
     console.log('');
-    console.log('CONTROL:');
-    console.log('  apechurch pause             Pause play');
-    console.log('  apechurch resume            Resume play');
-    console.log('');
-    console.log('CHANGE SETTINGS:');
-    console.log('  apechurch register --username <NAME>    Change username');
-    console.log('  apechurch profile set --persona <TYPE>  Change bet sizing');
+    console.log('SETTINGS:');
+    console.log('  apechurch register --username <NAME>');
+    console.log('  apechurch profile set --persona <TYPE>');
+    console.log('  apechurch pause / resume');
     console.log('========================================');
   });
 
@@ -1408,6 +1541,76 @@ program
       console.log('  npm uninstall -g @ape-church/skill');
     }
     console.log('');
+  });
+
+// --- COMMAND: WALLET (Manage wallet) ---
+const walletCommand = program.command('wallet').description('Manage your wallet');
+
+walletCommand
+  .command('export')
+  .description('Export your private key (SENSITIVE!)')
+  .option('--json', 'Output JSON only')
+  .action(async (opts) => {
+    if (!fs.existsSync(WALLET_FILE)) {
+      if (opts.json) {
+        console.log(JSON.stringify({ error: 'No wallet found. Run install first.' }));
+      } else {
+        console.log('❌ No wallet found. Run `apechurch install` first.');
+      }
+      process.exit(1);
+    }
+
+    let privateKey = '';
+    let address = '';
+    try {
+      const data = JSON.parse(fs.readFileSync(WALLET_FILE, 'utf8'));
+      privateKey = data.privateKey;
+      address = privateKeyToAccount(privateKey).address;
+    } catch (error) {
+      if (opts.json) {
+        console.log(JSON.stringify({ error: 'Failed to read wallet file.' }));
+      } else {
+        console.log('❌ Failed to read wallet file.');
+      }
+      process.exit(1);
+    }
+
+    if (opts.json) {
+      console.log(JSON.stringify({ address, privateKey }));
+    } else {
+      console.log('');
+      console.log('⚠️  WARNING: Your private key controls all funds in this wallet!');
+      console.log('   Never share it. Never paste it into websites.');
+      console.log('');
+      console.log('┌─────────────────────────────────────────────────────────────────┐');
+      console.log(`│ Address: ${address} │`);
+      console.log('├─────────────────────────────────────────────────────────────────┤');
+      console.log(`│ ${privateKey} │`);
+      console.log('└─────────────────────────────────────────────────────────────────┘');
+      console.log('');
+    }
+  });
+
+walletCommand
+  .command('show')
+  .description('Show wallet address (no private key)')
+  .option('--json', 'Output JSON only')
+  .action(async (opts) => {
+    if (!fs.existsSync(WALLET_FILE)) {
+      if (opts.json) {
+        console.log(JSON.stringify({ error: 'No wallet found. Run install first.' }));
+      } else {
+        console.log('❌ No wallet found. Run `apechurch install` first.');
+      }
+      process.exit(1);
+    }
+
+    const account = getWallet();
+    if (opts.json) {
+      console.log(JSON.stringify({ address: account.address }));
+    } else {
+      console.log(`Address: ${account.address}`);
+    }
   });
 
 // --- COMMAND: STATUS (The Agent Experience) ---
@@ -2591,12 +2794,24 @@ ABOUT
 GETTING STARTED
 ========================================
 
-  apechurch install [--username NAME] [--persona TYPE] [--private-key KEY]
-    Set up your agent wallet and register on Ape Church.
-    Use --private-key to import an existing wallet (skips SIWE registration).
+  apechurch install
+    Interactive setup - guides you through wallet and username creation.
+    
+    Options:
+      --username <name>    Pre-set username (skip prompt)
+      --private-key <key>  Import existing wallet (skip prompt)
+      --persona <type>     Set betting strategy
+      -y, --quick          Skip all prompts, use defaults
 
   apechurch status [--json]
     Check your wallet balance and current status.
+
+========================================
+WALLET
+========================================
+
+  apechurch wallet show       Show wallet address
+  apechurch wallet export     Export private key (with warning)
 
 ========================================
 PLAYING GAMES
@@ -2625,7 +2840,8 @@ PLAYING GAMES
     Examples:
       apechurch play                           # Random everything
       apechurch play roulette 50 RED           # 50 APE on red
-      apechurch play roulette 100 RED,BLACK    # Hedge bet (2.5% profit unless 0/00)
+      apechurch play baccarat 50 BANKER        # 50 APE on banker
+      apechurch play baccarat 150 140 BANKER 10 TIE  # Combined bet
       apechurch play jungle-plinko 10 2 50     # 10 APE, mode 2, 50 balls
       apechurch play --loop                    # Continuous random games
 
