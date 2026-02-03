@@ -413,6 +413,39 @@ function saveState(state) {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
+// --- History tracking ---
+const HISTORY_FILE = path.join(APECHURCH_DIR, 'history.json');
+const MAX_HISTORY_ENTRIES = 1000;
+
+function loadHistory() {
+  ensureDir(APECHURCH_DIR);
+  if (!fs.existsSync(HISTORY_FILE)) {
+    return { games: [] };
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8'));
+    return { games: Array.isArray(data.games) ? data.games : [] };
+  } catch {
+    return { games: [] };
+  }
+}
+
+function saveHistory(history) {
+  ensureDir(APECHURCH_DIR);
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2));
+}
+
+function saveGameToHistory({ contract, gameId, timestamp }) {
+  const history = loadHistory();
+  // Add new game at the beginning (newest first)
+  history.games.unshift({ contract, gameId, timestamp });
+  // Keep only the last MAX_HISTORY_ENTRIES
+  if (history.games.length > MAX_HISTORY_ENTRIES) {
+    history.games = history.games.slice(0, MAX_HISTORY_ENTRIES);
+  }
+  saveHistory(history);
+}
+
 function normalizeStrategy(value) {
   const normalized = String(value || '').toLowerCase();
   if (['conservative', 'balanced', 'aggressive', 'degen'].includes(normalized)) {
@@ -1503,6 +1536,13 @@ program
           : 0;
         const won = pnl >= 0;
 
+        // Save to history
+        saveGameToHistory({
+          contract: playResponse.contract,
+          gameId: playResponse.gameId,
+          timestamp: Date.now(),
+        });
+
         const response = {
           action: 'play',
           status: playResponse.status,
@@ -1513,11 +1553,6 @@ program
           payout_ape: playResponse.result?.payout_ape || '0',
           tx: playResponse.tx,
           game_url: playResponse.game_url,
-          session: {
-            wins: state.sessionWins,
-            losses: state.sessionLosses,
-            total_pnl_ape: formatEther(BigInt(state.totalPnLWei)),
-          },
         };
 
         if (opts.json) {
@@ -1529,7 +1564,6 @@ program
           console.log(`${emoji} ${response.outcome}: ${pnlStr} APE | Game: ${response.game} | Wager: ${wagerApeString} APE`);
           console.log(`   TX: ${response.tx}`);
           console.log(`   Replay: ${response.game_url}`);
-          console.log(`   Session: ${state.sessionWins}W/${state.sessionLosses}L (${formatEther(BigInt(state.totalPnLWei))} APE total)`);
         }
 
         return { shouldStop: false };
