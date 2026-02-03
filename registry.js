@@ -1,5 +1,75 @@
 export const GAME_REGISTRY = [
   {
+    key: 'baccarat',
+    name: 'Baccarat',
+    slug: 'baccarat',
+    type: 'baccarat',
+    description: 'Classic baccarat. Bet on Player (2x), Banker (1.95x), or Tie (9x).',
+    contract: '0xB08C669dc0419151bA4e4920E80128802dB5497b',
+    aliases: ['bacc'],
+    config: {
+      bet: {
+        description: 'What to bet on: PLAYER, BANKER, TIE. For combined bets, specify amounts explicitly.',
+        examples: ['PLAYER', 'BANKER', 'TIE', '140 BANKER 10 TIE', '180 PLAYER 20 TIE'],
+      },
+    },
+    multipliers: {
+      player: 2.0,
+      banker: 1.95,
+      tie: 9.0,
+    },
+    vrf: {
+      type: 'static',
+    },
+  },
+  {
+    key: 'roulette',
+    name: 'Roulette',
+    slug: 'roulette',
+    type: 'roulette',
+    description: 'Classic roulette with American layout (0, 00, 1-36). Bet on numbers, colors, or sections.',
+    contract: '0x1f48A104C1808eb4107f3999999D36aeafEC56d5',
+    aliases: ['rl'],
+    config: {
+      bet: {
+        description: 'What to bet on. Numbers (0-36, 00), colors (RED, BLACK), parity (ODD, EVEN), sections, etc.',
+        examples: ['RED', 'BLACK', '17', '0', '00', 'RED,BLACK', 'FIRST_THIRD', 'ODD'],
+      },
+    },
+    // Bet type mappings (user input → on-chain value)
+    betTypes: {
+      '0': 1,           // Zero
+      '00': 38,         // Double Zero
+      // Numbers 1-36 map to 2-37 (handled dynamically)
+      'FIRST_THIRD': 39,
+      'SECOND_THIRD': 40,
+      'THIRD_THIRD': 41,
+      'FIRST_COL': 42,
+      'FIRST_COLUMN': 42,
+      'SECOND_COL': 43,
+      'SECOND_COLUMN': 43,
+      'THIRD_COL': 44,
+      'THIRD_COLUMN': 44,
+      'FIRST_HALF': 45,
+      'SECOND_HALF': 46,
+      'EVEN': 47,
+      'ODD': 48,
+      'BLACK': 49,
+      'RED': 50,
+    },
+    multipliers: {
+      number: 36.9,      // Single number (including 0, 00)
+      color: 2.05,       // RED, BLACK
+      parity: 2.05,      // ODD, EVEN
+      half: 2.05,        // FIRST_HALF, SECOND_HALF
+      third: 3.075,      // FIRST_THIRD, SECOND_THIRD, THIRD_THIRD
+      column: 3.075,     // FIRST_COL, SECOND_COL, THIRD_COL
+    },
+    vrf: {
+      type: 'static',    // Uses getVRFFee() with no args
+    },
+  },
+  {
     key: 'jungle-plinko',
     name: 'Jungle Plinko',
     slug: 'jungle-plinko',

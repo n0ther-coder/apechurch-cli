@@ -480,6 +480,8 @@ function getStrategyConfig(strategy) {
       baseCooldownMs: 60 * 1000, // 60 seconds
       plinko: { mode: [0, 1], balls: [80, 100] },
       slots: { spins: [10, 15] },
+      roulette: { defaultBet: 'RED,BLACK' }, // 2.5% profit unless 0/00
+      baccarat: { defaultBet: 'BANKER' }, // Banker has best odds
       gameWeights: defaultWeights,
     },
     balanced: {
@@ -489,6 +491,8 @@ function getStrategyConfig(strategy) {
       baseCooldownMs: 30 * 1000, // 30 seconds
       plinko: { mode: [1, 2], balls: [50, 90] },
       slots: { spins: [7, 12] },
+      roulette: { defaultBet: 'random' }, // RED or BLACK
+      baccarat: { defaultBet: 'random' }, // PLAYER or BANKER
       gameWeights: defaultWeights,
     },
     aggressive: {
@@ -498,6 +502,8 @@ function getStrategyConfig(strategy) {
       baseCooldownMs: 15 * 1000, // 15 seconds
       plinko: { mode: [2, 4], balls: [20, 70] },
       slots: { spins: [3, 10] },
+      roulette: { defaultBet: 'random' }, // RED or BLACK
+      baccarat: { defaultBet: 'random' }, // PLAYER or BANKER
       gameWeights: defaultWeights,
     },
     degen: {
@@ -507,6 +513,8 @@ function getStrategyConfig(strategy) {
       baseCooldownMs: 10 * 1000, // 10 seconds
       plinko: { mode: [3, 4], balls: [10, 40] },
       slots: { spins: [2, 6] },
+      roulette: { defaultBet: 'random' }, // RED or BLACK
+      baccarat: { defaultBet: 'random' }, // PLAYER or BANKER
       gameWeights: defaultWeights,
     },
   };
@@ -641,6 +649,24 @@ function selectGameAndConfig(strategyConfig) {
     return { game: gameEntry.key, spins };
   }
 
+  if (gameEntry.type === 'roulette') {
+    const rouletteConfig = strategyConfig.roulette || { defaultBet: 'random' };
+    let bet = rouletteConfig.defaultBet;
+    if (bet === 'random') {
+      bet = Math.random() < 0.5 ? 'RED' : 'BLACK';
+    }
+    return { game: gameEntry.key, bet };
+  }
+
+  if (gameEntry.type === 'baccarat') {
+    const baccaratConfig = strategyConfig.baccarat || { defaultBet: 'random' };
+    let bet = baccaratConfig.defaultBet;
+    if (bet === 'random') {
+      bet = Math.random() < 0.5 ? 'PLAYER' : 'BANKER';
+    }
+    return { game: gameEntry.key, bet };
+  }
+
   return { game: gameEntry.key };
 }
 
@@ -657,6 +683,191 @@ function addBigIntStrings(a, b) {
   return (BigInt(a) + BigInt(b)).toString();
 }
 
+// --- Roulette Bet Parsing ---
+// Converts user-friendly bet strings to on-chain values
+function parseRouletteBets(betString, gameEntry) {
+  if (!betString || typeof betString !== 'string') {
+    throw new Error('No bet specified for roulette. Use: RED, BLACK, 0, 00, 1-36, etc.');
+  }
+
+  const betTypes = gameEntry.betTypes || {};
+  const bets = betString.split(',').map(b => b.trim().toUpperCase()).filter(b => b.length > 0);
+  
+  if (bets.length === 0) {
+    throw new Error('No valid bets found. Use: RED, BLACK, 0, 00, 1-36, etc.');
+  }
+
+  const gameNumbers = [];
+  
+  for (const bet of bets) {
+    // Check if it's a named bet type (RED, BLACK, etc.)
+    if (betTypes[bet] !== undefined) {
+      gameNumbers.push(betTypes[bet]);
+      continue;
+    }
+    
+    // Check if it's a number 1-36
+    const num = parseInt(bet, 10);
+    if (!isNaN(num) && num >= 1 && num <= 36) {
+      // Numbers 1-36 map to on-chain values 2-37 (offset by +1)
+      gameNumbers.push(num + 1);
+      continue;
+    }
+    
+    throw new Error(`Invalid bet: "${bet}". Valid bets: 0, 00, 1-36, RED, BLACK, ODD, EVEN, FIRST_THIRD, SECOND_THIRD, THIRD_THIRD, FIRST_HALF, SECOND_HALF, FIRST_COL, SECOND_COL, THIRD_COL`);
+  }
+  
+  return gameNumbers;
+}
+
+// Calculate roulette bet amounts from total wager
+// Splits evenly across all bets, handles the 1-wei bug for single bets
+function calculateRouletteBetAmounts(totalWagerWei, gameNumbers) {
+  const numBets = BigInt(gameNumbers.length);
+  const amountPerBet = totalWagerWei / numBets;
+  
+  if (amountPerBet === BigInt(0)) {
+    throw new Error('Wager too small to split across all bets.');
+  }
+  
+  const amounts = [];
+  for (let i = 0; i < gameNumbers.length; i++) {
+    amounts.push(amountPerBet);
+  }
+  
+  // Handle 1-wei bug: if single bet, subtract 1 wei
+  if (gameNumbers.length === 1) {
+    amounts[0] = amounts[0] - BigInt(1);
+    if (amounts[0] <= BigInt(0)) {
+      throw new Error('Wager too small (need more than 1 wei for single bet).');
+    }
+  }
+  
+  return amounts;
+}
+
+// Get default roulette bet based on strategy
+function getRouletteDefaultBet(strategy) {
+  // All strategies use RED or BLACK - just different bet sizing
+  // Conservative uses both for 2.5% guaranteed profit (unless 0/00)
+  if (strategy === 'conservative') {
+    return 'RED,BLACK';
+  }
+  // Others pick one randomly
+  return Math.random() < 0.5 ? 'RED' : 'BLACK';
+}
+
+// --- Baccarat Bet Parsing ---
+// Parses bet config and returns { playerBankerBet, tieBet, isBanker }
+// Supports:
+//   "BANKER" or "PLAYER" or "TIE" - all on one
+//   "140,BANKER,10,TIE" - explicit amounts (from positional: 140 BANKER 10 TIE)
+function parseBaccaratBet(betConfig, totalWagerWei) {
+  if (!betConfig || typeof betConfig !== 'string') {
+    throw new Error('No bet specified for baccarat. Use: PLAYER, BANKER, TIE, or "<amount> BANKER <amount> TIE"');
+  }
+
+  const parts = betConfig.split(',').map(b => b.trim().toUpperCase()).filter(b => b.length > 0);
+  
+  if (parts.length === 0) {
+    throw new Error('No valid bet found.');
+  }
+
+  let playerBankerBet = BigInt(0);
+  let tieBet = BigInt(0);
+  let isBanker = false;
+  let playerBankerAmount = null;
+  let tieAmount = null;
+
+  // Simple case: just "PLAYER", "BANKER", or "TIE"
+  if (parts.length === 1) {
+    const bet = parts[0];
+    if (bet === 'PLAYER') {
+      return { playerBankerBet: totalWagerWei, tieBet: BigInt(0), isBanker: false };
+    } else if (bet === 'BANKER') {
+      return { playerBankerBet: totalWagerWei, tieBet: BigInt(0), isBanker: true };
+    } else if (bet === 'TIE') {
+      return { playerBankerBet: BigInt(0), tieBet: totalWagerWei, isBanker: false };
+    } else {
+      throw new Error(`Invalid bet: "${bet}". Use: PLAYER, BANKER, or TIE`);
+    }
+  }
+
+  // Complex case: parse "amount BET amount BET" pattern
+  // Expected: ["140", "BANKER", "10", "TIE"] or ["180", "PLAYER", "20", "TIE"]
+  let i = 0;
+  while (i < parts.length) {
+    const current = parts[i];
+    
+    // Check if it's a number (amount)
+    const amount = parseFloat(current);
+    if (!isNaN(amount) && amount > 0) {
+      // Next part should be the bet type
+      const betType = parts[i + 1];
+      if (!betType) {
+        throw new Error(`Expected bet type after amount ${amount}`);
+      }
+      
+      const amountWei = parseEther(String(amount));
+      
+      if (betType === 'PLAYER') {
+        if (playerBankerAmount !== null) {
+          throw new Error('Cannot specify PLAYER amount twice');
+        }
+        if (isBanker) {
+          throw new Error('Cannot bet on both PLAYER and BANKER');
+        }
+        playerBankerAmount = amountWei;
+        isBanker = false;
+        i += 2;
+      } else if (betType === 'BANKER') {
+        if (playerBankerAmount !== null) {
+          throw new Error('Cannot specify BANKER amount twice');
+        }
+        playerBankerAmount = amountWei;
+        isBanker = true;
+        i += 2;
+      } else if (betType === 'TIE') {
+        if (tieAmount !== null) {
+          throw new Error('Cannot specify TIE amount twice');
+        }
+        tieAmount = amountWei;
+        i += 2;
+      } else {
+        throw new Error(`Invalid bet type: "${betType}". Use: PLAYER, BANKER, or TIE`);
+      }
+    } else if (current === 'PLAYER' || current === 'BANKER' || current === 'TIE') {
+      // Bare bet type without amount - invalid in complex mode
+      throw new Error(`Missing amount before ${current}. Use: "<amount> ${current}"`);
+    } else {
+      throw new Error(`Invalid token: "${current}". Expected amount or bet type.`);
+    }
+  }
+
+  playerBankerBet = playerBankerAmount || BigInt(0);
+  tieBet = tieAmount || BigInt(0);
+
+  // Validate total matches
+  const specifiedTotal = playerBankerBet + tieBet;
+  if (specifiedTotal !== totalWagerWei) {
+    const specifiedApe = formatEther(specifiedTotal);
+    const expectedApe = formatEther(totalWagerWei);
+    throw new Error(`Bet amounts (${specifiedApe} APE) don't match total wager (${expectedApe} APE)`);
+  }
+
+  return { playerBankerBet, tieBet, isBanker };
+}
+
+// Get default baccarat bet based on strategy
+function getBaccaratDefaultBet(strategy) {
+  // Banker has slightly better odds (1.95x vs 2x accounts for house edge)
+  // Conservative plays banker, others random
+  if (strategy === 'conservative') {
+    return 'BANKER';
+  }
+  return Math.random() < 0.5 ? 'PLAYER' : 'BANKER';
+}
+
 async function playGame({
   account,
   game,
@@ -664,6 +875,7 @@ async function playGame({
   mode,
   balls,
   spins,
+  bet,        // Roulette: bet string like "RED" or "RED,BLACK,17"
   timeoutMs,
   referral,
 }) {
@@ -767,6 +979,80 @@ async function playGame({
     gameName = gameEntry.key;
     gameUrl = `https://www.ape.church/games/${gameEntry.slug}?id=${gameId.toString()}`;
     config = { spins: spinsValue };
+  } else if (gameEntry.type === 'roulette') {
+    // Parse bet string into on-chain game numbers
+    const gameNumbers = parseRouletteBets(bet, gameEntry);
+    
+    // Get VRF fee (static, no args)
+    try {
+      vrfFee = await publicClient.readContract({
+        address: gameEntry.contract,
+        abi: SLOTS_VRF_ABI, // Same ABI - getVRFFee() with no args
+        functionName: 'getVRFFee',
+      });
+    } catch (error) {
+      throw new Error(`Failed to read VRF fee (roulette): ${sanitizeError(error)}`);
+    }
+
+    // Calculate bet amounts (split evenly, handle 1-wei bug)
+    const betAmounts = calculateRouletteBetAmounts(wager, gameNumbers);
+
+    encodedData = encodeAbiParameters(
+      [
+        { name: 'gameNumbers', type: 'uint8[]' },
+        { name: 'amounts', type: 'uint256[]' },
+        { name: 'gameId', type: 'uint256' },
+        { name: 'ref', type: 'address' },
+        { name: 'userRandomWord', type: 'bytes32' },
+      ],
+      [gameNumbers, betAmounts, gameId, refAddress, userRandomWord]
+    );
+
+    contractAddress = gameEntry.contract;
+    gameName = gameEntry.key;
+    gameUrl = `https://www.ape.church/games/${gameEntry.slug}?id=${gameId.toString()}`;
+    config = { bet, gameNumbers, numBets: gameNumbers.length };
+  } else if (gameEntry.type === 'baccarat') {
+    // Parse baccarat bet
+    const { playerBankerBet, tieBet, isBanker } = parseBaccaratBet(bet, wager);
+
+    // Get VRF fee (static, no args)
+    try {
+      vrfFee = await publicClient.readContract({
+        address: gameEntry.contract,
+        abi: SLOTS_VRF_ABI,
+        functionName: 'getVRFFee',
+      });
+    } catch (error) {
+      throw new Error(`Failed to read VRF fee (baccarat): ${sanitizeError(error)}`);
+    }
+
+    encodedData = encodeAbiParameters(
+      [
+        { name: 'gameId', type: 'uint256' },
+        { name: 'playerBankerBet', type: 'uint256' },
+        { name: 'tieBet', type: 'uint256' },
+        { name: 'isBanker', type: 'bool' },
+        { name: 'ref', type: 'address' },
+        { name: 'userRandomWord', type: 'bytes32' },
+      ],
+      [gameId, playerBankerBet, tieBet, isBanker, refAddress, userRandomWord]
+    );
+
+    contractAddress = gameEntry.contract;
+    gameName = gameEntry.key;
+    gameUrl = `https://www.ape.church/games/${gameEntry.slug}?id=${gameId.toString()}`;
+    
+    // Build config for output
+    const betType = isBanker ? 'BANKER' : (playerBankerBet > 0n ? 'PLAYER' : '');
+    const hasTie = tieBet > 0n;
+    config = { 
+      bet,
+      betType: hasTie && betType ? `${betType},TIE` : (hasTie ? 'TIE' : betType),
+      playerBankerBet: formatEther(playerBankerBet),
+      tieBet: formatEther(tieBet),
+      isBanker,
+    };
   } else {
     throw new Error(`Unsupported game type: ${gameEntry.type}`);
   }
@@ -861,15 +1147,36 @@ program
   .description('Setup the Ape Church Agent')
   .option('--username <name>', 'Username (must end with _CLAWBOT)')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
+  .option('--private-key <key>', 'Import existing private key (skips username registration)')
   .action(async (opts) => {
     console.log('Initializing Ape Church Protocol...');
 
-    // 1. Generate Wallet (Self-Sovereign)
+    // 1. Setup Wallet (Self-Sovereign)
     // Ensure ~/.apechurch/ directory exists
     ensureDir(APECHURCH_DIR);
     
     let address;
-    if (fs.existsSync(WALLET_FILE)) {
+    let walletWasImported = false;
+    
+    if (opts.privateKey) {
+      // User provided a private key - import it
+      let pk = opts.privateKey.trim();
+      // Ensure it has 0x prefix
+      if (!pk.startsWith('0x')) {
+        pk = '0x' + pk;
+      }
+      // Validate the key
+      try {
+        const account = privateKeyToAccount(pk);
+        address = account.address;
+        fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey: pk }));
+        walletWasImported = true;
+        console.log('Imported existing wallet.');
+      } catch (error) {
+        console.error(`Invalid private key: ${error.message}`);
+        process.exit(1);
+      }
+    } else if (fs.existsSync(WALLET_FILE)) {
       const data = JSON.parse(fs.readFileSync(WALLET_FILE));
       address = privateKeyToAccount(data.privateKey).address;
       console.log('Wallet already exists.');
@@ -896,7 +1203,7 @@ program
     }
     console.log('Injected skill files into Agent brain.');
 
-    // 3. Register username (optional, auto if missing)
+    // 3. Register username (skip if wallet was imported)
     const localProfile = loadProfile();
     const persona = normalizeStrategy(opts.persona || localProfile.persona || 'balanced');
     let username;
@@ -911,14 +1218,20 @@ program
     state.strategy = persona;
     saveState(state);
 
-    const usernameWasProvided = opts.username && opts.username.trim().length > 0;
-    console.log(`Username: ${username}${usernameWasProvided ? '' : ' (auto-generated)'}`);
-    try {
-      await registerUsername({ account: getWallet(), username, persona });
-      console.log('Username registered via SIWE.');
-    } catch (error) {
-      console.error(`Username registration failed: ${error.message}`);
-      console.log('You can retry later with: apechurch register --username <NAME>');
+    if (walletWasImported) {
+      // Skip SIWE registration for imported wallets - user likely already has an account
+      console.log(`Username: ${username} (local only - SIWE registration skipped for imported wallet)`);
+      console.log('If you need to register/update your username, run: apechurch register --username <NAME>');
+    } else {
+      const usernameWasProvided = opts.username && opts.username.trim().length > 0;
+      console.log(`Username: ${username}${usernameWasProvided ? '' : ' (auto-generated)'}`);
+      try {
+        await registerUsername({ account: getWallet(), username, persona });
+        console.log('Username registered via SIWE.');
+      } catch (error) {
+        console.error(`Username registration failed: ${error.message}`);
+        console.log('You can retry later with: apechurch register --username <NAME>');
+      }
     }
 
     // 4. The Handshake
@@ -1260,6 +1573,7 @@ program
   .option('--mode <0-4>', 'Game mode (0-4). Higher is riskier.', '0')
   .option('--balls <1-100>', 'Number of balls to drop (1-100).', '50')
   .option('--spins <1-15>', 'Number of spins for slots (1-15).', '10')
+  .option('--bet <bet>', 'Roulette bet (RED, BLACK, 17, RED,BLACK, etc.)')
   .option('--timeout <ms>', 'Max ms to wait for GameEnded event. Use 0 to wait indefinitely.', '0')
   .action(async (opts) => {
     const account = getWallet();
@@ -1299,6 +1613,7 @@ program
         mode: opts.mode,
         balls: opts.balls,
         spins: opts.spins,
+        bet: opts.bet,
         timeoutMs,
         referral: profile.referral,
       });
@@ -1439,6 +1754,7 @@ program
           mode: selection.mode,
           balls: selection.balls,
           spins: selection.spins,
+          bet: selection.bet,
           timeoutMs,
           referral: freshProfile.referral,
         });
@@ -1542,32 +1858,62 @@ program
   });
 
 // --- COMMAND: PLAY (Unified play command - flexible params) ---
+// Supports both positional and flag-based syntax:
+//   apechurch play roulette 50 RED           (positional)
+//   apechurch play --game roulette --amount 50 --bet RED (flags)
+//   apechurch play jungle-plinko 10 2 50     (positional: game amount mode balls)
 program
-  .command('play')
+  .command('play [game] [amount] [configArgs...]')
   .description('Play a game (random or specified)')
   .option('--game <name>', 'Game to play (random if not specified)')
   .option('--amount <ape>', 'Amount to wager (strategy-based if not specified)')
   .option('--mode <0-4>', 'Plinko mode/risk level')
   .option('--balls <1-100>', 'Plinko balls to drop')
   .option('--spins <1-15>', 'Slots spins per bet')
+  .option('--bet <bet>', 'Roulette bet (RED, BLACK, 17, RED,BLACK, etc.)')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously with 3s between games')
   .option('--delay <seconds>', 'Seconds between games in loop mode', '3')
   .option('--json', 'Output JSON only')
-  .action(async (opts) => {
+  .action(async (gameArg, amountArg, configArgs, opts) => {
     const account = getWallet();
     const loopMode = Boolean(opts.loop);
     const delaySeconds = Math.max(parseFloat(opts.delay) || 3, 1);
     const delayMs = delaySeconds * 1000;
 
+    // Merge positional args with flag options (positional takes precedence if both provided)
+    const gameInput = gameArg || opts.game;
+    const amountInput = amountArg || opts.amount;
+    
     // Validate game if specified
     let fixedGame = null;
-    if (opts.game) {
-      fixedGame = resolveGame(opts.game);
+    if (gameInput) {
+      fixedGame = resolveGame(gameInput);
       if (!fixedGame) {
         const availableGames = GAME_REGISTRY.map(g => g.key).join(', ');
-        console.error(JSON.stringify({ error: `Unknown game: ${opts.game}`, available: availableGames }));
+        console.error(JSON.stringify({ error: `Unknown game: ${gameInput}`, available: availableGames }));
         process.exit(1);
+      }
+    }
+    
+    // Parse positional config args based on game type
+    let positionalConfig = {};
+    if (fixedGame && configArgs && configArgs.length > 0) {
+      if (fixedGame.type === 'plinko') {
+        // For plinko: configArgs = [mode, balls]
+        if (configArgs[0]) positionalConfig.mode = parseInt(configArgs[0]);
+        if (configArgs[1]) positionalConfig.balls = parseInt(configArgs[1]);
+      } else if (fixedGame.type === 'slots') {
+        // For slots: configArgs = [spins]
+        if (configArgs[0]) positionalConfig.spins = parseInt(configArgs[0]);
+      } else if (fixedGame.type === 'roulette') {
+        // For roulette: configArgs = bet (may be comma-separated or space-separated)
+        positionalConfig.bet = configArgs.join(',');
+      } else if (fixedGame.type === 'baccarat') {
+        // For baccarat: configArgs can be:
+        //   ["BANKER"] - simple bet
+        //   ["140", "BANKER", "10", "TIE"] - explicit amounts
+        positionalConfig.bet = configArgs.join(',');
       }
     }
 
@@ -1629,10 +1975,10 @@ program
         return { shouldStop: true, reason: 'insufficient_balance' };
       }
 
-      // Determine wager: use --amount if provided, else calculate from strategy
+      // Determine wager: use positional/flag amount if provided, else calculate from strategy
       let wagerApe;
-      if (opts.amount) {
-        wagerApe = parseFloat(opts.amount);
+      if (amountInput) {
+        wagerApe = parseFloat(amountInput);
         if (isNaN(wagerApe) || wagerApe <= 0) {
           console.error(JSON.stringify({ error: 'Invalid amount. Must be a positive number.' }));
           return { shouldStop: true, reason: 'invalid_amount' };
@@ -1645,24 +1991,28 @@ program
         wagerApe = calculateWager(availableApe, strategyConfig);
       }
 
-      // Determine game: use --game if provided, else random from strategy
+      // Determine game: use positional/flag game if provided, else random from strategy
       let gameEntry;
       let gameConfig = {};
       
       if (fixedGame) {
         gameEntry = fixedGame;
+        // Apply positional config if provided
+        gameConfig = { ...positionalConfig };
       } else {
         // Pick random game using strategy weights
         const selection = selectGameAndConfig(strategyConfig);
         gameEntry = resolveGame(selection.game);
         // Use strategy-selected config as defaults
-        gameConfig = { mode: selection.mode, balls: selection.balls, spins: selection.spins };
+        gameConfig = { mode: selection.mode, balls: selection.balls, spins: selection.spins, bet: selection.bet };
       }
 
-      // Determine game-specific params: use CLI opts if provided, else strategy-based random or defaults
+      // Determine game-specific params: use CLI opts/positional if provided, else strategy-based random or defaults
       if (gameEntry.type === 'plinko') {
         if (opts.mode !== undefined) {
           gameConfig.mode = parseInt(opts.mode);
+        } else if (positionalConfig.mode !== undefined) {
+          gameConfig.mode = positionalConfig.mode;
         } else if (gameConfig.mode === undefined) {
           // Random from strategy range
           const [modeMin, modeMax] = strategyConfig.plinko?.mode || [0, 4];
@@ -1670,6 +2020,8 @@ program
         }
         if (opts.balls !== undefined) {
           gameConfig.balls = parseInt(opts.balls);
+        } else if (positionalConfig.balls !== undefined) {
+          gameConfig.balls = positionalConfig.balls;
         } else if (gameConfig.balls === undefined) {
           const [ballMin, ballMax] = strategyConfig.plinko?.balls || [10, 100];
           gameConfig.balls = randomIntInclusive(ballMin, ballMax);
@@ -1677,9 +2029,37 @@ program
       } else if (gameEntry.type === 'slots') {
         if (opts.spins !== undefined) {
           gameConfig.spins = parseInt(opts.spins);
+        } else if (positionalConfig.spins !== undefined) {
+          gameConfig.spins = positionalConfig.spins;
         } else if (gameConfig.spins === undefined) {
           const [spinMin, spinMax] = strategyConfig.slots?.spins || [1, 15];
           gameConfig.spins = randomIntInclusive(spinMin, spinMax);
+        }
+      } else if (gameEntry.type === 'roulette') {
+        // Roulette: use --bet flag, positional config, or strategy default
+        if (opts.bet) {
+          gameConfig.bet = opts.bet;
+        } else if (positionalConfig.bet) {
+          gameConfig.bet = positionalConfig.bet;
+        } else if (!gameConfig.bet) {
+          // Strategy default
+          const rouletteConfig = strategyConfig.roulette || { defaultBet: 'random' };
+          gameConfig.bet = rouletteConfig.defaultBet === 'random' 
+            ? (Math.random() < 0.5 ? 'RED' : 'BLACK')
+            : rouletteConfig.defaultBet;
+        }
+      } else if (gameEntry.type === 'baccarat') {
+        // Baccarat: use --bet flag, positional config, or strategy default
+        if (opts.bet) {
+          gameConfig.bet = opts.bet;
+        } else if (positionalConfig.bet) {
+          gameConfig.bet = positionalConfig.bet;
+        } else if (!gameConfig.bet) {
+          // Strategy default
+          const baccaratConfig = strategyConfig.baccarat || { defaultBet: 'random' };
+          gameConfig.bet = baccaratConfig.defaultBet === 'random'
+            ? (Math.random() < 0.5 ? 'PLAYER' : 'BANKER')
+            : baccaratConfig.defaultBet;
         }
       }
 
@@ -1693,6 +2073,7 @@ program
           mode: gameConfig.mode,
           balls: gameConfig.balls,
           spins: gameConfig.spins,
+          bet: gameConfig.bet,
           timeoutMs: 0,
           referral: freshProfile.referral,
         });
@@ -1932,12 +2313,19 @@ program
         console.log('  Parameters:');
         
         for (const [paramName, paramConfig] of Object.entries(game.config)) {
-          const range = `<${paramConfig.min}-${paramConfig.max}>`;
-          console.log(`    --${paramName} ${range.padEnd(10)} ${paramConfig.description || ''}`);
-          if (paramConfig.options) {
-            for (const opt of paramConfig.options) {
-              console.log(`        ${opt.value} = ${opt.label}: ${opt.desc}`);
+          if (paramConfig.min !== undefined && paramConfig.max !== undefined) {
+            const range = `<${paramConfig.min}-${paramConfig.max}>`;
+            console.log(`    --${paramName} ${range.padEnd(10)} ${paramConfig.description || ''}`);
+            if (paramConfig.options) {
+              for (const opt of paramConfig.options) {
+                console.log(`        ${opt.value} = ${opt.label}: ${opt.desc}`);
+              }
             }
+          } else if (paramConfig.examples) {
+            console.log(`    --${paramName}            ${paramConfig.description || ''}`);
+            console.log(`        Examples: ${paramConfig.examples.join(', ')}`);
+          } else {
+            console.log(`    --${paramName}            ${paramConfig.description || ''}`);
           }
         }
         
@@ -1945,17 +2333,30 @@ program
         console.log('');
         console.log('  Example:');
         if (game.type === 'plinko') {
+          console.log(`    apechurch play ${game.key} 10 2 50`);
           console.log(`    apechurch play --game ${game.key} --amount 10 --mode 2 --balls 50`);
         } else if (game.type === 'slots') {
+          console.log(`    apechurch play ${game.key} 5 10`);
           console.log(`    apechurch play --game ${game.key} --amount 5 --spins 10`);
+        } else if (game.type === 'roulette') {
+          console.log(`    apechurch play roulette 50 RED`);
+          console.log(`    apechurch play roulette 100 RED,BLACK`);
+          console.log(`    apechurch play roulette 10 17`);
+          console.log(`    apechurch play --game roulette --amount 50 --bet RED`);
+        } else if (game.type === 'baccarat') {
+          console.log(`    apechurch play baccarat 50 BANKER`);
+          console.log(`    apechurch play baccarat 150 140 BANKER 10 TIE`);
+          console.log(`    apechurch play --game baccarat --amount 50 --bet PLAYER`);
         }
         console.log('─'.repeat(70));
       }
       
-      console.log('\nQUICK PLAY (random settings based on your strategy):');
-      console.log('  apechurch play                     # Random game');
-      console.log('  apechurch play --game jungle-plinko # Specific game');
-      console.log('  apechurch play --game dino-dough --amount 5  # Specific game + amount\n');
+      console.log('\nQUICK PLAY (positional or flags):');
+      console.log('  apechurch play                        # Random game');
+      console.log('  apechurch play jungle-plinko 10 2 50  # Plinko: amount mode balls');
+      console.log('  apechurch play roulette 50 RED        # Roulette: amount bet');
+      console.log('  apechurch play baccarat 50 BANKER     # Baccarat: amount bet');
+      console.log('  apechurch play dino-dough 5 10        # Slots: amount spins\n');
     }
   });
 
@@ -2004,8 +2405,10 @@ program
       
       for (const [paramName, paramConfig] of Object.entries(game.config)) {
         console.log(`  --${paramName}`);
-        console.log(`      Range:   ${paramConfig.min} - ${paramConfig.max}`);
-        console.log(`      Default: ${paramConfig.default}`);
+        if (paramConfig.min !== undefined && paramConfig.max !== undefined) {
+          console.log(`      Range:   ${paramConfig.min} - ${paramConfig.max}`);
+          console.log(`      Default: ${paramConfig.default}`);
+        }
         console.log(`      ${paramConfig.description || ''}`);
         
         if (paramConfig.options) {
@@ -2016,25 +2419,150 @@ program
             console.log(`            ${opt.desc}`);
           }
         }
+        if (paramConfig.examples) {
+          console.log('');
+          console.log('      Examples:');
+          for (const ex of paramConfig.examples) {
+            console.log(`        ${ex}`);
+          }
+        }
         console.log('');
       }
       
+      // Show roulette bet types if applicable
+      if (game.type === 'roulette' && game.betTypes) {
+        console.log(`${'─'.repeat(60)}`);
+        console.log('  BET TYPES');
+        console.log(`${'─'.repeat(60)}\n`);
+        console.log('  Numbers:');
+        console.log('      0, 00, 1-36 (single number bets, 36.9x multiplier)');
+        console.log('');
+        console.log('  Colors & Parity (2.05x):');
+        console.log('      RED, BLACK, ODD, EVEN');
+        console.log('');
+        console.log('  Halves (2.05x):');
+        console.log('      FIRST_HALF (1-18), SECOND_HALF (19-36)');
+        console.log('');
+        console.log('  Thirds (3.075x):');
+        console.log('      FIRST_THIRD (1-12), SECOND_THIRD (13-24), THIRD_THIRD (25-36)');
+        console.log('');
+        console.log('  Columns (3.075x):');
+        console.log('      FIRST_COL, SECOND_COL, THIRD_COL');
+        console.log('');
+        console.log('  💡 Pro tip: Bet RED,BLACK together for 2.5% profit (unless 0/00)');
+        console.log('');
+      }
+      
+      // Show baccarat bet types
+      if (game.type === 'baccarat') {
+        console.log(`${'─'.repeat(60)}`);
+        console.log('  BET TYPES & PAYOUTS');
+        console.log(`${'─'.repeat(60)}\n`);
+        console.log('  PLAYER   - Pays 2.00x (bet on player hand winning)');
+        console.log('  BANKER   - Pays 1.95x (bet on banker hand winning)');
+        console.log('  TIE      - Pays 9.00x (bet on hands tying)');
+        console.log('');
+        console.log('  Combined bets (specify amounts explicitly):');
+        console.log('  150 → 140 BANKER 10 TIE   (140 on banker, 10 on tie)');
+        console.log('  200 → 180 PLAYER 20 TIE   (180 on player, 20 on tie)');
+        console.log('');
+        console.log('  ⚠️  Amounts must add up to total wager exactly.');
+        console.log('');
+        console.log('  💡 Pro tip: BANKER has slightly better odds due to game rules.');
+        console.log('');
+      }
+      
+      console.log(`${'─'.repeat(60)}`);
+      console.log('  SYNTAX');
+      console.log(`${'─'.repeat(60)}\n`);
+      
+      if (game.type === 'plinko') {
+        console.log('  Positional:  apechurch play <game> <amount> <mode> <balls>');
+        console.log('  Flags:       apechurch play --game <game> --amount <ape> --mode <0-4> --balls <1-100>');
+        console.log('');
+        console.log('  You can mix positional and flags. Positional order: amount, mode, balls.');
+      } else if (game.type === 'slots') {
+        console.log('  Positional:  apechurch play <game> <amount> <spins>');
+        console.log('  Flags:       apechurch play --game <game> --amount <ape> --spins <1-15>');
+        console.log('');
+        console.log('  You can mix positional and flags. Positional order: amount, spins.');
+      } else if (game.type === 'roulette') {
+        console.log('  Positional:  apechurch play roulette <amount> <bet>');
+        console.log('  Flags:       apechurch play --game roulette --amount <ape> --bet <bet>');
+        console.log('');
+        console.log('  You can mix positional and flags. Positional order: amount, bet.');
+        console.log('');
+        console.log('  Multi-bet: When betting on multiple spots (e.g., RED,BLACK,17), the');
+        console.log('  total amount is split evenly across all bets using integer division.');
+        console.log('  Example: 100 APE on RED,BLACK → 50 APE on RED + 50 APE on BLACK');
+      } else if (game.type === 'baccarat') {
+        console.log('  Simple:      apechurch play baccarat <total> <bet>');
+        console.log('  Combined:    apechurch play baccarat <total> <amt1> <bet1> <amt2> <bet2>');
+        console.log('');
+        console.log('  Flags also work: --game baccarat --amount <ape> --bet <bet>');
+        console.log('');
+        console.log('  For combined bets, specify exact amounts for each (must sum to total).');
+        console.log('  Example: apechurch play baccarat 150 140 BANKER 10 TIE');
+        console.log('           → 140 APE on banker + 10 APE on tie = 150 total');
+      }
+      
+      console.log('');
       console.log(`${'─'.repeat(60)}`);
       console.log('  EXAMPLES');
       console.log(`${'─'.repeat(60)}\n`);
       
       console.log('  # Quick play (random settings based on strategy):');
-      console.log(`  apechurch play --game ${game.key}`);
+      console.log(`  apechurch play ${game.key}`);
       console.log('');
       console.log('  # With specific amount:');
-      console.log(`  apechurch play --game ${game.key} --amount 10`);
+      console.log(`  apechurch play ${game.key} 10`);
       console.log('');
-      console.log('  # Full control:');
+      console.log('  # Full control (positional):');
+      if (game.type === 'plinko') {
+        console.log(`  apechurch play ${game.key} 10 2 50`);
+        console.log('                             │  │  └─ balls (50)');
+        console.log('                             │  └──── mode (2)');
+        console.log('                             └─────── amount (10 APE)');
+      } else if (game.type === 'slots') {
+        console.log(`  apechurch play ${game.key} 10 8`);
+        console.log('                          │  └─ spins (8)');
+        console.log('                          └──── amount (10 APE)');
+      } else if (game.type === 'roulette') {
+        console.log(`  apechurch play roulette 50 RED`);
+        console.log('                          │  └─ bet (RED)');
+        console.log('                          └──── amount (50 APE)');
+        console.log('');
+        console.log(`  apechurch play roulette 100 RED,BLACK`);
+        console.log('                          │   └─ bet (50 APE each)');
+        console.log('                          └───── total amount');
+      } else if (game.type === 'baccarat') {
+        console.log(`  apechurch play baccarat 50 BANKER`);
+        console.log('                          │  └─ bet (BANKER)');
+        console.log('                          └──── amount (50 APE)');
+        console.log('');
+        console.log(`  apechurch play baccarat 150 140 BANKER 10 TIE`);
+        console.log('                          │   │    │     │  └─ 10 on tie');
+        console.log('                          │   │    │     └──── tie bet');
+        console.log('                          │   │    └────────── 140 on banker');
+        console.log('                          │   └───────────────  banker bet');
+        console.log('                          └───────────────────  total (must = 140+10)');
+      }
+      console.log('');
+      console.log('  # Full control (flags):');
       if (game.type === 'plinko') {
         console.log(`  apechurch play --game ${game.key} --amount 10 --mode 2 --balls 50`);
       } else if (game.type === 'slots') {
         console.log(`  apechurch play --game ${game.key} --amount 10 --spins 8`);
+      } else if (game.type === 'roulette') {
+        console.log(`  apechurch play --game roulette --amount 50 --bet RED`);
+        console.log(`  apechurch play --game roulette --amount 100 --bet RED,BLACK,17`);
+      } else if (game.type === 'baccarat') {
+        console.log(`  apechurch play --game baccarat --amount 50 --bet BANKER`);
+        console.log(`  apechurch play --game baccarat --amount 150 --bet "140 BANKER 10 TIE"`);
       }
+      console.log('');
+      console.log('  # Continuous play:');
+      console.log(`  apechurch play ${game.key} --loop`);
       console.log('');
       console.log(`${'═'.repeat(60)}\n`);
     }
@@ -2063,8 +2591,9 @@ ABOUT
 GETTING STARTED
 ========================================
 
-  apechurch install [--username NAME] [--persona TYPE]
+  apechurch install [--username NAME] [--persona TYPE] [--private-key KEY]
     Set up your agent wallet and register on Ape Church.
+    Use --private-key to import an existing wallet (skips SIWE registration).
 
   apechurch status [--json]
     Check your wallet balance and current status.
@@ -2073,24 +2602,32 @@ GETTING STARTED
 PLAYING GAMES
 ========================================
 
-  apechurch play [options]
-    Play a game. Flexible - specify as much or as little as you want.
+  apechurch play [game] [amount] [config...]
+    Play a game. Supports positional args OR flags.
     
-    Options:
+    Positional syntax (natural):
+      apechurch play roulette 50 RED           # Roulette: game amount bet
+      apechurch play roulette 100 RED,BLACK    # Multi-bet (splits evenly)
+      apechurch play jungle-plinko 10 2 50     # Plinko: game amount mode balls
+      apechurch play dino-dough 5 10           # Slots: game amount spins
+    
+    Flag syntax (also works):
       --game <name>    Game to play (random if not specified)
       --amount <ape>   Wager amount (strategy-based if not specified)
       --mode <0-4>     Plinko risk level
       --balls <1-100>  Plinko balls to drop
       --spins <1-15>   Slots spins
+      --bet <bet>      Roulette bet (RED, BLACK, 17, RED,BLACK, etc.)
       --strategy <type> conservative | balanced | aggressive | degen
       --loop           Play continuously
       --delay <sec>    Delay between games in loop mode (default: 3)
 
     Examples:
-      apechurch play                              # Random everything
-      apechurch play --game jungle-plinko         # Specific game, random config
-      apechurch play --game dino-dough --amount 5 # Specific game + amount
-      apechurch play --game jungle-plinko --amount 10 --mode 3 --balls 25  # Full control
+      apechurch play                           # Random everything
+      apechurch play roulette 50 RED           # 50 APE on red
+      apechurch play roulette 100 RED,BLACK    # Hedge bet (2.5% profit unless 0/00)
+      apechurch play jungle-plinko 10 2 50     # 10 APE, mode 2, 50 balls
+      apechurch play --loop                    # Continuous random games
 
   apechurch games [--json]
     List all available games with parameters.
@@ -2141,11 +2678,20 @@ EXAMPLES
   # Quick start - play continuously
   apechurch play --loop
 
-  # Play aggressively
-  apechurch play --loop --strategy aggressive
+  # Play roulette
+  apechurch play roulette 50 RED              # 50 APE on red
+  apechurch play roulette 100 RED,BLACK       # Hedge: 2.5% profit unless 0/00
+  apechurch play roulette 10 17               # 10 APE on number 17
 
-  # Single manual bet
-  apechurch bet --game jungle-plinko --amount 10 --mode 3 --balls 50
+  # Play plinko
+  apechurch play jungle-plinko 10 2 50        # 10 APE, mode 2, 50 balls
+
+  # Play slots
+  apechurch play dino-dough 5 10              # 5 APE, 10 spins
+
+  # Continuous play
+  apechurch play roulette 50 RED --loop       # Loop roulette on red
+  apechurch play --loop --strategy aggressive # Loop random games
 
   # Check status
   apechurch status
