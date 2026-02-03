@@ -1315,4 +1315,125 @@ program
     }
   });
 
+// --- COMMAND: GAMES (Show available games and parameters) ---
+program
+  .command('games')
+  .description('List all available games and their parameters')
+  .option('--json', 'Output JSON only')
+  .action((opts) => {
+    const games = GAME_REGISTRY.map((game) => {
+      const params = [];
+      if (game.type === 'plinko') {
+        params.push({
+          name: 'mode',
+          type: 'integer',
+          min: game.config.mode.min,
+          max: game.config.mode.max,
+          default: game.config.mode.default,
+          description: 'Risk level (higher = riskier, bigger payouts)',
+        });
+        params.push({
+          name: 'balls',
+          type: 'integer',
+          min: game.config.balls.min,
+          max: game.config.balls.max,
+          default: game.config.balls.default,
+          description: 'Number of balls to drop',
+        });
+      } else if (game.type === 'slots') {
+        params.push({
+          name: 'spins',
+          type: 'integer',
+          min: game.config.spins.min,
+          max: game.config.spins.max,
+          default: game.config.spins.default,
+          description: 'Number of spins per bet',
+        });
+      }
+      return {
+        key: game.key,
+        name: game.name,
+        type: game.type,
+        aliases: game.aliases || [],
+        contract: game.contract,
+        parameters: params,
+      };
+    });
+
+    if (opts.json) {
+      console.log(JSON.stringify({ games }, null, 2));
+    } else {
+      console.log('\n🎰 AVAILABLE GAMES\n');
+      for (const game of games) {
+        console.log(`${game.name} (${game.key})`);
+        console.log(`  Type: ${game.type}`);
+        console.log(`  Aliases: ${game.aliases.join(', ') || 'none'}`);
+        console.log('  Parameters:');
+        for (const param of game.parameters) {
+          console.log(`    --${param.name} <${param.min}-${param.max}>  ${param.description} (default: ${param.default})`);
+        }
+        console.log('');
+      }
+      console.log('EXAMPLE BETS:');
+      console.log('  apechurch bet --game jungle-plinko --amount 5 --mode 2 --balls 50');
+      console.log('  apechurch bet --game dino-dough --amount 10 --spins 8');
+      console.log('  apechurch bet --game bubblegum-heist --amount 5 --spins 12');
+      console.log('');
+    }
+  });
+
+// --- COMMAND: COMMANDS (Show all commands overview) ---
+program
+  .command('commands')
+  .description('Show all available commands with examples')
+  .action(() => {
+    console.log(`
+🎰 APE CHURCH CLI - COMMAND REFERENCE
+
+SETUP
+  apechurch install [--username NAME] [--persona TYPE]
+    Set up your agent wallet and register.
+    Personas: conservative, balanced, aggressive, degen
+
+  apechurch register --username <NAME>
+    Change your username.
+
+STATUS
+  apechurch status [--json]
+    Check your wallet balance and agent status.
+
+  apechurch games [--json]
+    List all available games and their parameters.
+
+PLAYING
+  apechurch heartbeat [--strategy TYPE] [--loop] [--json]
+    Place a bet using your strategy. Use --loop to play continuously.
+    Strategies: conservative (60s), balanced (30s), aggressive (15s), degen (10s)
+
+  apechurch bet --game <NAME> --amount <APE> [--mode 0-4] [--balls 1-100] [--spins 1-15]
+    Place a manual bet on a specific game.
+    Games: jungle-plinko, dino-dough, bubblegum-heist
+
+CONTROL
+  apechurch pause
+    Pause autonomous play.
+
+  apechurch resume
+    Resume autonomous play.
+
+PROFILE
+  apechurch profile show [--json]
+    View your current profile settings.
+
+  apechurch profile set [--persona TYPE] [--username NAME]
+    Update your profile.
+
+EXAMPLES
+  apechurch install --username CoolBot --persona balanced
+  apechurch heartbeat --strategy aggressive --loop
+  apechurch bet --game jungle-plinko --amount 10 --mode 3 --balls 25
+  apechurch bet --game dino-dough --amount 5 --spins 10
+`);
+  });
+
 program.parse(process.argv);
