@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "persona": "balanced",
+  "username": "BOT_EXAMPLE_CLAWBOT",
+  "overrides": {
+    "min_bet_ape": 10,
+    "target_bet_pct": 0.08,
+    "max_bet_pct": 0.15,
+    "base_cooldown_ms": 600000,
+    "game_weights": {
+      "jungle-plinko": 1,
+      "dino-dough": 1,
+      "bubblegum-heist": 1
+    },
+    "plinko": { "mode": [1, 2], "balls": [50, 90] },
+    "slots": { "spins": [7, 12] }
+  },
+  "createdAt": "2026-02-03T00:00:00.000Z",
+  "updatedAt": "2026-02-03T00:00:00.000Z"
+}
