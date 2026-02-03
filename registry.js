@@ -195,6 +195,45 @@ export const GAME_REGISTRY = [
       type: 'slots',
     },
   },
+  {
+    key: 'speed-keno',
+    name: 'Speed Keno',
+    slug: 'speed-keno',
+    type: 'speedkeno',
+    description: 'Fast keno with batching! Pick 1-5 numbers from 1-20. Batch up to 20 games. Hit 5/5 for 2000x!',
+    contract: '0x40EE3295035901e5Fd80703774E5A9FE7CE2B90C',
+    aliases: ['sk', 'speedk'],
+    config: {
+      picks: {
+        min: 1,
+        max: 5,
+        default: 3,
+        description: 'How many numbers to pick (1-5). More picks = higher risk/reward.',
+      },
+      numbers: {
+        description: 'Which numbers to bet on (1-20). If not specified, random picks are used.',
+        examples: ['1,7,13', '5,10,15,18,20', 'random'],
+      },
+      games: {
+        min: 1,
+        max: 20,
+        default: 5,
+        description: 'Number of games to batch (1-20). Wager is split across all games.',
+      },
+    },
+    multipliers: {
+      '5/5': 2000,
+      '4/4': 100,
+      '3/3': 20,
+      '2/2': 4,
+      '1/1': 2,
+    },
+    vrf: {
+      type: 'speedkeno',
+      baseGas: 325000,
+      perUnitGas: 55000,
+    },
+  },
 ];
 
 const GAME_INDEX = new Map();

@@ -527,6 +527,7 @@ program
         range: opts.range,
         picks: opts.picks,
         numbers: opts.numbers,
+        games: opts.games,
         timeoutMs,
         referral: profile.referral,
       });
@@ -555,6 +556,7 @@ program
   .option('--range <5-95>', 'ApeStrong range')
   .option('--picks <1-10>', 'Keno pick count')
   .option('--numbers <nums>', 'Keno numbers (e.g., 1,7,13,25,40)')
+  .option('--games <1-20>', 'Speed Keno game count (batching)')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
   .option('--delay <seconds>', 'Delay between games in loop', '3')
@@ -599,6 +601,29 @@ program
             positionalConfig.picks = num;
             if (configArgs[1]) positionalConfig.numbers = configArgs.slice(1).join(',');
           } else {
+            // Treat as numbers
+            positionalConfig.numbers = configArgs.join(',');
+          }
+        }
+      } else if (fixedGame.type === 'speedkeno') {
+        // For speed keno: configArgs can be [games], [games, picks], [games, numbers], etc.
+        // First arg (1-20 without comma) = games, second (1-5 without comma) = picks, or numbers with comma
+        if (configArgs[0]) {
+          const first = configArgs[0];
+          const num = parseInt(first);
+          if (!isNaN(num) && num >= 1 && num <= 20 && !first.includes(',')) {
+            positionalConfig.games = num;
+            if (configArgs[1]) {
+              const second = configArgs[1];
+              const pickNum = parseInt(second);
+              if (!isNaN(pickNum) && pickNum >= 1 && pickNum <= 5 && !second.includes(',')) {
+                positionalConfig.picks = pickNum;
+                if (configArgs[2]) positionalConfig.numbers = configArgs.slice(2).join(',');
+              } else {
+                positionalConfig.numbers = configArgs.slice(1).join(',');
+              }
+            }
+          } else if (first.includes(',')) {
             // Treat as numbers
             positionalConfig.numbers = configArgs.join(',');
           }
@@ -741,6 +766,24 @@ program
         // Numbers (optional - will be random if not specified)
         if (opts.numbers) gameConfig.numbers = opts.numbers;
         else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
+      } else if (gameEntry.type === 'speedkeno') {
+        // Number of games (batching)
+        if (opts.games !== undefined) gameConfig.games = parseInt(opts.games);
+        else if (positionalConfig.games !== undefined) gameConfig.games = positionalConfig.games;
+        else if (gameConfig.games === undefined) {
+          const [min, max] = strategyConfig.speedKeno?.games || [5, 10];
+          gameConfig.games = randomIntInclusive(min, max);
+        }
+        // Pick count (1-5 for speed keno)
+        if (opts.picks !== undefined) gameConfig.picks = parseInt(opts.picks);
+        else if (positionalConfig.picks !== undefined) gameConfig.picks = positionalConfig.picks;
+        else if (gameConfig.picks === undefined) {
+          const [min, max] = strategyConfig.speedKeno?.picks || [2, 4];
+          gameConfig.picks = randomIntInclusive(min, max);
+        }
+        // Numbers (optional - will be random if not specified)
+        if (opts.numbers) gameConfig.numbers = opts.numbers;
+        else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
       }
 
       const wagerApeString = formatApeAmount(wagerApe);
@@ -757,6 +800,8 @@ program
         gameDesc += ` (${gameConfig.range}% chance)`;
       } else if (gameEntry.type === 'keno') {
         gameDesc += ` (${gameConfig.picks} picks)`;
+      } else if (gameEntry.type === 'speedkeno') {
+        gameDesc += ` (${gameConfig.games} games, ${gameConfig.picks} picks)`;
       }
 
       // Human-friendly output: show what we're playing
@@ -777,6 +822,7 @@ program
           range: gameConfig.range,
           picks: gameConfig.picks,
           numbers: gameConfig.numbers,
+          games: gameConfig.games,
           timeoutMs: 30000, // Wait up to 30s for result (usually 1-2s)
           referral: freshProfile.referral,
         });
