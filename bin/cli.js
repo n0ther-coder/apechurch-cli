@@ -1541,19 +1541,35 @@ program
     }
   });
 
-// --- COMMAND: PLAY (Simple play command - no cooldowns) ---
+// --- COMMAND: PLAY (Unified play command - flexible params) ---
 program
   .command('play')
-  .description('Play a game immediately (no cooldowns)')
-  .option('--strategy <name>', 'conservative | balanced | aggressive | degen', 'balanced')
+  .description('Play a game (random or specified)')
+  .option('--game <name>', 'Game to play (random if not specified)')
+  .option('--amount <ape>', 'Amount to wager (strategy-based if not specified)')
+  .option('--mode <0-4>', 'Plinko mode/risk level')
+  .option('--balls <1-100>', 'Plinko balls to drop')
+  .option('--spins <1-15>', 'Slots spins per bet')
+  .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously with 3s between games')
   .option('--delay <seconds>', 'Seconds between games in loop mode', '3')
   .option('--json', 'Output JSON only')
   .action(async (opts) => {
     const account = getWallet();
     const loopMode = Boolean(opts.loop);
-    const delaySeconds = Math.max(parseFloat(opts.delay) || 2, 1);
+    const delaySeconds = Math.max(parseFloat(opts.delay) || 3, 1);
     const delayMs = delaySeconds * 1000;
+
+    // Validate game if specified
+    let fixedGame = null;
+    if (opts.game) {
+      fixedGame = resolveGame(opts.game);
+      if (!fixedGame) {
+        const availableGames = GAME_REGISTRY.map(g => g.key).join(', ');
+        console.error(JSON.stringify({ error: `Unknown game: ${opts.game}`, available: availableGames }));
+        process.exit(1);
+      }
+    }
 
     // Check if paused
     const profile = loadProfile();
@@ -1570,7 +1586,8 @@ program
     }
 
     if (loopMode && !opts.json) {
-      console.log(`🎰 Starting continuous play (${delaySeconds}s between games, Ctrl+C to stop)...\n`);
+      const gameInfo = fixedGame ? fixedGame.name : 'random games';
+      console.log(`🎰 Starting continuous play: ${gameInfo} (${delaySeconds}s between games, Ctrl+C to stop)...\n`);
     }
 
     async function playOnce() {
@@ -1612,18 +1629,70 @@ program
         return { shouldStop: true, reason: 'insufficient_balance' };
       }
 
-      const wagerApe = calculateWager(availableApe, strategyConfig);
-      const selection = selectGameAndConfig(strategyConfig);
+      // Determine wager: use --amount if provided, else calculate from strategy
+      let wagerApe;
+      if (opts.amount) {
+        wagerApe = parseFloat(opts.amount);
+        if (isNaN(wagerApe) || wagerApe <= 0) {
+          console.error(JSON.stringify({ error: 'Invalid amount. Must be a positive number.' }));
+          return { shouldStop: true, reason: 'invalid_amount' };
+        }
+        if (wagerApe > availableApe) {
+          console.error(JSON.stringify({ error: `Insufficient balance. Available: ${availableApe.toFixed(4)} APE` }));
+          return { shouldStop: true, reason: 'insufficient_balance' };
+        }
+      } else {
+        wagerApe = calculateWager(availableApe, strategyConfig);
+      }
+
+      // Determine game: use --game if provided, else random from strategy
+      let gameEntry;
+      let gameConfig = {};
+      
+      if (fixedGame) {
+        gameEntry = fixedGame;
+      } else {
+        // Pick random game using strategy weights
+        const selection = selectGameAndConfig(strategyConfig);
+        gameEntry = resolveGame(selection.game);
+        // Use strategy-selected config as defaults
+        gameConfig = { mode: selection.mode, balls: selection.balls, spins: selection.spins };
+      }
+
+      // Determine game-specific params: use CLI opts if provided, else strategy-based random or defaults
+      if (gameEntry.type === 'plinko') {
+        if (opts.mode !== undefined) {
+          gameConfig.mode = parseInt(opts.mode);
+        } else if (gameConfig.mode === undefined) {
+          // Random from strategy range
+          const [modeMin, modeMax] = strategyConfig.plinko?.mode || [0, 4];
+          gameConfig.mode = randomIntInclusive(modeMin, modeMax);
+        }
+        if (opts.balls !== undefined) {
+          gameConfig.balls = parseInt(opts.balls);
+        } else if (gameConfig.balls === undefined) {
+          const [ballMin, ballMax] = strategyConfig.plinko?.balls || [10, 100];
+          gameConfig.balls = randomIntInclusive(ballMin, ballMax);
+        }
+      } else if (gameEntry.type === 'slots') {
+        if (opts.spins !== undefined) {
+          gameConfig.spins = parseInt(opts.spins);
+        } else if (gameConfig.spins === undefined) {
+          const [spinMin, spinMax] = strategyConfig.slots?.spins || [1, 15];
+          gameConfig.spins = randomIntInclusive(spinMin, spinMax);
+        }
+      }
+
       const wagerApeString = formatApeAmount(wagerApe);
 
       try {
         const playResponse = await playGame({
           account,
-          game: selection.game,
+          game: gameEntry.key,
           amountApe: wagerApeString,
-          mode: selection.mode,
-          balls: selection.balls,
-          spins: selection.spins,
+          mode: gameConfig.mode,
+          balls: gameConfig.balls,
+          spins: gameConfig.spins,
           timeoutMs: 0,
           referral: freshProfile.referral,
         });
@@ -1839,64 +1908,135 @@ program
   .description('List all available games and their parameters')
   .option('--json', 'Output JSON only')
   .action((opts) => {
-    const games = GAME_REGISTRY.map((game) => {
-      const params = [];
-      if (game.type === 'plinko') {
-        params.push({
-          name: 'mode',
-          type: 'integer',
-          min: game.config.mode.min,
-          max: game.config.mode.max,
-          default: game.config.mode.default,
-          description: 'Risk level (higher = riskier, bigger payouts)',
-        });
-        params.push({
-          name: 'balls',
-          type: 'integer',
-          min: game.config.balls.min,
-          max: game.config.balls.max,
-          default: game.config.balls.default,
-          description: 'Number of balls to drop',
-        });
-      } else if (game.type === 'slots') {
-        params.push({
-          name: 'spins',
-          type: 'integer',
-          min: game.config.spins.min,
-          max: game.config.spins.max,
-          default: game.config.spins.default,
-          description: 'Number of spins per bet',
-        });
-      }
-      return {
+    if (opts.json) {
+      const games = GAME_REGISTRY.map((game) => ({
         key: game.key,
         name: game.name,
         type: game.type,
+        description: game.description,
         aliases: game.aliases || [],
         contract: game.contract,
-        parameters: params,
-      };
-    });
-
-    if (opts.json) {
+        config: game.config,
+      }));
       console.log(JSON.stringify({ games }, null, 2));
     } else {
       console.log('\n🎰 AVAILABLE GAMES\n');
-      for (const game of games) {
-        console.log(`${game.name} (${game.key})`);
-        console.log(`  Type: ${game.type}`);
-        console.log(`  Aliases: ${game.aliases.join(', ') || 'none'}`);
+      console.log('Use "apechurch game <name>" for detailed info on a specific game.\n');
+      console.log('─'.repeat(70));
+      
+      for (const game of GAME_REGISTRY) {
+        console.log(`\n${game.name.toUpperCase()} (${game.key})`);
+        console.log(`  ${game.description}`);
+        console.log(`  Aliases: ${game.aliases?.join(', ') || 'none'}`);
+        console.log('');
         console.log('  Parameters:');
-        for (const param of game.parameters) {
-          console.log(`    --${param.name} <${param.min}-${param.max}>  ${param.description} (default: ${param.default})`);
+        
+        for (const [paramName, paramConfig] of Object.entries(game.config)) {
+          const range = `<${paramConfig.min}-${paramConfig.max}>`;
+          console.log(`    --${paramName} ${range.padEnd(10)} ${paramConfig.description || ''}`);
+          if (paramConfig.options) {
+            for (const opt of paramConfig.options) {
+              console.log(`        ${opt.value} = ${opt.label}: ${opt.desc}`);
+            }
+          }
+        }
+        
+        // Show example
+        console.log('');
+        console.log('  Example:');
+        if (game.type === 'plinko') {
+          console.log(`    apechurch play --game ${game.key} --amount 10 --mode 2 --balls 50`);
+        } else if (game.type === 'slots') {
+          console.log(`    apechurch play --game ${game.key} --amount 5 --spins 10`);
+        }
+        console.log('─'.repeat(70));
+      }
+      
+      console.log('\nQUICK PLAY (random settings based on your strategy):');
+      console.log('  apechurch play                     # Random game');
+      console.log('  apechurch play --game jungle-plinko # Specific game');
+      console.log('  apechurch play --game dino-dough --amount 5  # Specific game + amount\n');
+    }
+  });
+
+// --- COMMAND: GAME (Show detailed info for a specific game) ---
+program
+  .command('game <name>')
+  .description('Show detailed info for a specific game')
+  .option('--json', 'Output JSON only')
+  .action((name, opts) => {
+    const game = resolveGame(name);
+    
+    if (!game) {
+      const availableGames = GAME_REGISTRY.map(g => g.key).join(', ');
+      if (opts.json) {
+        console.log(JSON.stringify({ error: `Unknown game: ${name}`, available: availableGames }));
+      } else {
+        console.log(`\n❌ Unknown game: "${name}"`);
+        console.log(`\nAvailable games: ${availableGames}`);
+        console.log('Run "apechurch games" for full list.\n');
+      }
+      return;
+    }
+
+    if (opts.json) {
+      console.log(JSON.stringify({
+        key: game.key,
+        name: game.name,
+        type: game.type,
+        description: game.description,
+        aliases: game.aliases || [],
+        contract: game.contract,
+        config: game.config,
+      }, null, 2));
+    } else {
+      console.log(`\n${'═'.repeat(60)}`);
+      console.log(`  ${game.name.toUpperCase()}`);
+      console.log(`${'═'.repeat(60)}`);
+      console.log(`\n  ${game.description}\n`);
+      console.log(`  Type:     ${game.type}`);
+      console.log(`  Key:      ${game.key}`);
+      console.log(`  Aliases:  ${game.aliases?.join(', ') || 'none'}`);
+      console.log(`  Contract: ${game.contract}`);
+      console.log(`\n${'─'.repeat(60)}`);
+      console.log('  PARAMETERS');
+      console.log(`${'─'.repeat(60)}\n`);
+      
+      for (const [paramName, paramConfig] of Object.entries(game.config)) {
+        console.log(`  --${paramName}`);
+        console.log(`      Range:   ${paramConfig.min} - ${paramConfig.max}`);
+        console.log(`      Default: ${paramConfig.default}`);
+        console.log(`      ${paramConfig.description || ''}`);
+        
+        if (paramConfig.options) {
+          console.log('');
+          console.log('      Values:');
+          for (const opt of paramConfig.options) {
+            console.log(`        ${opt.value} = ${opt.label}`);
+            console.log(`            ${opt.desc}`);
+          }
         }
         console.log('');
       }
-      console.log('EXAMPLE BETS:');
-      console.log('  apechurch bet --game jungle-plinko --amount 5 --mode 2 --balls 50');
-      console.log('  apechurch bet --game dino-dough --amount 10 --spins 8');
-      console.log('  apechurch bet --game bubblegum-heist --amount 5 --spins 12');
+      
+      console.log(`${'─'.repeat(60)}`);
+      console.log('  EXAMPLES');
+      console.log(`${'─'.repeat(60)}\n`);
+      
+      console.log('  # Quick play (random settings based on strategy):');
+      console.log(`  apechurch play --game ${game.key}`);
       console.log('');
+      console.log('  # With specific amount:');
+      console.log(`  apechurch play --game ${game.key} --amount 10`);
+      console.log('');
+      console.log('  # Full control:');
+      if (game.type === 'plinko') {
+        console.log(`  apechurch play --game ${game.key} --amount 10 --mode 2 --balls 50`);
+      } else if (game.type === 'slots') {
+        console.log(`  apechurch play --game ${game.key} --amount 10 --spins 8`);
+      }
+      console.log('');
+      console.log(`${'═'.repeat(60)}\n`);
     }
   });
 
@@ -1933,22 +2073,30 @@ GETTING STARTED
 PLAYING GAMES
 ========================================
 
-  apechurch play [--strategy TYPE] [--loop] [--json]
-    Play games automatically. Picks a random game, bets based on strategy.
-    --loop         Play continuously (3s between games)
-    --delay <sec>  Custom delay between games (default: 3)
-    --strategy     conservative | balanced | aggressive | degen
+  apechurch play [options]
+    Play a game. Flexible - specify as much or as little as you want.
+    
+    Options:
+      --game <name>    Game to play (random if not specified)
+      --amount <ape>   Wager amount (strategy-based if not specified)
+      --mode <0-4>     Plinko risk level
+      --balls <1-100>  Plinko balls to drop
+      --spins <1-15>   Slots spins
+      --strategy <type> conservative | balanced | aggressive | degen
+      --loop           Play continuously
+      --delay <sec>    Delay between games in loop mode (default: 3)
 
-  apechurch bet --game <NAME> --amount <APE> [options]
-    Place a manual bet on a specific game.
-    --game         jungle-plinko | dino-dough | bubblegum-heist
-    --amount       APE to wager
-    --mode <0-4>   Plinko risk level (higher = riskier)
-    --balls <1-100> Plinko balls to drop
-    --spins <1-15> Slots spins per bet
+    Examples:
+      apechurch play                              # Random everything
+      apechurch play --game jungle-plinko         # Specific game, random config
+      apechurch play --game dino-dough --amount 5 # Specific game + amount
+      apechurch play --game jungle-plinko --amount 10 --mode 3 --balls 25  # Full control
 
   apechurch games [--json]
     List all available games with parameters.
+
+  apechurch game <name> [--json]
+    Show detailed info for a specific game (params, examples).
 
 ========================================
 STRATEGIES (controls how much your agent bets)
