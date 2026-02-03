@@ -92,6 +92,19 @@ const GAME_CONTRACT_ABI = [
       { name: 'payout', type: 'uint256', indexed: false },
     ],
   },
+  {
+    type: 'function',
+    name: 'getEssentialGameInfo',
+    stateMutability: 'view',
+    inputs: [{ name: 'gameIds', type: 'uint256[]' }],
+    outputs: [
+      { name: 'players', type: 'address[]' },
+      { name: 'buyInAmounts', type: 'uint256[]' },
+      { name: 'totalPayouts', type: 'uint256[]' },
+      { name: 'timestamps', type: 'uint256[]' },
+      { name: 'hasEndeds', type: 'bool[]' },
+    ],
+  },
 ];
 
 const PLINKO_VRF_ABI = [
@@ -1608,6 +1621,112 @@ program
           }, 200);
         });
       }
+    }
+  });
+
+// --- COMMAND: HISTORY (View game history from local storage + chain) ---
+program
+  .command('history')
+  .description('View your game history')
+  .option('--limit <n>', 'Number of games to show (max 200)', '20')
+  .option('--json', 'Output JSON only')
+  .action(async (opts) => {
+    const limit = Math.min(Math.max(parseInt(opts.limit) || 20, 1), 200);
+    const history = loadHistory();
+    
+    if (history.games.length === 0) {
+      if (opts.json) {
+        console.log(JSON.stringify({ games: [], message: 'No games in history' }));
+      } else {
+        console.log('📜 No games in history yet. Play some games first!');
+      }
+      return;
+    }
+
+    // Take the most recent N games
+    const recentGames = history.games.slice(0, limit);
+    
+    // Group by contract
+    const byContract = {};
+    for (const game of recentGames) {
+      if (!byContract[game.contract]) {
+        byContract[game.contract] = [];
+      }
+      byContract[game.contract].push(game);
+    }
+
+    // Fetch data from each contract
+    const { publicClient } = createClients();
+    const results = [];
+
+    for (const [contract, games] of Object.entries(byContract)) {
+      const gameIds = games.map(g => BigInt(g.gameId));
+      
+      // Find game name from registry
+      const gameEntry = GAME_REGISTRY.find(g => g.contract.toLowerCase() === contract.toLowerCase());
+      const gameName = gameEntry ? gameEntry.name : 'Unknown';
+      
+      try {
+        const [players, buyInAmounts, totalPayouts, timestamps, hasEndeds] = await publicClient.readContract({
+          address: contract,
+          abi: GAME_CONTRACT_ABI,
+          functionName: 'getEssentialGameInfo',
+          args: [gameIds],
+        });
+
+        for (let i = 0; i < games.length; i++) {
+          const buyIn = formatEther(buyInAmounts[i]);
+          const payout = formatEther(totalPayouts[i]);
+          const pnl = parseFloat(payout) - parseFloat(buyIn);
+          
+          results.push({
+            timestamp: games[i].timestamp,
+            game: gameName,
+            gameId: games[i].gameId,
+            contract: games[i].contract,
+            player: players[i],
+            wager_ape: buyIn,
+            payout_ape: payout,
+            pnl_ape: pnl.toFixed(6),
+            won: pnl >= 0,
+            settled: hasEndeds[i],
+            chain_timestamp: Number(timestamps[i]),
+          });
+        }
+      } catch (error) {
+        // If contract call fails, include games with minimal info
+        for (const game of games) {
+          results.push({
+            timestamp: game.timestamp,
+            game: gameName,
+            gameId: game.gameId,
+            contract: game.contract,
+            error: 'Failed to fetch from chain',
+          });
+        }
+      }
+    }
+
+    // Sort by timestamp descending (most recent first)
+    results.sort((a, b) => b.timestamp - a.timestamp);
+
+    if (opts.json) {
+      console.log(JSON.stringify({ games: results }));
+    } else {
+      console.log(`\n📜 GAME HISTORY (last ${results.length})\n`);
+      for (const game of results) {
+        if (game.error) {
+          const date = new Date(game.timestamp).toLocaleString();
+          console.log(`${date}  ${game.game}  [Error fetching data]`);
+        } else {
+          const date = new Date(game.timestamp).toLocaleString();
+          const emoji = game.won ? '✅' : '❌';
+          const pnlStr = game.won ? `+${parseFloat(game.pnl_ape).toFixed(2)}` : parseFloat(game.pnl_ape).toFixed(2);
+          const settled = game.settled ? '' : ' [pending]';
+          console.log(`${date}  ${game.game.padEnd(16)}  Wager: ${parseFloat(game.wager_ape).toFixed(2).padStart(8)} APE  Payout: ${parseFloat(game.payout_ape).toFixed(2).padStart(8)} APE  ${emoji} ${pnlStr.padStart(8)}${settled}`);
+        }
+      }
+      console.log('');
     }
   });
 
