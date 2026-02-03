@@ -482,6 +482,7 @@ function getStrategyConfig(strategy) {
       slots: { spins: [10, 15] },
       roulette: { defaultBet: 'RED,BLACK' }, // 2.5% profit unless 0/00
       baccarat: { defaultBet: 'BANKER' }, // Banker has best odds
+      apestrong: { range: [60, 80] }, // High win chance, low payout
       gameWeights: defaultWeights,
     },
     balanced: {
@@ -493,6 +494,7 @@ function getStrategyConfig(strategy) {
       slots: { spins: [7, 12] },
       roulette: { defaultBet: 'random' }, // RED or BLACK
       baccarat: { defaultBet: 'random' }, // PLAYER or BANKER
+      apestrong: { range: [40, 60] }, // Balanced risk/reward
       gameWeights: defaultWeights,
     },
     aggressive: {
@@ -504,6 +506,7 @@ function getStrategyConfig(strategy) {
       slots: { spins: [3, 10] },
       roulette: { defaultBet: 'random' }, // RED or BLACK
       baccarat: { defaultBet: 'random' }, // PLAYER or BANKER
+      apestrong: { range: [25, 50] }, // Lower odds, bigger payouts
       gameWeights: defaultWeights,
     },
     degen: {
@@ -515,6 +518,7 @@ function getStrategyConfig(strategy) {
       slots: { spins: [2, 6] },
       roulette: { defaultBet: 'random' }, // RED or BLACK
       baccarat: { defaultBet: 'random' }, // PLAYER or BANKER
+      apestrong: { range: [5, 30] }, // High risk, moonshot payouts
       gameWeights: defaultWeights,
     },
   };
@@ -665,6 +669,18 @@ function selectGameAndConfig(strategyConfig) {
       bet = Math.random() < 0.5 ? 'PLAYER' : 'BANKER';
     }
     return { game: gameEntry.key, bet };
+  }
+
+  if (gameEntry.type === 'apestrong') {
+    const apestrongConfig = strategyConfig.apestrong || { range: [40, 60] };
+    const [rangeMin, rangeMax] = clampRange(
+      apestrongConfig.range[0],
+      apestrongConfig.range[1],
+      gameEntry.config.range.min,
+      gameEntry.config.range.max
+    );
+    const range = randomIntInclusive(rangeMin, rangeMax);
+    return { game: gameEntry.key, range };
   }
 
   return { game: gameEntry.key };
@@ -876,6 +892,7 @@ async function playGame({
   balls,
   spins,
   bet,        // Roulette: bet string like "RED" or "RED,BLACK,17"
+  range,      // ApeStrong: edge flip range (5-95)
   timeoutMs,
   referral,
 }) {
@@ -1052,6 +1069,48 @@ async function playGame({
       playerBankerBet: formatEther(playerBankerBet),
       tieBet: formatEther(tieBet),
       isBanker,
+    };
+  } else if (gameEntry.type === 'apestrong') {
+    // ApeStrong: Pick your odds dice game
+    const rangeValue = ensureIntRange(
+      range ?? gameEntry.config.range.default,
+      'range',
+      gameEntry.config.range.min,
+      gameEntry.config.range.max
+    );
+
+    // Get VRF fee (static, no args)
+    try {
+      vrfFee = await publicClient.readContract({
+        address: gameEntry.contract,
+        abi: SLOTS_VRF_ABI,
+        functionName: 'getVRFFee',
+      });
+    } catch (error) {
+      throw new Error(`Failed to read VRF fee (apestrong): ${sanitizeError(error)}`);
+    }
+
+    // Encoding: (uint8 edgeFlipRange, uint256 gameId, address ref, bytes32 userRandomWord)
+    encodedData = encodeAbiParameters(
+      [
+        { name: 'edgeFlipRange', type: 'uint8' },
+        { name: 'gameId', type: 'uint256' },
+        { name: 'ref', type: 'address' },
+        { name: 'userRandomWord', type: 'bytes32' },
+      ],
+      [rangeValue, gameId, refAddress, userRandomWord]
+    );
+
+    contractAddress = gameEntry.contract;
+    gameName = gameEntry.key;
+    gameUrl = `https://www.ape.church/games/${gameEntry.slug}?id=${gameId.toString()}`;
+    
+    // Calculate approximate payout multiplier: ~97.5 / range
+    const approxPayout = (97.5 / rangeValue).toFixed(2);
+    config = { 
+      range: rangeValue,
+      winChance: `${rangeValue}%`,
+      approxPayout: `${approxPayout}x`,
     };
   } else {
     throw new Error(`Unsupported game type: ${gameEntry.type}`);
@@ -1777,6 +1836,7 @@ program
   .option('--balls <1-100>', 'Number of balls to drop (1-100).', '50')
   .option('--spins <1-15>', 'Number of spins for slots (1-15).', '10')
   .option('--bet <bet>', 'Roulette bet (RED, BLACK, 17, RED,BLACK, etc.)')
+  .option('--range <5-95>', 'ApeStrong win chance (5-95%)', '50')
   .option('--timeout <ms>', 'Max ms to wait for GameEnded event. Use 0 to wait indefinitely.', '0')
   .action(async (opts) => {
     const account = getWallet();
@@ -1817,6 +1877,7 @@ program
         balls: opts.balls,
         spins: opts.spins,
         bet: opts.bet,
+        range: opts.range,
         timeoutMs,
         referral: profile.referral,
       });
@@ -1958,6 +2019,7 @@ program
           balls: selection.balls,
           spins: selection.spins,
           bet: selection.bet,
+          range: selection.range,
           timeoutMs,
           referral: freshProfile.referral,
         });
@@ -2074,6 +2136,7 @@ program
   .option('--balls <1-100>', 'Plinko balls to drop')
   .option('--spins <1-15>', 'Slots spins per bet')
   .option('--bet <bet>', 'Roulette bet (RED, BLACK, 17, RED,BLACK, etc.)')
+  .option('--range <5-95>', 'ApeStrong win chance (5-95%)')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously with 3s between games')
   .option('--delay <seconds>', 'Seconds between games in loop mode', '3')
@@ -2117,6 +2180,9 @@ program
         //   ["BANKER"] - simple bet
         //   ["140", "BANKER", "10", "TIE"] - explicit amounts
         positionalConfig.bet = configArgs.join(',');
+      } else if (fixedGame.type === 'apestrong') {
+        // For apestrong: configArgs = [range]
+        if (configArgs[0]) positionalConfig.range = parseInt(configArgs[0]);
       }
     }
 
@@ -2264,6 +2330,17 @@ program
             ? (Math.random() < 0.5 ? 'PLAYER' : 'BANKER')
             : baccaratConfig.defaultBet;
         }
+      } else if (gameEntry.type === 'apestrong') {
+        // ApeStrong: use --range flag, positional config, or strategy default
+        if (opts.range !== undefined) {
+          gameConfig.range = parseInt(opts.range);
+        } else if (positionalConfig.range !== undefined) {
+          gameConfig.range = positionalConfig.range;
+        } else if (gameConfig.range === undefined) {
+          // Random from strategy range
+          const [rangeMin, rangeMax] = strategyConfig.apestrong?.range || [40, 60];
+          gameConfig.range = randomIntInclusive(rangeMin, rangeMax);
+        }
       }
 
       const wagerApeString = formatApeAmount(wagerApe);
@@ -2277,6 +2354,7 @@ program
           balls: gameConfig.balls,
           spins: gameConfig.spins,
           bet: gameConfig.bet,
+          range: gameConfig.range,
           timeoutMs: 0,
           referral: freshProfile.referral,
         });
@@ -2550,6 +2628,9 @@ program
           console.log(`    apechurch play baccarat 50 BANKER`);
           console.log(`    apechurch play baccarat 150 140 BANKER 10 TIE`);
           console.log(`    apechurch play --game baccarat --amount 50 --bet PLAYER`);
+        } else if (game.type === 'apestrong') {
+          console.log(`    apechurch play ape-strong 10 50`);
+          console.log(`    apechurch play --game ape-strong --amount 10 --range 25`);
         }
         console.log('─'.repeat(70));
       }
@@ -2559,7 +2640,8 @@ program
       console.log('  apechurch play jungle-plinko 10 2 50  # Plinko: amount mode balls');
       console.log('  apechurch play roulette 50 RED        # Roulette: amount bet');
       console.log('  apechurch play baccarat 50 BANKER     # Baccarat: amount bet');
-      console.log('  apechurch play dino-dough 5 10        # Slots: amount spins\n');
+      console.log('  apechurch play dino-dough 5 10        # Slots: amount spins');
+      console.log('  apechurch play ape-strong 10 50       # ApeStrong: amount range\n');
     }
   });
 
@@ -2626,7 +2708,16 @@ program
           console.log('');
           console.log('      Examples:');
           for (const ex of paramConfig.examples) {
-            console.log(`        ${ex}`);
+            if (typeof ex === 'object' && ex.value !== undefined) {
+              // Object format (e.g., apestrong payout examples)
+              const parts = [];
+              if (ex.value !== undefined) parts.push(`${ex.value}`);
+              if (ex.winChance) parts.push(`${ex.winChance} win`);
+              if (ex.payout) parts.push(`→ ${ex.payout}`);
+              console.log(`        ${parts.join(' ')}`);
+            } else {
+              console.log(`        ${ex}`);
+            }
           }
         }
         console.log('');
@@ -2707,6 +2798,11 @@ program
         console.log('  For combined bets, specify exact amounts for each (must sum to total).');
         console.log('  Example: apechurch play baccarat 150 140 BANKER 10 TIE');
         console.log('           → 140 APE on banker + 10 APE on tie = 150 total');
+      } else if (game.type === 'apestrong') {
+        console.log('  Positional:  apechurch play ape-strong <amount> <range>');
+        console.log('  Flags:       apechurch play --game ape-strong --amount <ape> --range <5-95>');
+        console.log('');
+        console.log('  You can mix positional and flags. Positional order: amount, range.');
       }
       
       console.log('');
@@ -2749,6 +2845,10 @@ program
         console.log('                          │   │    └────────── 140 on banker');
         console.log('                          │   └───────────────  banker bet');
         console.log('                          └───────────────────  total (must = 140+10)');
+      } else if (game.type === 'apestrong') {
+        console.log(`  apechurch play ape-strong 10 50`);
+        console.log('                            │  └─ range (50% win chance)');
+        console.log('                            └──── amount (10 APE)');
       }
       console.log('');
       console.log('  # Full control (flags):');
@@ -2762,6 +2862,9 @@ program
       } else if (game.type === 'baccarat') {
         console.log(`  apechurch play --game baccarat --amount 50 --bet BANKER`);
         console.log(`  apechurch play --game baccarat --amount 150 --bet "140 BANKER 10 TIE"`);
+      } else if (game.type === 'apestrong') {
+        console.log(`  apechurch play --game ape-strong --amount 10 --range 50`);
+        console.log(`  apechurch play --game ape-strong --amount 20 --range 25   # High risk, ~3.9x`);
       }
       console.log('');
       console.log('  # Continuous play:');

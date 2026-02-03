@@ -1,5 +1,32 @@
 export const GAME_REGISTRY = [
   {
+    key: 'ape-strong',
+    name: 'ApeStrong',
+    slug: 'ape-strong',
+    type: 'apestrong',
+    description: 'Pick your odds! Choose a range (5-95) — roll under to win. Higher range = more likely to win, lower payout.',
+    contract: '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600',
+    aliases: ['strong', 'dice', 'limbo'],
+    config: {
+      range: {
+        min: 5,
+        max: 95,
+        default: 50,
+        description: 'Win probability (%). Roll under this number to win. Lower = riskier, bigger payout.',
+        examples: [
+          { value: 50, payout: '1.95x', winChance: '50%' },
+          { value: 25, payout: '3.9x', winChance: '25%' },
+          { value: 75, payout: '1.3x', winChance: '75%' },
+          { value: 5, payout: '19.5x', winChance: '5%' },
+          { value: 95, payout: '1.025x', winChance: '95%' },
+        ],
+      },
+    },
+    vrf: {
+      type: 'static',
+    },
+  },
+  {
     key: 'baccarat',
     name: 'Baccarat',
     slug: 'baccarat',

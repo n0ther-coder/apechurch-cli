@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.12] - 2026-02-03
+### Added
+- **ApeStrong game**: Pick-your-odds dice game
+  - Choose win probability from 5-95%
+  - Lower range = higher payout (e.g., 5% → 19.5x, 50% → 1.95x)
+  - `apechurch play ape-strong 10 50` or `--game ape-strong --amount 10 --range 50`
+  - Aliases: `strong`, `dice`, `limbo`
+  - Strategy support with persona-based range selection
+- New `--range` CLI option for ApeStrong game
+
 ## [Unreleased]
 - Initial production-ready CLI with ApeChain support.
 - Game registry for Jungle Plinko, Dino Dough, Bubblegum Heist.
