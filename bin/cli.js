@@ -756,16 +756,21 @@ program
           gameConfig.range = randomIntInclusive(min, max);
         }
       } else if (gameEntry.type === 'keno') {
-        // Pick count
-        if (opts.picks !== undefined) gameConfig.picks = parseInt(opts.picks);
-        else if (positionalConfig.picks !== undefined) gameConfig.picks = positionalConfig.picks;
-        else if (gameConfig.picks === undefined) {
+        // Numbers first (if provided, picks is inferred)
+        if (opts.numbers) gameConfig.numbers = opts.numbers;
+        else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
+        // Pick count - infer from numbers if provided, otherwise use --picks or random
+        if (gameConfig.numbers && gameConfig.numbers.toLowerCase() !== 'random') {
+          // Infer picks from number of values provided
+          gameConfig.picks = gameConfig.numbers.split(',').filter(s => s.trim()).length;
+        } else if (opts.picks !== undefined) {
+          gameConfig.picks = parseInt(opts.picks);
+        } else if (positionalConfig.picks !== undefined) {
+          gameConfig.picks = positionalConfig.picks;
+        } else if (gameConfig.picks === undefined) {
           const [min, max] = strategyConfig.keno?.picks || [3, 6];
           gameConfig.picks = randomIntInclusive(min, max);
         }
-        // Numbers (optional - will be random if not specified)
-        if (opts.numbers) gameConfig.numbers = opts.numbers;
-        else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
       } else if (gameEntry.type === 'speedkeno') {
         // Number of games (batching)
         if (opts.games !== undefined) gameConfig.games = parseInt(opts.games);
@@ -774,16 +779,21 @@ program
           const [min, max] = strategyConfig.speedKeno?.games || [5, 10];
           gameConfig.games = randomIntInclusive(min, max);
         }
-        // Pick count (1-5 for speed keno)
-        if (opts.picks !== undefined) gameConfig.picks = parseInt(opts.picks);
-        else if (positionalConfig.picks !== undefined) gameConfig.picks = positionalConfig.picks;
-        else if (gameConfig.picks === undefined) {
+        // Numbers first (if provided, picks is inferred)
+        if (opts.numbers) gameConfig.numbers = opts.numbers;
+        else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
+        // Pick count - infer from numbers if provided, otherwise use --picks or random
+        if (gameConfig.numbers && gameConfig.numbers.toLowerCase() !== 'random') {
+          // Infer picks from number of values provided
+          gameConfig.picks = gameConfig.numbers.split(',').filter(s => s.trim()).length;
+        } else if (opts.picks !== undefined) {
+          gameConfig.picks = parseInt(opts.picks);
+        } else if (positionalConfig.picks !== undefined) {
+          gameConfig.picks = positionalConfig.picks;
+        } else if (gameConfig.picks === undefined) {
           const [min, max] = strategyConfig.speedKeno?.picks || [2, 4];
           gameConfig.picks = randomIntInclusive(min, max);
         }
-        // Numbers (optional - will be random if not specified)
-        if (opts.numbers) gameConfig.numbers = opts.numbers;
-        else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
       }
 
       const wagerApeString = formatApeAmount(wagerApe);
@@ -873,10 +883,16 @@ program
           // Human-friendly output
           if (hasResult) {
             const payoutApe = parseFloat(playResponse.result.payout_ape);
+            const wagerApeNum = parseFloat(wagerApeString);
             if (won) {
-              console.log(`🎉 WON! ${parseFloat(wagerApeString).toFixed(2)} APE → ${payoutApe.toFixed(2)} APE (+${pnlApe.toFixed(2)} APE)\n`);
+              console.log(`🎉 WON! ${wagerApeNum.toFixed(2)} APE → ${payoutApe.toFixed(2)} APE (+${pnlApe.toFixed(2)} APE)\n`);
+            } else if (payoutApe > 0) {
+              // Partial loss - got some back
+              const lostApe = Math.abs(pnlApe);
+              console.log(`❌ Lost ${lostApe.toFixed(2)} APE (${wagerApeNum.toFixed(2)} APE → ${payoutApe.toFixed(2)} APE)\n`);
             } else {
-              console.log(`❌ Lost ${parseFloat(wagerApeString).toFixed(2)} APE — better luck next time!\n`);
+              // Total loss
+              console.log(`❌ Lost ${wagerApeNum.toFixed(2)} APE — better luck next time!\n`);
             }
           } else {
             // Result pending (rare - if event didn't fire in time)
