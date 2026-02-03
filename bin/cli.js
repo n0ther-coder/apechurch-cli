@@ -19,6 +19,13 @@ import {
   WALLET_FILE,
   GAS_RESERVE_APE,
   GAME_CONTRACT_ABI,
+  CONTEST_REGISTER_CONTRACT,
+  USER_INFO_CONTRACT,
+  CONTEST_ENTRY_FEE,
+  CONTEST_WAGER_LIMIT,
+  CONTEST_END_DATE,
+  REGISTER_AGENT_ABI,
+  USER_INFO_ABI,
 } from '../lib/constants.js';
 import {
   sanitizeError,
@@ -250,7 +257,17 @@ program
     console.log('  ⚠️  ACTION REQUIRED: Send APE to this address on ApeChain.');
     console.log('');
     console.log('  Bridge APE:  https://relay.link/bridge/apechain');
-    console.log('═══════════════════════════════════════════════════════════════════\n');
+    console.log('═══════════════════════════════════════════════════════════════════');
+    
+    // Show contest prompt if contest is still active
+    if (new Date() < CONTEST_END_DATE) {
+      console.log('');
+      console.log('  🏆 AGENT CONTEST IS LIVE!');
+      console.log('     Compete against other agents for prizes.');
+      console.log('     Run: apechurch contest');
+      console.log('═══════════════════════════════════════════════════════════════════');
+    }
+    console.log('');
   });
 
 // ============================================================================
@@ -763,6 +780,266 @@ program
   });
 
 // ============================================================================
+// COMMAND: CONTEST
+// ============================================================================
+program
+  .command('contest [action]')
+  .description('Agent contest info and registration')
+  .option('--json', 'JSON output')
+  .action(async (action, opts) => {
+    const now = new Date();
+    const contestEnded = now >= CONTEST_END_DATE;
+    
+    // Check if action is 'register'
+    if (action === 'register') {
+      if (contestEnded) {
+        const msg = { error: 'Contest has ended.', endDate: CONTEST_END_DATE.toISOString() };
+        if (opts.json) console.log(JSON.stringify(msg));
+        else console.log('\n❌ Contest has ended. Registration is closed.\n');
+        return;
+      }
+      
+      if (!walletExists()) {
+        const msg = { error: 'No wallet found. Run: apechurch install' };
+        if (opts.json) console.log(JSON.stringify(msg));
+        else console.log('\n❌ No wallet found. Run: apechurch install\n');
+        return;
+      }
+
+      const account = getWallet();
+      const { publicClient, walletClient } = createClients(account);
+
+      // Check if already registered
+      let isRegistered;
+      try {
+        isRegistered = await publicClient.readContract({
+          address: CONTEST_REGISTER_CONTRACT,
+          abi: REGISTER_AGENT_ABI,
+          functionName: 'isRegistered',
+          args: [account.address],
+        });
+      } catch (error) {
+        const msg = { error: `Failed to check registration: ${sanitizeError(error)}` };
+        if (opts.json) console.log(JSON.stringify(msg));
+        else console.error('\n❌ ' + msg.error + '\n');
+        return;
+      }
+
+      if (isRegistered) {
+        const msg = { status: 'already_registered', message: 'You are already registered for the contest!' };
+        if (opts.json) console.log(JSON.stringify(msg));
+        else console.log('\n✅ You are already registered for the contest!\n');
+        return;
+      }
+
+      // Check total wagered
+      let totalWagered;
+      try {
+        totalWagered = await publicClient.readContract({
+          address: USER_INFO_CONTRACT,
+          abi: USER_INFO_ABI,
+          functionName: 'getTotalWagered',
+          args: [account.address],
+        });
+      } catch (error) {
+        const msg = { error: `Failed to check wager history: ${sanitizeError(error)}` };
+        if (opts.json) console.log(JSON.stringify(msg));
+        else console.error('\n❌ ' + msg.error + '\n');
+        return;
+      }
+
+      const totalWageredApe = parseFloat(formatEther(totalWagered));
+      if (totalWageredApe >= CONTEST_WAGER_LIMIT) {
+        const msg = {
+          error: 'Not eligible - wagered too much',
+          total_wagered_ape: totalWageredApe.toFixed(2),
+          limit_ape: CONTEST_WAGER_LIMIT,
+          message: `You have wagered ${totalWageredApe.toFixed(2)} APE. Limit is ${CONTEST_WAGER_LIMIT} APE.`,
+        };
+        if (opts.json) console.log(JSON.stringify(msg));
+        else {
+          console.log('\n❌ Not eligible for contest.');
+          console.log(`   Total wagered: ${totalWageredApe.toFixed(2)} APE`);
+          console.log(`   Limit: ${CONTEST_WAGER_LIMIT} APE`);
+          console.log('   (Contest is for new agents only)\n');
+        }
+        return;
+      }
+
+      // Check balance
+      let balance;
+      try {
+        balance = await publicClient.getBalance({ address: account.address });
+      } catch (error) {
+        const msg = { error: `Failed to fetch balance: ${sanitizeError(error)}` };
+        if (opts.json) console.log(JSON.stringify(msg));
+        else console.error('\n❌ ' + msg.error + '\n');
+        return;
+      }
+
+      const balanceApe = parseFloat(formatEther(balance));
+      if (balanceApe < CONTEST_ENTRY_FEE + GAS_RESERVE_APE) {
+        const msg = {
+          error: 'Insufficient balance',
+          balance_ape: balanceApe.toFixed(4),
+          required_ape: CONTEST_ENTRY_FEE + GAS_RESERVE_APE,
+          message: `Need ${CONTEST_ENTRY_FEE} APE + gas. You have ${balanceApe.toFixed(4)} APE.`,
+        };
+        if (opts.json) console.log(JSON.stringify(msg));
+        else {
+          console.log('\n❌ Insufficient balance.');
+          console.log(`   Need: ${CONTEST_ENTRY_FEE} APE + gas`);
+          console.log(`   Have: ${balanceApe.toFixed(4)} APE\n`);
+        }
+        return;
+      }
+
+      // Register!
+      if (!opts.json) console.log('\n🎰 Registering for contest...');
+      
+      try {
+        const txHash = await walletClient.writeContract({
+          address: CONTEST_REGISTER_CONTRACT,
+          abi: REGISTER_AGENT_ABI,
+          functionName: 'register',
+          value: parseEther(String(CONTEST_ENTRY_FEE)),
+        });
+
+        const msg = {
+          status: 'registered',
+          tx: txHash,
+          entry_fee_ape: CONTEST_ENTRY_FEE,
+          message: 'Successfully registered for the contest!',
+        };
+        if (opts.json) console.log(JSON.stringify(msg));
+        else {
+          console.log('✅ Registered for contest!');
+          console.log(`   Entry fee: ${CONTEST_ENTRY_FEE} APE`);
+          console.log(`   TX: ${txHash}`);
+          console.log('\n   Good luck! 🦍🏆\n');
+        }
+      } catch (error) {
+        const msg = { error: `Registration failed: ${sanitizeError(error)}` };
+        if (opts.json) console.log(JSON.stringify(msg));
+        else console.error('\n❌ ' + msg.error + '\n');
+      }
+      return;
+    }
+
+    // Default action: show contest info
+    if (!walletExists()) {
+      if (opts.json) {
+        console.log(JSON.stringify({
+          contest_active: !contestEnded,
+          end_date: CONTEST_END_DATE.toISOString(),
+          entry_fee_ape: CONTEST_ENTRY_FEE,
+          wager_limit_ape: CONTEST_WAGER_LIMIT,
+          wallet: null,
+        }));
+      } else {
+        console.log('\n═══════════════════════════════════════════════════════════════════');
+        console.log('  🏆 APE CHURCH AGENT CONTEST');
+        console.log('═══════════════════════════════════════════════════════════════════\n');
+        if (contestEnded) {
+          console.log('  ⏰ Contest has ended.\n');
+        } else {
+          console.log('  Compete against other agents for prizes!\n');
+          console.log(`  Entry Fee:     ${CONTEST_ENTRY_FEE} APE (one-time)`);
+          console.log(`  Eligibility:   Must have wagered < ${CONTEST_WAGER_LIMIT} APE total`);
+          console.log(`  Ends:          ${CONTEST_END_DATE.toDateString()}\n`);
+          console.log('  Run: apechurch install  (to set up your agent first)');
+        }
+        console.log('═══════════════════════════════════════════════════════════════════\n');
+      }
+      return;
+    }
+
+    const account = getWallet();
+    const { publicClient } = createClients();
+
+    // Fetch registration status and wagered amount
+    let isRegistered = false;
+    let totalWagered = BigInt(0);
+    let balance = BigInt(0);
+
+    try {
+      [isRegistered, totalWagered, balance] = await Promise.all([
+        publicClient.readContract({
+          address: CONTEST_REGISTER_CONTRACT,
+          abi: REGISTER_AGENT_ABI,
+          functionName: 'isRegistered',
+          args: [account.address],
+        }),
+        publicClient.readContract({
+          address: USER_INFO_CONTRACT,
+          abi: USER_INFO_ABI,
+          functionName: 'getTotalWagered',
+          args: [account.address],
+        }),
+        publicClient.getBalance({ address: account.address }),
+      ]);
+    } catch (error) {
+      // Continue with defaults if fetch fails
+    }
+
+    const totalWageredApe = parseFloat(formatEther(totalWagered));
+    const balanceApe = parseFloat(formatEther(balance));
+    const isEligible = totalWageredApe < CONTEST_WAGER_LIMIT;
+    const canAfford = balanceApe >= CONTEST_ENTRY_FEE + GAS_RESERVE_APE;
+
+    if (opts.json) {
+      console.log(JSON.stringify({
+        contest_active: !contestEnded,
+        end_date: CONTEST_END_DATE.toISOString(),
+        entry_fee_ape: CONTEST_ENTRY_FEE,
+        wager_limit_ape: CONTEST_WAGER_LIMIT,
+        address: account.address,
+        registered: isRegistered,
+        total_wagered_ape: totalWageredApe.toFixed(2),
+        eligible: isEligible,
+        balance_ape: balanceApe.toFixed(4),
+        can_afford: canAfford,
+      }));
+      return;
+    }
+
+    console.log('\n═══════════════════════════════════════════════════════════════════');
+    console.log('  🏆 APE CHURCH AGENT CONTEST');
+    console.log('═══════════════════════════════════════════════════════════════════\n');
+
+    if (contestEnded) {
+      console.log('  ⏰ Contest has ended.\n');
+      if (isRegistered) {
+        console.log('  ✅ You were registered. Check results at ape.church!\n');
+      }
+    } else {
+      console.log('  Compete against other agents for prizes!\n');
+      console.log(`  Entry Fee:     ${CONTEST_ENTRY_FEE} APE (one-time)`);
+      console.log(`  Eligibility:   Must have wagered < ${CONTEST_WAGER_LIMIT} APE total`);
+      console.log(`  Ends:          ${CONTEST_END_DATE.toDateString()}\n`);
+      
+      console.log('  YOUR STATUS');
+      console.log('  ─────────────────────────────────────────────────────────────────');
+      console.log(`  Registered:    ${isRegistered ? '✅ Yes' : 'No'}`);
+      console.log(`  Total Wagered: ${totalWageredApe.toFixed(2)} APE`);
+      console.log(`  Eligible:      ${isEligible ? '✅ Yes' : '❌ No (wagered too much)'}`);
+      console.log(`  Balance:       ${balanceApe.toFixed(4)} APE ${canAfford ? '' : '(need ' + CONTEST_ENTRY_FEE + ' APE)'}`);
+      console.log('');
+
+      if (isRegistered) {
+        console.log('  🎉 You\'re in! Good luck!\n');
+      } else if (!isEligible) {
+        console.log('  ❌ Not eligible - wagered too much before registering.\n');
+      } else if (!canAfford) {
+        console.log(`  ⚠️  Fund your wallet with ${CONTEST_ENTRY_FEE}+ APE to register.\n`);
+      } else {
+        console.log('  → Run: apechurch contest register\n');
+      }
+    }
+    console.log('═══════════════════════════════════════════════════════════════════\n');
+  });
+
+// ============================================================================
 // COMMAND: HISTORY
 // ============================================================================
 program
@@ -964,6 +1241,10 @@ INFO
   apechurch game <name>          Game details
   apechurch history              Recent games
   apechurch commands             This help
+
+CONTEST
+  apechurch contest              Contest info and your status
+  apechurch contest register     Register for the contest (5 APE)
 
 EXAMPLES
   apechurch play jungle-plinko 10 2 50
