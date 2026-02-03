@@ -871,12 +871,14 @@ program
     console.log('');
     console.log('STEP 2: Start playing');
     console.log('  Check balance:    apechurch status');
-    console.log('  Place one bet:    apechurch heartbeat --strategy balanced');
+    console.log('  Single bet:       apechurch heartbeat --strategy balanced');
+    console.log('  Continuous play:  apechurch heartbeat --strategy balanced --loop');
     console.log('  Manual bet:       apechurch bet --game jungle-plinko --amount 5 --mode 2 --balls 50');
     console.log('');
-    console.log('STEP 3: Automate (optional)');
-    console.log('  Add to your agent\'s cron/heartbeat to play continuously.');
-    console.log('  Control: apechurch pause / apechurch resume');
+    console.log('STEP 3: Control');
+    console.log('  Pause anytime:    apechurch pause');
+    console.log('  Resume play:      apechurch resume');
+    console.log('  Stop loop:        Ctrl+C');
     console.log('---------------------------------------');
   });
 
@@ -1085,162 +1087,231 @@ program
 // --- COMMAND: HEARTBEAT (Autonomous Loop) ---
 program
   .command('heartbeat')
-  .option('--strategy <name>', 'conservative | balanced | aggressive')
+  .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--cooldown <ms>', 'Minimum ms between plays (0 = use strategy cooldown)', '0')
   .option('--timeout <ms>', 'Max ms to wait for GameEnded event. Use 0 to wait indefinitely.', '0')
+  .option('--loop', 'Run continuously until paused or stopped (Ctrl+C)')
   .option('--json', 'Output JSON only')
   .action(async (opts) => {
     const account = getWallet();
-    const state = loadState();
-    const profile = loadProfile();
-    const now = Date.now();
-
-    // Check if paused - skip gracefully without fetching balance
-    if (profile.paused) {
-      state.lastHeartbeat = now;
-      saveState(state);
-      const response = {
-        action: 'heartbeat',
-        status: 'skipped',
-        reason: 'paused',
-        message: 'Autonomous play is paused. Run `apechurch resume` to continue.',
-        address: account.address,
-        paused: true,
-      };
-      if (opts.json) console.log(JSON.stringify(response));
-      else console.log(JSON.stringify(response, null, 2));
-      return;
-    }
-
-    state.lastHeartbeat = now;
-    if (opts.strategy) state.strategy = normalizeStrategy(opts.strategy);
-    else if (profile.persona) state.strategy = normalizeStrategy(profile.persona);
     const requestedCooldown = parseNonNegativeInt(opts.cooldown, 'cooldown');
-    if (requestedCooldown > 0) state.cooldownMs = requestedCooldown;
     const timeoutMs = parseNonNegativeInt(opts.timeout, 'timeout');
+    const loopMode = Boolean(opts.loop);
 
-    const { publicClient } = createClients();
-    let balance;
-    try {
-      balance = await publicClient.getBalance({ address: account.address });
-    } catch (error) {
-      console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
-      process.exit(1);
+    if (loopMode && !opts.json) {
+      console.log('🎰 Starting continuous play mode (Ctrl+C to stop)...\n');
     }
 
-    const balanceApe = parseFloat(formatEther(balance));
-    const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
-    const strategy = normalizeStrategy(state.strategy);
-    const strategyConfig = applyProfileOverrides(
-      getStrategyConfig(strategy),
-      profile.overrides
-    );
-    const dynamicCooldownMs = computeCooldownMs(strategyConfig, state);
-    const cooldownMs =
-      requestedCooldown > 0 ? requestedCooldown : dynamicCooldownMs;
+    // Main play function - returns cooldown to wait (0 = no wait needed)
+    async function runHeartbeat() {
+      const state = loadState();
+      const profile = loadProfile();
+      const now = Date.now();
 
-    const baseResponse = {
-      action: 'heartbeat',
-      strategy,
-      address: account.address,
-      balance_ape: balanceApe.toFixed(6),
-      available_ape: availableApe.toFixed(6),
-      gas_reserve_ape: GAS_RESERVE_APE.toFixed(6),
-      paused: false,
-      last_play: state.lastPlay,
-      cooldown_ms: cooldownMs,
-      consecutive_wins: state.consecutiveWins,
-      consecutive_losses: state.consecutiveLosses,
-    };
-
-    if (availableApe <= 0 || availableApe < strategyConfig.minBetApe) {
-      saveState(state);
-      const response = {
-        ...baseResponse,
-        status: 'skipped',
-        reason: 'insufficient_available_ape',
-      };
-      if (opts.json) console.log(JSON.stringify(response));
-      else console.log(JSON.stringify(response, null, 2));
-      return;
-    }
-
-    if (state.lastPlay && cooldownMs > 0 && now - state.lastPlay < cooldownMs) {
-      saveState(state);
-      const response = {
-        ...baseResponse,
-        status: 'skipped',
-        reason: 'cooldown',
-        next_play_after_ms: Math.max(cooldownMs - (now - state.lastPlay), 0),
-      };
-      if (opts.json) console.log(JSON.stringify(response));
-      else console.log(JSON.stringify(response, null, 2));
-      return;
-    }
-
-    const wagerApe = calculateWager(availableApe, strategyConfig);
-    if (wagerApe < strategyConfig.minBetApe) {
-      saveState(state);
-      const response = {
-        ...baseResponse,
-        status: 'skipped',
-        reason: 'wager_below_minimum',
-        wager_ape: formatApeAmount(wagerApe),
-      };
-      if (opts.json) console.log(JSON.stringify(response));
-      else console.log(JSON.stringify(response, null, 2));
-      return;
-    }
-
-    const selection = selectGameAndConfig(strategyConfig);
-    const wagerApeString = formatApeAmount(wagerApe);
-
-    try {
-      const playResponse = await playGame({
-        account,
-        game: selection.game,
-        amountApe: wagerApeString,
-        mode: selection.mode,
-        balls: selection.balls,
-        spins: selection.spins,
-        timeoutMs,
-      });
-
-      state.lastPlay = now;
-      if (playResponse?.result) {
-        const pnlWei = (BigInt(playResponse.result.payout_wei) -
-          BigInt(playResponse.result.buy_in_wei)).toString();
-        state.totalPnLWei = addBigIntStrings(state.totalPnLWei, pnlWei);
-        if (BigInt(pnlWei) >= 0n) {
-          state.sessionWins += 1;
-          state.consecutiveWins += 1;
-          state.consecutiveLosses = 0;
-        } else {
-          state.sessionLosses += 1;
-          state.consecutiveLosses += 1;
-          state.consecutiveWins = 0;
-        }
+      // Check if paused
+      if (profile.paused) {
+        state.lastHeartbeat = now;
+        saveState(state);
+        const response = {
+          action: 'heartbeat',
+          status: 'skipped',
+          reason: 'paused',
+          message: 'Autonomous play is paused. Run `apechurch resume` to continue.',
+          address: account.address,
+          paused: true,
+        };
+        if (opts.json) console.log(JSON.stringify(response));
+        else console.log(JSON.stringify(response, null, 2));
+        return { shouldStop: true, waitMs: 0 };
       }
 
-      saveState(state);
-      const response = {
-        ...baseResponse,
-        status: playResponse.status,
-        wager_ape: wagerApeString,
-        game: playResponse.game,
-        config: playResponse.config,
-        tx: playResponse.tx,
-        gameId: playResponse.gameId,
-        game_url: playResponse.game_url,
-        result: playResponse.result,
+      state.lastHeartbeat = now;
+      if (opts.strategy) state.strategy = normalizeStrategy(opts.strategy);
+      else if (profile.persona) state.strategy = normalizeStrategy(profile.persona);
+      if (requestedCooldown > 0) state.cooldownMs = requestedCooldown;
+
+      const { publicClient } = createClients();
+      let balance;
+      try {
+        balance = await publicClient.getBalance({ address: account.address });
+      } catch (error) {
+        console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
+        return { shouldStop: true, waitMs: 0 };
+      }
+
+      const balanceApe = parseFloat(formatEther(balance));
+      const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
+      const strategy = normalizeStrategy(state.strategy);
+      const strategyConfig = applyProfileOverrides(
+        getStrategyConfig(strategy),
+        profile.overrides
+      );
+      const dynamicCooldownMs = computeCooldownMs(strategyConfig, state);
+      const cooldownMs = requestedCooldown > 0 ? requestedCooldown : dynamicCooldownMs;
+
+      const baseResponse = {
+        action: 'heartbeat',
+        strategy,
+        address: account.address,
+        balance_ape: balanceApe.toFixed(6),
+        available_ape: availableApe.toFixed(6),
+        gas_reserve_ape: GAS_RESERVE_APE.toFixed(6),
+        paused: false,
+        last_play: state.lastPlay,
+        cooldown_ms: cooldownMs,
+        consecutive_wins: state.consecutiveWins,
+        consecutive_losses: state.consecutiveLosses,
       };
 
-      if (opts.json) console.log(JSON.stringify(response));
-      else console.log(JSON.stringify(response, null, 2));
-    } catch (error) {
-      saveState(state);
-      console.error(JSON.stringify({ error: error.message }));
-      process.exit(1);
+      if (availableApe <= 0 || availableApe < strategyConfig.minBetApe) {
+        saveState(state);
+        const response = {
+          ...baseResponse,
+          status: 'skipped',
+          reason: 'insufficient_available_ape',
+        };
+        if (opts.json) console.log(JSON.stringify(response));
+        else console.log(JSON.stringify(response, null, 2));
+        return { shouldStop: true, waitMs: 0 };
+      }
+
+      if (state.lastPlay && cooldownMs > 0 && now - state.lastPlay < cooldownMs) {
+        const waitMs = Math.max(cooldownMs - (now - state.lastPlay), 0);
+        saveState(state);
+        const response = {
+          ...baseResponse,
+          status: 'skipped',
+          reason: 'cooldown',
+          next_play_after_ms: waitMs,
+        };
+        if (opts.json) console.log(JSON.stringify(response));
+        else console.log(JSON.stringify(response, null, 2));
+        return { shouldStop: false, waitMs };
+      }
+
+      const wagerApe = calculateWager(availableApe, strategyConfig);
+      if (wagerApe < strategyConfig.minBetApe) {
+        saveState(state);
+        const response = {
+          ...baseResponse,
+          status: 'skipped',
+          reason: 'wager_below_minimum',
+          wager_ape: formatApeAmount(wagerApe),
+        };
+        if (opts.json) console.log(JSON.stringify(response));
+        else console.log(JSON.stringify(response, null, 2));
+        return { shouldStop: true, waitMs: 0 };
+      }
+
+      const selection = selectGameAndConfig(strategyConfig);
+      const wagerApeString = formatApeAmount(wagerApe);
+
+      try {
+        const playResponse = await playGame({
+          account,
+          game: selection.game,
+          amountApe: wagerApeString,
+          mode: selection.mode,
+          balls: selection.balls,
+          spins: selection.spins,
+          timeoutMs,
+        });
+
+        state.lastPlay = Date.now();
+        if (playResponse?.result) {
+          const pnlWei = (BigInt(playResponse.result.payout_wei) -
+            BigInt(playResponse.result.buy_in_wei)).toString();
+          state.totalPnLWei = addBigIntStrings(state.totalPnLWei, pnlWei);
+          if (BigInt(pnlWei) >= 0n) {
+            state.sessionWins += 1;
+            state.consecutiveWins += 1;
+            state.consecutiveLosses = 0;
+          } else {
+            state.sessionLosses += 1;
+            state.consecutiveLosses += 1;
+            state.consecutiveWins = 0;
+          }
+        }
+
+        saveState(state);
+        
+        // Recalculate cooldown after state update (may change due to win/loss streaks)
+        const newCooldownMs = requestedCooldown > 0 
+          ? requestedCooldown 
+          : computeCooldownMs(strategyConfig, state);
+
+        const response = {
+          ...baseResponse,
+          cooldown_ms: newCooldownMs,
+          consecutive_wins: state.consecutiveWins,
+          consecutive_losses: state.consecutiveLosses,
+          status: playResponse.status,
+          wager_ape: wagerApeString,
+          game: playResponse.game,
+          config: playResponse.config,
+          tx: playResponse.tx,
+          gameId: playResponse.gameId,
+          game_url: playResponse.game_url,
+          result: playResponse.result,
+        };
+
+        if (opts.json) console.log(JSON.stringify(response));
+        else console.log(JSON.stringify(response, null, 2));
+
+        return { shouldStop: false, waitMs: newCooldownMs };
+      } catch (error) {
+        saveState(state);
+        console.error(JSON.stringify({ error: error.message }));
+        return { shouldStop: true, waitMs: 0 };
+      }
+    }
+
+    // Run once or loop
+    if (!loopMode) {
+      const result = await runHeartbeat();
+      if (result.shouldStop && result.waitMs === 0) {
+        // Error or fatal skip - exit with appropriate code
+        const state = loadState();
+        const profile = loadProfile();
+        if (profile.paused) process.exit(0);
+      }
+    } else {
+      // Loop mode
+      let running = true;
+      process.on('SIGINT', () => {
+        if (!opts.json) console.log('\n👋 Stopping continuous play...');
+        running = false;
+      });
+      process.on('SIGTERM', () => {
+        running = false;
+      });
+
+      while (running) {
+        const result = await runHeartbeat();
+        
+        if (!running) break;
+        
+        if (result.shouldStop) {
+          if (!opts.json) console.log('\n⏹️  Stopped: cannot continue playing.');
+          break;
+        }
+
+        if (result.waitMs > 0) {
+          if (!opts.json) {
+            console.log(`\n⏳ Waiting ${(result.waitMs / 1000).toFixed(0)}s until next bet...\n`);
+          }
+          await new Promise((resolve) => {
+            const timeout = setTimeout(resolve, result.waitMs);
+            const checkStop = setInterval(() => {
+              if (!running) {
+                clearTimeout(timeout);
+                clearInterval(checkStop);
+                resolve();
+              }
+            }, 500);
+          });
+        }
+      }
     }
   });
 
