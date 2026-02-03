@@ -596,7 +596,8 @@ program
 
     if (loopMode && !opts.json) {
       const gameInfo = fixedGame ? fixedGame.name : 'random games';
-      console.log(`🎰 Starting continuous play: ${gameInfo} (${delaySeconds}s delay, Ctrl+C to stop)...\n`);
+      console.log(`\n🔄 Loop mode: ${gameInfo} (${delaySeconds}s between games, Ctrl+C to stop)`);
+      console.log('─'.repeat(50));
     }
 
     async function playOnce() {
@@ -713,6 +714,24 @@ program
 
       const wagerApeString = formatApeAmount(wagerApe);
 
+      // Build description for human output
+      let gameDesc = gameEntry.name;
+      if (gameEntry.type === 'plinko') {
+        gameDesc += ` (mode ${gameConfig.mode}, ${gameConfig.balls} balls)`;
+      } else if (gameEntry.type === 'slots') {
+        gameDesc += ` (${gameConfig.spins} spins)`;
+      } else if (gameEntry.type === 'roulette' || gameEntry.type === 'baccarat') {
+        gameDesc += ` — ${gameConfig.bet}`;
+      } else if (gameEntry.type === 'apestrong') {
+        gameDesc += ` (${gameConfig.range}% chance)`;
+      }
+
+      // Human-friendly output: show what we're playing
+      if (!opts.json) {
+        console.log(`\n🎰 ${gameDesc}`);
+        console.log(`   Betting ${parseFloat(wagerApeString).toFixed(2)} APE\n`);
+      }
+
       try {
         const playResponse = await playGame({
           account,
@@ -723,15 +742,24 @@ program
           spins: gameConfig.spins,
           bet: gameConfig.bet,
           range: gameConfig.range,
-          timeoutMs: 0,
+          timeoutMs: 30000, // Wait up to 30s for result (usually 1-2s)
           referral: freshProfile.referral,
         });
 
-        // Update state
-        if (playResponse?.result) {
-          const pnlWei = (BigInt(playResponse.result.payout_wei) - BigInt(playResponse.result.buy_in_wei)).toString();
-          state.totalPnLWei = addBigIntStrings(state.totalPnLWei, pnlWei);
-          if (BigInt(pnlWei) >= 0n) {
+        // Update state based on result
+        state.lastPlay = Date.now();
+        
+        const hasResult = playResponse?.result?.payout_wei !== undefined;
+        let won = false;
+        let pnlApe = 0;
+        
+        if (hasResult) {
+          const pnlWei = BigInt(playResponse.result.payout_wei) - BigInt(playResponse.result.buy_in_wei);
+          pnlApe = parseFloat(formatEther(pnlWei));
+          won = pnlWei > 0n;
+          
+          // Update session state
+          if (won) {
             state.sessionWins += 1;
             state.consecutiveWins += 1;
             state.consecutiveLosses = 0;
@@ -740,29 +768,48 @@ program
             state.consecutiveLosses += 1;
             state.consecutiveWins = 0;
           }
+          state.totalPnLWei = addBigIntStrings(state.totalPnLWei, pnlWei.toString());
         }
-        state.lastPlay = Date.now();
         saveState(state);
 
         // Output
-        const output = {
-          action: 'play',
-          ...playResponse,
-          strategy,
-          balance_ape: balanceApe.toFixed(6),
-          session: {
-            wins: state.sessionWins,
-            losses: state.sessionLosses,
-            total_pnl_ape: formatEther(BigInt(state.totalPnLWei)),
-          },
-        };
-
-        if (opts.json) console.log(JSON.stringify(output));
-        else console.log(JSON.stringify(output, null, 2));
+        if (opts.json) {
+          // Full JSON for agents/scripts
+          console.log(JSON.stringify({
+            status: playResponse.status,
+            game: gameEntry.key,
+            tx: playResponse.tx,
+            game_url: playResponse.game_url,
+            wager_ape: wagerApeString,
+            config: playResponse.config,
+            result: playResponse.result ? {
+              payout_ape: playResponse.result.payout_ape,
+              won,
+              pnl_ape: pnlApe.toFixed(6),
+            } : null,
+          }));
+        } else {
+          // Human-friendly output
+          if (hasResult) {
+            const payoutApe = parseFloat(playResponse.result.payout_ape);
+            if (won) {
+              console.log(`🎉 WON! ${parseFloat(wagerApeString).toFixed(2)} APE → ${payoutApe.toFixed(2)} APE (+${pnlApe.toFixed(2)} APE)\n`);
+            } else {
+              console.log(`❌ Lost ${parseFloat(wagerApeString).toFixed(2)} APE — better luck next time!\n`);
+            }
+          } else {
+            // Result pending (rare - if event didn't fire in time)
+            console.log(`⏳ Pending — watch result: ${playResponse.game_url}\n`);
+          }
+        }
 
         return { shouldStop: false };
       } catch (error) {
-        console.error(JSON.stringify({ error: error.message }));
+        if (opts.json) {
+          console.error(JSON.stringify({ error: error.message }));
+        } else {
+          console.error(`\n❌ Error: ${error.message}\n`);
+        }
         return { shouldStop: true, reason: 'error' };
       }
     }
