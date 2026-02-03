@@ -953,6 +953,32 @@ program
   .option('--timeout <ms>', 'Max ms to wait for GameEnded event. Use 0 to wait indefinitely.', '0')
   .action(async (opts) => {
     const account = getWallet();
+    const { publicClient } = createClients();
+    
+    // Safety check: ensure we have more than gas reserve
+    let balance;
+    try {
+      balance = await publicClient.getBalance({ address: account.address });
+    } catch (error) {
+      console.error(JSON.stringify({ error: `Failed to fetch balance: ${error.message}` }));
+      process.exit(1);
+    }
+    
+    const balanceApe = parseFloat(formatEther(balance));
+    const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
+    
+    if (availableApe <= 0) {
+      console.log(JSON.stringify({
+        status: 'skipped',
+        reason: 'insufficient_balance',
+        balance_ape: balanceApe.toFixed(6),
+        available_ape: '0.000000',
+        gas_reserve_ape: GAS_RESERVE_APE.toFixed(6),
+        message: 'Balance at or below gas reserve. Cannot play.',
+      }));
+      return; // Don't exit with error, just return gracefully
+    }
+    
     const timeoutMs = parseNonNegativeInt(opts.timeout, 'timeout');
     try {
       const response = await playGame({
