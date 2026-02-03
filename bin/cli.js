@@ -59,6 +59,17 @@ const SIWE_CHAIN_ID = 33139;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const GAME_LIST = listGames().join(' | ');
 
+// Validate EVM address and return it or ZERO_ADDRESS
+function getValidRefAddress(address) {
+  if (!address || typeof address !== 'string') return ZERO_ADDRESS;
+  const trimmed = address.trim();
+  // Basic EVM address validation: 0x + 40 hex chars
+  if (/^0x[a-fA-F0-9]{40}$/.test(trimmed)) {
+    return trimmed;
+  }
+  return ZERO_ADDRESS;
+}
+
 const GAME_CONTRACT_ABI = [
   {
     type: 'function',
@@ -278,6 +289,7 @@ function loadProfile() {
       persona: 'balanced',
       username: null,
       paused: false,
+      referral: null,
       overrides: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -292,6 +304,7 @@ function loadProfile() {
       persona: normalizeStrategy(raw.persona || 'balanced'),
       username: raw.username || null,
       paused: Boolean(raw.paused),
+      referral: raw.referral || null,
       overrides: raw.overrides || {},
       createdAt: raw.createdAt || new Date().toISOString(),
       updatedAt: raw.updatedAt || new Date().toISOString(),
@@ -302,6 +315,7 @@ function loadProfile() {
       persona: 'balanced',
       username: null,
       paused: false,
+      referral: null,
       overrides: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -605,7 +619,9 @@ async function playGame({
   balls,
   spins,
   timeoutMs,
+  referral,
 }) {
+  const refAddress = getValidRefAddress(referral);
   const gameKey = String(game || '').toLowerCase();
   const safeTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs >= 0 ? timeoutMs : 0;
 
@@ -666,7 +682,7 @@ async function playGame({
         { name: 'ref', type: 'address' },
         { name: 'userRandomWord', type: 'bytes32' },
       ],
-      [modeValue, ballsValue, gameId, ZERO_ADDRESS, userRandomWord]
+      [modeValue, ballsValue, gameId, refAddress, userRandomWord]
     );
 
     contractAddress = gameEntry.contract;
@@ -698,7 +714,7 @@ async function playGame({
         { name: 'ref', type: 'address' },
         { name: 'userRandomWord', type: 'bytes32' },
       ],
-      [gameId, spinsValue, ZERO_ADDRESS, userRandomWord]
+      [gameId, spinsValue, refAddress, userRandomWord]
     );
 
     contractAddress = gameEntry.contract;
@@ -904,7 +920,7 @@ program
     console.log('========================================');
     console.log('PLAY:');
     console.log('  apechurch play              Play one game');
-    console.log('  apechurch play --loop       Play continuously (2s between games)');
+    console.log('  apechurch play --loop       Play continuously (3s between games)');
     console.log('');
     console.log('GAMES (auto-selected, or use --game):');
     console.log('  jungle-plinko    Plinko (--mode 0-4, --balls 1-100)');
@@ -990,12 +1006,20 @@ profileCommand
 profileCommand
   .command('set')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
-  .option('--username <name>', 'Set local username (must end with _CLAWBOT)')
+  .option('--username <name>', 'Set local username')
+  .option('--referral <address>', 'Set referral address (your Ape Church wallet to earn ref rewards)')
   .option('--json', 'Output JSON only')
   .action((opts) => {
     const profile = loadProfile();
     if (opts.persona) profile.persona = normalizeStrategy(opts.persona);
     if (opts.username) profile.username = normalizeUsername(opts.username);
+    if (opts.referral !== undefined) {
+      const validRef = getValidRefAddress(opts.referral);
+      profile.referral = validRef === ZERO_ADDRESS ? null : validRef;
+      if (opts.referral && validRef === ZERO_ADDRESS) {
+        console.log('Warning: Invalid address provided, referral cleared.');
+      }
+    }
     const updated = saveProfile(profile);
     const state = loadState();
     state.strategy = normalizeStrategy(updated.persona);
@@ -1117,6 +1141,7 @@ program
     }
     
     const timeoutMs = parseNonNegativeInt(opts.timeout, 'timeout');
+    const profile = loadProfile();
     try {
       const response = await playGame({
         account,
@@ -1126,6 +1151,7 @@ program
         balls: opts.balls,
         spins: opts.spins,
         timeoutMs,
+        referral: profile.referral,
       });
       console.log(JSON.stringify(response));
     } catch (error) {
@@ -1265,6 +1291,7 @@ program
           balls: selection.balls,
           spins: selection.spins,
           timeoutMs,
+          referral: freshProfile.referral,
         });
 
         state.lastPlay = Date.now();
@@ -1370,8 +1397,8 @@ program
   .command('play')
   .description('Play a game immediately (no cooldowns)')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen', 'balanced')
-  .option('--loop', 'Play continuously with 2s between games')
-  .option('--delay <seconds>', 'Seconds between games in loop mode', '2')
+  .option('--loop', 'Play continuously with 3s between games')
+  .option('--delay <seconds>', 'Seconds between games in loop mode', '3')
   .option('--json', 'Output JSON only')
   .action(async (opts) => {
     const account = getWallet();
@@ -1405,7 +1432,7 @@ program
         return { shouldStop: true, reason: 'paused' };
       }
 
-      const strategy = normalizeStrategy(opts.strategy);
+      const strategy = normalizeStrategy(opts.strategy || freshProfile.persona);
       const strategyConfig = applyProfileOverrides(
         getStrategyConfig(strategy),
         freshProfile.overrides
@@ -1449,6 +1476,7 @@ program
           balls: selection.balls,
           spins: selection.spins,
           timeoutMs: 0,
+          referral: freshProfile.referral,
         });
 
         // Update state
@@ -1469,18 +1497,22 @@ program
         state.lastPlay = Date.now();
         saveState(state);
 
+        // Calculate win/loss
+        const pnl = playResponse.result 
+          ? parseFloat(playResponse.result.payout_ape) - parseFloat(playResponse.result.buy_in_ape)
+          : 0;
+        const won = pnl >= 0;
+
         const response = {
           action: 'play',
           status: playResponse.status,
-          strategy,
-          balance_ape: balanceApe.toFixed(6),
-          wager_ape: wagerApeString,
+          outcome: won ? 'WIN' : 'LOSS',
+          pnl_ape: pnl.toFixed(6),
           game: playResponse.game,
-          config: playResponse.config,
+          wager_ape: wagerApeString,
+          payout_ape: playResponse.result?.payout_ape || '0',
           tx: playResponse.tx,
-          gameId: playResponse.gameId,
           game_url: playResponse.game_url,
-          result: playResponse.result,
           session: {
             wins: state.sessionWins,
             losses: state.sessionLosses,
@@ -1488,8 +1520,17 @@ program
           },
         };
 
-        if (opts.json) console.log(JSON.stringify(response));
-        else console.log(JSON.stringify(response, null, 2));
+        if (opts.json) {
+          console.log(JSON.stringify(response));
+        } else {
+          // Human-friendly output
+          const emoji = won ? '✅' : '❌';
+          const pnlStr = pnl >= 0 ? `+${pnl.toFixed(4)}` : pnl.toFixed(4);
+          console.log(`${emoji} ${response.outcome}: ${pnlStr} APE | Game: ${response.game} | Wager: ${wagerApeString} APE`);
+          console.log(`   TX: ${response.tx}`);
+          console.log(`   Replay: ${response.game_url}`);
+          console.log(`   Session: ${state.sessionWins}W/${state.sessionLosses}L (${formatEther(BigInt(state.totalPnLWei))} APE total)`);
+        }
 
         return { shouldStop: false };
       } catch (error) {
@@ -1638,8 +1679,8 @@ PLAYING GAMES
 
   apechurch play [--strategy TYPE] [--loop] [--json]
     Play games automatically. Picks a random game, bets based on strategy.
-    --loop         Play continuously (2s between games)
-    --delay <sec>  Custom delay between games (default: 2)
+    --loop         Play continuously (3s between games)
+    --delay <sec>  Custom delay between games (default: 3)
     --strategy     conservative | balanced | aggressive | degen
 
   apechurch bet --game <NAME> --amount <APE> [options]
