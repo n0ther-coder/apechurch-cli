@@ -1,7 +1,7 @@
 AGENT NOTES - APE CHURCH SKILL PACKAGE
 ======================================
 
-Last updated: 2026-02-03
+Last updated: 2026-02-03 (v1.0.2)
 
 SUMMARY OF WORK COMPLETED
 -------------------------
@@ -62,6 +62,25 @@ SUMMARY OF WORK COMPLETED
 - Added Node.js engines requirement: >= 18.
 - Package name set to "@ape-church/skill".
 - CLI now supports `apechurch --version`.
+
+5) Pause/Resume (v1.0.2)
+- Added `apechurch pause` and `apechurch resume` commands.
+- Profile now includes `paused` field.
+- Heartbeat skips gracefully when paused.
+- Status shows paused state and can_play reflects it.
+
+6) Error Handling Polish (v1.0.2)
+- Added `sanitizeError()` helper for clean JSON output.
+- No stack traces leak to users.
+- Common RPC/network errors have friendly messages.
+- Balance check added to bet command (graceful skip if ≤ 1 APE).
+
+7) UX Improvements (v1.0.1 + v1.0.2)
+- Faster cooldowns (10-60 seconds instead of 2-20 minutes).
+- Cron runs every minute; internal cooldowns control play rate.
+- Username flexibility (no _CLAWBOT suffix required).
+- Install output shows auto-generated username and how to change it.
+- Status command shows username, persona, paused state.
 
 KNOWN LIMITATIONS / OPEN QUESTIONS
 ----------------------------------

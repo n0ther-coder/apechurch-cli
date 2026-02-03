@@ -8,6 +8,24 @@ All notable changes to this project will be documented in this file.
 - Heartbeat + persona + strategy system.
 - SIWE-based username registration.
 
+## [1.0.2] - 2026-02-03
+### Added
+- **Pause/Resume commands**: Users can now stop/start autonomous play
+  - `apechurch pause` — stops heartbeat from playing
+  - `apechurch resume` — allows heartbeat to play again
+  - Status shows `paused: true/false`
+  - `can_play` now reflects paused state
+- **Balance check in bet command**: Prevents play if balance ≤ 1 APE
+  - Graceful skip, no process exit
+  - Returns clean JSON with reason
+
+### Changed
+- **Error handling polish**: All errors now return clean JSON
+  - No stack traces leaked
+  - Common RPC/network errors have friendly messages
+  - VRF fee and transaction errors sanitized
+- **Status command enhanced**: Now shows username, persona, paused state
+
 ## [1.0.1] - 2026-02-03
 ### Changed
 - **Faster cooldowns**: Reduced from minutes to seconds for better UX

@@ -19,6 +19,10 @@ tools:
     cmd: apechurch profile show --json
   - name: profile_set
     cmd: apechurch profile set --persona <conservative|balanced|aggressive|degen> --username <NAME>
+  - name: pause
+    cmd: apechurch pause
+  - name: resume
+    cmd: apechurch resume
 ---
 
 # Ape Church Protocol
@@ -71,6 +75,13 @@ Run `apechurch status --json` to fetch:
   - `overrides.min_bet_ape`, `overrides.target_bet_pct`, `overrides.max_bet_pct`
   - `overrides.base_cooldown_ms`
 - Example file: `profile.example.json`
+
+## Pause & Resume
+- Pause autonomous play: `apechurch pause`
+- Resume autonomous play: `apechurch resume`
+- When paused, heartbeat skips gracefully (no play, no errors).
+- Status shows `paused: true/false` and `can_play` reflects paused state.
+- Use this to temporarily stop the agent without uninstalling.
 
 ## Registration (Username + Persona)
 - Agents can register or change username with `apechurch register --username <NAME>`.

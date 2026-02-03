@@ -135,6 +135,48 @@ function randomBytes32() {
   return `0x${crypto.randomBytes(32).toString('hex')}`;
 }
 
+// Sanitize error messages for clean JSON output (no stack traces)
+function sanitizeError(error) {
+  if (!error) return 'Unknown error';
+  
+  const msg = error.message || error.shortMessage || String(error);
+  
+  // Common viem/RPC error patterns
+  if (msg.includes('could not coalesce') || msg.includes('failed to fetch')) {
+    return 'RPC connection failed. Check APECHAIN_RPC_URL or try again.';
+  }
+  if (msg.includes('insufficient funds')) {
+    return 'Insufficient funds for transaction.';
+  }
+  if (msg.includes('execution reverted')) {
+    // Try to extract revert reason
+    const match = msg.match(/execution reverted[:\s]*(.+?)(?:\n|$)/i);
+    return match ? `Transaction reverted: ${match[1].trim()}` : 'Transaction reverted by contract.';
+  }
+  if (msg.includes('user rejected') || msg.includes('denied')) {
+    return 'Transaction was rejected.';
+  }
+  if (msg.includes('nonce')) {
+    return 'Nonce error. A previous transaction may be pending.';
+  }
+  if (msg.includes('timeout') || msg.includes('timed out')) {
+    return 'Request timed out. Try again.';
+  }
+  if (msg.includes('network') || msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED')) {
+    return 'Network error. Check your connection and RPC URL.';
+  }
+  
+  // Remove stack traces and long technical details
+  const cleaned = msg.split('\n')[0].trim();
+  
+  // Limit length
+  if (cleaned.length > 200) {
+    return cleaned.substring(0, 197) + '...';
+  }
+  
+  return cleaned;
+}
+
 function randomUint256() {
   return BigInt(`0x${crypto.randomBytes(32).toString('hex')}`);
 }
@@ -237,6 +279,7 @@ function loadProfile() {
       version: 1,
       persona: 'balanced',
       username: null,
+      paused: false,
       overrides: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -250,6 +293,7 @@ function loadProfile() {
       version: 1,
       persona: normalizeStrategy(raw.persona || 'balanced'),
       username: raw.username || null,
+      paused: Boolean(raw.paused),
       overrides: raw.overrides || {},
       createdAt: raw.createdAt || new Date().toISOString(),
       updatedAt: raw.updatedAt || new Date().toISOString(),
@@ -259,6 +303,7 @@ function loadProfile() {
       version: 1,
       persona: 'balanced',
       username: null,
+      paused: false,
       overrides: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -273,6 +318,7 @@ function saveProfile(profile) {
   const updated = {
     ...profile,
     persona: normalizeStrategy(profile.persona || 'balanced'),
+    paused: Boolean(profile.paused),
     overrides: profile.overrides || {},
     updatedAt: new Date().toISOString(),
   };
@@ -574,7 +620,7 @@ async function playGame({
   try {
     wager = parseEther(String(amountApe));
   } catch (error) {
-    throw new Error(`Invalid amount: ${error.message}`);
+    throw new Error(`Invalid amount: ${sanitizeError(error)}`);
   }
 
   const { publicClient, walletClient } = createClients(account);
@@ -611,7 +657,7 @@ async function playGame({
         args: [customGasLimit],
       });
     } catch (error) {
-      throw new Error(`Failed to read VRF fee: ${error.message}`);
+      throw new Error(`Failed to read VRF fee (plinko): ${sanitizeError(error)}`);
     }
 
     encodedData = encodeAbiParameters(
@@ -644,7 +690,7 @@ async function playGame({
         functionName: 'getVRFFee',
       });
     } catch (error) {
-      throw new Error(`Failed to read VRF fee: ${error.message}`);
+      throw new Error(`Failed to read VRF fee (slots): ${sanitizeError(error)}`);
     }
 
     encodedData = encodeAbiParameters(
@@ -709,7 +755,7 @@ async function playGame({
   } catch (error) {
     if (timeoutId) clearTimeout(timeoutId);
     unwatch();
-    throw new Error(`Transaction failed: ${error.message}`);
+    throw new Error(`Transaction failed: ${sanitizeError(error)}`);
   }
 
   let eventResult = null;
@@ -840,13 +886,14 @@ program
   .option('--json', 'Output JSON for the Agent')
   .action(async (opts) => {
     const account = getWallet();
+    const profile = loadProfile();
     const { publicClient } = createClients();
 
     let balance;
     try {
       balance = await publicClient.getBalance({ address: account.address });
     } catch (error) {
-      console.error(JSON.stringify({ error: `Failed to fetch balance: ${error.message}` }));
+      console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
       process.exit(1);
     }
 
@@ -862,16 +909,22 @@ program
       balance: formattedBalance.toFixed(4),
       available_ape: availableApe.toFixed(4),
       gas_reserve_ape: GAS_RESERVE_APE.toFixed(4),
+      paused: profile.paused,
+      persona: profile.persona,
+      username: profile.username,
       gp: gp,
       gp_note: 'pending integration',
-      can_play: availableApe > 0.005,
+      can_play: availableApe > 0.005 && !profile.paused,
     };
 
     if (opts.json) console.log(JSON.stringify(data));
     else {
       console.log(`Address: ${data.address}`);
+      console.log(`Username: ${data.username || '(not set)'}`);
+      console.log(`Persona: ${data.persona}`);
       console.log(`Balance: ${data.balance} APE`);
       console.log(`Available to wager: ${data.available_ape} APE (1 APE reserved)`);
+      console.log(`Paused: ${data.paused ? 'YES' : 'No'}`);
       console.log(`GP: ${data.gp} (pending integration)`);
     }
   });
@@ -942,6 +995,44 @@ program
     }
   });
 
+// --- COMMAND: PAUSE (Stop autonomous play) ---
+program
+  .command('pause')
+  .description('Pause autonomous play (heartbeat will skip)')
+  .option('--json', 'Output JSON only')
+  .action((opts) => {
+    const profile = loadProfile();
+    profile.paused = true;
+    const updated = saveProfile(profile);
+    const response = {
+      status: 'paused',
+      message: 'Autonomous play paused. Run `apechurch resume` to continue.',
+      paused: true,
+      updatedAt: updated.updatedAt,
+    };
+    if (opts.json) console.log(JSON.stringify(response));
+    else console.log(JSON.stringify(response, null, 2));
+  });
+
+// --- COMMAND: RESUME (Resume autonomous play) ---
+program
+  .command('resume')
+  .description('Resume autonomous play')
+  .option('--json', 'Output JSON only')
+  .action((opts) => {
+    const profile = loadProfile();
+    profile.paused = false;
+    const updated = saveProfile(profile);
+    const response = {
+      status: 'resumed',
+      message: 'Autonomous play resumed. Heartbeat will play on next run.',
+      paused: false,
+      updatedAt: updated.updatedAt,
+    };
+    if (opts.json) console.log(JSON.stringify(response));
+    else console.log(JSON.stringify(response, null, 2));
+  });
+
 // --- COMMAND: BET (The Agent Action) ---
 program
   .command('bet')
@@ -960,7 +1051,7 @@ program
     try {
       balance = await publicClient.getBalance({ address: account.address });
     } catch (error) {
-      console.error(JSON.stringify({ error: `Failed to fetch balance: ${error.message}` }));
+      console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
       process.exit(1);
     }
     
@@ -1010,6 +1101,23 @@ program
     const profile = loadProfile();
     const now = Date.now();
 
+    // Check if paused - skip gracefully without fetching balance
+    if (profile.paused) {
+      state.lastHeartbeat = now;
+      saveState(state);
+      const response = {
+        action: 'heartbeat',
+        status: 'skipped',
+        reason: 'paused',
+        message: 'Autonomous play is paused. Run `apechurch resume` to continue.',
+        address: account.address,
+        paused: true,
+      };
+      if (opts.json) console.log(JSON.stringify(response));
+      else console.log(JSON.stringify(response, null, 2));
+      return;
+    }
+
     state.lastHeartbeat = now;
     if (opts.strategy) state.strategy = normalizeStrategy(opts.strategy);
     else if (profile.persona) state.strategy = normalizeStrategy(profile.persona);
@@ -1022,7 +1130,7 @@ program
     try {
       balance = await publicClient.getBalance({ address: account.address });
     } catch (error) {
-      console.error(JSON.stringify({ error: `Failed to fetch balance: ${error.message}` }));
+      console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
       process.exit(1);
     }
 
@@ -1044,6 +1152,7 @@ program
       balance_ape: balanceApe.toFixed(6),
       available_ape: availableApe.toFixed(6),
       gas_reserve_ape: GAS_RESERVE_APE.toFixed(6),
+      paused: false,
       last_play: state.lastPlay,
       cooldown_ms: cooldownMs,
       consecutive_wins: state.consecutiveWins,
