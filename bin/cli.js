@@ -873,6 +873,7 @@ program
     console.log(`  Username: ${username}`);
     console.log(`  Strategy: ${persona}`);
     console.log('');
+    console.log('(Run "apechurch status" anytime to see your address and balance)');
     console.log('========================================');
     console.log('STEP 1: FUND YOUR AGENT');
     console.log('========================================');
@@ -913,17 +914,18 @@ program
     console.log('  aggressive       12% of balance per bet');
     console.log('  degen            20% of balance per bet');
     console.log('');
+    console.log('STATUS & INFO:');
+    console.log('  apechurch status            View wallet address & balance');
+    console.log('  apechurch games             List all available games');
+    console.log('  apechurch commands          Full command reference');
+    console.log('');
     console.log('CONTROL:');
-    console.log('  apechurch status            Check balance');
     console.log('  apechurch pause             Pause play');
     console.log('  apechurch resume            Resume play');
-    console.log('  apechurch games             List all games');
-    console.log('  apechurch commands          Full command reference');
-    console.log('  apechurch help              Show help');
     console.log('');
     console.log('CHANGE SETTINGS:');
-    console.log('  apechurch register --username <NAME>');
-    console.log('  apechurch profile set --persona <STRATEGY>');
+    console.log('  apechurch register --username <NAME>    Change username');
+    console.log('  apechurch profile set --persona <TYPE>  Change bet sizing');
     console.log('========================================');
   });
 
