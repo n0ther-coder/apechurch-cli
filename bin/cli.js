@@ -803,6 +803,9 @@ program
     console.log('Initializing Ape Church Protocol...');
 
     // 1. Generate Wallet (Self-Sovereign)
+    // Ensure ~/.apechurch/ directory exists
+    ensureDir(APECHURCH_DIR);
+    
     let address;
     if (fs.existsSync(WALLET_FILE)) {
       const data = JSON.parse(fs.readFileSync(WALLET_FILE));
