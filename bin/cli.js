@@ -861,10 +861,9 @@ program
     console.log('---------------------------------------');
     console.log(`AGENT ADDRESS: ${address}`);
     console.log(`USERNAME: ${username}`);
-    if (!usernameWasProvided) {
-      console.log('  (Change anytime: apechurch register --username <YOUR_NAME>)');
-    }
     console.log(`PERSONA: ${persona}`);
+    console.log('');
+    console.log('Change username anytime: apechurch register --username <YOUR_NAME>');
     console.log('');
     console.log('STEP 1: Fund your agent');
     console.log('  Send APE (on ApeChain) to the address above.');
