@@ -868,6 +868,7 @@ program
   .description('Profile management (show, set)')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
   .option('--referral <address>', 'Referral wallet address (who referred you)')
+  .option('--card-display <mode>', 'Card display mode: full | simple | json')
   .option('--json', 'Output JSON')
   .action((action, opts) => {
     const profile = loadProfile();
@@ -877,14 +878,23 @@ program
         console.log(JSON.stringify(profile));
       } else {
         console.log('\n📋 Profile\n');
-        console.log(`   Username: ${profile.username || '(not set)'}`);
-        console.log(`   Persona:  ${profile.persona}`);
-        console.log(`   Paused:   ${profile.paused ? 'Yes' : 'No'}`);
-        console.log(`   Referral: ${profile.referral || '(none)'}\n`);
+        console.log(`   Username:     ${profile.username || '(not set)'}`);
+        console.log(`   Persona:      ${profile.persona}`);
+        console.log(`   Card Display: ${profile.cardDisplay || 'full'}`);
+        console.log(`   Paused:       ${profile.paused ? 'Yes' : 'No'}`);
+        console.log(`   Referral:     ${profile.referral || '(none)'}\n`);
       }
     } else if (action === 'set') {
       const updates = {};
       if (opts.persona) updates.persona = normalizeStrategy(opts.persona);
+      if (opts.cardDisplay) {
+        const mode = opts.cardDisplay.toLowerCase();
+        if (!['full', 'simple', 'json'].includes(mode)) {
+          console.error(JSON.stringify({ error: 'Invalid card display mode. Use: full, simple, json' }));
+          process.exit(1);
+        }
+        updates.cardDisplay = mode;
+      }
       if (opts.referral) {
         // Validate it looks like an address
         const ref = opts.referral.trim();
@@ -2405,6 +2415,57 @@ program
     const error = { error: `Unknown action: ${action}. Use: deposit, withdraw, or no action for status` };
     if (opts.json) console.log(JSON.stringify(error));
     else console.error(`\n❌ Unknown action: ${action}\nUsage:\n  apechurch house                  Show house stats\n  apechurch house deposit <amt>    Deposit APE\n  apechurch house withdraw <amt>   Withdraw APE\n`);
+  });
+
+// ============================================================================
+// COMMAND: BLACKJACK (Stateful game)
+// ============================================================================
+program
+  .command('blackjack [action] [amount]')
+  .description('Play Blackjack - interactive card game')
+  .option('--game <id>', 'Specify game ID (for resume/action)')
+  .option('--display <mode>', 'Display mode: full, simple, json')
+  .option('--json', 'JSON output only')
+  .action(async (action, amount, opts) => {
+    // Dynamic import to avoid loading stateful game code when not needed
+    const blackjack = await import('../lib/stateful/blackjack/index.js');
+    
+    // Determine what to do based on action
+    if (!action || !isNaN(parseFloat(action))) {
+      // No action or amount = start new game
+      const betAmount = action || amount;
+      if (!betAmount) {
+        console.error('\n❌ Bet amount required');
+        console.error('   Usage: apechurch blackjack <amount>\n');
+        console.error('   Example: apechurch blackjack 10\n');
+        return;
+      }
+      return blackjack.start(betAmount, opts);
+    }
+    
+    // Named actions
+    const actionLower = action.toLowerCase();
+    
+    switch (actionLower) {
+      case 'resume':
+        return blackjack.resume(opts.game, opts);
+        
+      case 'status':
+        return blackjack.status(opts.game, opts);
+        
+      case 'hit':
+      case 'stand':
+      case 'double':
+      case 'split':
+      case 'insurance':
+      case 'surrender':
+        return blackjack.action(actionLower, opts);
+        
+      default:
+        console.error(`\n❌ Unknown action: ${action}`);
+        console.error('   Valid actions: hit, stand, double, split, insurance, surrender');
+        console.error('   Or: resume, status\n');
+    }
   });
 
 // ============================================================================
