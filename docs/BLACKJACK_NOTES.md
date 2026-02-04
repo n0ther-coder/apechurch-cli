@@ -193,11 +193,14 @@ struct SideBet {
 ## Action Functions
 
 ### `playerHit(uint256 gameId)` — payable
-- **Value:** vrfFee
-- **When:** Hand is ACTIVE
+- **Value:** `vrfFee`
+- **When:** 
+  - `gameState in [PLAYER_ACTION, SPLIT_ACTION_1, SPLIT_ACTION_2]`
+  - `playerHands[activeHandIndex].status === ACTIVE`
+  - `awaitingRandomNumber === false`
 
 ### `playerStand(uint256 gameId)` — payable
-- **When:** Hand is ACTIVE
+- **When:** Same as hit
 - **Value Logic (from contract):**
 ```javascript
 if (gameState === GameState.SPLIT_ACTION_1) {
@@ -218,12 +221,20 @@ if (gameState === GameState.SPLIT_ACTION_1) {
 ```
 
 ### `playerDoubleDown(uint256 gameId)` — payable
-- **Value:** current hand bet + vrfFee
-- **When:** Active hand has exactly 2 cards
+- **Value:** `initialBet + vrfFee`
+- **When:** 
+  - `gameState in [PLAYER_ACTION, SPLIT_ACTION_1, SPLIT_ACTION_2]`
+  - `playerHands[activeHandIndex].cards.length === 2` (first two cards only)
+  - `playerHands[activeHandIndex].status === ACTIVE`
+  - `awaitingRandomNumber === false`
 
 ### `playerSplit(uint256 gameId)` — payable
-- **Value:** current hand bet + vrfFee
-- **When:** First 2 cards have same value (including all 10-value cards)
+- **Value:** `initialBet + vrfFee`
+- **When:** 
+  - `gameState === PLAYER_ACTION` (main hand only, no re-splitting)
+  - `playerHands[1].bet === 0` (not already split)
+  - `playerHands[0].cards.length === 2`
+  - Cards have same VALUE (J/Q/K all = 10, so J-K is splittable)
 - **Effect:** Creates two hands, adds 1 card to each
 - **Special:** Split Aces → 1 card each, then auto-dealer turn
 
@@ -284,26 +295,41 @@ canSurrender =
 // Note: Mutually exclusive with insurance
 ```
 
-### Standard Actions
+### Hit Requirements (from contract)
 ```javascript
 canHit = 
+  awaitingRandomNumber === false &&
   gameState in [PLAYER_ACTION, SPLIT_ACTION_1, SPLIT_ACTION_2] &&
-  playerHands[activeHandIndex].status === HandStatus.ACTIVE &&
-  awaitingRandomNumber === false;
+  playerHands[activeHandIndex].status === HandStatus.ACTIVE;
+// Cost: vrfFee
+```
 
-canStand = canHit;  // Same conditions
+### Stand Requirements
+```javascript
+canStand = canHit;  // Same conditions as hit
+// Cost: vrfFee (or 0 if SPLIT_ACTION_1 && hand[1].status === ACTIVE)
+```
 
+### Double Down Requirements (from contract)
+```javascript
 canDouble = 
-  canHit &&
-  playerHands[activeHandIndex].cards.length === 2;
-// Cost: current hand bet + vrfFee
+  awaitingRandomNumber === false &&
+  gameState in [PLAYER_ACTION, SPLIT_ACTION_1, SPLIT_ACTION_2] &&
+  playerHands[activeHandIndex].cards.length === 2 &&  // First two cards only
+  playerHands[activeHandIndex].status === HandStatus.ACTIVE;
+// Cost: initialBet + vrfFee
+```
 
+### Split Requirements (from contract)
+```javascript
 canSplit = 
-  gameState === GameState.PLAYER_ACTION &&  // Not already split
+  awaitingRandomNumber === false &&
+  gameState === GameState.PLAYER_ACTION &&  // Main hand only, no re-splitting
+  playerHands[1].bet === 0n &&              // Not already split
   playerHands[0].cards.length === 2 &&
-  playerHands[0].cards[0].value === playerHands[0].cards[1].value &&
-  awaitingRandomNumber === false;
-// Cost: current hand bet + vrfFee
+  playerHands[0].cards[0].value === playerHands[0].cards[1].value;  // Pair (J,Q,K all = 10)
+// Cost: initialBet + vrfFee
+// NOTE: Split checks card VALUE, so J-Q-K all match (all = 10)
 ```
 
 ---
