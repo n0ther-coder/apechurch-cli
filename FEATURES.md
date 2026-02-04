@@ -12,6 +12,20 @@
 - Wallet reset with safety warnings
 - Private key export
 
+## Private Key Encryption (Optional)
+- **Password protection** — Encrypt your private key with scrypt + AES-256-GCM
+- **Session-based unlock** — Unlock once, stay unlocked for 3 hours
+- **Auto-prompting** — Any command that needs your key will prompt if locked
+- **Password hints** — Store up to 3 hints to help remember your password
+- **Environment variable support** — Set `APECHURCH_PASSWORD` for automation
+- **Commands:**
+  - `wallet encrypt` — Add password protection
+  - `wallet decrypt` — Remove password protection
+  - `wallet unlock` — Start a 3-hour session
+  - `wallet lock` — End your session
+  - `wallet hints` — View or update password hints
+  - `wallet status` — Check encryption and session status
+
 ## Gaming (10+ Games)
 - **Slots:** Jungle Plinko, Dino Dough, Bubblegum Heist
 - **Table:** Roulette, Baccarat

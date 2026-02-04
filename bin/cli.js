@@ -109,6 +109,58 @@ function prompt(question) {
   });
 }
 
+// --- Helper: Get wallet with password prompting ---
+// For commands that need the private key - prompts for password if encrypted
+async function getWalletWithPrompt(opts = {}) {
+  if (!walletExists()) {
+    if (opts.json) {
+      console.error(JSON.stringify({ error: 'No wallet found. Run: apechurch install' }));
+    } else {
+      console.error('\n❌ No wallet found. Run: apechurch install\n');
+    }
+    process.exit(1);
+  }
+  
+  // Try with env password first
+  const keyResult = getPrivateKey(process.env.APECHURCH_PASSWORD);
+  
+  if (keyResult.needsPassword) {
+    // Show hints if available
+    if (!opts.json && keyResult.hints && keyResult.hints.length > 0) {
+      console.log('\n   Your hints:');
+      keyResult.hints.forEach((h, i) => console.log(`     ${i + 1}. ${h}`));
+    }
+    
+    const password = await prompt(opts.json ? '' : '🔐 Password: ');
+    const retryResult = getPrivateKey(password);
+    
+    if (retryResult.error) {
+      if (opts.json) {
+        console.error(JSON.stringify({ error: retryResult.error }));
+      } else {
+        console.error(`\n❌ ${retryResult.error}\n`);
+      }
+      process.exit(1);
+    }
+    
+    // Auto-start a session for convenience
+    saveSession(retryResult.privateKey);
+    
+    return privateKeyToAccount(retryResult.privateKey);
+  }
+  
+  if (keyResult.error) {
+    if (opts.json) {
+      console.error(JSON.stringify({ error: keyResult.error }));
+    } else {
+      console.error(`\n❌ ${keyResult.error}\n`);
+    }
+    process.exit(1);
+  }
+  
+  return privateKeyToAccount(keyResult.privateKey);
+}
+
 // ============================================================================
 // COMMAND: INSTALL
 // ============================================================================
@@ -178,7 +230,7 @@ program
       
       // Ask about password protection
       console.log('\n┌─────────────────────────────────────────────────────────────────┐');
-      console.log('│                    PASSWORD PROTECTION (Optional)               │');
+      console.log('│                 Private Key Encryption (Optional)               │');
       console.log('├─────────────────────────────────────────────────────────────────┤');
       console.log('│  Password encryption adds security but requires a password      │');
       console.log('│  every 3 hours (or on each command if session expires).         │');
@@ -707,14 +759,7 @@ program
   .command('status')
   .option('--json', 'Output JSON only')
   .action(async (opts) => {
-    if (!walletExists()) {
-      const error = { error: 'No wallet found. Run: apechurch install' };
-      if (opts.json) console.log(JSON.stringify(error));
-      else console.log('\n❌ ' + error.error + '\n');
-      return;
-    }
-
-    const account = getWallet();
+    const account = await getWalletWithPrompt({ json: opts.json });
     const profile = loadProfile();
     const { publicClient } = createClients();
 
@@ -822,12 +867,7 @@ program
   .option('--username <name>', 'New username')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
   .action(async (opts) => {
-    if (!walletExists()) {
-      console.error(JSON.stringify({ error: 'No wallet found. Run: apechurch install' }));
-      process.exit(1);
-    }
-
-    const account = getWallet();
+    const account = await getWalletWithPrompt({ json: true });
     const profile = loadProfile();
     
     const username = opts.username ? normalizeUsername(opts.username) : profile.username || generateUsername();
@@ -905,7 +945,7 @@ program
   .option('--numbers <nums>', 'Keno numbers (e.g., 1,7,13,25,40)')
   .option('--timeout <ms>', 'Max wait for result (0 = no wait)', '0')
   .action(async (opts) => {
-    const account = getWallet();
+    const account = await getWalletWithPrompt({ json: true });
     const { publicClient } = createClients();
     
     let balance;
@@ -981,7 +1021,7 @@ program
   .option('--delay <seconds>', 'Delay between games in loop', '3')
   .option('--json', 'JSON output only')
   .action(async (gameArg, amountArg, configArgs, opts) => {
-    const account = getWallet();
+    const account = await getWalletWithPrompt({ json: opts.json });
     const loopMode = Boolean(opts.loop);
     const delaySeconds = Math.max(parseFloat(opts.delay) || 3, 1);
     const delayMs = delaySeconds * 1000;
@@ -1410,14 +1450,7 @@ program
         return;
       }
       
-      if (!walletExists()) {
-        const msg = { error: 'No wallet found. Run: apechurch install' };
-        if (opts.json) console.log(JSON.stringify(msg));
-        else console.log('\n❌ No wallet found. Run: apechurch install\n');
-        return;
-      }
-
-      const account = getWallet();
+      const account = await getWalletWithPrompt({ json: opts.json });
       const { publicClient, walletClient } = createClients(account);
 
       // Check if already registered
@@ -1565,7 +1598,7 @@ program
       return;
     }
 
-    const account = getWallet();
+    const account = await getWalletWithPrompt({ json: opts.json });
     const { publicClient } = createClients();
 
     // Fetch registration status and wagered amount
@@ -1658,7 +1691,7 @@ program
   .option('--limit <n>', 'Number of games to show', '10')
   .option('--json', 'JSON output')
   .action(async (opts) => {
-    const account = getWallet();
+    const account = await getWalletWithPrompt({ json: opts.json });
     const { publicClient } = createClients();
     const history = loadHistory();
     const limit = parseInt(opts.limit) || 10;
@@ -1903,13 +1936,6 @@ program
   .description('Send APE or GP to an address')
   .option('--json', 'JSON output only')
   .action(async (asset, amount, destination, opts) => {
-    if (!walletExists()) {
-      const error = { error: 'No wallet found. Run: apechurch install' };
-      if (opts.json) console.log(JSON.stringify(error));
-      else console.error('\n❌ No wallet found. Run: apechurch install\n');
-      process.exit(1);
-    }
-
     // Validate destination address
     const dest = destination.trim();
     if (!/^0x[a-fA-F0-9]{40}$/.test(dest)) {
@@ -1920,7 +1946,7 @@ program
     }
 
     const assetUpper = asset.toUpperCase();
-    const account = getWallet();
+    const account = await getWalletWithPrompt({ json: opts.json });
     const { publicClient, walletClient } = createClients(account);
 
     // Handle different assets
@@ -2165,8 +2191,8 @@ program
       let userBalance = 0n, userProfits = 0n, timeUntilUnlock = 0n;
       let hasWallet = walletExists();
       if (hasWallet) {
-        const account = getWallet();
         try {
+          const account = await getWalletWithPrompt({ json: opts.json });
           [userBalance, userProfits, timeUntilUnlock] = await Promise.all([
             publicClient.readContract({ address: HOUSE_CONTRACT, abi: HOUSE_ABI, functionName: 'balanceOf', args: [account.address] }),
             publicClient.readContract({ address: HOUSE_CONTRACT, abi: HOUSE_ABI, functionName: 'getTotalProfits', args: [account.address] }),
@@ -2217,13 +2243,6 @@ program
 
     // --- DEPOSIT ---
     if (action === 'deposit') {
-      if (!walletExists()) {
-        const error = { error: 'No wallet found. Run: apechurch install' };
-        if (opts.json) console.log(JSON.stringify(error));
-        else console.error('\n❌ No wallet found. Run: apechurch install\n');
-        process.exit(1);
-      }
-
       if (!amount) {
         const error = { error: 'Amount required. Usage: apechurch house deposit <amount>' };
         if (opts.json) console.log(JSON.stringify(error));
@@ -2242,7 +2261,7 @@ program
         process.exit(1);
       }
 
-      const account = getWallet();
+      const account = await getWalletWithPrompt({ json: opts.json });
       const { publicClient: pc, walletClient } = createClients(account);
 
       // Check balance
@@ -2308,13 +2327,6 @@ program
 
     // --- WITHDRAW ---
     if (action === 'withdraw') {
-      if (!walletExists()) {
-        const error = { error: 'No wallet found. Run: apechurch install' };
-        if (opts.json) console.log(JSON.stringify(error));
-        else console.error('\n❌ No wallet found. Run: apechurch install\n');
-        process.exit(1);
-      }
-
       if (!amount) {
         const error = { error: 'Amount required. Usage: apechurch house withdraw <amount>' };
         if (opts.json) console.log(JSON.stringify(error));
@@ -2333,7 +2345,7 @@ program
         process.exit(1);
       }
 
-      const account = getWallet();
+      const account = await getWalletWithPrompt({ json: opts.json });
       const { publicClient: pc, walletClient } = createClients(account);
 
       // Check house balance and lock time
