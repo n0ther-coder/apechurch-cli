@@ -1782,11 +1782,79 @@ program
   .command('game <name>')
   .option('--json', 'JSON output')
   .action((name, opts) => {
+    // Handle blackjack specially (stateful game)
+    if (name.toLowerCase() === 'blackjack' || name.toLowerCase() === 'bj') {
+      if (opts.json) {
+        console.log(JSON.stringify({
+          name: 'Blackjack',
+          type: 'stateful',
+          key: 'blackjack',
+          aliases: ['bj'],
+          contract: '0x720D68C867aC4De7e035c2C1346c4eb070b29Aae',
+          description: 'Classic blackjack with optimal strategy bot',
+        }));
+        return;
+      }
+      console.log(`
+${'═'.repeat(60)}
+  BLACKJACK
+${'═'.repeat(60)}
+
+  Classic blackjack card game. Play against the dealer, aim for 21.
+  Includes auto-play bot with mathematically optimal basic strategy.
+
+  Type:     stateful
+  Key:      blackjack
+  Aliases:  bj
+  Contract: 0x720D68C867aC4De7e035c2C1346c4eb070b29Aae
+
+${'─'.repeat(60)}
+  COMMANDS
+${'─'.repeat(60)}
+
+  apechurch blackjack <amount>      Start new game with bet
+  apechurch blackjack resume        Resume unfinished game
+  apechurch blackjack status        Check current game state
+
+${'─'.repeat(60)}
+  OPTIONS
+${'─'.repeat(60)}
+
+  --auto          Bot plays optimal basic strategy for you
+  --loop          Keep playing until balance runs out
+  --target <ape>  Stop when balance reaches this amount
+
+${'─'.repeat(60)}
+  ACTIONS (during game)
+${'─'.repeat(60)}
+
+  h / hit         Draw another card
+  s / stand       Keep current hand
+  d / double      Double bet, take one card, stand
+  x / split       Split pair into two hands
+  i / insurance   Take insurance (dealer shows Ace)
+  r / surrender   Forfeit half bet, end hand
+
+${'─'.repeat(60)}
+  EXAMPLES
+${'─'.repeat(60)}
+
+  apechurch blackjack 10                   Play one hand, 10 APE
+  apechurch blackjack 25 --auto            Bot plays one hand
+  apechurch blackjack 25 --auto --loop     Bot grinds until broke
+  apechurch blackjack 10 --auto --loop --target 500
+                                           Bot plays until 500 APE balance
+
+${'═'.repeat(60)}
+`);
+      return;
+    }
+    
     const game = resolveGame(name);
     if (!game) {
       const error = { error: `Unknown game: ${name}`, available: listGames() };
       if (opts.json) console.log(JSON.stringify(error));
-      else console.log(`\n❌ Unknown game: "${name}"\nAvailable: ${GAME_LIST}\n`);
+      else console.log(`\n❌ Unknown game: "${name}"\nAvailable: ${GAME_LIST}, blackjack\n`);
       return;
     }
 
