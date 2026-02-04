@@ -8,6 +8,12 @@
 import { Command } from 'commander';
 import fs from 'fs';
 import path from 'path';
+import updateNotifier from 'update-notifier';
+
+// Check for updates (async, non-blocking, cached for 1 day)
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+const notifier = updateNotifier({ pkg, updateCheckInterval: 1000 * 60 * 60 * 24 });
 import readline from 'readline';
 import { formatEther, parseEther } from 'viem';
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
@@ -2543,3 +2549,9 @@ program
 // PARSE
 // ============================================================================
 program.parse(process.argv);
+
+// Show update notification if available (after command completes)
+notifier.notify({
+  isGlobal: true,
+  message: 'Update available: {currentVersion} → {latestVersion}\nRun: npm i -g @ape-church/skill',
+});
