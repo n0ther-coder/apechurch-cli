@@ -126,19 +126,21 @@ struct Card {
 }
 ```
 
-### Card Encoding (rawCard → Display)
+### Card Encoding (rawCard → Display) ✅ CONFIRMED
 ```javascript
 // rawCard is 0-51 (standard 52-card deck)
-const rank = rawCard % 13;      // 0=Ace, 1=2, ..., 9=10, 10=J, 11=Q, 12=K
-const suit = Math.floor(rawCard / 13);  // 0=♠, 1=♥, 2=♦, 3=♣
+const cardNumber = (rawCard % 13) + 1;  // 1-13: 1=A, 2-10, 11=J, 12=Q, 13=K
+const suit = Math.floor(rawCard / 13);  // 0=♦, 1=♥, 2=♣, 3=♠
 
-// Rank display mapping
-const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-const SUITS = ['♠', '♥', '♦', '♣'];
+// Display mappings
+const RANKS = {
+  1: 'A', 2: '2', 3: '3', 4: '4', 5: '5', 
+  6: '6', 7: '7', 8: '8', 9: '9', 10: '10',
+  11: 'J', 12: 'Q', 13: 'K'
+};
+const SUITS = ['♦', '♥', '♣', '♠'];
 
-// Card value logic (from contract):
-// cardNumber = (rawCard % 13) + 1  → 1-13 where 1=Ace, 13=King
-// value: Ace=11, 10/J/Q/K=10, 2-9=face value
+// Example: rawCard = 0 → A♦, rawCard = 13 → A♥, rawCard = 51 → K♠
 ```
 
 ### Hand Calculation (from contract)
