@@ -228,49 +228,9 @@ program
         address = account.address;
       }
       
-      // Ask about password protection
-      console.log('\n┌─────────────────────────────────────────────────────────────────┐');
-      console.log('│                 Private Key Encryption (Optional)               │');
-      console.log('├─────────────────────────────────────────────────────────────────┤');
-      console.log('│  Password encryption adds security but requires a password      │');
-      console.log('│  every 3 hours (or on each command if session expires).         │');
-      console.log('│                                                                 │');
-      console.log('│  ⚠️  NOT recommended for AI agents (they must store password).  │');
-      console.log('│  ⚠️  If you forget password, funds are LOST FOREVER.            │');
-      console.log('└─────────────────────────────────────────────────────────────────┘');
-      
-      const encryptChoice = await prompt('\nEnable password protection? (y/N): ');
-      
-      if (encryptChoice.toLowerCase() === 'y') {
-        const password = await prompt('Set password (min 4 chars): ');
-        if (!password || password.length < 4) {
-          console.error('\n❌ Password must be at least 4 characters. Skipping encryption.\n');
-          fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
-        } else {
-          const confirmPw = await prompt('Confirm password: ');
-          if (password !== confirmPw) {
-            console.error('\n❌ Passwords do not match. Skipping encryption.\n');
-            fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
-          } else {
-            // Collect hints
-            console.log('\n   Set up to 3 password hints (optional, press Enter to skip):\n');
-            const hints = [];
-            for (let i = 1; i <= 3; i++) {
-              const hint = await prompt(`   Hint ${i}: `);
-              if (hint.trim()) hints.push(hint.trim());
-            }
-            
-            // Create encrypted wallet
-            const account = createEncryptedWallet(password, hints);
-            console.log(`\n✅ Wallet created with password protection: ${address}`);
-            console.log('   Session active for 3 hours.');
-          }
-        }
-      } else {
-        fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
-        console.log(`\n✅ ${walletWasImported ? 'Imported' : 'Generated new'} wallet: ${address}`);
-        console.log('   (Export anytime with: apechurch wallet export)');
-      }
+      // Save wallet (unencrypted by default)
+      fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
+      console.log(`\n✅ ${walletWasImported ? 'Imported' : 'Generated new'} wallet: ${address}`);
     } else {
       const pk = generatePrivateKey();
       const account = privateKeyToAccount(pk);
@@ -377,6 +337,19 @@ program
       console.log('     Run: apechurch contest');
       console.log('═══════════════════════════════════════════════════════════════════');
     }
+    
+    // Show encryption info
+    console.log('');
+    console.log('  🔐 PRIVATE KEY ENCRYPTION (Optional)');
+    console.log('     Want to password-protect your wallet?');
+    console.log('     Run: apechurch wallet encrypt');
+    console.log('');
+    console.log('     • Hides your private key behind a password');
+    console.log('     • Sessions unlock for 3 hours at a time');
+    console.log('     • Set up to 3 password hints');
+    console.log('     • ⚠️  Not recommended for AI agents');
+    console.log('     • ⚠️  Forgot password = funds lost forever');
+    console.log('═══════════════════════════════════════════════════════════════════');
     console.log('');
   });
 
