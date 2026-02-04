@@ -1374,6 +1374,9 @@ SETUP
   apechurch uninstall            Remove local data
   apechurch wallet export        Show private key
 
+WALLET
+  apechurch send APE <amt> <to>  Send APE to an address
+
 STATUS
   apechurch status               Check balance and state
   apechurch profile show         Show profile
@@ -1406,7 +1409,140 @@ EXAMPLES
   apechurch play ape-strong 10 50
   apechurch play --loop --strategy aggressive
   apechurch profile set --referral 0x1234...abcd
+  apechurch send APE 10 0x1234...abcd
 `);
+  });
+
+// ============================================================================
+// COMMAND: SEND (Transfer assets)
+// ============================================================================
+program
+  .command('send <asset> <amount> <destination>')
+  .description('Send APE or tokens to an address')
+  .option('--json', 'JSON output only')
+  .action(async (asset, amount, destination, opts) => {
+    if (!walletExists()) {
+      const error = { error: 'No wallet found. Run: apechurch install' };
+      if (opts.json) console.log(JSON.stringify(error));
+      else console.error('\n❌ No wallet found. Run: apechurch install\n');
+      process.exit(1);
+    }
+
+    // Validate destination address
+    const dest = destination.trim();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(dest)) {
+      const error = { error: 'Invalid destination address. Must be a valid Ethereum address (0x...)' };
+      if (opts.json) console.log(JSON.stringify(error));
+      else console.error('\n❌ Invalid destination address. Must be a valid Ethereum address (0x...)\n');
+      process.exit(1);
+    }
+
+    // Parse amount
+    let amountWei;
+    try {
+      amountWei = parseEther(amount);
+      if (amountWei <= 0n) throw new Error('Amount must be positive');
+    } catch (error) {
+      const err = { error: `Invalid amount: ${amount}` };
+      if (opts.json) console.log(JSON.stringify(err));
+      else console.error(`\n❌ Invalid amount: ${amount}\n`);
+      process.exit(1);
+    }
+
+    const assetUpper = asset.toUpperCase();
+
+    // Currently only APE (native) is supported
+    if (assetUpper !== 'APE') {
+      const error = { error: `Unsupported asset: ${asset}. Currently only APE is supported.` };
+      if (opts.json) console.log(JSON.stringify(error));
+      else console.error(`\n❌ Unsupported asset: ${asset}. Currently only APE is supported.\n`);
+      process.exit(1);
+    }
+
+    const account = getWallet();
+    const { publicClient, walletClient } = createClients(account);
+
+    // Check balance
+    let balance;
+    try {
+      balance = await publicClient.getBalance({ address: account.address });
+    } catch (error) {
+      const err = { error: 'Failed to fetch balance' };
+      if (opts.json) console.log(JSON.stringify(err));
+      else console.error('\n❌ Failed to fetch balance\n');
+      process.exit(1);
+    }
+
+    // Estimate gas for transfer
+    const gasPrice = await publicClient.getGasPrice();
+    const estimatedGas = 21000n; // Standard ETH transfer gas
+    const gasCost = gasPrice * estimatedGas;
+    const totalNeeded = amountWei + gasCost;
+
+    if (balance < totalNeeded) {
+      const balanceApe = parseFloat(formatEther(balance)).toFixed(4);
+      const neededApe = parseFloat(formatEther(totalNeeded)).toFixed(4);
+      const error = { error: `Insufficient balance. Have: ${balanceApe} APE, Need: ${neededApe} APE (including gas)` };
+      if (opts.json) console.log(JSON.stringify(error));
+      else console.error(`\n❌ Insufficient balance. Have: ${balanceApe} APE, Need: ${neededApe} APE (including gas)\n`);
+      process.exit(1);
+    }
+
+    if (!opts.json) {
+      console.log(`\n📤 Sending ${amount} APE to ${dest.slice(0, 6)}...${dest.slice(-4)}\n`);
+    }
+
+    // Send transaction
+    let txHash;
+    try {
+      txHash = await walletClient.sendTransaction({
+        to: dest,
+        value: amountWei,
+      });
+    } catch (error) {
+      const err = { error: `Transaction failed: ${error.message}` };
+      if (opts.json) console.log(JSON.stringify(err));
+      else console.error(`\n❌ Transaction failed: ${error.message}\n`);
+      process.exit(1);
+    }
+
+    // Wait for confirmation
+    let receipt;
+    try {
+      receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 30000 });
+    } catch {
+      // Transaction sent but confirmation timed out
+      const result = {
+        status: 'pending',
+        asset: 'APE',
+        amount: amount,
+        destination: dest,
+        tx: txHash,
+      };
+      if (opts.json) console.log(JSON.stringify(result));
+      else console.log(`⏳ Transaction sent but confirmation pending\n   TX: ${txHash}\n`);
+      return;
+    }
+
+    const success = receipt.status === 'success';
+    const result = {
+      status: success ? 'success' : 'failed',
+      asset: 'APE',
+      amount: amount,
+      destination: dest,
+      tx: txHash,
+      gasUsed: receipt.gasUsed.toString(),
+    };
+
+    if (opts.json) {
+      console.log(JSON.stringify(result));
+    } else if (success) {
+      console.log(`✅ Sent ${amount} APE to ${dest.slice(0, 6)}...${dest.slice(-4)}`);
+      console.log(`   TX: ${txHash}\n`);
+    } else {
+      console.log(`❌ Transaction failed`);
+      console.log(`   TX: ${txHash}\n`);
+    }
   });
 
 // ============================================================================
