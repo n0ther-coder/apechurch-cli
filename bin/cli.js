@@ -314,8 +314,9 @@ program
 // ============================================================================
 program
   .command('wallet <action>')
-  .description('Wallet management (export)')
-  .action((action) => {
+  .description('Wallet management (export, reset)')
+  .option('-y, --yes', 'Skip confirmation (for reset)')
+  .action(async (action, opts) => {
     if (action === 'export') {
       const data = loadWalletData();
       if (!data) {
@@ -325,9 +326,75 @@ program
       console.log('\n⚠️  PRIVATE KEY - DO NOT SHARE\n');
       console.log(`   ${data.privateKey}\n`);
       console.log('   Store this securely. Anyone with this key controls your funds.\n');
+    } else if (action === 'reset') {
+      // Generate a new wallet, clearing all history
+      const existingData = loadWalletData();
+      
+      console.log('\n' + '⚠️'.repeat(20));
+      console.log('\n🚨 DANGER: WALLET RESET 🚨\n');
+      console.log('This will:');
+      console.log('  • DELETE your current wallet permanently');
+      console.log('  • DELETE all game history');
+      console.log('  • DELETE all local state');
+      console.log('  • Generate a NEW wallet with a NEW address\n');
+      
+      if (existingData) {
+        const account = privateKeyToAccount(existingData.privateKey);
+        console.log(`Current wallet: ${account.address}`);
+        console.log('\nMake sure you have:');
+        console.log('  1. Withdrawn all funds (APE, GP, NFTs)');
+        console.log('  2. Backed up your private key (apechurch wallet export)\n');
+      }
+      
+      if (!opts.yes) {
+        const confirm = await prompt('Type "RESET" to confirm permanent deletion: ');
+        if (confirm.trim() !== 'RESET') {
+          console.log('\nCancelled. Your wallet is safe.\n');
+          return;
+        }
+      }
+      
+      // Show old private key one last time
+      if (existingData && !opts.yes) {
+        console.log('\n📋 Your OLD private key (last chance to save):');
+        console.log(`   ${existingData.privateKey}\n`);
+      }
+      
+      // Delete everything
+      try {
+        if (fs.existsSync(APECHURCH_DIR)) {
+          fs.rmSync(APECHURCH_DIR, { recursive: true, force: true });
+        }
+      } catch (error) {
+        console.error(`\n❌ Failed to clear data: ${error.message}\n`);
+        process.exit(1);
+      }
+      
+      // Generate new wallet
+      ensureDir(APECHURCH_DIR);
+      const newPrivateKey = generatePrivateKey();
+      const newAccount = privateKeyToAccount(newPrivateKey);
+      fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey: newPrivateKey }));
+      
+      // Create fresh profile
+      saveProfile({
+        version: 1,
+        persona: 'balanced',
+        username: null,
+        paused: false,
+        referral: null,
+        overrides: {},
+      });
+      
+      console.log('\n✅ Wallet reset complete!\n');
+      console.log(`   New address: ${newAccount.address}`);
+      console.log('\n   Next steps:');
+      console.log('   1. Fund your new wallet with APE');
+      console.log('   2. Run: apechurch register --username <name>');
+      console.log('   3. Run: apechurch wallet export (to back up)\n');
     } else {
       console.log(`Unknown wallet action: ${action}`);
-      console.log('Available: export');
+      console.log('Available: export, reset');
     }
   });
 
@@ -1392,9 +1459,10 @@ program
 SETUP
   apechurch install              Setup wallet and register
   apechurch uninstall            Remove local data
-  apechurch wallet export        Show private key
 
 WALLET
+  apechurch wallet export        Show private key (back this up!)
+  apechurch wallet reset         Generate new wallet (DANGER: deletes old one)
   apechurch send APE <amt> <to>  Send APE (native currency) to an address
   apechurch send GP <amt> <to>   Send GP (Gimbo Points, 0 decimals) to an address
 
