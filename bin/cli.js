@@ -1412,7 +1412,7 @@ PLAY
 CONTROL
   apechurch pause                Stop autonomous play
   apechurch resume               Resume play
-  apechurch register             Change username
+  apechurch register --username <name>   Set or change username
 
 INFO
   apechurch games                List all games
@@ -1429,6 +1429,7 @@ EXAMPLES
   apechurch play roulette 50 RED
   apechurch play ape-strong 10 50
   apechurch play --loop --strategy aggressive
+  apechurch register --username my_bot_name
   apechurch profile set --referral 0x1234...abcd
   apechurch send APE 10 0x1234...abcd
   apechurch send GP 500 0x1234...abcd
