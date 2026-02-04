@@ -47,6 +47,17 @@ import {
   walletExists,
   createClients,
   loadWalletData,
+  isWalletEncrypted,
+  getPrivateKey,
+  encryptWallet,
+  decryptWallet,
+  unlockWallet,
+  clearSession,
+  getSessionTimeRemaining,
+  getWalletHints,
+  setWalletHints,
+  saveSession,
+  createEncryptedWallet,
 } from '../lib/wallet.js';
 import {
   loadProfile,
@@ -128,7 +139,7 @@ program
       try {
         const account = privateKeyToAccount(pk);
         address = account.address;
-        fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey: pk }));
+        fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
         walletWasImported = true;
         console.log(`\n✅ Imported wallet: ${address}`);
       } catch (error) {
@@ -146,32 +157,72 @@ program
       
       const walletChoice = await prompt('\nYour choice (1 or 2): ');
       
+      let pk;
       if (walletChoice.trim() === '2') {
         const pkInput = await prompt('Enter your private key: ');
-        let pk = pkInput.trim();
+        pk = pkInput.trim();
         if (!pk.startsWith('0x')) pk = '0x' + pk;
         try {
           const account = privateKeyToAccount(pk);
           address = account.address;
-          fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey: pk }));
           walletWasImported = true;
-          console.log(`\n✅ Imported wallet: ${address}`);
         } catch (error) {
           console.error(`\n❌ Invalid private key: ${error.message}`);
           process.exit(1);
         }
       } else {
-        const pk = generatePrivateKey();
+        pk = generatePrivateKey();
         const account = privateKeyToAccount(pk);
-        fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey: pk }));
         address = account.address;
-        console.log(`\n✅ Generated new wallet: ${address}`);
+      }
+      
+      // Ask about password protection
+      console.log('\n┌─────────────────────────────────────────────────────────────────┐');
+      console.log('│                    PASSWORD PROTECTION (Optional)               │');
+      console.log('├─────────────────────────────────────────────────────────────────┤');
+      console.log('│  Password encryption adds security but requires a password      │');
+      console.log('│  every 3 hours (or on each command if session expires).         │');
+      console.log('│                                                                 │');
+      console.log('│  ⚠️  NOT recommended for AI agents (they must store password).  │');
+      console.log('│  ⚠️  If you forget password, funds are LOST FOREVER.            │');
+      console.log('└─────────────────────────────────────────────────────────────────┘');
+      
+      const encryptChoice = await prompt('\nEnable password protection? (y/N): ');
+      
+      if (encryptChoice.toLowerCase() === 'y') {
+        const password = await prompt('Set password (min 4 chars): ');
+        if (!password || password.length < 4) {
+          console.error('\n❌ Password must be at least 4 characters. Skipping encryption.\n');
+          fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
+        } else {
+          const confirmPw = await prompt('Confirm password: ');
+          if (password !== confirmPw) {
+            console.error('\n❌ Passwords do not match. Skipping encryption.\n');
+            fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
+          } else {
+            // Collect hints
+            console.log('\n   Set up to 3 password hints (optional, press Enter to skip):\n');
+            const hints = [];
+            for (let i = 1; i <= 3; i++) {
+              const hint = await prompt(`   Hint ${i}: `);
+              if (hint.trim()) hints.push(hint.trim());
+            }
+            
+            // Create encrypted wallet
+            const account = createEncryptedWallet(password, hints);
+            console.log(`\n✅ Wallet created with password protection: ${address}`);
+            console.log('   Session active for 3 hours.');
+          }
+        }
+      } else {
+        fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
+        console.log(`\n✅ ${walletWasImported ? 'Imported' : 'Generated new'} wallet: ${address}`);
         console.log('   (Export anytime with: apechurch wallet export)');
       }
     } else {
       const pk = generatePrivateKey();
       const account = privateKeyToAccount(pk);
-      fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey: pk }));
+      fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
       address = account.address;
       console.log(`\n✅ Generated new wallet: ${address}`);
     }
@@ -318,20 +369,255 @@ program
 // ============================================================================
 program
   .command('wallet <action>')
-  .description('Wallet management (export, reset)')
-  .option('-y, --yes', 'Skip confirmation (for reset)')
+  .description('Wallet management (export, reset, encrypt, decrypt, unlock, lock, hints)')
+  .option('-y, --yes', 'Skip confirmation')
+  .option('--timeout <hours>', 'Session timeout in hours (default: 3)', '3')
+  .option('--json', 'JSON output')
   .action(async (action, opts) => {
+    
+    // --- EXPORT ---
     if (action === 'export') {
-      const data = loadWalletData();
-      if (!data) {
+      if (!walletExists()) {
         console.error(JSON.stringify({ error: 'No wallet found. Run: apechurch install' }));
         process.exit(1);
       }
-      console.log('\n⚠️  PRIVATE KEY - DO NOT SHARE\n');
-      console.log(`   ${data.privateKey}\n`);
-      console.log('   Store this securely. Anyone with this key controls your funds.\n');
-    } else if (action === 'reset') {
-      // Generate a new wallet, clearing all history
+      
+      // Need to get private key (may need password)
+      const keyResult = getPrivateKey(process.env.APECHURCH_PASSWORD);
+      if (keyResult.needsPassword) {
+        const password = await prompt('Password: ');
+        const retryResult = getPrivateKey(password);
+        if (retryResult.error) {
+          console.error(`\n❌ ${retryResult.error}\n`);
+          process.exit(1);
+        }
+        console.log('\n⚠️  PRIVATE KEY - DO NOT SHARE\n');
+        console.log(`   ${retryResult.privateKey}\n`);
+        console.log('   Store this securely. Anyone with this key controls your funds.\n');
+      } else if (keyResult.error) {
+        console.error(`\n❌ ${keyResult.error}\n`);
+        process.exit(1);
+      } else {
+        console.log('\n⚠️  PRIVATE KEY - DO NOT SHARE\n');
+        console.log(`   ${keyResult.privateKey}\n`);
+        console.log('   Store this securely. Anyone with this key controls your funds.\n');
+      }
+      return;
+    }
+    
+    // --- ENCRYPT ---
+    if (action === 'encrypt') {
+      if (!walletExists()) {
+        console.error('\n❌ No wallet found. Run: apechurch install\n');
+        process.exit(1);
+      }
+      if (isWalletEncrypted()) {
+        console.error('\n❌ Wallet is already encrypted\n');
+        process.exit(1);
+      }
+      
+      console.log('\n🔐 Encrypt Wallet\n');
+      console.log('   ⚠️  Password is REQUIRED to access your wallet after encryption.');
+      console.log('   ⚠️  If you forget your password, your funds are LOST FOREVER.');
+      console.log('   ⚠️  Not recommended for AI agents (they must remember the password).\n');
+      
+      const password = await prompt('Set password: ');
+      if (!password || password.length < 4) {
+        console.error('\n❌ Password must be at least 4 characters\n');
+        process.exit(1);
+      }
+      const confirm = await prompt('Confirm password: ');
+      if (password !== confirm) {
+        console.error('\n❌ Passwords do not match\n');
+        process.exit(1);
+      }
+      
+      // Collect hints (optional)
+      console.log('\n   Set up to 3 password hints (optional, press Enter to skip):\n');
+      const hints = [];
+      for (let i = 1; i <= 3; i++) {
+        const hint = await prompt(`   Hint ${i}: `);
+        if (hint.trim()) hints.push(hint.trim());
+      }
+      
+      const result = encryptWallet(password, hints);
+      if (result.error) {
+        console.error(`\n❌ ${result.error}\n`);
+        process.exit(1);
+      }
+      
+      // Auto-unlock after encrypting
+      unlockWallet(password, parseFloat(opts.timeout) * 60 * 60 * 1000);
+      
+      console.log('\n✅ Wallet encrypted successfully!');
+      console.log(`   Session active for ${opts.timeout} hours.`);
+      console.log('   Run: apechurch wallet unlock (to start new session)');
+      console.log('   Run: apechurch wallet decrypt (to remove encryption)\n');
+      return;
+    }
+    
+    // --- DECRYPT ---
+    if (action === 'decrypt') {
+      if (!walletExists()) {
+        console.error('\n❌ No wallet found. Run: apechurch install\n');
+        process.exit(1);
+      }
+      if (!isWalletEncrypted()) {
+        console.error('\n❌ Wallet is not encrypted\n');
+        process.exit(1);
+      }
+      
+      console.log('\n🔓 Decrypt Wallet\n');
+      console.log('   ⚠️  This will remove password protection.');
+      console.log('   ⚠️  Your private key will be stored in plain text.\n');
+      
+      // Show hints if available
+      const hints = getWalletHints();
+      if (hints.length > 0) {
+        console.log('   Your hints:');
+        hints.forEach((h, i) => console.log(`     ${i + 1}. ${h}`));
+        console.log('');
+      }
+      
+      const password = await prompt('Current password: ');
+      const result = decryptWallet(password);
+      if (result.error) {
+        console.error(`\n❌ ${result.error}\n`);
+        process.exit(1);
+      }
+      
+      console.log('\n✅ Wallet decrypted. Password protection removed.\n');
+      return;
+    }
+    
+    // --- UNLOCK ---
+    if (action === 'unlock') {
+      if (!walletExists()) {
+        console.error('\n❌ No wallet found. Run: apechurch install\n');
+        process.exit(1);
+      }
+      if (!isWalletEncrypted()) {
+        console.log('\n✅ Wallet is not encrypted. No unlock needed.\n');
+        return;
+      }
+      
+      // Check if already unlocked
+      const remaining = getSessionTimeRemaining();
+      if (remaining > 0) {
+        const hours = Math.floor(remaining / 3600);
+        const mins = Math.floor((remaining % 3600) / 60);
+        console.log(`\n✅ Wallet already unlocked. ${hours}h ${mins}m remaining.\n`);
+        return;
+      }
+      
+      // Show hints if available
+      const hints = getWalletHints();
+      if (hints.length > 0) {
+        console.log('\n   Your hints:');
+        hints.forEach((h, i) => console.log(`     ${i + 1}. ${h}`));
+        console.log('');
+      }
+      
+      const password = process.env.APECHURCH_PASSWORD || await prompt('Password: ');
+      const timeoutMs = parseFloat(opts.timeout) * 60 * 60 * 1000;
+      const result = unlockWallet(password, timeoutMs);
+      
+      if (result.error) {
+        if (opts.json) console.log(JSON.stringify({ error: result.error }));
+        else console.error(`\n❌ ${result.error}\n`);
+        process.exit(1);
+      }
+      
+      if (opts.json) {
+        console.log(JSON.stringify({ status: 'unlocked', timeout_hours: parseFloat(opts.timeout) }));
+      } else {
+        console.log(`\n✅ Wallet unlocked for ${opts.timeout} hours.\n`);
+      }
+      return;
+    }
+    
+    // --- LOCK ---
+    if (action === 'lock') {
+      clearSession();
+      if (opts.json) {
+        console.log(JSON.stringify({ status: 'locked' }));
+      } else {
+        console.log('\n🔒 Session cleared. Wallet locked.\n');
+      }
+      return;
+    }
+    
+    // --- HINTS ---
+    if (action === 'hints') {
+      if (!walletExists()) {
+        console.error('\n❌ No wallet found. Run: apechurch install\n');
+        process.exit(1);
+      }
+      if (!isWalletEncrypted()) {
+        console.error('\n❌ Wallet is not encrypted. Hints only apply to encrypted wallets.\n');
+        process.exit(1);
+      }
+      
+      const currentHints = getWalletHints();
+      
+      console.log('\n📝 Password Hints\n');
+      if (currentHints.length > 0) {
+        console.log('   Current hints:');
+        currentHints.forEach((h, i) => console.log(`     ${i + 1}. ${h}`));
+      } else {
+        console.log('   No hints set.');
+      }
+      
+      const update = await prompt('\nUpdate hints? (y/N): ');
+      if (update.toLowerCase() !== 'y') {
+        console.log('');
+        return;
+      }
+      
+      console.log('\n   Set up to 3 hints (press Enter to skip):\n');
+      const newHints = [];
+      for (let i = 1; i <= 3; i++) {
+        const hint = await prompt(`   Hint ${i}: `);
+        if (hint.trim()) newHints.push(hint.trim());
+      }
+      
+      setWalletHints(newHints);
+      console.log('\n✅ Hints updated.\n');
+      return;
+    }
+    
+    // --- STATUS ---
+    if (action === 'status') {
+      const encrypted = isWalletEncrypted();
+      const remaining = getSessionTimeRemaining();
+      const hints = getWalletHints();
+      
+      if (opts.json) {
+        console.log(JSON.stringify({
+          encrypted,
+          session_remaining_seconds: remaining,
+          hints_count: hints.length,
+        }));
+      } else {
+        console.log('\n🔐 Wallet Security Status\n');
+        console.log(`   Encrypted:  ${encrypted ? 'Yes' : 'No'}`);
+        if (encrypted) {
+          if (remaining > 0) {
+            const hours = Math.floor(remaining / 3600);
+            const mins = Math.floor((remaining % 3600) / 60);
+            console.log(`   Session:    Unlocked (${hours}h ${mins}m remaining)`);
+          } else {
+            console.log('   Session:    Locked');
+          }
+          console.log(`   Hints:      ${hints.length} set`);
+        }
+        console.log('');
+      }
+      return;
+    }
+    
+    // --- RESET ---
+    if (action === 'reset') {
       const existingData = loadWalletData();
       
       console.log('\n' + '⚠️'.repeat(20));
@@ -344,8 +630,12 @@ program
       console.log('  • Your username will NOT transfer (tied to old wallet)\n');
       
       if (existingData) {
-        const account = privateKeyToAccount(existingData.privateKey);
-        console.log(`Current wallet: ${account.address}`);
+        // Get current address (need to decrypt if encrypted)
+        const keyResult = getPrivateKey(process.env.APECHURCH_PASSWORD);
+        if (!keyResult.error) {
+          const account = privateKeyToAccount(keyResult.privateKey);
+          console.log(`Current wallet: ${account.address}`);
+        }
         console.log('\nMake sure you have:');
         console.log('  1. Withdrawn all funds (APE, GP, NFTs)');
         console.log('  2. Backed up your private key (apechurch wallet export)\n');
@@ -359,10 +649,13 @@ program
         }
       }
       
-      // Show old private key one last time
+      // Show old private key one last time (if accessible)
       if (existingData && !opts.yes) {
-        console.log('\n📋 Your OLD private key (last chance to save):');
-        console.log(`   ${existingData.privateKey}\n`);
+        const keyResult = getPrivateKey(process.env.APECHURCH_PASSWORD);
+        if (!keyResult.error) {
+          console.log('\n📋 Your OLD private key (last chance to save):');
+          console.log(`   ${keyResult.privateKey}\n`);
+        }
       }
       
       // Delete everything
@@ -379,7 +672,7 @@ program
       ensureDir(APECHURCH_DIR);
       const newPrivateKey = generatePrivateKey();
       const newAccount = privateKeyToAccount(newPrivateKey);
-      fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey: newPrivateKey }));
+      fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: newPrivateKey }), { mode: 0o600 });
       
       // Create fresh profile
       saveProfile({
@@ -399,10 +692,12 @@ program
       console.log('   1. Fund your new wallet with APE');
       console.log('   2. Run: apechurch register --username <name>');
       console.log('   3. Run: apechurch wallet export (to back up)\n');
-    } else {
-      console.log(`Unknown wallet action: ${action}`);
-      console.log('Available: export, reset');
+      return;
     }
+    
+    // --- UNKNOWN ---
+    console.log(`Unknown wallet action: ${action}`);
+    console.log('Available: export, reset, encrypt, decrypt, unlock, lock, hints, status');
   });
 
 // ============================================================================
@@ -1538,6 +1833,12 @@ SETUP
 WALLET
   apechurch wallet export        Show private key (back this up!)
   apechurch wallet reset         Generate new wallet (DANGER: deletes old one)
+  apechurch wallet status        Check encryption and session status
+  apechurch wallet encrypt       Add password protection (optional, not for AI agents)
+  apechurch wallet decrypt       Remove password protection
+  apechurch wallet unlock        Start session (default: 3 hours)
+  apechurch wallet lock          End session immediately
+  apechurch wallet hints         View or update password hints (up to 3)
   apechurch send APE <amt> <to>  Send APE (native currency) to an address
   apechurch send GP <amt> <to>   Send GP (Gimbo Points, 0 decimals) to an address
 
