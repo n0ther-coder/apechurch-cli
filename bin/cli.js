@@ -910,10 +910,12 @@ program
           gameConfig.difficulty = randomIntInclusive(min, max);
         }
         // Number of rolls (1-5)
+        // On Easy (0), allow more rolls since 5/6 win chance per roll
         if (opts.rolls !== undefined) gameConfig.rolls = parseInt(opts.rolls);
         else if (positionalConfig.rolls !== undefined) gameConfig.rolls = positionalConfig.rolls;
         else if (gameConfig.rolls === undefined) {
-          const [min, max] = strategyConfig.bearDice?.rolls || [1, 3];
+          const isEasy = gameConfig.difficulty === 0;
+          const [min, max] = strategyConfig.bearDice?.rolls || (isEasy ? [1, 5] : [1, 2]);
           gameConfig.rolls = randomIntInclusive(min, max);
         }
       }
