@@ -26,6 +26,9 @@ import {
   CONTEST_END_DATE,
   REGISTER_AGENT_ABI,
   USER_INFO_ABI,
+  GP_TOKEN_CONTRACT,
+  GP_TOKEN_ABI,
+  GP_DECIMALS,
 } from '../lib/constants.js';
 import {
   sanitizeError,
@@ -356,6 +359,21 @@ program
       return;
     }
 
+    // Fetch GP balance (Gimbo Points - 0 decimals)
+    let gpBalance = 0n;
+    try {
+      if (GP_TOKEN_CONTRACT !== '0x0000000000000000000000000000000000000000') {
+        gpBalance = await publicClient.readContract({
+          address: GP_TOKEN_CONTRACT,
+          abi: GP_TOKEN_ABI,
+          functionName: 'getCurrentEXP',
+          args: [account.address],
+        });
+      }
+    } catch {
+      // GP fetch failed, continue with 0
+    }
+
     const balanceApe = parseFloat(formatEther(balance));
     const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
     const canPlay = availableApe >= 1 && !profile.paused;
@@ -365,6 +383,7 @@ program
       balance: balanceApe.toFixed(4),
       available_ape: availableApe.toFixed(4),
       gas_reserve_ape: GAS_RESERVE_APE.toFixed(4),
+      gp_balance: gpBalance.toString(),
       paused: profile.paused,
       persona: profile.persona,
       username: profile.username,
@@ -377,6 +396,7 @@ program
       console.log('\n🎰 Ape Church Status\n');
       console.log(`   Address:    ${response.address}`);
       console.log(`   Balance:    ${response.balance} APE`);
+      console.log(`   GP:         ${response.gp_balance} GP`);
       console.log(`   Available:  ${response.available_ape} APE`);
       console.log(`   Username:   ${response.username || '(not set)'}`);
       console.log(`   Persona:    ${response.persona}`);
@@ -1375,7 +1395,8 @@ SETUP
   apechurch wallet export        Show private key
 
 WALLET
-  apechurch send APE <amt> <to>  Send APE to an address
+  apechurch send APE <amt> <to>  Send APE (native currency) to an address
+  apechurch send GP <amt> <to>   Send GP (Gimbo Points, 0 decimals) to an address
 
 STATUS
   apechurch status               Check balance and state
@@ -1410,6 +1431,17 @@ EXAMPLES
   apechurch play --loop --strategy aggressive
   apechurch profile set --referral 0x1234...abcd
   apechurch send APE 10 0x1234...abcd
+  apechurch send GP 500 0x1234...abcd
+
+ASSETS
+  APE    Native currency (18 decimals)
+         - Used for betting, gas fees, and transfers
+         - Check balance: apechurch status
+  
+  GP     Gimbo Points (0 decimals, whole numbers only)
+         - Earned as cashback from playing games
+         - Non-transferable until claimed (use getCurrentEXP to check)
+         - Send to others: apechurch send GP <amount> <address>
 `);
   });
 
@@ -1418,7 +1450,7 @@ EXAMPLES
 // ============================================================================
 program
   .command('send <asset> <amount> <destination>')
-  .description('Send APE or tokens to an address')
+  .description('Send APE or GP to an address')
   .option('--json', 'JSON output only')
   .action(async (asset, amount, destination, opts) => {
     if (!walletExists()) {
@@ -1437,111 +1469,206 @@ program
       process.exit(1);
     }
 
-    // Parse amount
-    let amountWei;
-    try {
-      amountWei = parseEther(amount);
-      if (amountWei <= 0n) throw new Error('Amount must be positive');
-    } catch (error) {
-      const err = { error: `Invalid amount: ${amount}` };
-      if (opts.json) console.log(JSON.stringify(err));
-      else console.error(`\n❌ Invalid amount: ${amount}\n`);
-      process.exit(1);
-    }
-
     const assetUpper = asset.toUpperCase();
-
-    // Currently only APE (native) is supported
-    if (assetUpper !== 'APE') {
-      const error = { error: `Unsupported asset: ${asset}. Currently only APE is supported.` };
-      if (opts.json) console.log(JSON.stringify(error));
-      else console.error(`\n❌ Unsupported asset: ${asset}. Currently only APE is supported.\n`);
-      process.exit(1);
-    }
-
     const account = getWallet();
     const { publicClient, walletClient } = createClients(account);
 
-    // Check balance
-    let balance;
-    try {
-      balance = await publicClient.getBalance({ address: account.address });
-    } catch (error) {
-      const err = { error: 'Failed to fetch balance' };
-      if (opts.json) console.log(JSON.stringify(err));
-      else console.error('\n❌ Failed to fetch balance\n');
-      process.exit(1);
-    }
+    // Handle different assets
+    if (assetUpper === 'APE') {
+      // --- APE (Native currency) ---
+      let amountWei;
+      try {
+        amountWei = parseEther(amount);
+        if (amountWei <= 0n) throw new Error('Amount must be positive');
+      } catch (error) {
+        const err = { error: `Invalid amount: ${amount}` };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error(`\n❌ Invalid amount: ${amount}\n`);
+        process.exit(1);
+      }
 
-    // Estimate gas for transfer
-    const gasPrice = await publicClient.getGasPrice();
-    const estimatedGas = 21000n; // Standard ETH transfer gas
-    const gasCost = gasPrice * estimatedGas;
-    const totalNeeded = amountWei + gasCost;
+      // Check balance
+      let balance;
+      try {
+        balance = await publicClient.getBalance({ address: account.address });
+      } catch (error) {
+        const err = { error: 'Failed to fetch balance' };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error('\n❌ Failed to fetch balance\n');
+        process.exit(1);
+      }
 
-    if (balance < totalNeeded) {
-      const balanceApe = parseFloat(formatEther(balance)).toFixed(4);
-      const neededApe = parseFloat(formatEther(totalNeeded)).toFixed(4);
-      const error = { error: `Insufficient balance. Have: ${balanceApe} APE, Need: ${neededApe} APE (including gas)` };
-      if (opts.json) console.log(JSON.stringify(error));
-      else console.error(`\n❌ Insufficient balance. Have: ${balanceApe} APE, Need: ${neededApe} APE (including gas)\n`);
-      process.exit(1);
-    }
+      // Estimate gas for transfer
+      const gasPrice = await publicClient.getGasPrice();
+      const estimatedGas = 21000n;
+      const gasCost = gasPrice * estimatedGas;
+      const totalNeeded = amountWei + gasCost;
 
-    if (!opts.json) {
-      console.log(`\n📤 Sending ${amount} APE to ${dest.slice(0, 6)}...${dest.slice(-4)}\n`);
-    }
+      if (balance < totalNeeded) {
+        const balanceApe = parseFloat(formatEther(balance)).toFixed(4);
+        const neededApe = parseFloat(formatEther(totalNeeded)).toFixed(4);
+        const error = { error: `Insufficient balance. Have: ${balanceApe} APE, Need: ${neededApe} APE (including gas)` };
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error(`\n❌ Insufficient balance. Have: ${balanceApe} APE, Need: ${neededApe} APE (including gas)\n`);
+        process.exit(1);
+      }
 
-    // Send transaction
-    let txHash;
-    try {
-      txHash = await walletClient.sendTransaction({
-        to: dest,
-        value: amountWei,
-      });
-    } catch (error) {
-      const err = { error: `Transaction failed: ${error.message}` };
-      if (opts.json) console.log(JSON.stringify(err));
-      else console.error(`\n❌ Transaction failed: ${error.message}\n`);
-      process.exit(1);
-    }
+      if (!opts.json) {
+        console.log(`\n📤 Sending ${amount} APE to ${dest.slice(0, 6)}...${dest.slice(-4)}\n`);
+      }
 
-    // Wait for confirmation
-    let receipt;
-    try {
-      receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 30000 });
-    } catch {
-      // Transaction sent but confirmation timed out
-      const result = {
-        status: 'pending',
-        asset: 'APE',
-        amount: amount,
-        destination: dest,
-        tx: txHash,
-      };
-      if (opts.json) console.log(JSON.stringify(result));
-      else console.log(`⏳ Transaction sent but confirmation pending\n   TX: ${txHash}\n`);
-      return;
-    }
+      // Send native transfer
+      let txHash;
+      try {
+        txHash = await walletClient.sendTransaction({
+          to: dest,
+          value: amountWei,
+        });
+      } catch (error) {
+        const err = { error: `Transaction failed: ${error.message}` };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error(`\n❌ Transaction failed: ${error.message}\n`);
+        process.exit(1);
+      }
 
-    const success = receipt.status === 'success';
-    const result = {
-      status: success ? 'success' : 'failed',
-      asset: 'APE',
-      amount: amount,
-      destination: dest,
-      tx: txHash,
-      gasUsed: receipt.gasUsed.toString(),
-    };
+      // Wait for confirmation
+      let receipt;
+      try {
+        receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 30000 });
+      } catch {
+        const result = { status: 'pending', asset: 'APE', amount, destination: dest, tx: txHash };
+        if (opts.json) console.log(JSON.stringify(result));
+        else console.log(`⏳ Transaction sent but confirmation pending\n   TX: ${txHash}\n`);
+        return;
+      }
 
-    if (opts.json) {
-      console.log(JSON.stringify(result));
-    } else if (success) {
-      console.log(`✅ Sent ${amount} APE to ${dest.slice(0, 6)}...${dest.slice(-4)}`);
-      console.log(`   TX: ${txHash}\n`);
+      const success = receipt.status === 'success';
+      const result = { status: success ? 'success' : 'failed', asset: 'APE', amount, destination: dest, tx: txHash, gasUsed: receipt.gasUsed.toString() };
+
+      if (opts.json) {
+        console.log(JSON.stringify(result));
+      } else if (success) {
+        console.log(`✅ Sent ${amount} APE to ${dest.slice(0, 6)}...${dest.slice(-4)}`);
+        console.log(`   TX: ${txHash}\n`);
+      } else {
+        console.log(`❌ Transaction failed\n   TX: ${txHash}\n`);
+      }
+
+    } else if (assetUpper === 'GP') {
+      // --- GP (Gimbo Points - 0 decimals) ---
+      if (GP_TOKEN_CONTRACT === '0x0000000000000000000000000000000000000000') {
+        const error = { error: 'GP token contract not configured' };
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error('\n❌ GP token contract not configured\n');
+        process.exit(1);
+      }
+
+      // GP has 0 decimals - amount is a whole number
+      let amountGP;
+      try {
+        amountGP = BigInt(Math.floor(parseFloat(amount)));
+        if (amountGP <= 0n) throw new Error('Amount must be positive');
+      } catch (error) {
+        const err = { error: `Invalid GP amount: ${amount}. GP must be a whole number (0 decimals).` };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error(`\n❌ Invalid GP amount: ${amount}. GP must be a whole number (0 decimals).\n`);
+        process.exit(1);
+      }
+
+      // Check GP balance using getCurrentEXP
+      let gpBalance;
+      try {
+        gpBalance = await publicClient.readContract({
+          address: GP_TOKEN_CONTRACT,
+          abi: GP_TOKEN_ABI,
+          functionName: 'getCurrentEXP',
+          args: [account.address],
+        });
+      } catch (error) {
+        const err = { error: 'Failed to fetch GP balance' };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error('\n❌ Failed to fetch GP balance\n');
+        process.exit(1);
+      }
+
+      if (gpBalance < amountGP) {
+        const error = { error: `Insufficient GP balance. Have: ${gpBalance.toString()} GP, Need: ${amountGP.toString()} GP` };
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error(`\n❌ Insufficient GP balance. Have: ${gpBalance.toString()} GP, Need: ${amountGP.toString()} GP\n`);
+        process.exit(1);
+      }
+
+      // Check APE for gas
+      let apeBalance;
+      try {
+        apeBalance = await publicClient.getBalance({ address: account.address });
+      } catch (error) {
+        const err = { error: 'Failed to fetch APE balance for gas' };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error('\n❌ Failed to fetch APE balance for gas\n');
+        process.exit(1);
+      }
+
+      const gasPrice = await publicClient.getGasPrice();
+      const estimatedGas = 65000n; // ERC20 transfer typically uses ~60k gas
+      const gasCost = gasPrice * estimatedGas;
+
+      if (apeBalance < gasCost) {
+        const gasCostApe = parseFloat(formatEther(gasCost)).toFixed(6);
+        const error = { error: `Insufficient APE for gas. Need ~${gasCostApe} APE for transaction fee.` };
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error(`\n❌ Insufficient APE for gas. Need ~${gasCostApe} APE for transaction fee.\n`);
+        process.exit(1);
+      }
+
+      if (!opts.json) {
+        console.log(`\n📤 Sending ${amountGP.toString()} GP to ${dest.slice(0, 6)}...${dest.slice(-4)}\n`);
+      }
+
+      // Send ERC20 transfer
+      let txHash;
+      try {
+        txHash = await walletClient.writeContract({
+          address: GP_TOKEN_CONTRACT,
+          abi: GP_TOKEN_ABI,
+          functionName: 'transfer',
+          args: [dest, amountGP],
+        });
+      } catch (error) {
+        const err = { error: `Transaction failed: ${error.message}` };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error(`\n❌ Transaction failed: ${error.message}\n`);
+        process.exit(1);
+      }
+
+      // Wait for confirmation
+      let receipt;
+      try {
+        receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 30000 });
+      } catch {
+        const result = { status: 'pending', asset: 'GP', amount: amountGP.toString(), destination: dest, tx: txHash };
+        if (opts.json) console.log(JSON.stringify(result));
+        else console.log(`⏳ Transaction sent but confirmation pending\n   TX: ${txHash}\n`);
+        return;
+      }
+
+      const success = receipt.status === 'success';
+      const result = { status: success ? 'success' : 'failed', asset: 'GP', amount: amountGP.toString(), destination: dest, tx: txHash, gasUsed: receipt.gasUsed.toString() };
+
+      if (opts.json) {
+        console.log(JSON.stringify(result));
+      } else if (success) {
+        console.log(`✅ Sent ${amountGP.toString()} GP to ${dest.slice(0, 6)}...${dest.slice(-4)}`);
+        console.log(`   TX: ${txHash}\n`);
+      } else {
+        console.log(`❌ Transaction failed\n   TX: ${txHash}\n`);
+      }
+
     } else {
-      console.log(`❌ Transaction failed`);
-      console.log(`   TX: ${txHash}\n`);
+      const error = { error: `Unsupported asset: ${asset}. Supported: APE, GP` };
+      if (opts.json) console.log(JSON.stringify(error));
+      else console.error(`\n❌ Unsupported asset: ${asset}. Supported: APE, GP\n`);
+      process.exit(1);
     }
   });
 
