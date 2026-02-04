@@ -1008,12 +1008,18 @@ program
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
   .option('--delay <seconds>', 'Delay between games in loop', '3')
+  .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--json', 'JSON output only')
   .action(async (gameArg, amountArg, configArgs, opts) => {
     const account = await getWalletWithPrompt({ json: opts.json });
     const loopMode = Boolean(opts.loop);
     const delaySeconds = Math.max(parseFloat(opts.delay) || 3, 1);
     const delayMs = delaySeconds * 1000;
+    const targetBalance = opts.target ? parseFloat(opts.target) : null;
+    const stopLoss = opts.stopLoss ? parseFloat(opts.stopLoss) : null;
+    let startingBalance = null;
+    let gamesPlayed = 0;
 
     const gameInput = gameArg || opts.game;
     const amountInput = amountArg || opts.amount;
@@ -1410,7 +1416,34 @@ program
     // Execute
     if (loopMode) {
       while (true) {
+        // Check balance for target/stop-loss
+        const { publicClient } = createClients();
+        const balance = await publicClient.getBalance({ address: account.address });
+        const balanceApe = parseFloat(formatEther(balance));
+        
+        // Track starting balance
+        if (startingBalance === null) startingBalance = balanceApe;
+        
+        // Check target
+        if (targetBalance !== null && balanceApe >= targetBalance) {
+          const profit = balanceApe - startingBalance;
+          console.log(`\n🎯 Target reached! Balance: ${balanceApe.toFixed(2)} APE (target: ${targetBalance} APE)`);
+          console.log(`   Profit: +${profit.toFixed(2)} APE`);
+          console.log(`   Games played: ${gamesPlayed}\n`);
+          break;
+        }
+        
+        // Check stop-loss
+        if (stopLoss !== null && balanceApe <= stopLoss) {
+          const loss = startingBalance - balanceApe;
+          console.log(`\n🛑 Stop-loss hit! Balance: ${balanceApe.toFixed(2)} APE (limit: ${stopLoss} APE)`);
+          console.log(`   Loss: -${loss.toFixed(2)} APE`);
+          console.log(`   Games played: ${gamesPlayed}\n`);
+          break;
+        }
+        
         const result = await playOnce();
+        gamesPlayed++;
         if (result.shouldStop) break;
         await new Promise(r => setTimeout(r, delayMs));
       }
@@ -1829,6 +1862,7 @@ ${'─'.repeat(60)}
   --auto          Bot plays optimal basic strategy for you
   --loop          Keep playing until balance runs out
   --target <ape>  Stop when balance reaches this amount
+  --stop-loss <ape>  Stop when balance drops to this amount
 
 ${'─'.repeat(60)}
   ACTIONS (during game)
@@ -1899,6 +1933,7 @@ ${'─'.repeat(60)}
   --auto          Bot plays optimal discard strategy
   --loop          Keep playing until balance runs out
   --target <ape>  Stop when balance reaches this amount
+  --stop-loss <ape>  Stop when balance drops to this amount
 
 ${'─'.repeat(60)}
   PAYOUTS (multiplier x bet)
@@ -2576,6 +2611,7 @@ program
   .option('--auto', 'Auto-play using optimal basic strategy')
   .option('--loop', 'Keep playing until balance runs out')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .action(async (action, amount, opts) => {
     // Dynamic import to avoid loading stateful game code when not needed
     const blackjack = await import('../lib/stateful/blackjack/index.js');
@@ -2632,6 +2668,7 @@ program
   .option('--auto', 'Auto-play using optimal strategy')
   .option('--loop', 'Keep playing until balance runs out')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .action(async (action, amount, opts) => {
     const videoPoker = await import('../lib/stateful/video-poker/index.js');
     
