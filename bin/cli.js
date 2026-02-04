@@ -447,6 +447,7 @@ program
   .command('profile <action>')
   .description('Profile management (show, set)')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
+  .option('--referral <address>', 'Referral wallet address (who referred you)')
   .option('--json', 'Output JSON')
   .action((action, opts) => {
     const profile = loadProfile();
@@ -464,6 +465,15 @@ program
     } else if (action === 'set') {
       const updates = {};
       if (opts.persona) updates.persona = normalizeStrategy(opts.persona);
+      if (opts.referral) {
+        // Validate it looks like an address
+        const ref = opts.referral.trim();
+        if (!/^0x[a-fA-F0-9]{40}$/.test(ref)) {
+          console.error(JSON.stringify({ error: 'Invalid referral address. Must be a valid Ethereum address (0x...)' }));
+          process.exit(1);
+        }
+        updates.referral = ref;
+      }
       
       const updated = saveProfile({ ...profile, ...updates });
       console.log(JSON.stringify({ status: 'updated', profile: updated }));
@@ -1367,7 +1377,7 @@ SETUP
 STATUS
   apechurch status               Check balance and state
   apechurch profile show         Show profile
-  apechurch profile set          Update profile
+  apechurch profile set          Update profile (--persona, --referral)
 
 PLAY
   apechurch play                 Play random game
@@ -1395,6 +1405,7 @@ EXAMPLES
   apechurch play roulette 50 RED
   apechurch play ape-strong 10 50
   apechurch play --loop --strategy aggressive
+  apechurch profile set --referral 0x1234...abcd
 `);
   });
 
