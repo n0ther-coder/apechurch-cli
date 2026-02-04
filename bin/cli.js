@@ -1856,11 +1856,84 @@ ${'═'.repeat(60)}
       return;
     }
     
+    // Handle video-poker specially (stateful game)
+    if (name.toLowerCase() === 'video-poker' || name.toLowerCase() === 'vp' || name.toLowerCase() === 'gimboz-poker') {
+      if (opts.json) {
+        console.log(JSON.stringify({
+          name: 'Video Poker',
+          type: 'stateful',
+          key: 'video-poker',
+          aliases: ['vp', 'gimboz-poker'],
+          contract: '0x4f7D016704bC9A1d373E512e10CF86A0E7015D1D',
+          description: 'Jacks or Better video poker with optimal strategy bot',
+        }));
+        return;
+      }
+      console.log(`
+${'═'.repeat(60)}
+  VIDEO POKER (GIMBOZ POKER)
+${'═'.repeat(60)}
+
+  Jacks or Better video poker. Get dealt 5 cards, choose which
+  to discard, and draw replacements. Pair of Jacks+ wins.
+  Max bet (100 APE) qualifies for progressive jackpot on Royal Flush.
+
+  Type:     stateful
+  Key:      video-poker
+  Aliases:  vp, gimboz-poker
+  Contract: 0x4f7D016704bC9A1d373E512e10CF86A0E7015D1D
+
+${'─'.repeat(60)}
+  COMMANDS
+${'─'.repeat(60)}
+
+  apechurch video-poker <amount>    Start new game (1/5/10/25/50/100 APE)
+  apechurch video-poker resume      Resume unfinished game
+  apechurch video-poker status      Check current game state
+  apechurch video-poker payouts     Show payout table
+
+${'─'.repeat(60)}
+  OPTIONS
+${'─'.repeat(60)}
+
+  --auto          Bot plays optimal discard strategy
+  --loop          Keep playing until balance runs out
+  --target <ape>  Stop when balance reaches this amount
+
+${'─'.repeat(60)}
+  PAYOUTS (multiplier x bet)
+${'─'.repeat(60)}
+
+  Royal Flush        250x  (+Jackpot at max bet)
+  Straight Flush      50x
+  Four of a Kind      25x
+  Full House           9x
+  Flush                6x
+  Straight             4x
+  Three of a Kind      3x
+  Two Pair             2x
+  Jacks or Better      1x
+
+${'─'.repeat(60)}
+  EXAMPLES
+${'─'.repeat(60)}
+
+  apechurch video-poker 10              Play one hand, 10 APE
+  apechurch video-poker 100             Max bet (jackpot eligible)
+  apechurch video-poker 25 --auto       Bot plays one hand
+  apechurch video-poker 25 --auto --loop
+                                        Bot grinds until broke
+
+${'═'.repeat(60)}
+`);
+      return;
+    }
+    
     const game = resolveGame(name);
     if (!game) {
       const error = { error: `Unknown game: ${name}`, available: listGames() };
       if (opts.json) console.log(JSON.stringify(error));
-      else console.log(`\n❌ Unknown game: "${name}"\nAvailable: ${GAME_LIST}, blackjack\n`);
+      else console.log(`\n❌ Unknown game: "${name}"\nAvailable: ${GAME_LIST}, blackjack, video-poker\n`);
       return;
     }
 
@@ -2542,6 +2615,56 @@ program
         console.error(`\n❌ Unknown action: ${action}`);
         console.error('   Valid actions: hit, stand, double, split, insurance, surrender');
         console.error('   Or: resume, status\n');
+    }
+  });
+
+// ============================================================================
+// COMMAND: VIDEO POKER (Gimboz Poker - Stateful game)
+// ============================================================================
+program
+  .command('video-poker [action] [amount]')
+  .alias('vp')
+  .alias('gimboz-poker')
+  .description('Play Video Poker (Gimboz Poker) - Jacks or Better')
+  .option('--game <id>', 'Specify game ID (for resume)')
+  .option('--display <mode>', 'Display mode: full, simple, json')
+  .option('--json', 'JSON output only')
+  .option('--auto', 'Auto-play using optimal strategy')
+  .option('--loop', 'Keep playing until balance runs out')
+  .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .action(async (action, amount, opts) => {
+    const videoPoker = await import('../lib/stateful/video-poker/index.js');
+    
+    // If action is a number, treat it as bet amount
+    if (!action || !isNaN(parseFloat(action))) {
+      const betAmount = action || amount;
+      if (!betAmount) {
+        console.error('\n❌ Bet amount required');
+        console.error('   Valid bets: 1, 5, 10, 25, 50, 100 APE');
+        console.error('   Usage: apechurch video-poker <amount>\n');
+        console.error('   Example: apechurch video-poker 10\n');
+        return;
+      }
+      return videoPoker.start(betAmount, opts);
+    }
+    
+    const actionLower = action.toLowerCase();
+    
+    switch (actionLower) {
+      case 'resume':
+        return videoPoker.resume(opts.game, opts);
+        
+      case 'status':
+        return videoPoker.status(opts.game, opts);
+        
+      case 'payouts':
+      case 'table':
+        return videoPoker.payouts();
+        
+      default:
+        console.error(`\n❌ Unknown action: ${action}`);
+        console.error('   Valid actions: resume, status, payouts');
+        console.error('   Or provide a bet amount: 1, 5, 10, 25, 50, 100\n');
     }
   });
 
