@@ -235,6 +235,30 @@ export const GAME_REGISTRY = [
     },
   },
   {
+    key: 'monkey-match',
+    name: 'Monkey Match',
+    slug: 'monkey-match',
+    type: 'monkeymatch',
+    description: 'Monkeys pop from 5 barrels — form poker hands! Five of a Kind = 50x. Low Risk has 6 monkeys, Normal has 7.',
+    contract: '0x59EBd3406b76DCc74102AFa2cA5284E9AAB6bA28',
+    aliases: ['monkey', 'mm'],
+    config: {
+      mode: {
+        min: 1,
+        max: 2,
+        default: 1,
+        description: 'Risk level. 1=Low Risk (6 monkeys, easier matches), 2=Normal Risk (7 monkeys, better mid payouts).',
+        options: [
+          { value: 1, label: 'Low Risk', desc: '6 monkey types — easier to match' },
+          { value: 2, label: 'Normal Risk', desc: '7 monkey types — better mid-tier payouts' },
+        ],
+      },
+    },
+    vrf: {
+      type: 'static',
+    },
+  },
+  {
     key: 'bear-dice',
     name: 'Bear-A-Dice',
     slug: 'bear-dice',

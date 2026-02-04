@@ -734,6 +734,9 @@ program
         // For bear dice: configArgs can be [difficulty] or [difficulty, rolls]
         if (configArgs[0]) positionalConfig.difficulty = parseInt(configArgs[0]);
         if (configArgs[1]) positionalConfig.rolls = parseInt(configArgs[1]);
+      } else if (fixedGame.type === 'monkeymatch') {
+        // For monkey match: configArgs can be [mode] (1=Low Risk, 2=Normal Risk)
+        if (configArgs[0]) positionalConfig.mode = parseInt(configArgs[0]);
       }
     }
 
@@ -922,6 +925,17 @@ program
         if (gameConfig.difficulty >= 3 && gameConfig.rolls > 3) {
           gameConfig.rolls = 3;
         }
+      } else if (gameEntry.type === 'monkeymatch') {
+        // Mode (1=Low Risk, 2=Normal Risk)
+        if (opts.mode !== undefined) gameConfig.mode = parseInt(opts.mode);
+        else if (positionalConfig.mode !== undefined) gameConfig.mode = positionalConfig.mode;
+        else if (gameConfig.mode === undefined) {
+          // 70% Low Risk, 30% Normal Risk for auto-play
+          gameConfig.mode = Math.random() < 0.7 ? 1 : 2;
+        }
+        // Clamp to valid range
+        if (gameConfig.mode < 1) gameConfig.mode = 1;
+        if (gameConfig.mode > 2) gameConfig.mode = 2;
       }
 
       const wagerApeString = formatApeAmount(wagerApe);
@@ -943,6 +957,9 @@ program
       } else if (gameEntry.type === 'beardice') {
         const diffNames = ['Easy', 'Normal', 'Hard', 'Extreme', 'Master'];
         gameDesc += ` (${diffNames[gameConfig.difficulty] || 'Easy'}, ${gameConfig.rolls} rolls)`;
+      } else if (gameEntry.type === 'monkeymatch') {
+        const modeNames = { 1: 'Low Risk', 2: 'Normal Risk' };
+        gameDesc += ` (${modeNames[gameConfig.mode] || 'Low Risk'})`;
       }
 
       // Human-friendly output: show what we're playing
