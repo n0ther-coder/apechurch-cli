@@ -902,14 +902,14 @@ program
         }
       } else if (gameEntry.type === 'beardice') {
         // Difficulty (0-4, default to Easy=0 for safety)
+        // Auto-play: 90% Easy, 10% Normal. Never Hard/Extreme/Master.
         if (opts.difficulty !== undefined) gameConfig.difficulty = parseInt(opts.difficulty);
         else if (positionalConfig.difficulty !== undefined) gameConfig.difficulty = positionalConfig.difficulty;
         else if (gameConfig.difficulty === undefined) {
-          // For auto-play, stick to easy modes (0-1) - higher modes are too risky
-          const [min, max] = strategyConfig.bearDice?.difficulty || [0, 1];
-          gameConfig.difficulty = randomIntInclusive(min, max);
+          // 90% Easy, 10% Normal - never pick 2+ in auto-play
+          gameConfig.difficulty = Math.random() < 0.9 ? 0 : 1;
         }
-        // Number of rolls (1-5)
+        // Number of rolls (1-5, but Extreme/Master capped at 3)
         // On Easy (0), allow more rolls since 5/6 win chance per roll
         if (opts.rolls !== undefined) gameConfig.rolls = parseInt(opts.rolls);
         else if (positionalConfig.rolls !== undefined) gameConfig.rolls = positionalConfig.rolls;
@@ -917,6 +917,10 @@ program
           const isEasy = gameConfig.difficulty === 0;
           const [min, max] = strategyConfig.bearDice?.rolls || (isEasy ? [1, 5] : [1, 2]);
           gameConfig.rolls = randomIntInclusive(min, max);
+        }
+        // Cap rolls at 3 for Extreme (3) and Master (4) - contract limit
+        if (gameConfig.difficulty >= 3 && gameConfig.rolls > 3) {
+          gameConfig.rolls = 3;
         }
       }
 
