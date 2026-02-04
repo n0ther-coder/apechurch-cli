@@ -2428,7 +2428,7 @@ program
   .option('--json', 'JSON output only')
   .option('--auto', 'Auto-play using optimal basic strategy')
   .option('--loop', 'Keep playing until balance runs out')
-  .option('--target <ape>', 'Stop when profit reaches this amount (use with --loop)')
+  .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .action(async (action, amount, opts) => {
     // Dynamic import to avoid loading stateful game code when not needed
     const blackjack = await import('../lib/stateful/blackjack/index.js');
