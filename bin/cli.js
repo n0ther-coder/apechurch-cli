@@ -29,6 +29,10 @@ import {
   GP_TOKEN_CONTRACT,
   GP_TOKEN_ABI,
   GP_DECIMALS,
+  HOUSE_CONTRACT,
+  HOUSE_ABI,
+  HOUSE_LOCK_TIME,
+  HOUSE_WITHDRAW_FEE,
 } from '../lib/constants.js';
 import {
   sanitizeError,
@@ -444,7 +448,21 @@ program
       // GP fetch failed, continue with 0
     }
 
+    // Fetch House balance
+    let houseBalance = 0n;
+    try {
+      houseBalance = await publicClient.readContract({
+        address: HOUSE_CONTRACT,
+        abi: HOUSE_ABI,
+        functionName: 'balanceOf',
+        args: [account.address],
+      });
+    } catch {
+      // House fetch failed, continue with 0
+    }
+
     const balanceApe = parseFloat(formatEther(balance));
+    const houseBalanceApe = parseFloat(formatEther(houseBalance));
     const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
     const canPlay = availableApe >= 1 && !profile.paused;
 
@@ -454,6 +472,7 @@ program
       available_ape: availableApe.toFixed(4),
       gas_reserve_ape: GAS_RESERVE_APE.toFixed(4),
       gp_balance: gpBalance.toString(),
+      house_balance: houseBalanceApe.toFixed(4),
       paused: profile.paused,
       persona: profile.persona,
       username: profile.username,
@@ -467,6 +486,9 @@ program
       console.log(`   Address:    ${response.address}`);
       console.log(`   Balance:    ${response.balance} APE`);
       console.log(`   GP:         ${response.gp_balance} GP`);
+      if (houseBalanceApe > 0) {
+        console.log(`   House:      ${response.house_balance} APE (staked)`);
+      }
       console.log(`   Available:  ${response.available_ape} APE`);
       console.log(`   Username:   ${response.username || '(not set)'}`);
       console.log(`   Persona:    ${response.persona}`);
@@ -1519,6 +1541,11 @@ WALLET
   apechurch send APE <amt> <to>  Send APE (native currency) to an address
   apechurch send GP <amt> <to>   Send GP (Gimbo Points, 0 decimals) to an address
 
+THE HOUSE (Staking)
+  apechurch house                Show house stats and your position
+  apechurch house deposit <amt>  Deposit APE (15-min lock, 2% withdraw fee)
+  apechurch house withdraw <amt> Withdraw APE (must be unlocked)
+
 STATUS
   apechurch status               Check balance and state
   apechurch profile show         Show profile
@@ -1792,6 +1819,306 @@ program
       else console.error(`\n❌ Unsupported asset: ${asset}. Supported: APE, GP\n`);
       process.exit(1);
     }
+  });
+
+// ============================================================================
+// COMMAND: HOUSE (The House - staking/liquidity)
+// ============================================================================
+program
+  .command('house [action] [amount]')
+  .description('The House - stake APE, earn from player losses')
+  .option('--json', 'JSON output only')
+  .action(async (action, amount, opts) => {
+    const { publicClient } = createClients();
+
+    // Helper to format time remaining
+    function formatTimeRemaining(seconds) {
+      if (seconds <= 0) return 'Unlocked';
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')} remaining`;
+    }
+
+    // --- HOUSE STATUS (default action) ---
+    if (!action || action === 'status' || action === 'info') {
+      // Fetch global house stats
+      let totalSupply, maxPayout, housePrice;
+      try {
+        [totalSupply, maxPayout, housePrice] = await Promise.all([
+          publicClient.readContract({ address: HOUSE_CONTRACT, abi: HOUSE_ABI, functionName: 'totalSupply' }),
+          publicClient.readContract({ address: HOUSE_CONTRACT, abi: HOUSE_ABI, functionName: 'maxPayout' }),
+          publicClient.readContract({ address: HOUSE_CONTRACT, abi: HOUSE_ABI, functionName: 'calculatePrice' }),
+        ]);
+      } catch (error) {
+        const err = { error: `Failed to fetch house stats: ${error.message}` };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error(`\n❌ Failed to fetch house stats\n`);
+        process.exit(1);
+      }
+
+      const totalSupplyApe = parseFloat(formatEther(totalSupply));
+      const maxPayoutApe = parseFloat(formatEther(maxPayout));
+      const priceMultiplier = parseFloat(formatEther(housePrice));
+
+      // Fetch user stats if wallet exists
+      let userBalance = 0n, userProfits = 0n, timeUntilUnlock = 0n;
+      let hasWallet = walletExists();
+      if (hasWallet) {
+        const account = getWallet();
+        try {
+          [userBalance, userProfits, timeUntilUnlock] = await Promise.all([
+            publicClient.readContract({ address: HOUSE_CONTRACT, abi: HOUSE_ABI, functionName: 'balanceOf', args: [account.address] }),
+            publicClient.readContract({ address: HOUSE_CONTRACT, abi: HOUSE_ABI, functionName: 'getTotalProfits', args: [account.address] }),
+            publicClient.readContract({ address: HOUSE_CONTRACT, abi: HOUSE_ABI, functionName: 'timeUntilUnlock', args: [account.address] }),
+          ]);
+        } catch {
+          // User stats fetch failed, continue with defaults
+        }
+      }
+
+      const userBalanceApe = parseFloat(formatEther(userBalance));
+      const userProfitsApe = parseFloat(formatEther(userProfits));
+      const lockSeconds = Number(timeUntilUnlock);
+
+      const response = {
+        total_staked: totalSupplyApe.toFixed(4),
+        max_payout: maxPayoutApe.toFixed(4),
+        house_yield: priceMultiplier.toFixed(6),
+        user_balance: userBalanceApe.toFixed(4),
+        user_profits: userProfitsApe.toFixed(4),
+        time_until_unlock: lockSeconds,
+        unlock_status: lockSeconds > 0 ? 'locked' : 'unlocked',
+      };
+
+      if (opts.json) {
+        console.log(JSON.stringify(response));
+      } else {
+        console.log('\n🏠 The House\n');
+        console.log(`   Total Staked:  ${totalSupplyApe.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} APE`);
+        console.log(`   Max Payout:    ${maxPayoutApe.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} APE`);
+        console.log(`   House Yield:   ${priceMultiplier.toFixed(4)}x (${((priceMultiplier - 1) * 100).toFixed(2)}% profit since launch)`);
+        
+        if (hasWallet && userBalanceApe > 0) {
+          console.log('\n   Your Position:');
+          console.log(`   Staked:        ${userBalanceApe.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} APE`);
+          console.log(`   Total Profit:  ${userProfitsApe >= 0 ? '+' : ''}${userProfitsApe.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} APE`);
+          console.log(`   Unlock:        ${formatTimeRemaining(lockSeconds)}`);
+        } else if (hasWallet) {
+          console.log('\n   You have no APE staked in The House.');
+          console.log('   Run: apechurch house deposit <amount>');
+        } else {
+          console.log('\n   No wallet found. Run: apechurch install');
+        }
+        console.log('');
+      }
+      return;
+    }
+
+    // --- DEPOSIT ---
+    if (action === 'deposit') {
+      if (!walletExists()) {
+        const error = { error: 'No wallet found. Run: apechurch install' };
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error('\n❌ No wallet found. Run: apechurch install\n');
+        process.exit(1);
+      }
+
+      if (!amount) {
+        const error = { error: 'Amount required. Usage: apechurch house deposit <amount>' };
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error('\n❌ Amount required. Usage: apechurch house deposit <amount>\n');
+        process.exit(1);
+      }
+
+      let depositWei;
+      try {
+        depositWei = parseEther(amount);
+        if (depositWei <= 0n) throw new Error('Amount must be positive');
+      } catch (error) {
+        const err = { error: `Invalid amount: ${amount}` };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error(`\n❌ Invalid amount: ${amount}\n`);
+        process.exit(1);
+      }
+
+      const account = getWallet();
+      const { publicClient: pc, walletClient } = createClients(account);
+
+      // Check balance
+      const balance = await pc.getBalance({ address: account.address });
+      const gasPrice = await pc.getGasPrice();
+      const estimatedGas = 100000n;
+      const gasCost = gasPrice * estimatedGas;
+
+      if (balance < depositWei + gasCost) {
+        const balanceApe = parseFloat(formatEther(balance)).toFixed(4);
+        const error = { error: `Insufficient balance. Have: ${balanceApe} APE` };
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error(`\n❌ Insufficient balance. Have: ${balanceApe} APE\n`);
+        process.exit(1);
+      }
+
+      if (!opts.json) {
+        console.log(`\n🏠 Depositing ${amount} APE to The House`);
+        console.log('   ⚠️  15-minute lock period starts on deposit');
+        console.log('   ⚠️  2% fee on withdrawal\n');
+      }
+
+      let txHash;
+      try {
+        txHash = await walletClient.writeContract({
+          address: HOUSE_CONTRACT,
+          abi: HOUSE_ABI,
+          functionName: 'deposit',
+          value: depositWei,
+        });
+      } catch (error) {
+        const err = { error: `Deposit failed: ${error.message}` };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error(`\n❌ Deposit failed: ${error.message}\n`);
+        process.exit(1);
+      }
+
+      // Wait for confirmation
+      let receipt;
+      try {
+        receipt = await pc.waitForTransactionReceipt({ hash: txHash, timeout: 30000 });
+      } catch {
+        const result = { status: 'pending', action: 'deposit', amount, tx: txHash };
+        if (opts.json) console.log(JSON.stringify(result));
+        else console.log(`⏳ Deposit sent, confirmation pending\n   TX: ${txHash}\n`);
+        return;
+      }
+
+      const success = receipt.status === 'success';
+      const result = { status: success ? 'success' : 'failed', action: 'deposit', amount, tx: txHash };
+
+      if (opts.json) {
+        console.log(JSON.stringify(result));
+      } else if (success) {
+        console.log(`✅ Deposited ${amount} APE to The House`);
+        console.log(`   TX: ${txHash}`);
+        console.log(`   🔒 Unlocks in 15 minutes\n`);
+      } else {
+        console.log(`❌ Deposit failed\n   TX: ${txHash}\n`);
+      }
+      return;
+    }
+
+    // --- WITHDRAW ---
+    if (action === 'withdraw') {
+      if (!walletExists()) {
+        const error = { error: 'No wallet found. Run: apechurch install' };
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error('\n❌ No wallet found. Run: apechurch install\n');
+        process.exit(1);
+      }
+
+      if (!amount) {
+        const error = { error: 'Amount required. Usage: apechurch house withdraw <amount>' };
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error('\n❌ Amount required. Usage: apechurch house withdraw <amount>\n');
+        process.exit(1);
+      }
+
+      let withdrawWei;
+      try {
+        withdrawWei = parseEther(amount);
+        if (withdrawWei <= 0n) throw new Error('Amount must be positive');
+      } catch (error) {
+        const err = { error: `Invalid amount: ${amount}` };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error(`\n❌ Invalid amount: ${amount}\n`);
+        process.exit(1);
+      }
+
+      const account = getWallet();
+      const { publicClient: pc, walletClient } = createClients(account);
+
+      // Check house balance and lock time
+      let userBalance, timeUntilUnlock;
+      try {
+        [userBalance, timeUntilUnlock] = await Promise.all([
+          pc.readContract({ address: HOUSE_CONTRACT, abi: HOUSE_ABI, functionName: 'balanceOf', args: [account.address] }),
+          pc.readContract({ address: HOUSE_CONTRACT, abi: HOUSE_ABI, functionName: 'timeUntilUnlock', args: [account.address] }),
+        ]);
+      } catch (error) {
+        const err = { error: 'Failed to fetch house balance' };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error('\n❌ Failed to fetch house balance\n');
+        process.exit(1);
+      }
+
+      const lockSeconds = Number(timeUntilUnlock);
+      if (lockSeconds > 0) {
+        const error = { error: `Funds locked. ${formatTimeRemaining(lockSeconds)}` };
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error(`\n❌ Funds locked. ${formatTimeRemaining(lockSeconds)}\n`);
+        process.exit(1);
+      }
+
+      if (userBalance < withdrawWei) {
+        const userBalanceApe = parseFloat(formatEther(userBalance)).toFixed(4);
+        const error = { error: `Insufficient house balance. Have: ${userBalanceApe} APE staked` };
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error(`\n❌ Insufficient house balance. Have: ${userBalanceApe} APE staked\n`);
+        process.exit(1);
+      }
+
+      const withdrawApe = parseFloat(amount);
+      const feeApe = withdrawApe * HOUSE_WITHDRAW_FEE;
+      const receiveApe = withdrawApe - feeApe;
+
+      if (!opts.json) {
+        console.log(`\n🏠 Withdrawing ${amount} APE from The House`);
+        console.log(`   Fee (2%):    ${feeApe.toFixed(4)} APE`);
+        console.log(`   You receive: ${receiveApe.toFixed(4)} APE\n`);
+      }
+
+      let txHash;
+      try {
+        txHash = await walletClient.writeContract({
+          address: HOUSE_CONTRACT,
+          abi: HOUSE_ABI,
+          functionName: 'withdraw',
+          args: [withdrawWei],
+        });
+      } catch (error) {
+        const err = { error: `Withdraw failed: ${error.message}` };
+        if (opts.json) console.log(JSON.stringify(err));
+        else console.error(`\n❌ Withdraw failed: ${error.message}\n`);
+        process.exit(1);
+      }
+
+      // Wait for confirmation
+      let receipt;
+      try {
+        receipt = await pc.waitForTransactionReceipt({ hash: txHash, timeout: 30000 });
+      } catch {
+        const result = { status: 'pending', action: 'withdraw', amount, fee: feeApe.toFixed(4), receive: receiveApe.toFixed(4), tx: txHash };
+        if (opts.json) console.log(JSON.stringify(result));
+        else console.log(`⏳ Withdraw sent, confirmation pending\n   TX: ${txHash}\n`);
+        return;
+      }
+
+      const success = receipt.status === 'success';
+      const result = { status: success ? 'success' : 'failed', action: 'withdraw', amount, fee: feeApe.toFixed(4), receive: receiveApe.toFixed(4), tx: txHash };
+
+      if (opts.json) {
+        console.log(JSON.stringify(result));
+      } else if (success) {
+        console.log(`✅ Withdrew ${receiveApe.toFixed(4)} APE (after 2% fee)`);
+        console.log(`   TX: ${txHash}\n`);
+      } else {
+        console.log(`❌ Withdraw failed\n   TX: ${txHash}\n`);
+      }
+      return;
+    }
+
+    // Unknown action
+    const error = { error: `Unknown action: ${action}. Use: deposit, withdraw, or no action for status` };
+    if (opts.json) console.log(JSON.stringify(error));
+    else console.error(`\n❌ Unknown action: ${action}\nUsage:\n  apechurch house                  Show house stats\n  apechurch house deposit <amt>    Deposit APE\n  apechurch house withdraw <amt>   Withdraw APE\n`);
   });
 
 // ============================================================================
