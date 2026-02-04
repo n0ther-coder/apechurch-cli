@@ -336,7 +336,8 @@ program
       console.log('  • DELETE your current wallet permanently');
       console.log('  • DELETE all game history');
       console.log('  • DELETE all local state');
-      console.log('  • Generate a NEW wallet with a NEW address\n');
+      console.log('  • Generate a NEW wallet with a NEW address');
+      console.log('  • Your username will NOT transfer (tied to old wallet)\n');
       
       if (existingData) {
         const account = privateKeyToAccount(existingData.privateKey);
@@ -388,7 +389,9 @@ program
       
       console.log('\n✅ Wallet reset complete!\n');
       console.log(`   New address: ${newAccount.address}`);
-      console.log('\n   Next steps:');
+      console.log('\n   ⚠️  Your old username is tied to your old wallet.');
+      console.log('   You\'ll need to register a new username for this address.\n');
+      console.log('   Next steps:');
       console.log('   1. Fund your new wallet with APE');
       console.log('   2. Run: apechurch register --username <name>');
       console.log('   3. Run: apechurch wallet export (to back up)\n');
