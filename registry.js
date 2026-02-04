@@ -234,6 +234,41 @@ export const GAME_REGISTRY = [
       perUnitGas: 55000,
     },
   },
+  {
+    key: 'bear-dice',
+    name: 'Bear-A-Dice',
+    slug: 'bear-dice',
+    type: 'beardice',
+    description: 'Roll 2 dice up to 5 times. Avoid unlucky numbers! Easy mode: dodge 7s. Higher modes = more danger.',
+    contract: '0x6a48A513A46955D8622C809Fce876d2f11142003',
+    aliases: ['bear', 'dice', 'bd'],
+    config: {
+      difficulty: {
+        min: 0,
+        max: 4,
+        default: 0,
+        description: 'Difficulty level. 0=Easy (avoid 7), 1=Normal, 2+=DANGER. Stick to 0-1 for auto-play!',
+        options: [
+          { value: 0, label: 'Easy', desc: 'Lose on 7 only — safest mode' },
+          { value: 1, label: 'Normal', desc: 'Slightly harder than Easy' },
+          { value: 2, label: 'Hard', desc: 'Lose on 6,7,8 — risky!' },
+          { value: 3, label: 'Extreme', desc: 'Very hard — not recommended' },
+          { value: 4, label: 'Master', desc: 'Almost impossible — avoid!' },
+        ],
+      },
+      rolls: {
+        min: 1,
+        max: 5,
+        default: 1,
+        description: 'Number of dice rolls (1-5). More rolls = higher payout but more chances to lose.',
+      },
+    },
+    vrf: {
+      type: 'beardice',
+      baseGas: 500000,
+      perUnitGas: 100000,
+    },
+  },
 ];
 
 const GAME_INDEX = new Map();

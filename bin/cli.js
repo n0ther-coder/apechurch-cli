@@ -657,6 +657,8 @@ program
   .option('--picks <1-10>', 'Keno pick count')
   .option('--numbers <nums>', 'Keno numbers (e.g., 1,7,13,25,40)')
   .option('--games <1-20>', 'Speed Keno game count (batching)')
+  .option('--difficulty <0-4>', 'Bear-A-Dice difficulty (0=Easy, 4=Master)')
+  .option('--rolls <1-5>', 'Bear-A-Dice roll count')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
   .option('--delay <seconds>', 'Delay between games in loop', '3')
@@ -728,6 +730,10 @@ program
             positionalConfig.numbers = configArgs.join(',');
           }
         }
+      } else if (fixedGame.type === 'beardice') {
+        // For bear dice: configArgs can be [difficulty] or [difficulty, rolls]
+        if (configArgs[0]) positionalConfig.difficulty = parseInt(configArgs[0]);
+        if (configArgs[1]) positionalConfig.rolls = parseInt(configArgs[1]);
       }
     }
 
@@ -894,6 +900,22 @@ program
           const [min, max] = strategyConfig.speedKeno?.picks || [2, 4];
           gameConfig.picks = randomIntInclusive(min, max);
         }
+      } else if (gameEntry.type === 'beardice') {
+        // Difficulty (0-4, default to Easy=0 for safety)
+        if (opts.difficulty !== undefined) gameConfig.difficulty = parseInt(opts.difficulty);
+        else if (positionalConfig.difficulty !== undefined) gameConfig.difficulty = positionalConfig.difficulty;
+        else if (gameConfig.difficulty === undefined) {
+          // For auto-play, stick to easy modes (0-1) - higher modes are too risky
+          const [min, max] = strategyConfig.bearDice?.difficulty || [0, 1];
+          gameConfig.difficulty = randomIntInclusive(min, max);
+        }
+        // Number of rolls (1-5)
+        if (opts.rolls !== undefined) gameConfig.rolls = parseInt(opts.rolls);
+        else if (positionalConfig.rolls !== undefined) gameConfig.rolls = positionalConfig.rolls;
+        else if (gameConfig.rolls === undefined) {
+          const [min, max] = strategyConfig.bearDice?.rolls || [1, 3];
+          gameConfig.rolls = randomIntInclusive(min, max);
+        }
       }
 
       const wagerApeString = formatApeAmount(wagerApe);
@@ -912,6 +934,9 @@ program
         gameDesc += ` (${gameConfig.picks} picks)`;
       } else if (gameEntry.type === 'speedkeno') {
         gameDesc += ` (${gameConfig.games} games, ${gameConfig.picks} picks)`;
+      } else if (gameEntry.type === 'beardice') {
+        const diffNames = ['Easy', 'Normal', 'Hard', 'Extreme', 'Master'];
+        gameDesc += ` (${diffNames[gameConfig.difficulty] || 'Easy'}, ${gameConfig.rolls} rolls)`;
       }
 
       // Human-friendly output: show what we're playing
@@ -933,6 +958,8 @@ program
           picks: gameConfig.picks,
           numbers: gameConfig.numbers,
           games: gameConfig.games,
+          difficulty: gameConfig.difficulty,
+          rolls: gameConfig.rolls,
           timeoutMs: 30000, // Wait up to 30s for result (usually 1-2s)
           referral: freshProfile.referral,
         });
