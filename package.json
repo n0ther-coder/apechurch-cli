@@ -1,6 +1,6 @@
 {
   "name": "@ape-church/skill",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Autonomous agent skill for Ape Church on ApeChain.",
   "main": "index.js",
   "scripts": {
