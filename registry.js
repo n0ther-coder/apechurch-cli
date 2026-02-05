@@ -1,4 +1,47 @@
+/**
+ * @fileoverview Game Registry for Ape Church CLI
+ *
+ * Central registry of all supported games with:
+ * - Contract addresses
+ * - Game configuration (parameters, limits)
+ * - VRF (Verifiable Random Function) settings
+ * - Aliases for easy CLI access
+ * - Multiplier/payout information
+ *
+ * Adding a New Game:
+ * 1. Add entry to GAME_REGISTRY array
+ * 2. Implement game handler in lib/games/<type>.js
+ * 3. Register handler in lib/games/index.js
+ * 4. See ADDING_GAMES.md for full guide
+ *
+ * @module registry
+ */
+
+// ============================================================================
+// GAME REGISTRY
+// ============================================================================
+
+/**
+ * Master list of all supported games
+ *
+ * Each game entry contains:
+ * - key: Unique identifier (used in CLI and storage)
+ * - name: Human-readable name
+ * - slug: URL-safe identifier (matches ape.church URLs)
+ * - type: Game type for handler routing (plinko, slots, roulette, etc.)
+ * - description: User-facing description
+ * - contract: On-chain contract address
+ * - aliases: Alternative names for CLI (e.g., 'plinko' → 'jungle-plinko')
+ * - config: Game-specific parameters and their limits
+ * - vrf: VRF fee calculation settings
+ * - multipliers: Payout multipliers (where applicable)
+ *
+ * @type {Array<Object>}
+ */
 export const GAME_REGISTRY = [
+  // ===========================================================================
+  // KENO - Pick numbers, match draws
+  // ===========================================================================
   {
     key: 'keno',
     name: 'Keno',
@@ -20,9 +63,13 @@ export const GAME_REGISTRY = [
       },
     },
     vrf: {
-      type: 'static',
+      type: 'static', // Uses getVRFFee() with no args
     },
   },
+
+  // ===========================================================================
+  // APESTRONG - Pick-your-odds dice game
+  // ===========================================================================
   {
     key: 'ape-strong',
     name: 'ApeStrong',
@@ -50,6 +97,10 @@ export const GAME_REGISTRY = [
       type: 'static',
     },
   },
+
+  // ===========================================================================
+  // BACCARAT - Classic casino game
+  // ===========================================================================
   {
     key: 'baccarat',
     name: 'Baccarat',
@@ -64,15 +115,20 @@ export const GAME_REGISTRY = [
         examples: ['PLAYER', 'BANKER', 'TIE', '140 BANKER 10 TIE', '180 PLAYER 20 TIE'],
       },
     },
+    // Payout multipliers (includes house edge)
     multipliers: {
-      player: 2.0,
-      banker: 1.95,
-      tie: 9.0,
+      player: 2.0,    // Even money
+      banker: 1.95,   // 5% commission on banker wins
+      tie: 9.0,       // High payout but rare (~9.5% probability)
     },
     vrf: {
       type: 'static',
     },
   },
+
+  // ===========================================================================
+  // ROULETTE - American roulette with 0 and 00
+  // ===========================================================================
   {
     key: 'roulette',
     name: 'Roulette',
@@ -87,39 +143,52 @@ export const GAME_REGISTRY = [
         examples: ['RED', 'BLACK', '17', '0', '00', 'RED,BLACK', 'FIRST_THIRD', 'ODD'],
       },
     },
-    // Bet type mappings (user input → on-chain value)
+    /**
+     * Bet type mappings: user input → on-chain bet type value
+     *
+     * The contract uses numeric bet types:
+     * - 1 = Zero (0)
+     * - 2-37 = Numbers 1-36
+     * - 38 = Double Zero (00)
+     * - 39-50 = Outside bets (thirds, columns, colors, etc.)
+     */
     betTypes: {
-      '0': 1,           // Zero
-      '00': 38,         // Double Zero
-      // Numbers 1-36 map to 2-37 (handled dynamically)
-      'FIRST_THIRD': 39,
-      'SECOND_THIRD': 40,
-      'THIRD_THIRD': 41,
-      'FIRST_COL': 42,
+      '0': 1,                // Zero
+      '00': 38,              // Double Zero (American roulette)
+      // Numbers 1-36 map to 2-37 (handled dynamically in encoder)
+      'FIRST_THIRD': 39,     // 1-12
+      'SECOND_THIRD': 40,    // 13-24
+      'THIRD_THIRD': 41,     // 25-36
+      'FIRST_COL': 42,       // Column 1 (1,4,7,10,...)
       'FIRST_COLUMN': 42,
-      'SECOND_COL': 43,
+      'SECOND_COL': 43,      // Column 2 (2,5,8,11,...)
       'SECOND_COLUMN': 43,
-      'THIRD_COL': 44,
+      'THIRD_COL': 44,       // Column 3 (3,6,9,12,...)
       'THIRD_COLUMN': 44,
-      'FIRST_HALF': 45,
-      'SECOND_HALF': 46,
+      'FIRST_HALF': 45,      // 1-18
+      'SECOND_HALF': 46,     // 19-36
       'EVEN': 47,
       'ODD': 48,
       'BLACK': 49,
       'RED': 50,
     },
+    // Approximate multipliers (with house edge)
     multipliers: {
-      number: 36.9,      // Single number (including 0, 00)
-      color: 2.05,       // RED, BLACK
-      parity: 2.05,      // ODD, EVEN
-      half: 2.05,        // FIRST_HALF, SECOND_HALF
-      third: 3.075,      // FIRST_THIRD, SECOND_THIRD, THIRD_THIRD
-      column: 3.075,     // FIRST_COL, SECOND_COL, THIRD_COL
+      number: 36.9,   // Single number (including 0, 00) - true odds would be 38:1
+      color: 2.05,    // RED, BLACK
+      parity: 2.05,   // ODD, EVEN
+      half: 2.05,     // FIRST_HALF, SECOND_HALF
+      third: 3.075,   // FIRST_THIRD, SECOND_THIRD, THIRD_THIRD
+      column: 3.075,  // FIRST_COL, SECOND_COL, THIRD_COL
     },
     vrf: {
-      type: 'static',    // Uses getVRFFee() with no args
+      type: 'static',
     },
   },
+
+  // ===========================================================================
+  // JUNGLE PLINKO - Ball-drop game with multiplier buckets
+  // ===========================================================================
   {
     key: 'jungle-plinko',
     name: 'Jungle Plinko',
@@ -129,9 +198,9 @@ export const GAME_REGISTRY = [
     contract: '0x88683B2F9E765E5b1eC2745178354C70A03531Ce',
     aliases: ['plinko'],
     config: {
-      mode: { 
-        min: 0, 
-        max: 4, 
+      mode: {
+        min: 0,
+        max: 4,
         default: 2,
         description: 'Risk level - higher = more volatile multipliers',
         options: [
@@ -142,19 +211,29 @@ export const GAME_REGISTRY = [
           { value: 4, label: 'Extreme', desc: 'Max volatility, moonshot multipliers' },
         ],
       },
-      balls: { 
-        min: 1, 
-        max: 100, 
+      balls: {
+        min: 1,
+        max: 100,
         default: 50,
         description: 'Number of balls to drop. Wager is split across all balls. More balls = smoother variance.',
       },
     },
+    /**
+     * VRF fee calculation for Plinko
+     *
+     * Plinko needs more gas per ball (each ball = additional randomness).
+     * Formula: getVRFFee(baseGas + balls * perUnitGas)
+     */
     vrf: {
       type: 'plinko',
-      baseGas: 289000,
-      perUnitGas: 11000,
+      baseGas: 289000,    // Base gas for transaction
+      perUnitGas: 11000,  // Additional gas per ball
     },
   },
+
+  // ===========================================================================
+  // DINO DOUGH - Dinosaur-themed slot machine
+  // ===========================================================================
   {
     key: 'dino-dough',
     name: 'Dino Dough',
@@ -164,17 +243,21 @@ export const GAME_REGISTRY = [
     contract: '0x9ebb4Df257B971582BAf096b62CA41DE7723F3CB',
     aliases: ['dino', 'slots'],
     config: {
-      spins: { 
-        min: 1, 
-        max: 15, 
+      spins: {
+        min: 1,
+        max: 15,
         default: 10,
         description: 'Number of spins per bet. Wager is split across all spins. More spins = smoother variance.',
       },
     },
     vrf: {
-      type: 'slots',
+      type: 'slots', // Uses getVRFFee() with no args
     },
   },
+
+  // ===========================================================================
+  // BUBBLEGUM HEIST - Candy-themed slot machine
+  // ===========================================================================
   {
     key: 'bubblegum-heist',
     name: 'Bubblegum Heist',
@@ -184,9 +267,9 @@ export const GAME_REGISTRY = [
     contract: '0xB5Da735118e848130B92994Ee16377dB2AE31a4c',
     aliases: ['bubblegum', 'heist'],
     config: {
-      spins: { 
-        min: 1, 
-        max: 15, 
+      spins: {
+        min: 1,
+        max: 15,
         default: 10,
         description: 'Number of spins per bet. Wager is split across all spins. More spins = smoother variance.',
       },
@@ -195,6 +278,10 @@ export const GAME_REGISTRY = [
       type: 'slots',
     },
   },
+
+  // ===========================================================================
+  // SPEED KENO - Fast batched keno variant
+  // ===========================================================================
   {
     key: 'speed-keno',
     name: 'Speed Keno',
@@ -221,6 +308,7 @@ export const GAME_REGISTRY = [
         description: 'Number of games to batch (1-20). Wager is split across all games.',
       },
     },
+    // Perfect match multipliers
     multipliers: {
       '5/5': 2000,
       '4/4': 100,
@@ -228,12 +316,22 @@ export const GAME_REGISTRY = [
       '2/2': 4,
       '1/1': 2,
     },
+    /**
+     * VRF fee calculation for Speed Keno
+     *
+     * More games = more randomness needed
+     * Formula: getVRFFee(baseGas + games * perUnitGas)
+     */
     vrf: {
       type: 'speedkeno',
       baseGas: 325000,
       perUnitGas: 55000,
     },
   },
+
+  // ===========================================================================
+  // MONKEY MATCH - Poker hands from barrels
+  // ===========================================================================
   {
     key: 'monkey-match',
     name: 'Monkey Match',
@@ -258,6 +356,10 @@ export const GAME_REGISTRY = [
       type: 'static',
     },
   },
+
+  // ===========================================================================
+  // BEAR-A-DICE - Avoid unlucky dice rolls
+  // ===========================================================================
   {
     key: 'bear-dice',
     name: 'Bear-A-Dice',
@@ -287,6 +389,11 @@ export const GAME_REGISTRY = [
         description: 'Number of dice rolls (1-5). More rolls = higher payout but more chances to lose.',
       },
     },
+    /**
+     * VRF fee calculation for Bear-A-Dice
+     *
+     * More rolls = more randomness
+     */
     vrf: {
       type: 'beardice',
       baseGas: 500000,
@@ -295,10 +402,26 @@ export const GAME_REGISTRY = [
   },
 ];
 
+// ============================================================================
+// GAME INDEX (Fast Lookup)
+// ============================================================================
+
+/**
+ * Map for O(1) game lookup by key or alias
+ *
+ * Populated at module load time from GAME_REGISTRY.
+ * Maps both primary keys and aliases to game entries.
+ *
+ * @type {Map<string, Object>}
+ */
 const GAME_INDEX = new Map();
 
+// Build index from registry
 for (const game of GAME_REGISTRY) {
+  // Index by primary key
   GAME_INDEX.set(game.key, game);
+
+  // Index by all aliases
   if (Array.isArray(game.aliases)) {
     for (const alias of game.aliases) {
       GAME_INDEX.set(alias, game);
@@ -306,12 +429,42 @@ for (const game of GAME_REGISTRY) {
   }
 }
 
+// ============================================================================
+// LOOKUP FUNCTIONS
+// ============================================================================
+
+/**
+ * Resolve a game by key or alias
+ *
+ * Case-insensitive lookup that works with primary keys and aliases.
+ *
+ * @param {string|null} input - Game key, alias, or null
+ * @returns {Object|null} Game entry object, or null if not found
+ *
+ * @example
+ * resolveGame('plinko')      // Returns jungle-plinko entry
+ * resolveGame('jungle-plinko') // Returns jungle-plinko entry
+ * resolveGame('ROULETTE')    // Returns roulette entry (case-insensitive)
+ * resolveGame('invalid')     // Returns null
+ */
 export function resolveGame(input) {
   if (!input) return null;
   const key = String(input).toLowerCase();
   return GAME_INDEX.get(key) || null;
 }
 
+/**
+ * List all available game keys
+ *
+ * Returns primary keys only (not aliases).
+ * Useful for help text and validation.
+ *
+ * @returns {string[]} Array of game keys
+ *
+ * @example
+ * listGames()
+ * // ['keno', 'ape-strong', 'baccarat', 'roulette', 'jungle-plinko', ...]
+ */
 export function listGames() {
   return GAME_REGISTRY.map((game) => game.key);
 }

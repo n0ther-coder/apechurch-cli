@@ -1,9 +1,63 @@
 #!/usr/bin/env node
 /**
- * Ape Church CLI - Main entry point
- * 
- * All game logic, utilities, and helpers are modularized in lib/
- * This file contains command definitions and CLI orchestration.
+ * @fileoverview Ape Church CLI - Main entry point
+ *
+ * Command-line interface for Ape Church on-chain casino on ApeChain.
+ * Enables automated and manual gameplay, wallet management, and account operations.
+ *
+ * Architecture:
+ * - All game logic, utilities, and helpers are modularized in lib/
+ * - This file contains command definitions and CLI orchestration
+ * - Uses Commander.js for CLI argument parsing
+ *
+ * Commands:
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │ SETUP & CONFIGURATION                                                   │
+ * ├──────────────────────────────────────────────────────────────────────────┤
+ * │ install          Setup the Ape Church Agent (wallet + profile)          │
+ * │ uninstall        Remove all Ape Church data from this machine           │
+ * │ wallet <action>  Wallet management (export, encrypt, decrypt, lock...)  │
+ * │ profile <action> Profile management (show, set username/persona)        │
+ * │ register         Register username on-chain via SIWE                    │
+ * ├──────────────────────────────────────────────────────────────────────────┤
+ * │ GAMEPLAY                                                                │
+ * ├──────────────────────────────────────────────────────────────────────────┤
+ * │ play [game] [amt] Play games (auto or manual, supports --loop)          │
+ * │ bet <game> <amt>  Quick manual bet on specific game                     │
+ * │ blackjack <amt>   Interactive blackjack (stateful, multi-step)          │
+ * │ video-poker <amt> Interactive video poker (stateful, multi-step)        │
+ * │ heartbeat         Check cooldown and play if ready (for cron/agents)    │
+ * ├──────────────────────────────────────────────────────────────────────────┤
+ * │ INFORMATION                                                             │
+ * ├──────────────────────────────────────────────────────────────────────────┤
+ * │ status           Show wallet balance and session stats                  │
+ * │ history          Show recent game history with outcomes                 │
+ * │ games            List all available games                               │
+ * │ game <name>      Detailed info about a specific game                    │
+ * │ commands         Full help reference for all commands                   │
+ * ├──────────────────────────────────────────────────────────────────────────┤
+ * │ TRANSFERS & STAKING                                                     │
+ * ├──────────────────────────────────────────────────────────────────────────┤
+ * │ send <to> <amt>  Send APE to another address                            │
+ * │ send gp <to>     Send GP (Gimbo Points) tokens                          │
+ * │ house <action>   The House: deposit/withdraw/status (be the house)      │
+ * ├──────────────────────────────────────────────────────────────────────────┤
+ * │ CONTESTS                                                                │
+ * ├──────────────────────────────────────────────────────────────────────────┤
+ * │ contest          View and join agent competitions                       │
+ * │ pause / resume   Control autonomous play for contests                   │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Data Storage:
+ * - ~/.apechurch/wallet.json   - Private key (encrypted or plain)
+ * - ~/.apechurch/profile.json  - Username, persona, preferences
+ * - ~/.apechurch/state.json    - Session stats, betting strategy state
+ * - ~/.apechurch/history.json  - Game history (last 1000 games)
+ * - ~/.apechurch/active_games.json - Unfinished stateful games
+ *
+ * @module bin/cli
+ * @see {@link https://ape.church} - Ape Church website
+ * @see {@link https://docs.ape.church} - Documentation
  */
 import { Command } from 'commander';
 import fs from 'fs';
