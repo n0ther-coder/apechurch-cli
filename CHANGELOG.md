@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.15] - 2026-02-05
+
+### Added
+- **Transaction Retry for Game Creation**: All game modes now have 1 retry with 2s backoff
+  - Blackjack `startGame()` - retry on failure
+  - Video Poker `startGame()` - retry on failure
+  - Standard `play` command (already had this) - now consistent across all modes
+
+### Changed
+- **Loop Mode Resilience**: All `--loop` modes now continue on transient errors
+  - Play, Blackjack, and Video Poker loops all use same pattern
+  - Track consecutive errors - stop after 3 failures in a row
+  - 5-second delay before retrying after error
+  - Clear error messages show retry count: `(1/3 consecutive errors)`
+  - Prevents single RPC hiccup from breaking long sessions
+
+### Fixed
+- Blackjack loop stopping immediately on any game creation error
+- Video Poker loop stopping immediately on any game creation error
+- Play loop stopping immediately on transaction errors
+
 ## [1.2.14] - 2026-02-05
 
 ### Added

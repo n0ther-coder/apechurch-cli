@@ -1534,14 +1534,15 @@ program
           payout: parseFloat(playResponse.result.payout_ape),
         } : null;
         
-        return { shouldStop: false, gameResult };
+        return { shouldStop: false, gameResult, error: false };
       } catch (error) {
         if (opts.json) {
           console.error(JSON.stringify({ error: error.message }));
         } else {
           console.error(`\n❌ Error: ${error.message}\n`);
         }
-        return { shouldStop: true, reason: 'error', gameResult: null };
+        // Return error indicator - let loop decide whether to stop
+        return { shouldStop: false, reason: 'error', gameResult: null, error: true };
       }
     }
 
@@ -1550,6 +1551,10 @@ program
       // Initialize betting strategy
       const baseBet = amountInput ? parseFloat(amountInput) : 10; // Default base bet
       let betStrategyState = betStrategy.init(baseBet, { maxBet });
+      
+      // Track consecutive errors - stop loop after 3 in a row
+      let consecutiveErrors = 0;
+      const MAX_CONSECUTIVE_ERRORS = 3;
       
       while (true) {
         // Check balance for target/stop-loss
@@ -1629,6 +1634,24 @@ program
         // Track result for betting strategy
         if (result.gameResult) {
           lastGameResult = result.gameResult;
+          consecutiveErrors = 0; // Reset on success
+        }
+        
+        // Handle errors with consecutive tracking
+        if (result.error) {
+          consecutiveErrors++;
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            if (!opts.json) {
+              console.log(`\n🛑 Stopping: ${MAX_CONSECUTIVE_ERRORS} consecutive errors`);
+              console.log(`   Games played: ${gamesPlayed}\n`);
+            }
+            break;
+          }
+          if (!opts.json) {
+            console.log(`   ⚠️  Retrying next game in 5s (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS} consecutive errors)...\n`);
+          }
+          await new Promise(r => setTimeout(r, 5000));
+          continue;
         }
         
         if (result.shouldStop) break;
