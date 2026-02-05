@@ -1447,6 +1447,16 @@ program
         const result = await playOnce();
         gamesPlayed++;
         if (result.shouldStop) break;
+        
+        // Show balance and countdown before next game
+        if (!opts.json) {
+          const { publicClient: pc } = createClients();
+          const currentBal = await pc.getBalance({ address: account.address });
+          const currentApe = parseFloat(formatEther(currentBal));
+          const change = startingBalance !== null ? currentApe - startingBalance : 0;
+          const changeStr = change >= 0 ? `+${change.toFixed(2)}` : change.toFixed(2);
+          console.log(`\n⏳ Next game in ${delaySeconds}s | 💰 Balance: ${currentApe.toFixed(2)} APE (${changeStr})`);
+        }
         await new Promise(r => setTimeout(r, delayMs));
       }
     } else {
