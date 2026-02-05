@@ -1025,16 +1025,42 @@ program
     const loopMode = Boolean(opts.loop);
     const delaySeconds = Math.max(parseFloat(opts.delay) || 3, 1);
     const delayMs = delaySeconds * 1000;
+    
+    // Parse and validate loop parameters
     const targetBalance = opts.target ? parseFloat(opts.target) : null;
     const stopLoss = opts.stopLoss ? parseFloat(opts.stopLoss) : null;
     const maxGames = opts.maxGames ? parseInt(opts.maxGames, 10) : null;
     const maxBet = opts.maxBet ? parseFloat(opts.maxBet) : null;
     
+    // Validate numeric parameters
+    if (opts.target !== undefined && (isNaN(targetBalance) || targetBalance <= 0)) {
+      console.error(JSON.stringify({ error: `Invalid --target value: "${opts.target}". Must be a positive number (e.g., --target 200)` }));
+      process.exit(1);
+    }
+    if (opts.stopLoss !== undefined && (isNaN(stopLoss) || stopLoss < 0)) {
+      console.error(JSON.stringify({ error: `Invalid --stop-loss value: "${opts.stopLoss}". Must be a non-negative number (e.g., --stop-loss 50)` }));
+      process.exit(1);
+    }
+    if (opts.maxGames !== undefined && (isNaN(maxGames) || maxGames <= 0)) {
+      console.error(JSON.stringify({ error: `Invalid --max-games value: "${opts.maxGames}". Must be a positive integer (e.g., --max-games 20)` }));
+      process.exit(1);
+    }
+    if (opts.maxBet !== undefined && (isNaN(maxBet) || maxBet <= 0)) {
+      console.error(JSON.stringify({ error: `Invalid --max-bet value: "${opts.maxBet}". Must be a positive number (e.g., --max-bet 100)` }));
+      process.exit(1);
+    }
+    
+    // Validate logical constraints
+    if (targetBalance !== null && stopLoss !== null && stopLoss >= targetBalance) {
+      console.error(JSON.stringify({ error: `Invalid range: --stop-loss (${stopLoss}) must be less than --target (${targetBalance})` }));
+      process.exit(1);
+    }
+    
     // Betting strategy setup
     const betStrategyName = opts.betStrategy || 'flat';
     const betStrategy = getStrategy(betStrategyName);
     if (!betStrategy) {
-      console.error(JSON.stringify({ error: `Unknown betting strategy: ${betStrategyName}. Available: ${getStrategyNames()}` }));
+      console.error(JSON.stringify({ error: `Unknown betting strategy: "${betStrategyName}". Available: ${getStrategyNames()}` }));
       process.exit(1);
     }
     
@@ -1466,8 +1492,30 @@ program
         const balanceApe = parseFloat(formatEther(balance));
         const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
         
-        // Track starting balance
-        if (startingBalance === null) startingBalance = balanceApe;
+        // Track starting balance and validate parameters on first iteration
+        if (startingBalance === null) {
+          startingBalance = balanceApe;
+          
+          // Validate target is achievable (higher than current balance)
+          if (targetBalance !== null && targetBalance <= balanceApe) {
+            console.log(`\n⚠️  Target (${targetBalance} APE) is already reached! Current balance: ${balanceApe.toFixed(2)} APE`);
+            console.log(`   Use a higher target or omit --target to play without a target.\n`);
+            break;
+          }
+          
+          // Validate stop-loss makes sense (lower than current balance)
+          if (stopLoss !== null && stopLoss >= balanceApe) {
+            console.log(`\n⚠️  Stop-loss (${stopLoss} APE) is at or above current balance (${balanceApe.toFixed(2)} APE)!`);
+            console.log(`   Use a lower stop-loss value.\n`);
+            break;
+          }
+          
+          // Warn if max-bet is very low compared to base bet
+          if (maxBet !== null && amountInput && maxBet < parseFloat(amountInput)) {
+            console.log(`\n⚠️  Warning: --max-bet (${maxBet}) is less than your base bet (${amountInput}).`);
+            console.log(`   Bets will be capped to ${maxBet} APE.\n`);
+          }
+        }
         
         // Check target
         if (targetBalance !== null && balanceApe >= targetBalance) {
