@@ -2769,6 +2769,8 @@ program
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
+  .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .action(async (action, amount, opts) => {
     // Dynamic import to avoid loading stateful game code when not needed
     const blackjack = await import('../lib/stateful/blackjack/index.js');
@@ -2841,6 +2843,8 @@ program
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
+  .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .action(async (action, amount, opts) => {
     const videoPoker = await import('../lib/stateful/video-poker/index.js');
     
