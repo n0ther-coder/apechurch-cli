@@ -1013,6 +1013,7 @@ program
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
   .option('--delay <seconds>', 'Delay between games in loop', '3')
+  .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--json', 'JSON output only')
@@ -1023,6 +1024,7 @@ program
     const delayMs = delaySeconds * 1000;
     const targetBalance = opts.target ? parseFloat(opts.target) : null;
     const stopLoss = opts.stopLoss ? parseFloat(opts.stopLoss) : null;
+    const maxGames = opts.maxGames ? parseInt(opts.maxGames, 10) : null;
     let startingBalance = null;
     let gamesPlayed = 0;
 
@@ -1444,6 +1446,15 @@ program
           console.log(`\n🛑 Stop-loss hit! Balance: ${balanceApe.toFixed(2)} APE (limit: ${stopLoss} APE)`);
           console.log(`   Loss: -${loss.toFixed(2)} APE`);
           console.log(`   Games played: ${gamesPlayed}\n`);
+          break;
+        }
+        
+        // Check max games
+        if (maxGames !== null && gamesPlayed >= maxGames) {
+          const netResult = balanceApe - startingBalance;
+          const sign = netResult >= 0 ? '+' : '';
+          console.log(`\n🏁 Max games reached! Played ${gamesPlayed}/${maxGames} games`);
+          console.log(`   Balance: ${balanceApe.toFixed(2)} APE (${sign}${netResult.toFixed(2)} APE)`);
           break;
         }
         
@@ -2625,6 +2636,7 @@ program
   .option('--json', 'JSON output only')
   .option('--auto', 'Auto-play using optimal basic strategy')
   .option('--loop', 'Keep playing until balance runs out')
+  .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .action(async (action, amount, opts) => {
@@ -2696,6 +2708,7 @@ program
   .option('--json', 'JSON output only')
   .option('--auto', 'Auto-play using optimal strategy')
   .option('--loop', 'Keep playing until balance runs out')
+  .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .action(async (action, amount, opts) => {
