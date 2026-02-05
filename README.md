@@ -1,19 +1,27 @@
 # @ape-church/skill
 
-Autonomous gambling agent skill for [Ape Church](https://ape.church) on ApeChain.
+Autonomous gambling CLI for [Ape Church](https://ape.church) on ApeChain.
 
-Let your AI agent play casino games and compete in volume competitions!
+Play casino games from the command line. Perfect for AI agents, automation, and degens who prefer terminals.
+
+## Features
+
+- **12+ Games:** Roulette, Blackjack, Video Poker, Plinko, Slots, Keno, and more
+- **Loop Mode:** Continuous play with safety controls (target, stop-loss, max-games)
+- **Betting Strategies:** Flat, Martingale, Fibonacci, D'Alembert, Reverse Martingale
+- **AI Agent Ready:** JSON output, structured responses, self-documenting
+- **Fully On-Chain:** Every bet settled on ApeChain with Chainlink VRF
 
 ## Quick Start
 
 ```bash
-# Install globally
+# Install
 npm install -g @ape-church/skill
 
-# Setup (generates wallet, registers username)
+# Setup wallet
 apechurch install
 
-# Fund the printed address with APE on ApeChain
+# Fund wallet with APE on ApeChain
 # Bridge: https://relay.link/bridge/apechain
 
 # Check status
@@ -22,70 +30,118 @@ apechurch status
 # Play one game
 apechurch play
 
-# Play continuously!
+# Play continuously
 apechurch play --loop
 ```
 
 ## Games
 
-| Game | Type | Parameters |
-|------|------|------------|
-| Jungle Plinko | Plinko | `--mode 0-4` `--balls 1-100` |
-| Dino Dough | Slots | `--spins 1-15` |
-| Bubblegum Heist | Slots | `--spins 1-15` |
+| Game | Command | Description |
+|------|---------|-------------|
+| ApeStrong | `play ape-strong 10 50` | Pick-your-odds dice |
+| Roulette | `play roulette 10 RED` | American roulette |
+| Baccarat | `play baccarat 10 BANKER` | Classic baccarat |
+| Jungle Plinko | `play jungle-plinko 10 2 50` | Drop balls for multipliers |
+| Keno | `play keno 10` | Pick numbers 1-40 |
+| Speed Keno | `play speed-keno 10` | Fast batched keno |
+| Dino Dough | `play dino-dough 10 10` | Slot machine |
+| Bubblegum Heist | `play bubblegum-heist 10 10` | Slot machine |
+| Monkey Match | `play monkey-match 10` | Poker hands from barrels |
+| Bear-A-Dice | `play bear-dice 10` | Avoid unlucky numbers |
+| Blackjack | `blackjack 10 --auto` | Card game with strategy |
+| Video Poker | `video-poker 10 --auto` | Jacks or Better |
+
+## Loop Mode
+
+Play continuously with safety controls:
+
+```bash
+# Basic loop
+apechurch play --loop
+
+# With safety limits
+apechurch play --loop --target 200 --stop-loss 50 --max-games 100
+
+# Specific game
+apechurch play ape-strong 10 50 --loop --target 150
+```
+
+| Option | Description |
+|--------|-------------|
+| `--target <ape>` | Stop when balance reaches target |
+| `--stop-loss <ape>` | Stop when balance drops to limit |
+| `--max-games <n>` | Stop after N games |
+| `--delay <sec>` | Seconds between games (default: 3) |
+
+## Betting Strategies
+
+```bash
+# Martingale: double on loss, reset on win
+apechurch play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
+
+# Fibonacci: sequence on losses
+apechurch play --loop --bet-strategy fibonacci
+```
+
+| Strategy | Behavior |
+|----------|----------|
+| `flat` | Same bet every time (default) |
+| `martingale` | Double on loss, reset on win |
+| `reverse-martingale` | Double on win, reset on loss |
+| `fibonacci` | Fibonacci sequence on losses |
+| `dalembert` | +1 unit on loss, -1 on win |
+
+## Blackjack & Video Poker
+
+Interactive card games with auto-play support:
+
+```bash
+# Auto-play with optimal strategy
+apechurch blackjack 10 --auto --loop
+apechurch video-poker 10 --auto --loop
+
+# Interactive mode
+apechurch blackjack 10
+```
 
 ## Commands
 
 ```bash
-apechurch play [--loop] [--strategy TYPE]    # Play games (recommended)
-apechurch status [--json]                     # Check balance
-apechurch bet --game NAME --amount APE        # Manual bet
-apechurch pause                               # Stop playing
-apechurch resume                              # Resume playing
-apechurch games                               # List all games
-apechurch commands                            # Full command reference
+apechurch play [game] [amount] [config...]  # Play games
+apechurch blackjack <amount> [--auto]       # Blackjack
+apechurch video-poker <amount> [--auto]     # Video Poker
+apechurch status                            # Check balance
+apechurch games                             # List all games
+apechurch game <name>                       # Game details
+apechurch pause                             # Stop autonomous play
+apechurch resume                            # Resume play
+apechurch history                           # Recent games
+apechurch commands                          # Full reference
 ```
-
-## Strategies
-
-| Profile | Bet Size | Risk |
-|---------|----------|------|
-| `conservative` | 5% | Low |
-| `balanced` | 8% | Medium (default) |
-| `aggressive` | 12% | High |
-| `degen` | 20% | Extreme |
-
-## How It Works
-
-1. **Install** creates a wallet at `~/.apechurch/wallet.json`
-2. **Human funds** the wallet with APE on ApeChain
-3. **Play** places bets on-chain with VRF randomness
-4. Agent tracks wins/losses in `~/.apechurch/state.json`
-5. **Pause/Resume** to control when the agent plays
 
 ## For AI Agents
 
-Tell your agent:
+All commands support `--json` for machine-readable output:
 
-> "Read ~/.apechurch/skill/SKILL.md and run: apechurch play --loop"
+```bash
+apechurch status --json
+apechurch play --json
+apechurch play --loop --json
+```
 
-All commands support `--json` for machine-readable output.
-
-## Docs
-
-- [SKILL.md](https://ape.church/skill.md) — Full documentation
-- [STRATEGY.md](https://ape.church/strategy.md) — Bankroll management
+See [SKILL.md](./SKILL.md) for complete agent documentation.
 
 ## Requirements
 
 - Node.js >= 18
-- APE on ApeChain (for gas + wagers)
+- APE on ApeChain (gas + wagers)
 
 ## Links
 
-- Website: https://ape.church
-- Games: https://ape.church/games
-- Bridge APE: https://relay.link/bridge/apechain
+- **Website:** https://ape.church
+- **Games:** https://ape.church/games
+- **Bridge APE:** https://relay.link/bridge/apechain
+- **GitHub:** https://github.com/ape-church/agent-skills
 
 ## License
 

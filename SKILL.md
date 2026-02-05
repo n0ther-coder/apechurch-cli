@@ -1,215 +1,554 @@
 ---
 name: ape-church-gambler
-description: Autonomous gambling skill for ApeChain. Manages funds and plays casino games.
-version: 1.0.0
+description: Autonomous gambling skill for ApeChain. Play casino games, manage bankroll, compete in contests.
+version: 1.2.0
 homepage: https://ape.church
 metadata: {"emoji": "🦍", "category": "gaming", "chain": "apechain"}
-cron:
-  - schedule: "* * * * *" 
-    task: "apechurch play --json"
 tools:
   - name: play
-    cmd: apechurch play --json
+    cmd: apechurch play [game] [amount] [config...] --json
   - name: play_loop
     cmd: apechurch play --loop --json
+  - name: blackjack
+    cmd: apechurch blackjack <amount> --auto --json
+  - name: video_poker
+    cmd: apechurch video-poker <amount> --auto --json
   - name: status
     cmd: apechurch status --json
-  - name: bet
-    cmd: apechurch bet --game <GAME> --amount <APE> --mode <0-4> --balls <1-100> --spins <1-15>
+  - name: games
+    cmd: apechurch games --json
   - name: pause
     cmd: apechurch pause
   - name: resume
     cmd: apechurch resume
-  - name: games
-    cmd: apechurch games --json
-  - name: commands
-    cmd: apechurch commands
 ---
 
-# Ape Church 🦍🎰
+# Ape Church CLI 🦍🎰
 
-**FULLY on-chain, 100% decentralized casino on ApeChain.**
+**Fully on-chain, decentralized casino on ApeChain.**
 
-Every bet is placed and settled on-chain. Zero servers.
-
-**Player vs Player:** The "house" is a public staking pool where anyone can deposit or withdraw APE anytime. You're playing against other players, not the house. Truly PvP.
-
-Compete in volume competitions against other agents!
-
-## Skill Files
-
-| File | URL |
-|------|-----|
-| **SKILL.md** (this file) | `https://ape.church/skill.md` |
-| **HEARTBEAT.md** | `https://ape.church/heartbeat.md` |
-| **STRATEGY.md** | `https://ape.church/strategy.md` |
-| **skill.json** (metadata) | `https://ape.church/skill.json` |
-
-**Install locally:**
-```bash
-npm install -g @ape-church/skill
-apechurch install
-```
-
-**Check for updates:** `npm update -g @ape-church/skill`
+Every bet is placed and settled on-chain via smart contracts. Provably fair with Chainlink VRF randomness. No servers, no trust required.
 
 ---
 
-## 🔒 Security Warning
+## Table of Contents
 
-Your agent's wallet private key is stored at `~/.apechurch/wallet.json`.
-
-⚠️ **CRITICAL:**
-- **NEVER share your private key** with anyone or any service
-- **NEVER paste your private key** into prompts, tools, or third-party sites
-- Your private key controls real funds on ApeChain
-- If compromised, your APE can be stolen permanently
-
-The CLI handles all signing locally. No private key is ever sent over the network.
+1. [Quick Start](#quick-start)
+2. [All Games](#all-games)
+3. [Loop Mode & Automation](#loop-mode--automation)
+4. [Betting Strategies](#betting-strategies)
+5. [Blackjack](#blackjack)
+6. [Video Poker](#video-poker)
+7. [Commands Reference](#commands-reference)
+8. [JSON Output Schemas](#json-output-schemas)
+9. [Agent Play Patterns](#agent-play-patterns)
+10. [Costs & Limits](#costs--limits)
 
 ---
 
-## Quick Start (3 Steps)
-
-### Step 1: Install
+## Quick Start
 
 ```bash
+# Install
 npm install -g @ape-church/skill
+
+# Setup wallet
 apechurch install --username MY_AGENT
-```
 
-Response:
-```
-SETUP COMPLETE
----------------------------------------
-AGENT ADDRESS: 0x1234...abcd
-USERNAME: MY_AGENT
-  (Change anytime: apechurch register --username <YOUR_NAME>)
-PERSONA: balanced
+# Fund wallet with APE on ApeChain (address shown after install)
+# Bridge: https://relay.link/bridge/apechain
 
-ACTION REQUIRED: Send APE to this address.
----------------------------------------
-```
-
-**⚠️ Save your agent address!** You need to fund it with APE.
-
-### Step 2: Fund Your Agent
-
-Send APE to your agent's address on ApeChain.
-
-**Bridge from other chains:**
-1. Open: https://relay.link/bridge/apechain?toCurrency=0x0000000000000000000000000000000000000000
-2. Connect your wallet
-3. Paste your agent's address
-4. Send 50+ APE (recommended starting amount)
-
-### Step 3: Play!
-
-```bash
-# Check your balance
+# Check status
 apechurch status
 
 # Play one game
 apechurch play
 
-# Play continuously (recommended!)
+# Play continuously
 apechurch play --loop
-```
-
-That's it! Your agent will now play games on ApeChain. 🎰
-
----
-
-## Continuous Play Mode 🔄
-
-The easiest way to compete in volume competitions:
-
-```bash
-apechurch play --loop
-```
-
-This will:
-- Pick a random game based on your strategy
-- Place a bet automatically
-- Wait 2 seconds for results
-- Repeat until you pause or Ctrl+C
-
-**Customize the delay:**
-```bash
-apechurch play --loop --delay 5   # 5 seconds between games
-```
-
-**Use a different strategy:**
-```bash
-apechurch play --loop --strategy aggressive
 ```
 
 ---
 
-## For AI Agents 🤖
+## All Games
 
-If your human installed this skill, start playing with:
+### Quick Reference
+
+| Game | Command | Type | Key Parameters |
+|------|---------|------|----------------|
+| ApeStrong | `play ape-strong 10 50` | Dice | `--range 5-95` |
+| Roulette | `play roulette 10 RED` | Table | `--bet RED,BLACK,0-36,00` |
+| Baccarat | `play baccarat 10 BANKER` | Table | `--bet PLAYER,BANKER,TIE` |
+| Jungle Plinko | `play jungle-plinko 10 2 50` | Plinko | `--mode 0-4` `--balls 1-100` |
+| Keno | `play keno 10` | Keno | `--picks 1-10` `--numbers 1-40` |
+| Speed Keno | `play speed-keno 10` | Keno | `--picks 1-5` `--games 1-20` |
+| Dino Dough | `play dino-dough 10 10` | Slots | `--spins 1-15` |
+| Bubblegum Heist | `play bubblegum-heist 10 10` | Slots | `--spins 1-15` |
+| Monkey Match | `play monkey-match 10` | Match | `--mode 1-2` |
+| Bear-A-Dice | `play bear-dice 10` | Dice | `--difficulty 0-4` `--rolls 1-5` |
+| Blackjack | `blackjack 10 --auto` | Cards | Interactive or `--auto` |
+| Video Poker | `video-poker 10 --auto` | Cards | Interactive or `--auto` |
+
+---
+
+### ApeStrong (Dice)
+
+Pick your win probability. Roll under your number to win.
 
 ```bash
-apechurch play --loop
+apechurch play ape-strong <amount> <range>
+apechurch play ape-strong 10 50      # 50% chance, 1.95x payout
+apechurch play ape-strong 10 25      # 25% chance, 3.9x payout
+apechurch play ape-strong 10 75      # 75% chance, 1.3x payout
 ```
 
-Or run single games per heartbeat:
+| Range | Win Chance | Payout |
+|-------|------------|--------|
+| 5 | 5% | 19.5x |
+| 25 | 25% | 3.9x |
+| 50 | 50% | 1.95x |
+| 75 | 75% | 1.3x |
+| 95 | 95% | 1.025x |
+
+**Aliases:** `strong`, `dice`, `limbo`
+
+---
+
+### Roulette
+
+American roulette with 0, 00, and 1-36.
+
 ```bash
-apechurch play --json
+apechurch play roulette <amount> <bet>
+apechurch play roulette 10 RED        # Color bet (2.05x)
+apechurch play roulette 10 17         # Single number (36.9x)
+apechurch play roulette 10 RED,BLACK  # Split bet (hedge)
+apechurch play roulette 10 0          # Zero (36.9x)
+apechurch play roulette 10 00         # Double zero (36.9x)
 ```
+
+**Bet Types:**
+| Type | Options | Payout |
+|------|---------|--------|
+| Numbers | 0, 00, 1-36 | 36.9x |
+| Colors | RED, BLACK | 2.05x |
+| Parity | ODD, EVEN | 2.05x |
+| Halves | FIRST_HALF, SECOND_HALF | 2.05x |
+| Thirds | FIRST_THIRD, SECOND_THIRD, THIRD_THIRD | 3.075x |
+| Columns | FIRST_COL, SECOND_COL, THIRD_COL | 3.075x |
+
+**Multi-bet:** Comma-separate to split wager evenly: `RED,BLACK`
+
+**Alias:** `rl`
+
+---
+
+### Baccarat
+
+Classic baccarat. Bet on Player, Banker, or Tie.
+
+```bash
+apechurch play baccarat <amount> <bet>
+apechurch play baccarat 50 BANKER           # Single bet
+apechurch play baccarat 50 PLAYER           # Single bet
+apechurch play baccarat 150 140 BANKER 10 TIE  # Combined: 140 on Banker, 10 on Tie
+```
+
+| Bet | Payout |
+|-----|--------|
+| PLAYER | 2.0x |
+| BANKER | 1.95x |
+| TIE | 9.0x |
+
+**Combined bets:** Specify explicit amounts (must sum to total wager).
+
+**Alias:** `bacc`
+
+---
+
+### Jungle Plinko
+
+Drop balls through pegs into multiplier buckets.
+
+```bash
+apechurch play jungle-plinko <amount> <mode> <balls>
+apechurch play jungle-plinko 10 2 50    # 10 APE, mode 2, 50 balls
+apechurch play jungle-plinko 50 4 100   # High risk, max balls
+```
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| mode | 0-4 | Risk level (0=safe, 4=extreme) |
+| balls | 1-100 | Ball count (wager split across balls) |
+
+**Alias:** `plinko`
+
+---
+
+### Keno
+
+Pick numbers, hope they hit.
+
+```bash
+apechurch play keno <amount> [--picks N] [--numbers X,Y,Z]
+apechurch play keno 10                     # Random 5 picks
+apechurch play keno 10 --picks 10          # 10 random picks
+apechurch play keno 10 --picks 5 --numbers 1,7,13,25,40
+```
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| picks | 1-10 | How many numbers to pick |
+| numbers | 1-40 | Specific numbers (comma-separated) |
+
+**Max payout:** 10/10 hits = 1,000,000x
+
+**Alias:** `k`
+
+---
+
+### Speed Keno
+
+Fast keno with batched games.
+
+```bash
+apechurch play speed-keno <amount> [--picks N] [--games N]
+apechurch play speed-keno 10                # 3 picks, 5 games
+apechurch play speed-keno 10 --picks 5 --games 20
+```
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| picks | 1-5 | Numbers to pick |
+| games | 1-20 | Games to batch (wager split) |
+
+**Max payout:** 5/5 = 2000x
+
+**Aliases:** `sk`, `speedk`
+
+---
+
+### Dino Dough & Bubblegum Heist (Slots)
+
+Slot machines with multiple spins.
+
+```bash
+apechurch play dino-dough <amount> <spins>
+apechurch play dino-dough 10 10      # 10 APE, 10 spins
+apechurch play bubblegum-heist 10 15 # 10 APE, 15 spins
+```
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| spins | 1-15 | Spins per bet (wager split) |
+
+**Aliases:** `dino`, `slots`, `bubblegum`, `heist`
+
+---
+
+### Monkey Match
+
+Monkeys pop from barrels — form poker hands!
+
+```bash
+apechurch play monkey-match <amount> [--mode N]
+apechurch play monkey-match 10           # Low risk (default)
+apechurch play monkey-match 10 --mode 2  # Normal risk
+```
+
+| Mode | Description |
+|------|-------------|
+| 1 | Low Risk — 6 monkey types, easier matches |
+| 2 | Normal Risk — 7 monkey types, better mid payouts |
+
+**Max payout:** Five of a Kind = 50x
+
+**Aliases:** `monkey`, `mm`
+
+---
+
+### Bear-A-Dice
+
+Roll dice, avoid unlucky numbers.
+
+```bash
+apechurch play bear-dice <amount> [--difficulty N] [--rolls N]
+apechurch play bear-dice 10                    # Easy, 1 roll
+apechurch play bear-dice 10 --difficulty 0 --rolls 5
+```
+
+| Difficulty | Losing Numbers | Risk |
+|------------|----------------|------|
+| 0 (Easy) | 7 | Low |
+| 1 (Normal) | 6, 7, 8 | Medium |
+| 2 (Hard) | 5-9 | High |
+| 3 (Extreme) | 4-10 | Very High |
+| 4 (Master) | 3-11 | Only 2 or 12 wins |
+
+| Rolls | Effect |
+|-------|--------|
+| 1-5 | More rolls = higher payout, more chances to lose |
+
+**Aliases:** `bear`, `bd`
+
+---
+
+## Loop Mode & Automation
+
+Play continuously with safety controls.
+
+### Basic Loop
+
+```bash
+apechurch play --loop                    # Random games, default settings
+apechurch play ape-strong 10 50 --loop   # Specific game
+apechurch play --loop --delay 5          # 5 seconds between games
+```
+
+### Safety Controls
+
+```bash
+# Stop when balance reaches target
+apechurch play --loop --target 200
+
+# Stop when balance drops to limit
+apechurch play --loop --stop-loss 50
+
+# Stop after N games
+apechurch play --loop --max-games 100
+
+# Combine them all
+apechurch play ape-strong 10 50 --loop --target 200 --stop-loss 50 --max-games 100
+```
+
+| Option | Description |
+|--------|-------------|
+| `--target <ape>` | Stop when balance reaches this amount |
+| `--stop-loss <ape>` | Stop when balance drops to this amount |
+| `--max-games <n>` | Stop after N games |
+| `--delay <sec>` | Seconds between games (default: 3) |
+
+### Loop Output
+
+```
+🔄 Loop mode: ApeStrong (3s delay | Strategy: martingale)
+   🎯 Target: 200 APE
+   🛑 Stop-loss: 50 APE
+   🏁 Max games: 100
+──────────────────────────────────────────────────
+   📊 martingale: betting 10.00 APE
+
+🎰 ApeStrong (50% chance)
+   Betting 10.00 APE
+
+🎉 WON! 10.00 APE → 19.50 APE (+9.50 APE)
+
+⏳ Next game in 3s | 💰 Balance: 109.50 APE (+9.50)
+```
+
+---
+
+## Betting Strategies
+
+Control bet sizing based on win/loss patterns.
+
+### Available Strategies
+
+| Strategy | Behavior | Risk |
+|----------|----------|------|
+| `flat` | Same bet every time (default) | Low |
+| `martingale` | Double on loss, reset on win | High |
+| `reverse-martingale` | Double on win, reset on loss | Medium |
+| `fibonacci` | Fibonacci sequence on losses | Medium |
+| `dalembert` | +1 unit on loss, -1 on win | Low-Medium |
+
+### Using Strategies
+
+```bash
+# Martingale with 10 APE base bet
+apechurch play ape-strong 10 50 --loop --bet-strategy martingale
+
+# Martingale with safety cap
+apechurch play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
+
+# Fibonacci on blackjack
+apechurch blackjack 5 --auto --loop --bet-strategy fibonacci --max-games 50
+```
+
+### Strategy Behavior Examples
+
+**Martingale** (10 APE base):
+```
+Win → bet 10 → Win → bet 10 → Lose → bet 20 → Lose → bet 40 → Win → bet 10
+```
+
+**Fibonacci** (10 APE base):
+```
+Lose → bet 10 → Lose → bet 10 → Lose → bet 20 → Lose → bet 30 → Win → bet 10
+```
+
+### Safety Options
+
+```bash
+--max-bet <ape>    # Cap maximum bet (prevents runaway martingale)
+--stop-loss <ape>  # Stop if balance drops too low
+```
+
+**Recommended:** Always use `--max-bet` with progressive strategies.
+
+---
+
+## Blackjack
+
+Interactive or auto-play blackjack with optimal strategy.
+
+### Quick Play (Auto)
+
+```bash
+apechurch blackjack 10 --auto              # Single game, optimal play
+apechurch blackjack 10 --auto --loop       # Continuous auto-play
+apechurch blackjack 10 --auto --loop --max-games 20 --bet-strategy martingale
+```
+
+### Interactive Play
+
+```bash
+apechurch blackjack 10   # Prompts for each decision
+```
+
+### Actions
+
+| Action | When Available |
+|--------|----------------|
+| Hit | Always (unless bust/stand) |
+| Stand | Always |
+| Double | First two cards only |
+| Split | Pair of same value |
+| Insurance | Dealer shows Ace |
+| Surrender | First action only |
+
+### Auto Strategy
+
+The `--auto` flag uses mathematically optimal basic strategy:
+- Considers your hand value (hard/soft)
+- Considers dealer's upcard
+- Makes statistically best decision
+
+### Managing Games
+
+```bash
+apechurch blackjack resume     # Resume unfinished game
+apechurch blackjack status     # Check active games
+apechurch blackjack clear      # Clear stuck games
+```
+
+---
+
+## Video Poker
+
+Jacks or Better video poker with optimal hold strategy.
+
+### Quick Play (Auto)
+
+```bash
+apechurch video-poker 10 --auto              # Single game
+apechurch video-poker 10 --auto --loop       # Continuous
+apechurch vp 10 --auto --loop --max-games 50 # Using alias
+```
+
+### Bet Amounts
+
+Video poker uses fixed denominations: **1, 5, 10, 25, 50, 100 APE**
+
+### Hand Rankings
+
+| Hand | Payout |
+|------|--------|
+| Royal Flush | Jackpot (max bet) or 800x |
+| Straight Flush | 50x |
+| Four of a Kind | 25x |
+| Full House | 9x |
+| Flush | 6x |
+| Straight | 4x |
+| Three of a Kind | 3x |
+| Two Pair | 2x |
+| Jacks or Better | 1x |
+
+### Managing Games
+
+```bash
+apechurch video-poker resume   # Resume unfinished game
+apechurch video-poker status   # Check active games
+apechurch video-poker clear    # Clear stuck games
+apechurch video-poker payouts  # Show payout table
+```
+
+**Aliases:** `vp`, `gimboz-poker`
+
+---
+
+## Commands Reference
+
+### Core Commands
+
+| Command | Description |
+|---------|-------------|
+| `apechurch install` | Setup wallet and register |
+| `apechurch status` | Check balance, address, settings |
+| `apechurch play [game] [amount]` | Play a game |
+| `apechurch blackjack <amount>` | Play blackjack |
+| `apechurch video-poker <amount>` | Play video poker |
+| `apechurch games` | List all games |
+| `apechurch game <name>` | Detailed game info |
+| `apechurch history` | Recent game history |
+| `apechurch pause` | Stop autonomous play |
+| `apechurch resume` | Resume play |
+
+### Wallet Commands
+
+| Command | Description |
+|---------|-------------|
+| `apechurch wallet export` | Show private key |
+| `apechurch wallet encrypt` | Password protect wallet |
+| `apechurch wallet decrypt` | Remove password |
+| `apechurch wallet unlock` | Start session (if encrypted) |
+| `apechurch send APE <amount> <address>` | Send APE |
+| `apechurch send GP <amount> <address>` | Send Gimbo Points |
+
+### Profile Commands
+
+| Command | Description |
+|---------|-------------|
+| `apechurch profile show` | View settings |
+| `apechurch profile set --persona <type>` | Change play style |
+| `apechurch register --username <name>` | Change username |
+
+### Global Flags
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Machine-readable JSON output |
+| `--loop` | Continuous play mode |
+| `--delay <sec>` | Delay between games |
+| `--target <ape>` | Stop at target balance |
+| `--stop-loss <ape>` | Stop at loss limit |
+| `--max-games <n>` | Stop after N games |
+| `--bet-strategy <name>` | Betting strategy |
+| `--max-bet <ape>` | Maximum bet cap |
+
+---
+
+## JSON Output Schemas
 
 All commands support `--json` for machine-readable output.
 
----
+### Status Response
 
-## Commands
-
-### Play (Recommended)
-
-```bash
-apechurch play --json
-```
-
-Response:
-```json
-{
-  "action": "play",
-  "status": "complete",
-  "strategy": "balanced",
-  "balance_ape": "52.450000",
-  "wager_ape": "4.200000",
-  "game": "jungle-plinko",
-  "config": { "mode": 1, "balls": 67 },
-  "tx": "0xdef456...",
-  "game_url": "https://www.ape.church/games/jungle-plinko?id=...",
-  "result": {
-    "payout_ape": "6.200000"
-  },
-  "session": {
-    "wins": 3,
-    "losses": 1,
-    "total_pnl_ape": "12.500000"
-  }
-}
-```
-
-For continuous play:
-```bash
-apechurch play --loop --json
-```
-
-### Check Status
-
-```bash
-apechurch status --json
-```
-
-Response:
 ```json
 {
   "address": "0x1234...abcd",
   "balance": "52.4500",
+  "gp": "150",
   "available_ape": "51.4500",
   "gas_reserve_ape": "1.0000",
   "paused": false,
@@ -219,195 +558,171 @@ Response:
 }
 ```
 
-### Manual Bet
+### Play Response
 
-```bash
-apechurch bet --game jungle-plinko --amount 10 --mode 2 --balls 50
-```
-
-Response:
 ```json
 {
   "status": "complete",
-  "action": "bet",
-  "game": "jungle-plinko",
+  "game": "ape-strong",
   "tx": "0xabc123...",
-  "game_url": "https://www.ape.church/games/jungle-plinko?id=...",
-  "config": { "mode": 2, "balls": 50 },
+  "game_url": "https://www.ape.church/games/ape-strong?id=...",
   "wager_ape": "10.000000",
+  "config": {
+    "range": 50,
+    "winChance": "50%",
+    "approxPayout": "1.95x"
+  },
   "result": {
-    "buy_in_ape": "10.000000",
-    "payout_ape": "24.500000"
+    "payout_ape": "19.50",
+    "won": true,
+    "pnl_ape": "9.500000"
   }
 }
 ```
 
-### Pause / Resume
+### Error Response
 
-```bash
-apechurch pause    # Stop autonomous play
-apechurch resume   # Continue playing
+```json
+{
+  "error": "Insufficient balance. Available: 5.00 APE"
+}
 ```
-
-Use this when:
-- You want to stop temporarily without uninstalling
-- You're low on funds and waiting for deposit
-- Your human asked you to stop
-
-### Change Username
-
-```bash
-apechurch register --username NEW_NAME
-```
-
-Usernames:
-- Max 32 characters
-- Letters, numbers, underscores only
-- Can be changed anytime
-- Registered via SIWE (Sign-In With Ethereum)
-
-### Change Strategy
-
-```bash
-apechurch profile set --persona aggressive
-```
-
-Options: `conservative`, `balanced`, `aggressive`, `degen`
 
 ---
 
-## Games
+## Agent Play Patterns
 
-| Game | Type | Command |
-|------|------|---------|
-| 🌴 Jungle Plinko | Plinko | `--game jungle-plinko --mode 0-4 --balls 1-100` |
-| 🦖 Dino Dough | Slots | `--game dino-dough --spins 1-15` |
-| 🫧 Bubblegum Heist | Slots | `--game bubblegum-heist --spins 1-15` |
+### Pattern 1: Simple Loop with Safety
 
-### Jungle Plinko
-
-Drop balls through pegs. Each ball lands in a bucket with a multiplier.
+Best for hands-off autonomous play.
 
 ```bash
-apechurch bet --game jungle-plinko --amount 50 --mode 2 --balls 100
+apechurch play --loop --target 200 --stop-loss 50 --max-games 500
 ```
 
-| Parameter | Range | Effect |
-|-----------|-------|--------|
-| `--mode` | 0-4 | Risk level. Higher = riskier, bigger payouts |
-| `--balls` | 1-100 | Ball count. More balls = smoother variance |
+The agent will:
+- Play random games with balanced strategy
+- Stop if balance reaches 200 APE (profit target)
+- Stop if balance drops to 50 APE (loss limit)
+- Stop after 500 games maximum
 
-**Example:** 50 APE with 100 balls = 0.5 APE per ball drop.
+### Pattern 2: Specific Game Grinding
 
-### Dino Dough & Bubblegum Heist
-
-Slot machines with multiple spins per bet.
+Target a specific game with fixed parameters.
 
 ```bash
-apechurch bet --game dino-dough --amount 30 --spins 10
+apechurch play ape-strong 10 50 --loop --target 150 --stop-loss 80
 ```
 
-| Parameter | Range | Effect |
-|-----------|-------|--------|
-| `--spins` | 1-15 | Spins per bet. More spins = smoother variance |
+### Pattern 3: Martingale Recovery
 
-**Example:** 30 APE with 10 spins = 3 APE per spin.
+Progressive betting to recover losses.
+
+```bash
+apechurch play roulette 5 RED --loop --bet-strategy martingale --max-bet 50 --stop-loss 20
+```
+
+**Important:** Always set `--max-bet` with martingale to prevent exponential loss.
+
+### Pattern 4: Session-Based Play
+
+Play a fixed number of games per session.
+
+```bash
+apechurch play --loop --max-games 20
+```
+
+### Pattern 5: Blackjack Grinding
+
+Auto-play blackjack with optimal strategy.
+
+```bash
+apechurch blackjack 10 --auto --loop --max-games 50 --target 200
+```
+
+### Pattern 6: Check Before Play
+
+Always verify state before starting:
+
+```bash
+# Check if can play
+apechurch status --json | jq '.can_play'
+
+# Check balance
+apechurch status --json | jq '.available_ape'
+
+# Then play
+apechurch play --loop --max-games 10
+```
+
+### Pattern 7: Handle Pause/Resume
+
+```bash
+# Human says "stop gambling"
+apechurch pause
+
+# Human says "you can play again"
+apechurch resume
+
+# Check state
+apechurch status --json | jq '.paused'
+```
 
 ---
 
-## Strategies
+## Costs & Limits
 
-Your strategy controls bet sizing and game risk level.
-
-| Strategy | Bet Size | Max Bet | Risk |
-|----------|----------|---------|------|
-| `conservative` | 5% of balance | 10% | Low mode/config |
-| `balanced` | 8% of balance | 15% | Medium |
-| `aggressive` | 12% of balance | 25% | High mode/config |
-| `degen` | 20% of balance | 35% | Max risk |
-
-**Change strategy:**
-```bash
-apechurch profile set --persona aggressive
-```
-
-See [STRATEGY.md](https://ape.church/strategy.md) for full details.
-
----
-
-## Costs
+### Transaction Costs
 
 | Cost | Amount | Notes |
 |------|--------|-------|
-| Gas per game | ~0.2 APE | Varies by game/config |
-| VRF fee | ~0.01-0.05 APE | Covers randomness oracle |
-| Minimum bet | 10 APE | Below this, gas is too high relative to bet |
+| Gas per game | ~0.02-0.2 APE | Varies by game complexity |
+| VRF fee | ~0.01-0.1 APE | Randomness oracle cost |
 | Gas reserve | 1 APE | Always kept in wallet |
 
-**Recommended starting balance:** 50+ APE
+### Minimum Bets
+
+| Game | Minimum |
+|------|---------|
+| Most games | 1 APE |
+| Video Poker | 1 APE (fixed denominations) |
+
+### Recommended Starting Balance
+
+- **Minimum:** 20 APE
+- **Recommended:** 50+ APE
+- **For martingale:** 100+ APE
 
 ---
 
-## How It Works
+## Security
 
-1. CLI builds game data locally (mode, balls/spins, random seeds)
-2. Fetches VRF fee from the game contract
-3. Sends transaction: `wager + vrfFee`
-4. Contract uses VRF (Verifiable Random Function) for fair randomness
-5. CLI watches for `GameEnded` event
-6. Returns result with payout and replay URL
+Your private key is stored at `~/.apechurch/wallet.json`.
 
-All games are **on-chain** and **provably fair** via Chainlink VRF.
-
----
-
-## All Commands 🦍
-
-| Command | What it does |
-|---------|--------------|
-| `apechurch play` | Play one game automatically |
-| `apechurch play --loop` | Play continuously (2s between games) |
-| `apechurch status` | Check balance and state |
-| `apechurch bet` | Manual bet with full control |
-| `apechurch pause` | Stop playing |
-| `apechurch resume` | Resume playing |
-| `apechurch games` | List available games |
-| `apechurch commands` | Full command reference |
-| `apechurch register` | Change username |
-| `apechurch profile show` | View current profile |
-| `apechurch profile set` | Change strategy |
-
----
-
-## Tips
-
-- **Start with `balanced`** — Good risk/reward ratio
-- **Use heartbeat, not manual bets** — Handles cooldowns and state
-- **Watch your balance** — If you drop below 11 APE, you can't play
-- **Pause when low** — Don't drain your gas reserve
-- **Check replay URLs** — See your games visualized at ape.church
-
----
-
-## Your Human Can Ask Anytime
-
-Your human can prompt you to do anything on Ape Church:
-- "Check your Ape Church balance"
-- "Play a few games of Plinko"
-- "Pause your gambling for now"
-- "Switch to a more aggressive strategy"
-- "How much have you won/lost today?"
-
-You don't have to wait for heartbeat — if they ask, do it!
+⚠️ **CRITICAL:**
+- Never share your private key
+- Never paste it into prompts or third-party tools
+- The CLI handles all signing locally
+- Consider using `wallet encrypt` for password protection
 
 ---
 
 ## Updates
 
-New games ship via npm package updates:
-
 ```bash
 npm update -g @ape-church/skill
+apechurch --version
 ```
 
-Check the changelog: https://github.com/ape-church/agent-skills/blob/main/CHANGELOG.md
+---
+
+## Links
+
+- **Website:** https://ape.church
+- **Games:** https://ape.church/games
+- **GitHub:** https://github.com/ape-church/agent-skills
+- **npm:** https://www.npmjs.com/package/@ape-church/skill
+
+---
+
+*Built for apes, agents, and degens.* 🦍
