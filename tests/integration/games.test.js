@@ -27,12 +27,12 @@ const TEST_BET = '1';
  */
 function cli(args, options = {}) {
   try {
-    const result = execSync(`node ${CLI_PATH} ${args}`, {
+    const result = execSync(`node ${CLI_PATH} ${args} 2>&1`, {
       encoding: 'utf8',
       timeout: options.timeout || 60000,
       ...options,
     });
-    return { stdout: result, code: 0 };
+    return { stdout: result, stderr: '', code: 0 };
   } catch (error) {
     return {
       stdout: error.stdout || '',
@@ -66,17 +66,15 @@ function shouldSkipLiveTests() {
   return false;
 }
 
-describe('Live Game Tests', () => {
-  let skipReason;
-  
-  before(() => {
-    skipReason = shouldSkipLiveTests();
-    if (skipReason) {
-      console.log(`⚠️  Skipping live tests: ${skipReason}`);
-    }
-  });
+// Check skip reason once at module load time
+const SKIP_REASON = shouldSkipLiveTests();
+if (SKIP_REASON) {
+  console.log(`⚠️  Skipping live tests: ${SKIP_REASON}`);
+}
 
-  describe('ApeStrong (Simple)', { skip: () => skipReason }, () => {
+describe('Live Game Tests', () => {
+
+  describe('ApeStrong (Simple)', { skip: SKIP_REASON }, () => {
     it('plays a game with 50% odds', async () => {
       const { stdout, code } = cli(`play ape-strong ${TEST_BET} 50 --json`, { timeout: 45000 });
       
@@ -96,7 +94,7 @@ describe('Live Game Tests', () => {
     });
   });
 
-  describe('Roulette', { skip: () => skipReason }, () => {
+  describe('Roulette', { skip: SKIP_REASON }, () => {
     it('plays RED bet', async () => {
       const { stdout } = cli(`play roulette ${TEST_BET} RED --json`, { timeout: 45000 });
       
@@ -112,7 +110,7 @@ describe('Live Game Tests', () => {
     });
   });
 
-  describe('Plinko', { skip: () => skipReason }, () => {
+  describe('Plinko', { skip: SKIP_REASON }, () => {
     it('plays with default config', async () => {
       const { stdout } = cli(`play plinko ${TEST_BET} --json`, { timeout: 45000 });
       
@@ -121,7 +119,7 @@ describe('Live Game Tests', () => {
     });
   });
 
-  describe('Baccarat', { skip: () => skipReason }, () => {
+  describe('Baccarat', { skip: SKIP_REASON }, () => {
     it('plays PLAYER bet', async () => {
       const { stdout } = cli(`play baccarat ${TEST_BET} PLAYER --json`, { timeout: 45000 });
       
@@ -130,7 +128,7 @@ describe('Live Game Tests', () => {
     });
   });
 
-  describe('Blackjack (Stateful)', { skip: () => skipReason }, () => {
+  describe('Blackjack (Stateful)', { skip: SKIP_REASON }, () => {
     it('plays auto game to completion', async () => {
       const { stdout, code } = cli(`blackjack ${TEST_BET} --auto`, { timeout: 90000 });
       
@@ -144,7 +142,7 @@ describe('Live Game Tests', () => {
     });
   });
 
-  describe('Video Poker (Stateful)', { skip: () => skipReason }, () => {
+  describe('Video Poker (Stateful)', { skip: SKIP_REASON }, () => {
     it('plays auto game to completion', async () => {
       const { stdout } = cli(`video-poker ${TEST_BET} --auto`, { timeout: 90000 });
       
@@ -158,7 +156,7 @@ describe('Live Game Tests', () => {
     });
   });
 
-  describe('Loop Mode', { skip: () => skipReason }, () => {
+  describe('Loop Mode', { skip: SKIP_REASON }, () => {
     it('--max-games stops after specified count', async () => {
       const { stdout } = cli(`play ape-strong ${TEST_BET} 50 --loop --max-games 2 --json`, { timeout: 120000 });
       
@@ -169,7 +167,7 @@ describe('Live Game Tests', () => {
     });
   });
 
-  describe('Result Verification', { skip: () => skipReason }, () => {
+  describe('Result Verification', { skip: SKIP_REASON }, () => {
     it('history shows recent game', async () => {
       // First play a game
       cli(`play ape-strong ${TEST_BET} 50`, { timeout: 45000 });
