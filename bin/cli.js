@@ -2300,7 +2300,477 @@ ASSETS
          - Earned as cashback from playing games
          - Non-transferable until claimed (use getCurrentEXP to check)
          - Send to others: apechurch send GP <amount> <address>
+
+DETAILED HELP
+  apechurch help <topic>         Get detailed help on a topic
+  
+  Topics: loop, strategies, auto, wallet, house
 `);
+  });
+
+// ============================================================================
+// COMMAND: HELP (Detailed topic help)
+// ============================================================================
+const HELP_TOPICS = {
+  loop: `
+${'═'.repeat(70)}
+  LOOP MODE - Continuous Play
+${'═'.repeat(70)}
+
+  The --loop flag enables continuous play until a condition is met.
+  Combine with safety controls to protect your bankroll.
+
+${'─'.repeat(70)}
+  BASIC USAGE
+${'─'.repeat(70)}
+
+  apechurch play --loop                    # Loop until balance runs out
+  apechurch play roulette 10 RED --loop    # Loop specific game
+
+${'─'.repeat(70)}
+  SAFETY CONTROLS (Highly Recommended!)
+${'─'.repeat(70)}
+
+  --target <ape>       Stop when balance REACHES this amount
+                       Example: --target 200 (stop at 200 APE)
+                       
+  --stop-loss <ape>    Stop when balance DROPS to this amount
+                       Example: --stop-loss 50 (stop if you hit 50 APE)
+                       
+  --max-games <n>      Stop after exactly N games
+                       Example: --max-games 100 (play 100 games then stop)
+
+  These can be combined:
+    apechurch play --loop --target 200 --stop-loss 50 --max-games 500
+
+${'─'.repeat(70)}
+  BETTING STRATEGIES (use with --loop)
+${'─'.repeat(70)}
+
+  --bet-strategy <name>   Control how bet size changes after wins/losses
+                          Options: flat, martingale, reverse-martingale,
+                                   fibonacci, dalembert
+                          
+  --max-bet <ape>         IMPORTANT: Cap maximum bet size
+                          Prevents runaway betting in progressive strategies
+                          
+  Example - Martingale with safety:
+    apechurch play roulette 10 RED --loop \\
+      --bet-strategy martingale \\
+      --max-bet 100 \\
+      --stop-loss 50
+
+  See: apechurch help strategies
+
+${'─'.repeat(70)}
+  DISPLAY DURING LOOP
+${'─'.repeat(70)}
+
+  Each iteration shows:
+    • Current balance and session P&L
+    • Game played and result
+    • Bet amount (and if capped by --max-bet)
+    • Running win/loss count
+
+  Loop exits cleanly on:
+    • Reaching --target balance
+    • Hitting --stop-loss floor
+    • Completing --max-games
+    • Balance too low for minimum bet
+    • Ctrl+C (manual interrupt)
+
+${'─'.repeat(70)}
+  WORKS WITH
+${'─'.repeat(70)}
+
+  • All simple games (play command)
+  • Blackjack (apechurch blackjack <amt> --loop --auto)
+  • Video Poker (apechurch video-poker <amt> --loop --auto)
+
+${'═'.repeat(70)}
+`,
+
+  strategies: `
+${'═'.repeat(70)}
+  BETTING STRATEGIES
+${'═'.repeat(70)}
+
+  Betting strategies control how your wager changes based on wins/losses.
+  Use with --loop for continuous play.
+
+  SYNTAX:
+    apechurch play <game> <base-bet> --loop --bet-strategy <name> --max-bet <cap>
+
+${'─'.repeat(70)}
+  FLAT (Default) - Safest
+${'─'.repeat(70)}
+
+  Same bet every time regardless of wins or losses.
+  
+  • Risk: LOW
+  • Bankroll Impact: Predictable, slow grind
+  • Best For: Long sessions, learning games
+  
+  Example: apechurch play roulette 10 RED --loop
+
+${'─'.repeat(70)}
+  MARTINGALE - High Risk
+${'─'.repeat(70)}
+
+  Double bet after each loss, reset to base on win.
+  Theory: Eventually win and recover all losses + base profit.
+  
+  • Risk: HIGH - Can deplete bankroll fast
+  • Progression: 10 → 20 → 40 → 80 → 160 → ...
+  • 10 losses = 1024x base bet needed!
+  
+  ⚠️  ALWAYS use --max-bet to cap progression!
+  
+  Example:
+    apechurch play roulette 10 RED --loop \\
+      --bet-strategy martingale --max-bet 100
+
+${'─'.repeat(70)}
+  REVERSE MARTINGALE (Anti-Martingale) - Medium Risk
+${'─'.repeat(70)}
+
+  Double bet after each WIN, reset to base on loss.
+  Theory: Ride winning streaks, limit losses.
+  
+  • Risk: MEDIUM - Losses capped at base bet
+  • Best For: Short aggressive sessions
+  • Downside: One loss wipes streak gains
+  
+  Example:
+    apechurch play roulette 10 RED --loop \\
+      --bet-strategy reverse-martingale --max-bet 80
+
+${'─'.repeat(70)}
+  FIBONACCI - Medium-High Risk
+${'─'.repeat(70)}
+
+  On loss: move forward in Fibonacci sequence (1,1,2,3,5,8,13,21...)
+  On win: move back 2 steps
+  
+  • Risk: MEDIUM-HIGH - Slower than Martingale
+  • Progression: 10 → 10 → 20 → 30 → 50 → 80 → ...
+  • Recovery: Win jumps back 2 positions
+  
+  Example:
+    apechurch play roulette 10 RED --loop \\
+      --bet-strategy fibonacci --max-bet 150
+
+${'─'.repeat(70)}
+  D'ALEMBERT - Low-Medium Risk
+${'─'.repeat(70)}
+
+  On loss: add 1 unit to bet
+  On win: subtract 1 unit (minimum = base bet)
+  
+  • Risk: LOW-MEDIUM - Linear growth (safest progressive)
+  • Progression: 10 → 20 → 30 → 40 (vs exponential)
+  • Best For: Conservative players wanting some progression
+  
+  Example:
+    apechurch play roulette 10 RED --loop \\
+      --bet-strategy dalembert --max-bet 100
+
+${'─'.repeat(70)}
+  IMPORTANT: --max-bet
+${'─'.repeat(70)}
+
+  Progressive strategies can spiral quickly. ALWAYS set --max-bet.
+  
+  When bet would exceed --max-bet:
+    • Bet is capped at max-bet value
+    • Strategy state continues (doesn't reset)
+    • Output shows "(capped)" when this happens
+
+${'═'.repeat(70)}
+`,
+
+  auto: `
+${'═'.repeat(70)}
+  AUTO-PLAY MODE
+${'═'.repeat(70)}
+
+  The --auto flag makes the CLI play optimally without human input.
+  Available on games that require decisions (Blackjack, Video Poker).
+
+${'─'.repeat(70)}
+  BLACKJACK --auto
+${'─'.repeat(70)}
+
+  Uses Basic Strategy - mathematically optimal play based on:
+    • Your hand total (hard/soft)
+    • Dealer's up card
+    • Available actions (hit, stand, double, split, etc.)
+  
+  Commands:
+    apechurch blackjack 10 --auto              # One hand, auto-play
+    apechurch blackjack 10 --auto --loop       # Continuous auto-play
+  
+  Strategy includes:
+    • When to hit vs stand
+    • When to double down
+    • When to split pairs
+    • When to surrender (if offered)
+    • Insurance decisions (always decline - correct play)
+
+${'─'.repeat(70)}
+  VIDEO POKER --auto
+${'─'.repeat(70)}
+
+  Uses Optimal Hold Strategy for Jacks or Better:
+    • Analyzes all 32 possible hold combinations
+    • Picks the hold with highest expected value
+  
+  Commands:
+    apechurch video-poker 10 --auto            # One hand, auto-play
+    apechurch video-poker 10 --auto --loop     # Continuous auto-play
+
+${'─'.repeat(70)}
+  SIMPLE GAMES
+${'─'.repeat(70)}
+
+  Games like Roulette, Plinko, etc. don't need --auto because
+  there are no mid-game decisions. Just use --loop for continuous play:
+  
+    apechurch play roulette 10 RED --loop
+    apechurch play plinko 10 2 50 --loop
+
+${'─'.repeat(70)}
+  COMBINING WITH STRATEGIES
+${'─'.repeat(70)}
+
+  Auto-play works with all betting strategies:
+  
+    apechurch blackjack 10 --auto --loop \\
+      --bet-strategy martingale --max-bet 100 \\
+      --target 200 --stop-loss 50
+
+${'─'.repeat(70)}
+  DISPLAY MODES
+${'─'.repeat(70)}
+
+  --display full     ASCII card art (default for humans)
+  --display simple   Text-only cards (less visual)
+  --display json     Machine-readable (for AI agents)
+  --json             Shortcut for --display json
+
+${'═'.repeat(70)}
+`,
+
+  wallet: `
+${'═'.repeat(70)}
+  WALLET MANAGEMENT
+${'═'.repeat(70)}
+
+  Your wallet is stored in ~/.apechurch/wallet.json
+  It holds your private key - this controls your funds!
+
+${'─'.repeat(70)}
+  BASIC COMMANDS
+${'─'.repeat(70)}
+
+  apechurch wallet export      Show your private key (BACK THIS UP!)
+  apechurch wallet status      Check encryption status and session
+  apechurch wallet reset       Generate new wallet (⚠️ DELETES OLD ONE)
+
+${'─'.repeat(70)}
+  OPTIONAL ENCRYPTION
+${'─'.repeat(70)}
+
+  You can password-protect your wallet file.
+  
+  ⚠️  NOT RECOMMENDED FOR AI AGENTS
+  ⚠️  FORGOT PASSWORD = FUNDS LOST FOREVER
+  
+  Commands:
+    apechurch wallet encrypt   Add password protection
+    apechurch wallet decrypt   Remove password protection
+  
+  When encrypted:
+    • Private key is encrypted with AES-256-GCM
+    • Password required for any transaction
+    • Sessions cache decrypted key temporarily
+
+${'─'.repeat(70)}
+  SESSIONS (for encrypted wallets)
+${'─'.repeat(70)}
+
+  Sessions let you unlock once and play without re-entering password.
+  
+  apechurch wallet unlock               # 3-hour session (default)
+  apechurch wallet unlock --timeout 8   # 8-hour session
+  apechurch wallet lock                 # End session immediately
+  
+  Sessions auto-expire. Check with:
+    apechurch wallet status
+
+${'─'.repeat(70)}
+  PASSWORD HINTS
+${'─'.repeat(70)}
+
+  Store up to 3 hints to help remember your password:
+  
+  apechurch wallet hints                # View current hints
+  apechurch wallet hints --set          # Update hints interactively
+
+${'─'.repeat(70)}
+  AUTOMATION (AI Agents)
+${'─'.repeat(70)}
+
+  For automated systems, set the password via environment variable:
+  
+    export APECHURCH_PASSWORD="your-password"
+  
+  This avoids interactive prompts. But again, for AI agents,
+  it's simpler to just leave the wallet unencrypted.
+
+${'─'.repeat(70)}
+  BACKUP YOUR KEY!
+${'─'.repeat(70)}
+
+  Run: apechurch wallet export
+  
+  Store the private key somewhere safe (password manager, etc.)
+  Anyone with this key can steal your funds.
+
+${'═'.repeat(70)}
+`,
+
+  house: `
+${'═'.repeat(70)}
+  THE HOUSE - Be the Casino
+${'═'.repeat(70)}
+
+  The House is a decentralized liquidity pool that backs all games.
+  When you deposit, you become "the house" and share in player outcomes.
+  
+  • Players win → House loses (you lose proportionally)
+  • Players lose → House wins (you earn proportionally)
+  • Long-term: House has mathematical edge (~2-10% depending on game)
+
+${'─'.repeat(70)}
+  CHECK STATUS
+${'─'.repeat(70)}
+
+  apechurch house
+  
+  Shows:
+    • Total House liquidity
+    • Your HOUSE tokens (your share)
+    • Your APE equivalent value
+    • Unlock status (15-min lock after deposit)
+    • Your all-time profits/losses
+
+${'─'.repeat(70)}
+  DEPOSIT
+${'─'.repeat(70)}
+
+  apechurch house deposit <amount>
+  
+  Example: apechurch house deposit 100
+  
+  • You send APE, receive HOUSE tokens
+  • HOUSE tokens = your share of the pool
+  • 15-MINUTE LOCK after deposit (prevents flash-loan attacks)
+  • Price fluctuates based on House P&L
+
+${'─'.repeat(70)}
+  WITHDRAW
+${'─'.repeat(70)}
+
+  apechurch house withdraw <amount>
+  
+  Example: apechurch house withdraw 50
+  
+  • Burns HOUSE tokens, returns APE
+  • 2% WITHDRAWAL FEE (protocol revenue)
+  • Must be unlocked (15 min after last deposit)
+  • Amount is in APE, not HOUSE tokens
+
+${'─'.repeat(70)}
+  RISK PROFILE
+${'─'.repeat(70)}
+
+  Being the House is NOT risk-free:
+  
+  ✓ Long-term edge: Games favor the house mathematically
+  ✗ Short-term variance: Lucky players can hurt the pool
+  ✗ 2% fee on withdrawals
+  ✗ 15-min lock (can't exit immediately)
+  
+  Good for: Long-term passive income, believers in the protocol
+  Bad for: Short-term traders, risk-averse investors
+
+${'─'.repeat(70)}
+  HOW PRICING WORKS
+${'─'.repeat(70)}
+
+  HOUSE token price = Total APE in House / Total HOUSE supply
+  
+  • If players lose → APE increases → HOUSE price goes UP
+  • If players win → APE decreases → HOUSE price goes DOWN
+  
+  Your position value = Your HOUSE tokens × Current price
+
+${'═'.repeat(70)}
+`,
+};
+
+program
+  .command('help [topic]')
+  .description('Get detailed help on a topic (loop, strategies, auto, wallet, house)')
+  .option('--json', 'JSON output')
+  .action((topic, opts) => {
+    const topics = Object.keys(HELP_TOPICS);
+    
+    if (!topic) {
+      // List available topics
+      if (opts.json) {
+        console.log(JSON.stringify({ topics }));
+        return;
+      }
+      console.log(`
+${'═'.repeat(60)}
+  HELP TOPICS
+${'═'.repeat(60)}
+
+  apechurch help loop         Loop mode and safety controls
+  apechurch help strategies   Betting strategies in detail
+  apechurch help auto         Auto-play for Blackjack/Video Poker
+  apechurch help wallet       Wallet security and encryption
+  apechurch help house        The House staking system
+
+  Also see:
+    apechurch commands        Full command reference
+    apechurch games           List all games
+    apechurch game <name>     Detailed game info
+
+${'═'.repeat(60)}
+`);
+      return;
+    }
+    
+    const key = topic.toLowerCase().trim();
+    const content = HELP_TOPICS[key];
+    
+    if (!content) {
+      if (opts.json) {
+        console.log(JSON.stringify({ error: `Unknown topic: ${topic}`, available: topics }));
+      } else {
+        console.log(`\n❌ Unknown topic: "${topic}"\n\nAvailable topics: ${topics.join(', ')}\n`);
+      }
+      return;
+    }
+    
+    if (opts.json) {
+      console.log(JSON.stringify({ topic: key, content: content.trim() }));
+    } else {
+      console.log(content);
+    }
   });
 
 // ============================================================================
