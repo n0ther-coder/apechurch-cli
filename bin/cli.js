@@ -145,6 +145,17 @@ import {
 import { playGame, resolveGame } from '../lib/games/index.js';
 import { GAME_REGISTRY, listGames } from '../registry.js';
 import { getStrategy, listStrategies, getStrategyNames, calculateNextBet } from '../lib/strategies/index.js';
+import {
+  theme,
+  formatPnL,
+  formatBalance,
+  formatAmount,
+  formatField,
+  formatYesNo,
+  formatHeader,
+  formatAddress,
+  formatHistoryLine,
+} from '../lib/theme.js';
 
 // --- CLI Setup ---
 const program = new Command();
@@ -861,18 +872,19 @@ program
     if (opts.json) {
       console.log(JSON.stringify(response));
     } else {
-      console.log('\n🎰 Ape Church Status\n');
-      console.log(`   Address:    ${response.address}`);
-      console.log(`   Balance:    ${response.balance} APE`);
-      console.log(`   GP:         ${response.gp_balance} GP`);
+      console.log(`\n${formatHeader('Ape Church Status', '🎰')}\n`);
+      console.log(formatField('Address', formatAddress(response.address)));
+      console.log(formatField('Balance', formatBalance(response.balance)));
+      console.log(formatField('GP', theme.yellow(`${response.gp_balance} GP`)));
       if (houseBalanceApe > 0) {
-        console.log(`   House:      ${response.house_balance} APE (staked)`);
+        console.log(formatField('House', theme.staked(`${response.house_balance} APE`) + theme.dim(' (staked)')));
       }
-      console.log(`   Available:  ${response.available_ape} APE`);
-      console.log(`   Username:   ${response.username || '(not set)'}`);
-      console.log(`   Persona:    ${response.persona}`);
-      console.log(`   Paused:     ${response.paused ? 'Yes' : 'No'}`);
-      console.log(`   Can Play:   ${response.can_play ? 'Yes' : 'No'}\n`);
+      console.log(formatField('Available', formatBalance(response.available_ape)));
+      console.log(formatField('Username', response.username ? theme.accent(response.username) : theme.dim('(not set)')));
+      console.log(formatField('Persona', theme.value(response.persona)));
+      console.log(formatField('Paused', response.paused ? theme.warning('Yes') : theme.success('No')));
+      console.log(formatField('Can Play', formatYesNo(response.can_play)));
+      console.log('');
     }
   });
 
@@ -1500,18 +1512,18 @@ program
             const payoutApe = parseFloat(playResponse.result.payout_ape);
             const wagerApeNum = parseFloat(wagerApeString);
             if (won) {
-              console.log(`🎉 WON! ${wagerApeNum.toFixed(2)} APE → ${payoutApe.toFixed(2)} APE (+${pnlApe.toFixed(2)} APE)\n`);
+              console.log(`${theme.win('🎉 WON!')} ${theme.amount(`${wagerApeNum.toFixed(2)} APE`)} → ${theme.balance(`${payoutApe.toFixed(2)} APE`)} ${theme.positive(`(+${pnlApe.toFixed(2)} APE)`)}\n`);
             } else if (payoutApe > 0) {
               // Partial loss - got some back
               const lostApe = Math.abs(pnlApe);
-              console.log(`❌ Lost ${lostApe.toFixed(2)} APE (${wagerApeNum.toFixed(2)} APE → ${payoutApe.toFixed(2)} APE)\n`);
+              console.log(`${theme.loss('❌ Lost')} ${theme.negative(`${lostApe.toFixed(2)} APE`)} ${theme.dim(`(${wagerApeNum.toFixed(2)} → ${payoutApe.toFixed(2)} APE)`)}\n`);
             } else {
               // Total loss
-              console.log(`❌ Lost ${wagerApeNum.toFixed(2)} APE — better luck next time!\n`);
+              console.log(`${theme.loss('❌ Lost')} ${theme.negative(`${wagerApeNum.toFixed(2)} APE`)} ${theme.dim('— better luck next time!')}\n`);
             }
           } else {
             // Result pending (rare - if event didn't fire in time)
-            console.log(`⏳ Pending — watch result: ${playResponse.game_url}\n`);
+            console.log(`${theme.pending('⏳ Pending')} — watch result: ${theme.command(playResponse.game_url)}\n`);
           }
         }
 
@@ -1960,11 +1972,9 @@ program
     if (opts.json) {
       console.log(JSON.stringify({ games: results }));
     } else {
-      console.log('\n📜 Recent Games\n');
+      console.log(`\n${formatHeader('Recent Games', '📜')}\n`);
       for (const r of results) {
-        const status = r.settled ? (r.won ? '✅' : '❌') : '⏳';
-        const pnl = parseFloat(r.pnl_ape) >= 0 ? `+${r.pnl_ape}` : r.pnl_ape;
-        console.log(`   ${status} ${r.game}: ${r.wager_ape} APE → ${pnl} APE`);
+        console.log(formatHistoryLine(r));
       }
       console.log('');
     }
@@ -1989,11 +1999,11 @@ program
       }));
       console.log(JSON.stringify({ games }));
     } else {
-      console.log('\n🎰 Available Games\n');
+      console.log(`\n${formatHeader('Available Games', '🎰')}\n`);
       for (const game of GAME_REGISTRY) {
-        console.log(`   ${game.name} (${game.key})`);
-        console.log(`      ${game.description}`);
-        if (game.aliases?.length) console.log(`      Aliases: ${game.aliases.join(', ')}`);
+        console.log(`   ${theme.gameName(game.name)} ${theme.dim(`(${game.key})`)}`);
+        console.log(`      ${theme.value(game.description)}`);
+        if (game.aliases?.length) console.log(`      ${theme.label('Aliases:')} ${theme.dim(game.aliases.join(', '))}`);
         console.log('');
       }
     }
@@ -3065,21 +3075,23 @@ program
       if (opts.json) {
         console.log(JSON.stringify(response));
       } else {
-        console.log('\n🏠 The House\n');
-        console.log(`   Total Staked:  ${totalSupplyApe.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} APE`);
-        console.log(`   Max Payout:    ${maxPayoutApe.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} APE`);
-        console.log(`   House Yield:   ${priceMultiplier.toFixed(4)}x (${((priceMultiplier - 1) * 100).toFixed(2)}% profit since launch)`);
+        console.log(`\n${formatHeader('The House', '🏠')}\n`);
+        console.log(formatField('Total Staked', theme.staked(`${totalSupplyApe.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} APE`), 14));
+        console.log(formatField('Max Payout', formatAmount(maxPayoutApe, 2), 14));
+        const yieldPct = ((priceMultiplier - 1) * 100).toFixed(2);
+        console.log(formatField('House Yield', `${theme.multiplier(`${priceMultiplier.toFixed(4)}x`)} ${theme.yield(`(+${yieldPct}% since launch)`)}`, 14));
         
         if (hasWallet && userBalanceApe > 0) {
-          console.log('\n   Your Position:');
-          console.log(`   Staked:        ${userBalanceApe.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} APE`);
-          console.log(`   Total Profit:  ${userProfitsApe >= 0 ? '+' : ''}${userProfitsApe.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} APE`);
-          console.log(`   Unlock:        ${formatTimeRemaining(lockSeconds)}`);
+          console.log(`\n   ${theme.subheader('Your Position:')}`);
+          console.log(formatField('Staked', theme.staked(`${userBalanceApe.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} APE`), 14));
+          const profitColor = userProfitsApe >= 0 ? theme.positive : theme.negative;
+          console.log(formatField('Total Profit', profitColor(`${userProfitsApe >= 0 ? '+' : ''}${userProfitsApe.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} APE`), 14));
+          console.log(formatField('Unlock', lockSeconds > 0 ? theme.locked(formatTimeRemaining(lockSeconds)) : theme.success('Unlocked'), 14));
         } else if (hasWallet) {
-          console.log('\n   You have no APE staked in The House.');
-          console.log('   Run: apechurch house deposit <amount>');
+          console.log(`\n   ${theme.dim('You have no APE staked in The House.')}`);
+          console.log(`   ${theme.dim('Run:')} ${theme.command('apechurch house deposit <amount>')}`);
         } else {
-          console.log('\n   No wallet found. Run: apechurch install');
+          console.log(`\n   ${theme.warning('No wallet found.')} ${theme.dim('Run:')} ${theme.command('apechurch install')}`);
         }
         console.log('');
       }

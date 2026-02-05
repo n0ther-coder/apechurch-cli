@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.14] - 2026-02-05
+
+### Added
+- **Color Theme System**: Unified semantic color theming via `lib/theme.js`
+  - Semantic colors: win/loss, positive/negative, success/error, etc.
+  - Formatters: `formatPnL()`, `formatBalance()`, `formatHistoryLine()`, etc.
+  - Card colors: Red suits (♥ ♦) vs black suits (♠ ♣)
+  - Uses chalk with automatic NO_COLOR support
+  - Self-documenting for future commands
+
+### Changed
+- **status**: Colored output with semantic styling
+- **history**: Games colored by win/loss, improved formatting
+- **games**: Game names highlighted, descriptions styled
+- **play**: Win/loss results now color-coded with P&L
+- **house status**: Yields green, staked amounts blue, profits colored
+- Stateful games (blackjack, video-poker) get colored card rendering
+
+### Developer Notes
+- New code should import from `lib/theme.js`
+- Use semantic colors (`theme.win`, `theme.error`) not raw colors
+- Formatters handle sign/color automatically
+- Legacy `colorize()` in display.js deprecated but still works
+
 ## [1.2.13] - 2026-02-05
 
 ### Added
