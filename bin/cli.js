@@ -90,6 +90,7 @@ import {
 } from '../lib/strategy.js';
 import { playGame, resolveGame } from '../lib/games/index.js';
 import { GAME_REGISTRY, listGames } from '../registry.js';
+import { getStrategy, listStrategies, getStrategyNames, calculateNextBet } from '../lib/strategies/index.js';
 
 // --- CLI Setup ---
 const program = new Command();
@@ -1016,6 +1017,8 @@ program
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
+  .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--json', 'JSON output only')
   .action(async (gameArg, amountArg, configArgs, opts) => {
     const account = await getWalletWithPrompt({ json: opts.json });
@@ -1025,8 +1028,19 @@ program
     const targetBalance = opts.target ? parseFloat(opts.target) : null;
     const stopLoss = opts.stopLoss ? parseFloat(opts.stopLoss) : null;
     const maxGames = opts.maxGames ? parseInt(opts.maxGames, 10) : null;
+    const maxBet = opts.maxBet ? parseFloat(opts.maxBet) : null;
+    
+    // Betting strategy setup
+    const betStrategyName = opts.betStrategy || 'flat';
+    const betStrategy = getStrategy(betStrategyName);
+    if (!betStrategy) {
+      console.error(JSON.stringify({ error: `Unknown betting strategy: ${betStrategyName}. Available: ${getStrategyNames()}` }));
+      process.exit(1);
+    }
+    
     let startingBalance = null;
     let gamesPlayed = 0;
+    let lastGameResult = null; // Track for betting strategy
 
     const gameInput = gameArg || opts.game;
     const amountInput = amountArg || opts.amount;
@@ -1109,16 +1123,21 @@ program
 
     if (loopMode && !opts.json) {
       const gameInfo = fixedGame ? fixedGame.name : 'random games';
-      console.log(`\n🔄 Loop mode: ${gameInfo} (${delaySeconds}s between games, Ctrl+C to stop)`);
+      const strategyInfo = betStrategyName !== 'flat' ? ` | Strategy: ${betStrategyName}` : '';
+      const maxBetInfo = maxBet ? ` | Max bet: ${maxBet} APE` : '';
+      console.log(`\n🔄 Loop mode: ${gameInfo} (${delaySeconds}s delay${strategyInfo}${maxBetInfo})`);
+      if (targetBalance) console.log(`   🎯 Target: ${targetBalance} APE`);
+      if (stopLoss) console.log(`   🛑 Stop-loss: ${stopLoss} APE`);
+      if (maxGames) console.log(`   🏁 Max games: ${maxGames}`);
       console.log('─'.repeat(50));
     }
 
-    async function playOnce() {
+    async function playOnce(betOverride = null) {
       const state = loadState();
       const freshProfile = loadProfile();
       
       if (freshProfile.paused) {
-        return { shouldStop: true, reason: 'paused' };
+        return { shouldStop: true, reason: 'paused', gameResult: null };
       }
 
       const strategy = normalizeStrategy(opts.strategy || freshProfile.persona);
@@ -1133,7 +1152,7 @@ program
         balance = await publicClient.getBalance({ address: account.address });
       } catch (error) {
         console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
-        return { shouldStop: true, reason: 'balance_error' };
+        return { shouldStop: true, reason: 'balance_error', gameResult: null };
       }
 
       const balanceApe = parseFloat(formatEther(balance));
@@ -1149,20 +1168,27 @@ program
         };
         if (opts.json) console.log(JSON.stringify(response));
         else console.log(JSON.stringify(response, null, 2));
-        return { shouldStop: true, reason: 'insufficient_balance' };
+        return { shouldStop: true, reason: 'insufficient_balance', gameResult: null };
       }
 
-      // Determine wager
+      // Determine wager (betOverride from betting strategy takes precedence in loop mode)
       let wagerApe;
-      if (amountInput) {
+      if (betOverride !== null) {
+        wagerApe = betOverride;
+        // Cap at available balance
+        if (wagerApe > availableApe) {
+          wagerApe = availableApe;
+          if (!opts.json) console.log(`   ⚠️  Bet capped to available balance: ${wagerApe.toFixed(2)} APE`);
+        }
+      } else if (amountInput) {
         wagerApe = parseFloat(amountInput);
         if (isNaN(wagerApe) || wagerApe <= 0) {
           console.error(JSON.stringify({ error: 'Invalid amount.' }));
-          return { shouldStop: true, reason: 'invalid_amount' };
+          return { shouldStop: true, reason: 'invalid_amount', gameResult: null };
         }
         if (wagerApe > availableApe) {
           console.error(JSON.stringify({ error: `Insufficient balance. Available: ${availableApe.toFixed(4)} APE` }));
-          return { shouldStop: true, reason: 'insufficient_balance' };
+          return { shouldStop: true, reason: 'insufficient_balance', gameResult: null };
         }
       } else {
         wagerApe = calculateWager(availableApe, strategyConfig);
@@ -1409,24 +1435,36 @@ program
           }
         }
 
-        return { shouldStop: false };
+        // Return game result for betting strategy
+        const gameResult = hasResult ? {
+          won,
+          bet: parseFloat(wagerApeString),
+          payout: parseFloat(playResponse.result.payout_ape),
+        } : null;
+        
+        return { shouldStop: false, gameResult };
       } catch (error) {
         if (opts.json) {
           console.error(JSON.stringify({ error: error.message }));
         } else {
           console.error(`\n❌ Error: ${error.message}\n`);
         }
-        return { shouldStop: true, reason: 'error' };
+        return { shouldStop: true, reason: 'error', gameResult: null };
       }
     }
 
     // Execute
     if (loopMode) {
+      // Initialize betting strategy
+      const baseBet = amountInput ? parseFloat(amountInput) : 10; // Default base bet
+      let betStrategyState = betStrategy.init(baseBet, { maxBet });
+      
       while (true) {
         // Check balance for target/stop-loss
         const { publicClient } = createClients();
         const balance = await publicClient.getBalance({ address: account.address });
         const balanceApe = parseFloat(formatEther(balance));
+        const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
         
         // Track starting balance
         if (startingBalance === null) startingBalance = balanceApe;
@@ -1458,8 +1496,27 @@ program
           break;
         }
         
-        const result = await playOnce();
+        // Calculate next bet using betting strategy
+        const { bet: nextBet, state: newState, capped } = calculateNextBet(
+          betStrategy, betStrategyState, lastGameResult, 
+          { maxBet, availableBalance: availableApe }
+        );
+        betStrategyState = newState;
+        
+        // Show bet info for progressive strategies
+        if (!opts.json && betStrategyName !== 'flat') {
+          const betInfo = capped ? ` (capped from ${betStrategyState.currentBet?.toFixed(2) || nextBet.toFixed(2)})` : '';
+          console.log(`   📊 ${betStrategyName}: betting ${nextBet.toFixed(2)} APE${betInfo}`);
+        }
+        
+        const result = await playOnce(nextBet);
         gamesPlayed++;
+        
+        // Track result for betting strategy
+        if (result.gameResult) {
+          lastGameResult = result.gameResult;
+        }
+        
         if (result.shouldStop) break;
         
         // Show balance and countdown before next game
@@ -2097,15 +2154,40 @@ CONTEST
   apechurch contest              Contest info and your status
   apechurch contest register     Register for the contest (5 APE)
 
+LOOP OPTIONS
+  --loop                  Play continuously
+  --target <ape>          Stop when balance reaches target
+  --stop-loss <ape>       Stop when balance drops to limit
+  --max-games <count>     Stop after N games
+  --bet-strategy <name>   Betting strategy (flat, martingale, etc.)
+  --max-bet <ape>         Maximum bet cap (for progressive strategies)
+
+BETTING STRATEGIES
+  flat                    Same bet every time (default)
+  martingale              Double on loss, reset on win
+  reverse-martingale      Double on win, reset on loss
+  fibonacci               Fibonacci sequence on loss
+  dalembert               +1 unit on loss, -1 on win
+
 EXAMPLES
   apechurch play jungle-plinko 10 2 50
   apechurch play roulette 50 RED
   apechurch play ape-strong 10 50
-  apechurch play --loop --strategy aggressive
+  
+  # Loop with safety limits
+  apechurch play --loop --target 200 --stop-loss 50
+  
+  # Martingale: start at 10, double on loss, max 100
+  apechurch play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
+  
+  # Blackjack with strategy
+  apechurch blackjack 5 --auto --loop --bet-strategy martingale --target 100
+  
+  # Run exactly 20 games
+  apechurch play ape-strong 10 --loop --max-games 20
+  
   apechurch register --username my_bot_name
-  apechurch profile set --referral 0x1234...abcd
   apechurch send APE 10 0x1234...abcd
-  apechurch send GP 500 0x1234...abcd
 
 ASSETS
   APE    Native currency (18 decimals)
