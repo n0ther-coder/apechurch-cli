@@ -77,6 +77,9 @@ import {
   generateUsername,
   normalizeUsername,
   normalizeStrategy,
+  getActiveGames,
+  saveActiveGames,
+  loadActiveGames,
 } from '../lib/profile.js';
 import {
   getStrategyConfig,
@@ -2658,11 +2661,25 @@ program
       case 'insurance':
       case 'surrender':
         return blackjack.action(actionLower, opts);
+      
+      case 'clear': {
+        const games = loadActiveGames();
+        const bjGames = games['blackjack'] || [];
+        if (bjGames.length === 0) {
+          console.log('\n✅ No active blackjack games to clear.\n');
+        } else {
+          console.log(`\n🗑️  Clearing ${bjGames.length} stored blackjack game(s)...`);
+          games['blackjack'] = [];
+          saveActiveGames(games);
+          console.log('✅ Done.\n');
+        }
+        return;
+      }
         
       default:
         console.error(`\n❌ Unknown action: ${action}`);
         console.error('   Valid actions: hit, stand, double, split, insurance, surrender');
-        console.error('   Or: resume, status\n');
+        console.error('   Or: resume, status, clear\n');
     }
   });
 
@@ -2709,10 +2726,24 @@ program
       case 'payouts':
       case 'table':
         return videoPoker.payouts();
+      
+      case 'clear': {
+        const games = loadActiveGames();
+        const vpGames = games['video-poker'] || [];
+        if (vpGames.length === 0) {
+          console.log('\n✅ No active video poker games to clear.\n');
+        } else {
+          console.log(`\n🗑️  Clearing ${vpGames.length} stored video poker game(s)...`);
+          games['video-poker'] = [];
+          saveActiveGames(games);
+          console.log('✅ Done.\n');
+        }
+        return;
+      }
         
       default:
         console.error(`\n❌ Unknown action: ${action}`);
-        console.error('   Valid actions: resume, status, payouts');
+        console.error('   Valid actions: resume, status, payouts, clear');
         console.error('   Or provide a bet amount: 1, 5, 10, 25, 50, 100\n');
     }
   });
