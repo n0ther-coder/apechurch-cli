@@ -1,0 +1,33 @@
+# Development files
+.git
+.gitignore
+.github
+
+# Documentation (keep README, exclude dev docs)
+ADDING_GAMES.md
+REFACTOR_PLAN.md
+HEARTBEAT.md
+PUBLISHING.md
+THESIS.md
+agent_nodes.md
+docs/
+
+# Test files (users can get from GitHub)
+tests/
+
+# Examples
+example_*.js
+
+# Editor/IDE
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.tgz
+*.log

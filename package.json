@@ -1,14 +1,15 @@
 {
   "name": "@ape-church/skill",
   "version": "1.2.16",
-  "description": "Autonomous agent skill for Ape Church on ApeChain.",
+  "description": "Autonomous agent skill for Ape Church on ApeChain. Play casino games, manage wallets, and automate betting strategies.",
   "main": "index.js",
   "scripts": {
     "test": "node --test tests/unit/*.test.js tests/integration/*.test.js",
     "test:unit": "node --test tests/unit/*.test.js",
     "test:integration": "node --test tests/integration/*.test.js",
     "test:safe": "node --test tests/unit/*.test.js tests/integration/commands.test.js",
-    "test:live": "node --test tests/integration/games.test.js"
+    "test:live": "node --test tests/integration/games.test.js",
+    "prepublishOnly": "npm run test:unit"
   },
   "bin": {
     "apechurch": "./bin/cli.js"
@@ -18,16 +19,31 @@
     "node": ">=18"
   },
   "keywords": [
-    "openclaw",
-    "agent",
-    "casino",
     "apechain",
-    "ape",
-    "church",
-    "apechurch"
+    "apechurch",
+    "ape-church",
+    "casino",
+    "gambling",
+    "blockchain",
+    "web3",
+    "agent",
+    "ai-agent",
+    "autonomous",
+    "cli",
+    "blackjack",
+    "roulette",
+    "poker"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Ape Church <dev@ape.church>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ape-church/agent-skills.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ape-church/agent-skills/issues"
+  },
+  "homepage": "https://ape.church",
   "dependencies": {
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
