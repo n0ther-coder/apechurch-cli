@@ -1,7 +1,7 @@
 {
-  "name": "@ape-church/skill",
+  "name": "@apechurch-hf/apechurch-cli-gx54",
   "version": "1.2.18",
-  "description": "Autonomous agent skill for Ape Church on ApeChain. Play casino games, manage wallets, and automate betting strategies.",
+  "description": "Hardened autonomous agent CLI for Ape Church on ApeChain. Local-only signing with encrypted wallet storage.",
   "main": "index.js",
   "scripts": {
     "test": "node --test tests/unit/*.test.js tests/integration/*.test.js",
@@ -12,7 +12,7 @@
     "prepublishOnly": "npm run test:unit"
   },
   "bin": {
-    "apechurch": "./bin/cli.js"
+    "apechurch-cli-gx54": "./bin/cli.js"
   },
   "type": "module",
   "engines": {

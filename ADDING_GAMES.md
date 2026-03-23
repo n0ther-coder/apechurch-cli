@@ -1,6 +1,6 @@
 # Adding Games to Ape Church CLI
 
-This guide documents everything needed to add or modify games in the `apechurch` CLI.
+This guide documents everything needed to add or modify games in the `apechurch-cli-gx54` CLI.
 
 ## Quick Reference
 
@@ -255,7 +255,7 @@ vrfFee = await publicClient.readContract({
 - [ ] Updated `bet` command if it has unique params
 - [ ] Updated `heartbeat` command playGame call
 - [ ] Updated help text and examples
-- [ ] Tested with `apechurch games` and `apechurch game <name>`
+- [ ] Tested with `apechurch-cli-gx54 games` and `apechurch-cli-gx54 game <name>`
 - [ ] Tested actual gameplay
 
 ---
@@ -264,22 +264,22 @@ vrfFee = await publicClient.readContract({
 
 ```bash
 # List all games (verify new game appears)
-apechurch games
+apechurch-cli-gx54 games
 
 # Show game details
-apechurch game new-game
+apechurch-cli-gx54 game new-game
 
 # Test positional syntax
-apechurch play new-game 10 <config>
+apechurch-cli-gx54 play new-game 10 <config>
 
 # Test flag syntax
-apechurch play --game new-game --amount 10 --param1 5
+apechurch-cli-gx54 play --game new-game --amount 10 --param1 5
 
 # Test loop mode
-apechurch play new-game 10 <config> --loop
+apechurch-cli-gx54 play new-game 10 <config> --loop
 
 # Test JSON output
-apechurch play new-game 10 <config> --json
+apechurch-cli-gx54 play new-game 10 <config> --json
 ```
 
 ---

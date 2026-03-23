@@ -6,7 +6,8 @@
  * 
  * Prerequisites:
  * - Funded wallet with at least 20 APE
- * - Unencrypted wallet (or active session)
+ * - Encrypted wallet installed locally
+ * - Password available via prompt or APECHURCH_CLI_GX54_PASS before signing
  * 
  * To skip these tests, set: SKIP_LIVE_TESTS=1
  */

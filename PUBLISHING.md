@@ -28,19 +28,19 @@ Example:
    - `npm publish --access public`
 
 ### 4) Verify
-- `npm view @ape-church/skill version`
+- `npm view @apechurch-hf/apechurch-cli-gx54 version`
 - Install from a clean machine:
-  - `npm install -g @ape-church/skill`
+  - `npm install -g @apechurch-hf/apechurch-cli-gx54`
 
 ---
 
 ## Client: Human User Setup
 
 ### Install
-1. `npm install -g @ape-church/skill`
+1. `npm install -g @apechurch-hf/apechurch-cli-gx54`
    - Requires Node.js >= 18
-2. `apechurch install`
-   - Generates wallet
+2. `apechurch-cli-gx54 install`
+   - Requires APECHURCH_CLI_GX54_PK and stores only an encrypted wallet locally
    - Registers username via SIWE (auto-generated unless provided)
    - Prints funding guide and wallet address
 
@@ -54,30 +54,30 @@ Steps:
    `Select wallet -> Paste wallet address`
 
 ### Check Status
-`apechurch status --json`
+`apechurch-cli-gx54 status --json`
 
 ### Optional: Set Persona
-`apechurch profile set --persona balanced`
+`apechurch-cli-gx54 profile set --persona balanced`
 
 ### Run Autonomy
-`apechurch heartbeat --strategy balanced`
+`apechurch-cli-gx54 heartbeat --strategy balanced`
 
 ---
 
 ## Client: Agent-Driven Setup
 
 ### Install & Register
-1. `npm install -g @ape-church/skill`
+1. `npm install -g @apechurch-hf/apechurch-cli-gx54`
    - Requires Node.js >= 18
-2. `apechurch install --username <NAME>`
+2. `apechurch-cli-gx54 install --username <NAME>`
    - If no username is given, one is generated.
 
 ### Persona (Optional)
-`apechurch profile set --persona aggressive`
+`apechurch-cli-gx54 profile set --persona aggressive`
 
 ### Autonomous Play
 Run on a schedule:
-`apechurch heartbeat --strategy balanced`
+`apechurch-cli-gx54 heartbeat --strategy balanced`
 
 Notes:
 - Heartbeat runs at most one play per invocation.
@@ -88,8 +88,8 @@ Notes:
 ## Updates (Option A Registry)
 - New games are shipped via package updates only.
 - Clients must run:
-  - `npm update -g @ape-church/skill`
-  - or reinstall with `npm install -g @ape-church/skill`
+  - `npm update -g @apechurch-hf/apechurch-cli-gx54`
+  - or reinstall with `npm install -g @apechurch-hf/apechurch-cli-gx54`
 
 ---
 
@@ -102,11 +102,11 @@ Notes:
 
 ### Migration steps for clients
 1. Update:
-   - `npm update -g @ape-church/skill`
+   - `npm update -g @apechurch-hf/apechurch-cli-gx54`
 2. Verify version:
-   - `apechurch --version`
+   - `apechurch-cli-gx54 --version`
 3. Re-run install to refresh skill files:
-   - `apechurch install`
+   - `apechurch-cli-gx54 install`
 
 ### Notes
 - Registry is bundled in the package; updating is required for new games.
@@ -114,7 +114,7 @@ Notes:
 ---
 
 ## Profile Overrides (Optional)
-Profiles live at `~/.apechurch/profile.json` and can override strategy defaults.
+Profiles live at `~/.apechurch-cli-gx54/profile.json` and can override strategy defaults.
 See `profile.example.json` for a full example.
 
 Common override keys:
@@ -135,7 +135,7 @@ Common override keys:
 4. Run a local sanity check:
    - `node -v`
    - `npm -v`
-   - `apechurch install --username TEST_CLAWBOT` (local)
+   - `apechurch-cli-gx54 install --username TEST_CLAWBOT` (local)
 5. Bump version:
    - `npm version patch|minor|major`
 6. Publish:

@@ -6,21 +6,21 @@ homepage: https://ape.church
 metadata: {"emoji": "🦍", "category": "gaming", "chain": "apechain"}
 tools:
   - name: play
-    cmd: apechurch play [game] [amount] [config...] --json
+    cmd: apechurch-cli-gx54 play [game] [amount] [config...] --json
   - name: play_loop
-    cmd: apechurch play --loop --json
+    cmd: apechurch-cli-gx54 play --loop --json
   - name: blackjack
-    cmd: apechurch blackjack <amount> --auto --json
+    cmd: apechurch-cli-gx54 blackjack <amount> --auto --json
   - name: video_poker
-    cmd: apechurch video-poker <amount> --auto --json
+    cmd: apechurch-cli-gx54 video-poker <amount> --auto --json
   - name: status
-    cmd: apechurch status --json
+    cmd: apechurch-cli-gx54 status --json
   - name: games
-    cmd: apechurch games --json
+    cmd: apechurch-cli-gx54 games --json
   - name: pause
-    cmd: apechurch pause
+    cmd: apechurch-cli-gx54 pause
   - name: resume
-    cmd: apechurch resume
+    cmd: apechurch-cli-gx54 resume
 ---
 
 # Ape Church CLI 🦍🎰
@@ -50,22 +50,22 @@ Every bet is placed and settled on-chain via smart contracts. Provably fair with
 
 ```bash
 # Install
-npm install -g @ape-church/skill
+npm install -g @apechurch-hf/apechurch-cli-gx54
 
 # Setup wallet
-apechurch install --username MY_AGENT
+apechurch-cli-gx54 install --username MY_AGENT
 
 # Fund wallet with APE on ApeChain (address shown after install)
 # Bridge: https://relay.link/bridge/apechain
 
 # Check status
-apechurch status
+apechurch-cli-gx54 status
 
 # Play one game
-apechurch play
+apechurch-cli-gx54 play
 
 # Play continuously
-apechurch play --loop
+apechurch-cli-gx54 play --loop
 ```
 
 ---
@@ -96,10 +96,10 @@ apechurch play --loop
 Pick your win probability. Roll under your number to win.
 
 ```bash
-apechurch play ape-strong <amount> <range>
-apechurch play ape-strong 10 50      # 50% chance, 1.95x payout
-apechurch play ape-strong 10 25      # 25% chance, 3.9x payout
-apechurch play ape-strong 10 75      # 75% chance, 1.3x payout
+apechurch-cli-gx54 play ape-strong <amount> <range>
+apechurch-cli-gx54 play ape-strong 10 50      # 50% chance, 1.95x payout
+apechurch-cli-gx54 play ape-strong 10 25      # 25% chance, 3.9x payout
+apechurch-cli-gx54 play ape-strong 10 75      # 75% chance, 1.3x payout
 ```
 
 | Range | Win Chance | Payout |
@@ -119,12 +119,12 @@ apechurch play ape-strong 10 75      # 75% chance, 1.3x payout
 American roulette with 0, 00, and 1-36.
 
 ```bash
-apechurch play roulette <amount> <bet>
-apechurch play roulette 10 RED        # Color bet (2.05x)
-apechurch play roulette 10 17         # Single number (36.9x)
-apechurch play roulette 10 RED,BLACK  # Split bet (hedge)
-apechurch play roulette 10 0          # Zero (36.9x)
-apechurch play roulette 10 00         # Double zero (36.9x)
+apechurch-cli-gx54 play roulette <amount> <bet>
+apechurch-cli-gx54 play roulette 10 RED        # Color bet (2.05x)
+apechurch-cli-gx54 play roulette 10 17         # Single number (36.9x)
+apechurch-cli-gx54 play roulette 10 RED,BLACK  # Split bet (hedge)
+apechurch-cli-gx54 play roulette 10 0          # Zero (36.9x)
+apechurch-cli-gx54 play roulette 10 00         # Double zero (36.9x)
 ```
 
 **Bet Types:**
@@ -148,10 +148,10 @@ apechurch play roulette 10 00         # Double zero (36.9x)
 Classic baccarat. Bet on Player, Banker, or Tie.
 
 ```bash
-apechurch play baccarat <amount> <bet>
-apechurch play baccarat 50 BANKER           # Single bet
-apechurch play baccarat 50 PLAYER           # Single bet
-apechurch play baccarat 150 140 BANKER 10 TIE  # Combined: 140 on Banker, 10 on Tie
+apechurch-cli-gx54 play baccarat <amount> <bet>
+apechurch-cli-gx54 play baccarat 50 BANKER           # Single bet
+apechurch-cli-gx54 play baccarat 50 PLAYER           # Single bet
+apechurch-cli-gx54 play baccarat 150 140 BANKER 10 TIE  # Combined: 140 on Banker, 10 on Tie
 ```
 
 | Bet | Payout |
@@ -171,9 +171,9 @@ apechurch play baccarat 150 140 BANKER 10 TIE  # Combined: 140 on Banker, 10 on 
 Drop balls through pegs into multiplier buckets.
 
 ```bash
-apechurch play jungle-plinko <amount> <mode> <balls>
-apechurch play jungle-plinko 10 2 50    # 10 APE, mode 2, 50 balls
-apechurch play jungle-plinko 50 4 100   # High risk, max balls
+apechurch-cli-gx54 play jungle-plinko <amount> <mode> <balls>
+apechurch-cli-gx54 play jungle-plinko 10 2 50    # 10 APE, mode 2, 50 balls
+apechurch-cli-gx54 play jungle-plinko 50 4 100   # High risk, max balls
 ```
 
 | Parameter | Range | Description |
@@ -190,10 +190,10 @@ apechurch play jungle-plinko 50 4 100   # High risk, max balls
 Pick numbers, hope they hit.
 
 ```bash
-apechurch play keno <amount> [--picks N] [--numbers X,Y,Z]
-apechurch play keno 10                     # Random 5 picks
-apechurch play keno 10 --picks 10          # 10 random picks
-apechurch play keno 10 --picks 5 --numbers 1,7,13,25,40
+apechurch-cli-gx54 play keno <amount> [--picks N] [--numbers X,Y,Z]
+apechurch-cli-gx54 play keno 10                     # Random 5 picks
+apechurch-cli-gx54 play keno 10 --picks 10          # 10 random picks
+apechurch-cli-gx54 play keno 10 --picks 5 --numbers 1,7,13,25,40
 ```
 
 | Parameter | Range | Description |
@@ -212,9 +212,9 @@ apechurch play keno 10 --picks 5 --numbers 1,7,13,25,40
 Fast keno with batched games.
 
 ```bash
-apechurch play speed-keno <amount> [--picks N] [--games N]
-apechurch play speed-keno 10                # 3 picks, 5 games
-apechurch play speed-keno 10 --picks 5 --games 20
+apechurch-cli-gx54 play speed-keno <amount> [--picks N] [--games N]
+apechurch-cli-gx54 play speed-keno 10                # 3 picks, 5 games
+apechurch-cli-gx54 play speed-keno 10 --picks 5 --games 20
 ```
 
 | Parameter | Range | Description |
@@ -233,9 +233,9 @@ apechurch play speed-keno 10 --picks 5 --games 20
 Slot machines with multiple spins.
 
 ```bash
-apechurch play dino-dough <amount> <spins>
-apechurch play dino-dough 10 10      # 10 APE, 10 spins
-apechurch play bubblegum-heist 10 15 # 10 APE, 15 spins
+apechurch-cli-gx54 play dino-dough <amount> <spins>
+apechurch-cli-gx54 play dino-dough 10 10      # 10 APE, 10 spins
+apechurch-cli-gx54 play bubblegum-heist 10 15 # 10 APE, 15 spins
 ```
 
 | Parameter | Range | Description |
@@ -251,9 +251,9 @@ apechurch play bubblegum-heist 10 15 # 10 APE, 15 spins
 Monkeys pop from barrels — form poker hands!
 
 ```bash
-apechurch play monkey-match <amount> [--mode N]
-apechurch play monkey-match 10           # Low risk (default)
-apechurch play monkey-match 10 --mode 2  # Normal risk
+apechurch-cli-gx54 play monkey-match <amount> [--mode N]
+apechurch-cli-gx54 play monkey-match 10           # Low risk (default)
+apechurch-cli-gx54 play monkey-match 10 --mode 2  # Normal risk
 ```
 
 | Mode | Description |
@@ -272,9 +272,9 @@ apechurch play monkey-match 10 --mode 2  # Normal risk
 Roll dice, avoid unlucky numbers.
 
 ```bash
-apechurch play bear-dice <amount> [--difficulty N] [--rolls N]
-apechurch play bear-dice 10                    # Easy, 1 roll
-apechurch play bear-dice 10 --difficulty 0 --rolls 5
+apechurch-cli-gx54 play bear-dice <amount> [--difficulty N] [--rolls N]
+apechurch-cli-gx54 play bear-dice 10                    # Easy, 1 roll
+apechurch-cli-gx54 play bear-dice 10 --difficulty 0 --rolls 5
 ```
 
 | Difficulty | Losing Numbers | Risk |
@@ -300,25 +300,25 @@ Play continuously with safety controls.
 ### Basic Loop
 
 ```bash
-apechurch play --loop                    # Random games, default settings
-apechurch play ape-strong 10 50 --loop   # Specific game
-apechurch play --loop --delay 5          # 5 seconds between games
+apechurch-cli-gx54 play --loop                    # Random games, default settings
+apechurch-cli-gx54 play ape-strong 10 50 --loop   # Specific game
+apechurch-cli-gx54 play --loop --delay 5          # 5 seconds between games
 ```
 
 ### Safety Controls
 
 ```bash
 # Stop when balance reaches target
-apechurch play --loop --target 200
+apechurch-cli-gx54 play --loop --target 200
 
 # Stop when balance drops to limit
-apechurch play --loop --stop-loss 50
+apechurch-cli-gx54 play --loop --stop-loss 50
 
 # Stop after N games
-apechurch play --loop --max-games 100
+apechurch-cli-gx54 play --loop --max-games 100
 
 # Combine them all
-apechurch play ape-strong 10 50 --loop --target 200 --stop-loss 50 --max-games 100
+apechurch-cli-gx54 play ape-strong 10 50 --loop --target 200 --stop-loss 50 --max-games 100
 ```
 
 | Option | Description |
@@ -366,13 +366,13 @@ Control bet sizing based on win/loss patterns.
 
 ```bash
 # Martingale with 10 APE base bet
-apechurch play ape-strong 10 50 --loop --bet-strategy martingale
+apechurch-cli-gx54 play ape-strong 10 50 --loop --bet-strategy martingale
 
 # Martingale with safety cap
-apechurch play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
+apechurch-cli-gx54 play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
 
 # Fibonacci on blackjack
-apechurch blackjack 5 --auto --loop --bet-strategy fibonacci --max-games 50
+apechurch-cli-gx54 blackjack 5 --auto --loop --bet-strategy fibonacci --max-games 50
 ```
 
 ### Strategy Behavior Examples
@@ -405,15 +405,15 @@ Interactive or auto-play blackjack with optimal strategy.
 ### Quick Play (Auto)
 
 ```bash
-apechurch blackjack 10 --auto              # Single game, optimal play
-apechurch blackjack 10 --auto --loop       # Continuous auto-play
-apechurch blackjack 10 --auto --loop --max-games 20 --bet-strategy martingale
+apechurch-cli-gx54 blackjack 10 --auto              # Single game, optimal play
+apechurch-cli-gx54 blackjack 10 --auto --loop       # Continuous auto-play
+apechurch-cli-gx54 blackjack 10 --auto --loop --max-games 20 --bet-strategy martingale
 ```
 
 ### Interactive Play
 
 ```bash
-apechurch blackjack 10   # Prompts for each decision
+apechurch-cli-gx54 blackjack 10   # Prompts for each decision
 ```
 
 ### Actions
@@ -437,9 +437,9 @@ The `--auto` flag uses mathematically optimal basic strategy:
 ### Managing Games
 
 ```bash
-apechurch blackjack resume     # Resume unfinished game
-apechurch blackjack status     # Check active games
-apechurch blackjack clear      # Clear stuck games
+apechurch-cli-gx54 blackjack resume     # Resume unfinished game
+apechurch-cli-gx54 blackjack status     # Check active games
+apechurch-cli-gx54 blackjack clear      # Clear stuck games
 ```
 
 ---
@@ -451,9 +451,9 @@ Jacks or Better video poker with optimal hold strategy.
 ### Quick Play (Auto)
 
 ```bash
-apechurch video-poker 10 --auto              # Single game
-apechurch video-poker 10 --auto --loop       # Continuous
-apechurch vp 10 --auto --loop --max-games 50 # Using alias
+apechurch-cli-gx54 video-poker 10 --auto              # Single game
+apechurch-cli-gx54 video-poker 10 --auto --loop       # Continuous
+apechurch-cli-gx54 vp 10 --auto --loop --max-games 50 # Using alias
 ```
 
 ### Bet Amounts
@@ -477,10 +477,10 @@ Video poker uses fixed denominations: **1, 5, 10, 25, 50, 100 APE**
 ### Managing Games
 
 ```bash
-apechurch video-poker resume   # Resume unfinished game
-apechurch video-poker status   # Check active games
-apechurch video-poker clear    # Clear stuck games
-apechurch video-poker payouts  # Show payout table
+apechurch-cli-gx54 video-poker resume   # Resume unfinished game
+apechurch-cli-gx54 video-poker status   # Check active games
+apechurch-cli-gx54 video-poker clear    # Clear stuck games
+apechurch-cli-gx54 video-poker payouts  # Show payout table
 ```
 
 **Aliases:** `vp`, `gimboz-poker`
@@ -493,35 +493,32 @@ apechurch video-poker payouts  # Show payout table
 
 | Command | Description |
 |---------|-------------|
-| `apechurch install` | Setup wallet and register |
-| `apechurch status` | Check balance, address, settings |
-| `apechurch play [game] [amount]` | Play a game |
-| `apechurch blackjack <amount>` | Play blackjack |
-| `apechurch video-poker <amount>` | Play video poker |
-| `apechurch games` | List all games |
-| `apechurch game <name>` | Detailed game info |
-| `apechurch history` | Recent game history |
-| `apechurch pause` | Stop autonomous play |
-| `apechurch resume` | Resume play |
+| `apechurch-cli-gx54 install` | Setup wallet and register |
+| `apechurch-cli-gx54 status` | Check balance, address, settings |
+| `apechurch-cli-gx54 play [game] [amount]` | Play a game |
+| `apechurch-cli-gx54 blackjack <amount>` | Play blackjack |
+| `apechurch-cli-gx54 video-poker <amount>` | Play video poker |
+| `apechurch-cli-gx54 games` | List all games |
+| `apechurch-cli-gx54 game <name>` | Detailed game info |
+| `apechurch-cli-gx54 history` | Recent game history |
+| `apechurch-cli-gx54 pause` | Stop autonomous play |
+| `apechurch-cli-gx54 resume` | Resume play |
 
 ### Wallet Commands
 
 | Command | Description |
 |---------|-------------|
-| `apechurch wallet export` | Show private key |
-| `apechurch wallet encrypt` | Password protect wallet |
-| `apechurch wallet decrypt` | Remove password |
-| `apechurch wallet unlock` | Start session (if encrypted) |
-| `apechurch send APE <amount> <address>` | Send APE |
-| `apechurch send GP <amount> <address>` | Send Gimbo Points |
+| `apechurch-cli-gx54 wallet encrypt` | Migrate a legacy plaintext wallet to encrypted-only storage |
+| `apechurch-cli-gx54 send APE <amount> <address>` | Send APE |
+| `apechurch-cli-gx54 send GP <amount> <address>` | Send Gimbo Points |
 
 ### Profile Commands
 
 | Command | Description |
 |---------|-------------|
-| `apechurch profile show` | View settings |
-| `apechurch profile set --persona <type>` | Change play style |
-| `apechurch register --username <name>` | Change username |
+| `apechurch-cli-gx54 profile show` | View settings |
+| `apechurch-cli-gx54 profile set --persona <type>` | Change play style |
+| `apechurch-cli-gx54 register --username <name>` | Change username |
 
 ### Global Flags
 
@@ -597,7 +594,7 @@ All commands support `--json` for machine-readable output.
 Best for hands-off autonomous play.
 
 ```bash
-apechurch play --loop --target 200 --stop-loss 50 --max-games 500
+apechurch-cli-gx54 play --loop --target 200 --stop-loss 50 --max-games 500
 ```
 
 The agent will:
@@ -611,7 +608,7 @@ The agent will:
 Target a specific game with fixed parameters.
 
 ```bash
-apechurch play ape-strong 10 50 --loop --target 150 --stop-loss 80
+apechurch-cli-gx54 play ape-strong 10 50 --loop --target 150 --stop-loss 80
 ```
 
 ### Pattern 3: Martingale Recovery
@@ -619,7 +616,7 @@ apechurch play ape-strong 10 50 --loop --target 150 --stop-loss 80
 Progressive betting to recover losses.
 
 ```bash
-apechurch play roulette 5 RED --loop --bet-strategy martingale --max-bet 50 --stop-loss 20
+apechurch-cli-gx54 play roulette 5 RED --loop --bet-strategy martingale --max-bet 50 --stop-loss 20
 ```
 
 **Important:** Always set `--max-bet` with martingale to prevent exponential loss.
@@ -629,7 +626,7 @@ apechurch play roulette 5 RED --loop --bet-strategy martingale --max-bet 50 --st
 Play a fixed number of games per session.
 
 ```bash
-apechurch play --loop --max-games 20
+apechurch-cli-gx54 play --loop --max-games 20
 ```
 
 ### Pattern 5: Blackjack Grinding
@@ -637,7 +634,7 @@ apechurch play --loop --max-games 20
 Auto-play blackjack with optimal strategy.
 
 ```bash
-apechurch blackjack 10 --auto --loop --max-games 50 --target 200
+apechurch-cli-gx54 blackjack 10 --auto --loop --max-games 50 --target 200
 ```
 
 ### Pattern 6: Check Before Play
@@ -646,26 +643,26 @@ Always verify state before starting:
 
 ```bash
 # Check if can play
-apechurch status --json | jq '.can_play'
+apechurch-cli-gx54 status --json | jq '.can_play'
 
 # Check balance
-apechurch status --json | jq '.available_ape'
+apechurch-cli-gx54 status --json | jq '.available_ape'
 
 # Then play
-apechurch play --loop --max-games 10
+apechurch-cli-gx54 play --loop --max-games 10
 ```
 
 ### Pattern 7: Handle Pause/Resume
 
 ```bash
 # Human says "stop gambling"
-apechurch pause
+apechurch-cli-gx54 pause
 
 # Human says "you can play again"
-apechurch resume
+apechurch-cli-gx54 resume
 
 # Check state
-apechurch status --json | jq '.paused'
+apechurch-cli-gx54 status --json | jq '.paused'
 ```
 
 ---
@@ -697,7 +694,7 @@ apechurch status --json | jq '.paused'
 
 ## Security
 
-Your private key is stored at `~/.apechurch/wallet.json`.
+Your encrypted wallet material is stored at `~/.apechurch-cli-gx54/wallet.json`.
 
 ⚠️ **CRITICAL:**
 - Never share your private key
@@ -710,8 +707,8 @@ Your private key is stored at `~/.apechurch/wallet.json`.
 ## Updates
 
 ```bash
-npm update -g @ape-church/skill
-apechurch --version
+npm update -g @apechurch-hf/apechurch-cli-gx54
+apechurch-cli-gx54 --version
 ```
 
 ---
@@ -721,7 +718,7 @@ apechurch --version
 - **Website:** https://ape.church
 - **Games:** https://ape.church/games
 - **GitHub:** https://github.com/ape-church/agent-skills
-- **npm:** https://www.npmjs.com/package/@ape-church/skill
+- **npm:** https://www.npmjs.com/package/@apechurch-hf/apechurch-cli-gx54
 
 ---
 

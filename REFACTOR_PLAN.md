@@ -18,7 +18,7 @@
 ## New Directory Structure
 
 ```
-@ape-church/skill/
+@apechurch-hf/apechurch-cli-gx54/
 ├── bin/
 │   └── cli.js              # Entry point only - imports commands, calls program.parse()
 ├── lib/
@@ -64,7 +64,7 @@
 import { program } from 'commander';
 import { registerCommands } from '../lib/commands/index.js';
 
-program.name('apechurch').version(VERSION);
+program.name('apechurch-cli-gx54').version(VERSION);
 registerCommands(program);
 program.parse(process.argv);
 ```
@@ -225,10 +225,10 @@ export async function blackjackAction({ account, gameId, action }) {
 ```
 
 New commands:
-- `apechurch blackjack start 10` → starts game, shows state
-- `apechurch blackjack hit <gameId>` → hit action
-- `apechurch blackjack stand <gameId>` → stand action
-- Or interactive mode: `apechurch blackjack play 10` → prompts for actions
+- `apechurch-cli-gx54 blackjack start 10` → starts game, shows state
+- `apechurch-cli-gx54 blackjack hit <gameId>` → hit action
+- `apechurch-cli-gx54 blackjack stand <gameId>` → stand action
+- Or interactive mode: `apechurch-cli-gx54 blackjack play 10` → prompts for actions
 
 ---
 

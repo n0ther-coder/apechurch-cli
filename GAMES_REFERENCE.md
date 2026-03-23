@@ -34,10 +34,10 @@ Pick a win probability (5-95%). Roll under your number to win. Lower probability
 
 ```bash
 # Positional
-apechurch play ape-strong <amount> <range>
+apechurch-cli-gx54 play ape-strong <amount> <range>
 
 # Flags
-apechurch play --game ape-strong --amount <APE> --range <5-95>
+apechurch-cli-gx54 play --game ape-strong --amount <APE> --range <5-95>
 ```
 
 ### Parameters
@@ -62,19 +62,19 @@ apechurch play --game ape-strong --amount <APE> --range <5-95>
 
 ```bash
 # 50% chance, 1.95x payout
-apechurch play ape-strong 10 50
+apechurch-cli-gx54 play ape-strong 10 50
 
 # High risk, high reward
-apechurch play ape-strong 5 10
+apechurch-cli-gx54 play ape-strong 5 10
 
 # Safe grinding
-apechurch play ape-strong 20 75
+apechurch-cli-gx54 play ape-strong 20 75
 
 # Loop with martingale
-apechurch play ape-strong 10 50 --loop --bet-strategy martingale --max-bet 80
+apechurch-cli-gx54 play ape-strong 10 50 --loop --bet-strategy martingale --max-bet 80
 
 # JSON output
-apechurch play ape-strong 10 50 --json
+apechurch-cli-gx54 play ape-strong 10 50 --json
 ```
 
 ---
@@ -92,10 +92,10 @@ American roulette with 0, 00, and 1-36. Bet on numbers, colors, sections, or com
 
 ```bash
 # Positional
-apechurch play roulette <amount> <bet>
+apechurch-cli-gx54 play roulette <amount> <bet>
 
 # Flags
-apechurch play --game roulette --amount <APE> --bet <BETS>
+apechurch-cli-gx54 play --game roulette --amount <APE> --bet <BETS>
 ```
 
 ### Bet Types
@@ -112,32 +112,32 @@ apechurch play --game roulette --amount <APE> --bet <BETS>
 ### Multi-Bet
 Comma-separate bets to split wager evenly:
 ```bash
-apechurch play roulette 100 RED,BLACK   # 50 on each (hedge bet)
+apechurch-cli-gx54 play roulette 100 RED,BLACK   # 50 on each (hedge bet)
 ```
 
 ### Examples
 
 ```bash
 # Color bet
-apechurch play roulette 10 RED
+apechurch-cli-gx54 play roulette 10 RED
 
 # Single number (big payout)
-apechurch play roulette 5 17
+apechurch-cli-gx54 play roulette 5 17
 
 # Zero
-apechurch play roulette 10 0
+apechurch-cli-gx54 play roulette 10 0
 
 # Double zero
-apechurch play roulette 10 00
+apechurch-cli-gx54 play roulette 10 00
 
 # Hedge bet (small guaranteed profit unless 0/00)
-apechurch play roulette 100 RED,BLACK
+apechurch-cli-gx54 play roulette 100 RED,BLACK
 
 # Third bet
-apechurch play roulette 30 FIRST_THIRD
+apechurch-cli-gx54 play roulette 30 FIRST_THIRD
 
 # Loop on red
-apechurch play roulette 10 RED --loop --target 150 --stop-loss 50
+apechurch-cli-gx54 play roulette 10 RED --loop --target 150 --stop-loss 50
 ```
 
 ---
@@ -155,10 +155,10 @@ Classic baccarat. Bet on Player, Banker, or Tie.
 
 ```bash
 # Simple bet
-apechurch play baccarat <amount> <bet>
+apechurch-cli-gx54 play baccarat <amount> <bet>
 
 # Combined bet (explicit amounts)
-apechurch play baccarat <total> <amt1> <bet1> <amt2> <bet2>
+apechurch-cli-gx54 play baccarat <total> <amt1> <bet1> <amt2> <bet2>
 ```
 
 ### Bet Types
@@ -173,22 +173,22 @@ apechurch play baccarat <total> <amt1> <bet1> <amt2> <bet2>
 
 ```bash
 # Single bet on Banker
-apechurch play baccarat 50 BANKER
+apechurch-cli-gx54 play baccarat 50 BANKER
 
 # Single bet on Player
-apechurch play baccarat 50 PLAYER
+apechurch-cli-gx54 play baccarat 50 PLAYER
 
 # Tie bet (high risk)
-apechurch play baccarat 10 TIE
+apechurch-cli-gx54 play baccarat 10 TIE
 
 # Combined: 140 Banker + 10 Tie = 150 total
-apechurch play baccarat 150 140 BANKER 10 TIE
+apechurch-cli-gx54 play baccarat 150 140 BANKER 10 TIE
 
 # Combined: 180 Player + 20 Tie = 200 total
-apechurch play baccarat 200 180 PLAYER 20 TIE
+apechurch-cli-gx54 play baccarat 200 180 PLAYER 20 TIE
 
 # Loop on Banker
-apechurch play baccarat 25 BANKER --loop --max-games 50
+apechurch-cli-gx54 play baccarat 25 BANKER --loop --max-games 50
 ```
 
 ---
@@ -206,10 +206,10 @@ Drop balls through pegs. Each ball lands in a multiplier bucket. Higher modes = 
 
 ```bash
 # Positional
-apechurch play jungle-plinko <amount> <mode> <balls>
+apechurch-cli-gx54 play jungle-plinko <amount> <mode> <balls>
 
 # Flags
-apechurch play --game jungle-plinko --amount <APE> --mode <0-4> --balls <1-100>
+apechurch-cli-gx54 play --game jungle-plinko --amount <APE> --mode <0-4> --balls <1-100>
 ```
 
 ### Parameters
@@ -234,16 +234,16 @@ apechurch play --game jungle-plinko --amount <APE> --mode <0-4> --balls <1-100>
 
 ```bash
 # Standard play
-apechurch play jungle-plinko 10 2 50
+apechurch-cli-gx54 play jungle-plinko 10 2 50
 
 # High risk, max balls
-apechurch play jungle-plinko 100 4 100
+apechurch-cli-gx54 play jungle-plinko 100 4 100
 
 # Safe mode, few balls
-apechurch play jungle-plinko 20 0 10
+apechurch-cli-gx54 play jungle-plinko 20 0 10
 
 # Loop
-apechurch play jungle-plinko 10 2 50 --loop --max-games 20
+apechurch-cli-gx54 play jungle-plinko 10 2 50 --loop --max-games 20
 ```
 
 ---
@@ -261,10 +261,10 @@ Pick 1-10 numbers from 1-40. More numbers = riskier but bigger payouts. Hit 10/1
 
 ```bash
 # Random picks
-apechurch play keno <amount> [--picks <1-10>]
+apechurch-cli-gx54 play keno <amount> [--picks <1-10>]
 
 # Specific numbers
-apechurch play keno <amount> --picks <N> --numbers <comma-separated>
+apechurch-cli-gx54 play keno <amount> --picks <N> --numbers <comma-separated>
 ```
 
 ### Parameters
@@ -279,19 +279,19 @@ apechurch play keno <amount> --picks <N> --numbers <comma-separated>
 
 ```bash
 # Random 5 picks
-apechurch play keno 10
+apechurch-cli-gx54 play keno 10
 
 # 10 random picks (max risk)
-apechurch play keno 10 --picks 10
+apechurch-cli-gx54 play keno 10 --picks 10
 
 # Specific numbers
-apechurch play keno 10 --picks 5 --numbers 1,7,13,25,40
+apechurch-cli-gx54 play keno 10 --picks 5 --numbers 1,7,13,25,40
 
 # 3 picks (lower risk)
-apechurch play keno 20 --picks 3
+apechurch-cli-gx54 play keno 20 --picks 3
 
 # Loop
-apechurch play keno 5 --picks 5 --loop --max-games 50
+apechurch-cli-gx54 play keno 5 --picks 5 --loop --max-games 50
 ```
 
 ---
@@ -308,7 +308,7 @@ Fast keno with batched games. Pick 1-5 numbers from 1-20. Play up to 20 games at
 ### Syntax
 
 ```bash
-apechurch play speed-keno <amount> [--picks <1-5>] [--games <1-20>]
+apechurch-cli-gx54 play speed-keno <amount> [--picks <1-5>] [--games <1-20>]
 ```
 
 ### Parameters
@@ -333,16 +333,16 @@ apechurch play speed-keno <amount> [--picks <1-5>] [--games <1-20>]
 
 ```bash
 # Standard
-apechurch play speed-keno 10
+apechurch-cli-gx54 play speed-keno 10
 
 # Max games
-apechurch play speed-keno 20 --picks 5 --games 20
+apechurch-cli-gx54 play speed-keno 20 --picks 5 --games 20
 
 # Specific numbers
-apechurch play speed-keno 10 --picks 3 --numbers 5,10,15
+apechurch-cli-gx54 play speed-keno 10 --picks 3 --numbers 5,10,15
 
 # Loop
-apechurch play speed-keno 10 --loop --max-games 30
+apechurch-cli-gx54 play speed-keno 10 --loop --max-games 30
 ```
 
 ---
@@ -359,7 +359,7 @@ Dinosaur-themed slot machine. Spin for matching symbols and multipliers.
 ### Syntax
 
 ```bash
-apechurch play dino-dough <amount> <spins>
+apechurch-cli-gx54 play dino-dough <amount> <spins>
 ```
 
 ### Parameters
@@ -373,16 +373,16 @@ apechurch play dino-dough <amount> <spins>
 
 ```bash
 # 10 APE, 10 spins
-apechurch play dino-dough 10 10
+apechurch-cli-gx54 play dino-dough 10 10
 
 # High volume
-apechurch play dino-dough 30 15
+apechurch-cli-gx54 play dino-dough 30 15
 
 # Few spins (more variance)
-apechurch play dino-dough 10 3
+apechurch-cli-gx54 play dino-dough 10 3
 
 # Loop
-apechurch play dino-dough 10 10 --loop --max-games 25
+apechurch-cli-gx54 play dino-dough 10 10 --loop --max-games 25
 ```
 
 ---
@@ -399,14 +399,14 @@ Candy-themed slot machine. Identical mechanics to Dino Dough.
 ### Syntax
 
 ```bash
-apechurch play bubblegum-heist <amount> <spins>
+apechurch-cli-gx54 play bubblegum-heist <amount> <spins>
 ```
 
 ### Examples
 
 ```bash
-apechurch play bubblegum-heist 10 10
-apechurch play bubblegum-heist 20 15 --loop
+apechurch-cli-gx54 play bubblegum-heist 10 10
+apechurch-cli-gx54 play bubblegum-heist 20 15 --loop
 ```
 
 ---
@@ -423,7 +423,7 @@ apechurch play bubblegum-heist 20 15 --loop
 ### Syntax
 
 ```bash
-apechurch play monkey-match <amount> [--mode <1-2>]
+apechurch-cli-gx54 play monkey-match <amount> [--mode <1-2>]
 ```
 
 ### Modes
@@ -437,13 +437,13 @@ apechurch play monkey-match <amount> [--mode <1-2>]
 
 ```bash
 # Low risk (default)
-apechurch play monkey-match 10
+apechurch-cli-gx54 play monkey-match 10
 
 # Normal risk
-apechurch play monkey-match 10 --mode 2
+apechurch-cli-gx54 play monkey-match 10 --mode 2
 
 # Loop
-apechurch play monkey-match 10 --loop --max-games 30
+apechurch-cli-gx54 play monkey-match 10 --loop --max-games 30
 ```
 
 ---
@@ -460,7 +460,7 @@ Roll 2 dice up to 5 times. Avoid unlucky numbers! Higher difficulty = more losin
 ### Syntax
 
 ```bash
-apechurch play bear-dice <amount> [--difficulty <0-4>] [--rolls <1-5>]
+apechurch-cli-gx54 play bear-dice <amount> [--difficulty <0-4>] [--rolls <1-5>]
 ```
 
 ### Difficulty Levels
@@ -481,16 +481,16 @@ More rolls = higher potential payout, but more chances to hit a losing number.
 
 ```bash
 # Easy, 1 roll
-apechurch play bear-dice 10
+apechurch-cli-gx54 play bear-dice 10
 
 # Easy, max rolls
-apechurch play bear-dice 10 --difficulty 0 --rolls 5
+apechurch-cli-gx54 play bear-dice 10 --difficulty 0 --rolls 5
 
 # Normal difficulty
-apechurch play bear-dice 10 --difficulty 1 --rolls 3
+apechurch-cli-gx54 play bear-dice 10 --difficulty 1 --rolls 3
 
 # Loop (stick to easy for auto-play)
-apechurch play bear-dice 10 --difficulty 0 --loop --max-games 20
+apechurch-cli-gx54 play bear-dice 10 --difficulty 0 --loop --max-games 20
 ```
 
 ---
@@ -501,13 +501,13 @@ See [SKILL.md](./SKILL.md#blackjack) for complete documentation.
 
 ```bash
 # Auto-play
-apechurch blackjack 10 --auto
+apechurch-cli-gx54 blackjack 10 --auto
 
 # Interactive
-apechurch blackjack 10
+apechurch-cli-gx54 blackjack 10
 
 # Loop with strategy
-apechurch blackjack 10 --auto --loop --bet-strategy martingale --max-bet 80
+apechurch-cli-gx54 blackjack 10 --auto --loop --bet-strategy martingale --max-bet 80
 ```
 
 ---
@@ -518,13 +518,13 @@ See [SKILL.md](./SKILL.md#video-poker) for complete documentation.
 
 ```bash
 # Auto-play
-apechurch video-poker 10 --auto
+apechurch-cli-gx54 video-poker 10 --auto
 
 # Interactive
-apechurch video-poker 10
+apechurch-cli-gx54 video-poker 10
 
 # Loop
-apechurch video-poker 10 --auto --loop --max-games 50
+apechurch-cli-gx54 video-poker 10 --auto --loop --max-games 50
 ```
 
 ---
@@ -551,4 +551,4 @@ All games support these with `--loop`:
 - All amounts are in APE
 - Minimum bet is typically 1 APE
 - VRF fees are automatically calculated and added
-- Use `apechurch game <name>` for detailed in-CLI help
+- Use `apechurch-cli-gx54 game <name>` for detailed in-CLI help

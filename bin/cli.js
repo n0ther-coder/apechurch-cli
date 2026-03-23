@@ -16,7 +16,7 @@
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ install          Setup the Ape Church Agent (wallet + profile)          │
  * │ uninstall        Remove all Ape Church data from this machine           │
- * │ wallet <action>  Wallet management (export, encrypt, decrypt, lock...)  │
+ * │ wallet <action>  Wallet management (encrypted-only local signer)       │
  * │ profile <action> Profile management (show, set username/persona)        │
  * │ register         Register username on-chain via SIWE                    │
  * ├──────────────────────────────────────────────────────────────────────────┤
@@ -30,7 +30,7 @@
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ INFORMATION                                                             │
  * ├──────────────────────────────────────────────────────────────────────────┤
- * │ status           Show wallet balance and session stats                  │
+ * │ status           Show wallet balance and local state                    │
  * │ history          Show recent game history with outcomes                 │
  * │ games            List all available games                               │
  * │ game <name>      Detailed info about a specific game                    │
@@ -49,11 +49,11 @@
  * └──────────────────────────────────────────────────────────────────────────┘
  *
  * Data Storage:
- * - ~/.apechurch/wallet.json   - Private key (encrypted or plain)
- * - ~/.apechurch/profile.json  - Username, persona, preferences
- * - ~/.apechurch/state.json    - Session stats, betting strategy state
- * - ~/.apechurch/history.json  - Game history (last 1000 games)
- * - ~/.apechurch/active_games.json - Unfinished stateful games
+ * - ~/.apechurch-cli-gx54/wallet.json   - Encrypted private key + public metadata
+ * - ~/.apechurch-cli-gx54/profile.json  - Username, persona, preferences
+ * - ~/.apechurch-cli-gx54/state.json    - Local stats, betting strategy state
+ * - ~/.apechurch-cli-gx54/history.json  - Game history (last 1000 games)
+ * - ~/.apechurch-cli-gx54/active_games.json - Unfinished stateful games
  *
  * @module bin/cli
  * @see {@link https://ape.church} - Ape Church website
@@ -72,7 +72,6 @@ const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'
 const notifier = updateNotifier({ pkg, updateCheckInterval: 1000 * 60 * 60 * 24 });
 import readline from 'readline';
 import { formatEther, parseEther } from 'viem';
-import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
 
 // --- Local modules ---
 import {
@@ -95,6 +94,9 @@ import {
   HOUSE_ABI,
   HOUSE_LOCK_TIME,
   HOUSE_WITHDRAW_FEE,
+  BINARY_NAME,
+  PASS_ENV_VAR,
+  PRIVATE_KEY_ENV_VAR,
 } from '../lib/constants.js';
 import {
   sanitizeError,
@@ -110,16 +112,14 @@ import {
   createClients,
   loadWalletData,
   isWalletEncrypted,
-  getPrivateKey,
   encryptWallet,
-  decryptWallet,
-  unlockWallet,
-  clearSession,
-  getSessionTimeRemaining,
   getWalletHints,
   setWalletHints,
-  saveSession,
-  createEncryptedWallet,
+  createEncryptedWalletFromPrivateKey,
+  getConfiguredPrivateKey,
+  getWalletAddress,
+  getWalletPublicMetadata,
+  promptSecret,
 } from '../lib/wallet.js';
 import {
   loadProfile,
@@ -169,7 +169,7 @@ const PACKAGE_VERSION = (() => {
   }
 })();
 
-program.name('apechurch').version(PACKAGE_VERSION, '-v, --version', 'output the current version');
+program.name(BINARY_NAME).version(PACKAGE_VERSION, '-v, --version', 'output the current version');
 const GAME_LIST = listGames().join(' | ');
 
 // --- Helper: Interactive prompt ---
@@ -186,56 +186,37 @@ function prompt(question) {
   });
 }
 
-// --- Helper: Get wallet with password prompting ---
-// For commands that need the private key - prompts for password if encrypted
+// --- Helper: Get wallet account metadata / lazy local signer ---
 async function getWalletWithPrompt(opts = {}) {
   if (!walletExists()) {
-    if (opts.json) {
-      console.error(JSON.stringify({ error: 'No wallet found. Run: apechurch install' }));
-    } else {
-      console.error('\n❌ No wallet found. Run: apechurch install\n');
-    }
+    const message = `No wallet found. Run: ${BINARY_NAME} install`;
+    if (opts.json) console.error(JSON.stringify({ error: message }));
+    else console.error(`
+❌ ${message}
+`);
     process.exit(1);
   }
-  
-  // Try with env password first
-  const keyResult = getPrivateKey(process.env.APECHURCH_PASSWORD);
-  
-  if (keyResult.needsPassword) {
-    // Show hints if available
-    if (!opts.json && keyResult.hints && keyResult.hints.length > 0) {
-      console.log('\n   Your hints:');
-      keyResult.hints.forEach((h, i) => console.log(`     ${i + 1}. ${h}`));
-    }
-    
-    const password = await prompt(opts.json ? '' : '🔐 Password: ');
-    const retryResult = getPrivateKey(password);
-    
-    if (retryResult.error) {
-      if (opts.json) {
-        console.error(JSON.stringify({ error: retryResult.error }));
-      } else {
-        console.error(`\n❌ ${retryResult.error}\n`);
-      }
-      process.exit(1);
-    }
-    
-    // Auto-start a session for convenience
-    saveSession(retryResult.privateKey);
-    
-    return privateKeyToAccount(retryResult.privateKey);
-  }
-  
-  if (keyResult.error) {
-    if (opts.json) {
-      console.error(JSON.stringify({ error: keyResult.error }));
-    } else {
-      console.error(`\n❌ ${keyResult.error}\n`);
-    }
+
+  const meta = getWalletPublicMetadata();
+  if (meta?.legacyPlaintext) {
+    const message = `Legacy plaintext wallet detected. Run: ${BINARY_NAME} install to migrate it.`;
+    if (opts.json) console.error(JSON.stringify({ error: message }));
+    else console.error(`
+❌ ${message}
+`);
     process.exit(1);
   }
-  
-  return privateKeyToAccount(keyResult.privateKey);
+
+  try {
+    return getWallet();
+  } catch (error) {
+    const message = sanitizeError(error);
+    if (opts.json) console.error(JSON.stringify({ error: message }));
+    else console.error(`
+❌ ${message}
+`);
+    process.exit(1);
+  }
 }
 
 // ============================================================================
@@ -243,80 +224,95 @@ async function getWalletWithPrompt(opts = {}) {
 // ============================================================================
 program
   .command('install')
-  .description('Setup the Ape Church Agent')
+  .description('Setup the Ape Church agent with encrypted-only wallet storage')
   .option('--username <name>', 'Username for your bot')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
-  .option('--private-key <key>', 'Import existing private key')
-  .option('-y, --quick', 'Skip interactive prompts, use defaults')
+  .option('-y, --quick', 'Skip optional interactive prompts, use defaults')
   .action(async (opts) => {
-    const isInteractive = !opts.quick && !opts.privateKey && !opts.username;
-    
-    ensureDir(APECHURCH_DIR);
-    
-    let address;
-    let walletWasImported = false;
-    const walletExisted = fs.existsSync(WALLET_FILE);
+    const isInteractive = !opts.quick && !opts.username;
 
-    // --- STEP 1: WALLET SETUP ---
-    if (walletExisted) {
-      const data = JSON.parse(fs.readFileSync(WALLET_FILE));
-      address = privateKeyToAccount(data.privateKey).address;
-      console.log(`\n✅ Using existing wallet: ${address}`);
-    } else if (opts.privateKey) {
-      let pk = opts.privateKey.trim();
-      if (!pk.startsWith('0x')) pk = '0x' + pk;
-      try {
-        const account = privateKeyToAccount(pk);
-        address = account.address;
-        fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
-        walletWasImported = true;
-        console.log(`\n✅ Imported wallet: ${address}`);
-      } catch (error) {
-        console.error(`\n❌ Invalid private key: ${error.message}`);
+    ensureDir(APECHURCH_DIR);
+
+    const existingWallet = loadWalletData();
+    let address;
+    let createdOrMigratedWallet = false;
+
+    async function collectPasswordForWalletFile() {
+      const envPassword = process.env[PASS_ENV_VAR];
+      if (envPassword) return envPassword;
+
+      const password = await promptSecret('Set wallet password: ');
+      if (!password || password.length < 8) {
+        console.error('\n❌ Password must be at least 8 characters\n');
         process.exit(1);
       }
-    } else if (isInteractive) {
-      console.log('\n🎰 Welcome to Ape Church!\n');
-      console.log('┌─────────────────────────────────────────────────────────────────┐');
-      console.log('│                        WALLET SETUP                             │');
-      console.log('├─────────────────────────────────────────────────────────────────┤');
-      console.log('│  (1) Generate a new wallet (recommended)                        │');
-      console.log('│  (2) Import an existing private key                             │');
-      console.log('└─────────────────────────────────────────────────────────────────┘');
-      
-      const walletChoice = await prompt('\nYour choice (1 or 2): ');
-      
-      let pk;
-      if (walletChoice.trim() === '2') {
-        const pkInput = await prompt('Enter your private key: ');
-        pk = pkInput.trim();
-        if (!pk.startsWith('0x')) pk = '0x' + pk;
-        try {
-          const account = privateKeyToAccount(pk);
-          address = account.address;
-          walletWasImported = true;
-        } catch (error) {
-          console.error(`\n❌ Invalid private key: ${error.message}`);
-          process.exit(1);
-        }
-      } else {
-        pk = generatePrivateKey();
-        const account = privateKeyToAccount(pk);
-        address = account.address;
+      const confirm = await promptSecret('Confirm wallet password: ');
+      if (password !== confirm) {
+        console.error('\n❌ Passwords do not match\n');
+        process.exit(1);
       }
-      
-      // Save wallet (unencrypted by default)
-      fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
-      console.log(`\n✅ ${walletWasImported ? 'Imported' : 'Generated new'} wallet: ${address}`);
-    } else {
-      const pk = generatePrivateKey();
-      const account = privateKeyToAccount(pk);
-      fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: pk }), { mode: 0o600 });
-      address = account.address;
-      console.log(`\n✅ Generated new wallet: ${address}`);
+      return password;
     }
 
-    // --- STEP 2: INJECT SKILL FILES ---
+    async function collectHintsIfInteractive() {
+      if (!isInteractive) return [];
+      console.log('\nOptional password hints (stored locally, max 3, never the password itself):');
+      const hints = [];
+      for (let i = 1; i <= 3; i++) {
+        const hint = await prompt(`Hint ${i}: `);
+        if (hint.trim()) hints.push(hint.trim());
+      }
+      return hints;
+    }
+
+    if (existingWallet && isWalletEncrypted()) {
+      address = getWalletAddress();
+      console.log(`
+✅ Using existing encrypted wallet: ${address}`);
+    } else if (existingWallet) {
+      console.log('\n⚠️  Legacy plaintext wallet detected. Migrating it to encrypted-only storage.');
+      const password = await collectPasswordForWalletFile();
+      const hints = await collectHintsIfInteractive();
+      const result = encryptWallet(password, hints);
+      if (result.error) {
+        console.error(`
+❌ ${result.error}
+`);
+        process.exit(1);
+      }
+      address = result.address;
+      createdOrMigratedWallet = true;
+      console.log(`✅ Wallet migrated to encrypted-only storage: ${address}`);
+    } else {
+      const privateKey = getConfiguredPrivateKey();
+      if (!privateKey) {
+        console.error(`
+❌ No wallet configured. Set ${PRIVATE_KEY_ENV_VAR} and run ${BINARY_NAME} install.
+`);
+        console.error(`   Example:
+   export ${PRIVATE_KEY_ENV_VAR}=0xYOUR_PRIVATE_KEY
+   ${BINARY_NAME} install
+`);
+        process.exit(1);
+      }
+
+      const password = await collectPasswordForWalletFile();
+      const hints = await collectHintsIfInteractive();
+
+      try {
+        const result = createEncryptedWalletFromPrivateKey(privateKey, password, hints);
+        address = result.address;
+        createdOrMigratedWallet = true;
+        console.log(`
+✅ Imported wallet from ${PRIVATE_KEY_ENV_VAR} into encrypted-only storage: ${address}`);
+      } catch (error) {
+        console.error(`
+❌ Invalid private key in ${PRIVATE_KEY_ENV_VAR}: ${sanitizeError(error)}
+`);
+        process.exit(1);
+      }
+    }
+
     if (!fs.existsSync(SKILL_TARGET_DIR)) {
       fs.mkdirSync(SKILL_TARGET_DIR, { recursive: true });
     }
@@ -329,7 +325,6 @@ program
       }
     }
 
-    // --- STEP 3: USERNAME SETUP ---
     const localProfile = loadProfile();
     const persona = normalizeStrategy(opts.persona || localProfile.persona || 'balanced');
     let username;
@@ -339,39 +334,34 @@ program
       try {
         username = normalizeUsername(opts.username);
       } catch (error) {
-        console.error(`\n❌ Invalid username: ${error.message}`);
+        console.error(`
+❌ Invalid username: ${error.message}`);
         username = generateUsername();
-        console.log(`   Using auto-generated: ${username}`);
+        console.log(`   Using auto-generated username: ${username}`);
       }
-    } else if (isInteractive && !walletWasImported) {
-      console.log('\n┌─────────────────────────────────────────────────────────────────┐');
-      console.log('│                       USERNAME SETUP                            │');
-      console.log('├─────────────────────────────────────────────────────────────────┤');
-      console.log('│  Choose a username for your bot on Ape Church.                  │');
-      console.log('│  (Letters, numbers, underscores only. Max 32 characters)        │');
-      console.log('│  Leave blank for auto-generated name.                           │');
-      console.log('└─────────────────────────────────────────────────────────────────┘');
-      
-      let usernameValid = false;
-      while (!usernameValid) {
+    } else if (isInteractive) {
+      console.log('\nChoose a username for your bot on Ape Church.');
+      console.log('(Letters, numbers, underscores only. Max 32 characters. Leave blank for auto-generated.)');
+      while (!username) {
         const usernameInput = await prompt('\nUsername: ');
-        
         if (!usernameInput.trim()) {
           username = generateUsername();
-          console.log(`Using auto-generated: ${username}`);
-          usernameValid = true;
-        } else {
-          try {
-            username = normalizeUsername(usernameInput);
-            usernameValid = true;
-          } catch (error) {
-            console.log(`❌ ${error.message}`);
-            console.log('   Try again (letters, numbers, underscores, max 32 chars)');
-          }
+          console.log(`Using auto-generated username: ${username}`);
+          break;
+        }
+        try {
+          username = normalizeUsername(usernameInput);
+        } catch (error) {
+          console.log(`❌ ${error.message}`);
         }
       }
-      
-      console.log(`\nRegistering "${username}"...`);
+    } else {
+      username = generateUsername();
+    }
+
+    if (!opts.quick && username) {
+      console.log(`
+Registering \"${username}\"...`);
       try {
         const account = getWallet();
         await registerUsername({ account, username, persona });
@@ -379,55 +369,51 @@ program
         console.log('✅ Username registered!');
       } catch (error) {
         console.log(`⚠️  Registration failed: ${sanitizeError(error)}`);
-        console.log('   (You can try again later with: apechurch register --username YOUR_NAME)');
+        console.log(`   (You can try again later with: ${BINARY_NAME} register --username YOUR_NAME)`);
       }
-    } else {
-      username = generateUsername();
     }
 
-    // Save profile
     if (!usernameRegistered) {
       saveProfile({ ...localProfile, username, persona });
     }
 
-    // --- OUTPUT ---
     console.log('\n═══════════════════════════════════════════════════════════════════');
     console.log('                        SETUP COMPLETE                             ');
     console.log('═══════════════════════════════════════════════════════════════════');
     console.log(`  AGENT ADDRESS: ${address}`);
     console.log(`  USERNAME:      ${username}`);
     if (!usernameRegistered) {
-      console.log('                 (Change anytime: apechurch register --username <YOUR_NAME>)');
+      console.log(`                 (Change anytime: ${BINARY_NAME} register --username <YOUR_NAME>)`);
     }
     console.log(`  PERSONA:       ${persona}`);
     console.log('');
-    console.log('  ⚠️  ACTION REQUIRED: Send APE to this address on ApeChain.');
+    console.log(`  WALLET FILE:   ${WALLET_FILE}`);
+    console.log('  STORAGE:       encrypted-only, no plaintext private key on disk');
+    console.log('  SIGNING:       local-only, just-in-time decryption per signature');
     console.log('');
+    console.log('  ⚠️  ACTION REQUIRED: Send APE to this address on ApeChain.');
+    console.log('  ⚠️  Forgot password = permanent loss of access to signing with this local setup.');
+    console.log('');
+    console.log(`  For headless/agent use, set ${PASS_ENV_VAR} only on the local machine.`);
+    console.log(`  For import/reinstall, set ${PRIVATE_KEY_ENV_VAR} only on the local machine.`);
     console.log('  Bridge APE:  https://relay.link/bridge/apechain');
     console.log('═══════════════════════════════════════════════════════════════════');
-    
-    // Show contest prompt if contest is still active
+
     if (new Date() < CONTEST_END_DATE) {
       console.log('');
       console.log('  🏆 AGENT CONTEST IS LIVE!');
       console.log('     Compete against other agents for prizes.');
-      console.log('     Run: apechurch contest');
+      console.log(`     Run: ${BINARY_NAME} contest`);
       console.log('═══════════════════════════════════════════════════════════════════');
     }
-    
-    // Show encryption info
-    console.log('');
-    console.log('  🔐 PRIVATE KEY ENCRYPTION (Optional)');
-    console.log('     Want to password-protect your wallet?');
-    console.log('     Run: apechurch wallet encrypt');
-    console.log('');
-    console.log('     • Hides your private key behind a password');
-    console.log('     • Sessions unlock for 3 hours at a time');
-    console.log('     • Set up to 3 password hints');
-    console.log('     • ⚠️  Not recommended for AI agents');
-    console.log('     • ⚠️  Forgot password = funds lost forever');
-    console.log('═══════════════════════════════════════════════════════════════════');
-    console.log('');
+
+    if (createdOrMigratedWallet && !process.env[PASS_ENV_VAR]) {
+      console.log('');
+      console.log('  🔐 PASSWORD PROMPTS');
+      console.log('     Because no password env var is set, each signature will ask for the password locally.');
+      console.log('═══════════════════════════════════════════════════════════════════');
+      console.log('');
+    }
   });
 
 // ============================================================================
@@ -435,7 +421,7 @@ program
 // ============================================================================
 program
   .command('uninstall')
-  .description('Remove Ape Church data from this machine')
+  .description('Remove local apechurch-cli-gx54 data from this machine')
   .option('-y, --yes', 'Skip confirmation')
   .action(async (opts) => {
     if (!fs.existsSync(APECHURCH_DIR)) {
@@ -448,8 +434,8 @@ program
       console.log(`   - Wallet at ${WALLET_FILE}`);
       console.log(`   - Profile at ${APECHURCH_DIR}/profile.json`);
       console.log(`   - All local state and history`);
-      console.log('\n   Make sure you have backed up your private key!');
-      console.log('   (Run: apechurch wallet export)\n');
+      console.log('\n   Make sure you still control the original private key outside this local installation.');
+      console.log(`   Reinstall requires ${PRIVATE_KEY_ENV_VAR} on this local machine.\n`);
       
       const confirm = await prompt('Type "DELETE" to confirm: ');
       if (confirm.trim() !== 'DELETE') {
@@ -460,7 +446,7 @@ program
 
     try {
       fs.rmSync(APECHURCH_DIR, { recursive: true, force: true });
-      console.log('\n✅ Ape Church data removed.\n');
+      console.log('\n✅ apechurch-cli-gx54 local data removed.\n');
     } catch (error) {
       console.error(`\n❌ Failed to remove: ${error.message}\n`);
     }
@@ -471,197 +457,84 @@ program
 // ============================================================================
 program
   .command('wallet <action>')
-  .description('Wallet management (export, reset, encrypt, decrypt, unlock, lock, hints)')
+  .description('Wallet management (status, encrypt legacy wallet, hints, reset)')
   .option('-y, --yes', 'Skip confirmation')
-  .option('--timeout <hours>', 'Session timeout in hours (default: 3)', '3')
   .option('--json', 'JSON output')
   .action(async (action, opts) => {
-    
-    // --- EXPORT ---
-    if (action === 'export') {
-      if (!walletExists()) {
-        console.error(JSON.stringify({ error: 'No wallet found. Run: apechurch install' }));
-        process.exit(1);
-      }
-      
-      // Need to get private key (may need password)
-      const keyResult = getPrivateKey(process.env.APECHURCH_PASSWORD);
-      if (keyResult.needsPassword) {
-        const password = await prompt('Password: ');
-        const retryResult = getPrivateKey(password);
-        if (retryResult.error) {
-          console.error(`\n❌ ${retryResult.error}\n`);
-          process.exit(1);
-        }
-        console.log('\n⚠️  PRIVATE KEY - DO NOT SHARE\n');
-        console.log(`   ${retryResult.privateKey}\n`);
-        console.log('   Store this securely. Anyone with this key controls your funds.\n');
-      } else if (keyResult.error) {
-        console.error(`\n❌ ${keyResult.error}\n`);
-        process.exit(1);
-      } else {
-        console.log('\n⚠️  PRIVATE KEY - DO NOT SHARE\n');
-        console.log(`   ${keyResult.privateKey}\n`);
-        console.log('   Store this securely. Anyone with this key controls your funds.\n');
-      }
-      return;
+    const unsupportedActions = new Set(['export', 'decrypt', 'unlock', 'lock']);
+    if (unsupportedActions.has(action)) {
+      const message = `${action} is disabled in this hardened build. Plaintext key export/storage and cached unlock sessions are not allowed.`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.error(`
+❌ ${message}
+`);
+      process.exit(1);
     }
-    
-    // --- ENCRYPT ---
+
     if (action === 'encrypt') {
       if (!walletExists()) {
-        console.error('\n❌ No wallet found. Run: apechurch install\n');
+        console.error(`
+❌ No wallet found. Run: ${BINARY_NAME} install
+`);
         process.exit(1);
       }
       if (isWalletEncrypted()) {
         console.error('\n❌ Wallet is already encrypted\n');
         process.exit(1);
       }
-      
-      console.log('\n🔐 Encrypt Wallet\n');
-      console.log('   ⚠️  Password is REQUIRED to access your wallet after encryption.');
-      console.log('   ⚠️  If you forget your password, your funds are LOST FOREVER.');
-      console.log('   ⚠️  Not recommended for AI agents (they must remember the password).\n');
-      
-      const password = await prompt('Set password: ');
-      if (!password || password.length < 4) {
-        console.error('\n❌ Password must be at least 4 characters\n');
+
+      console.log('\n🔐 Encrypt Legacy Wallet\n');
+      console.log('   This migrates a legacy plaintext wallet to encrypted-only storage.');
+      console.log('   The plaintext key will be replaced on disk by encrypted wallet material only.');
+      console.log('   Forgot password = loss of signing access from this local setup.\n');
+
+      const password = process.env[PASS_ENV_VAR] || await promptSecret('Set wallet password: ');
+      if (!password || password.length < 8) {
+        console.error('\n❌ Password must be at least 8 characters\n');
         process.exit(1);
       }
-      const confirm = await prompt('Confirm password: ');
-      if (password !== confirm) {
-        console.error('\n❌ Passwords do not match\n');
-        process.exit(1);
+      if (!process.env[PASS_ENV_VAR]) {
+        const confirm = await promptSecret('Confirm wallet password: ');
+        if (password !== confirm) {
+          console.error('\n❌ Passwords do not match\n');
+          process.exit(1);
+        }
       }
-      
-      // Collect hints (optional)
+
       console.log('\n   Set up to 3 password hints (optional, press Enter to skip):\n');
       const hints = [];
       for (let i = 1; i <= 3; i++) {
         const hint = await prompt(`   Hint ${i}: `);
         if (hint.trim()) hints.push(hint.trim());
       }
-      
+
       const result = encryptWallet(password, hints);
       if (result.error) {
-        console.error(`\n❌ ${result.error}\n`);
+        console.error(`
+❌ ${result.error}
+`);
         process.exit(1);
       }
-      
-      // Auto-unlock after encrypting
-      unlockWallet(password, parseFloat(opts.timeout) * 60 * 60 * 1000);
-      
-      console.log('\n✅ Wallet encrypted successfully!');
-      console.log(`   Session active for ${opts.timeout} hours.`);
-      console.log('   Run: apechurch wallet unlock (to start new session)');
-      console.log('   Run: apechurch wallet decrypt (to remove encryption)\n');
+
+      console.log('\n✅ Wallet migrated to encrypted-only storage successfully!');
+      console.log(`   Address: ${result.address}`);
+      console.log(`   Wallet file: ${WALLET_FILE}\n`);
       return;
     }
-    
-    // --- DECRYPT ---
-    if (action === 'decrypt') {
-      if (!walletExists()) {
-        console.error('\n❌ No wallet found. Run: apechurch install\n');
-        process.exit(1);
-      }
-      if (!isWalletEncrypted()) {
-        console.error('\n❌ Wallet is not encrypted\n');
-        process.exit(1);
-      }
-      
-      console.log('\n🔓 Decrypt Wallet\n');
-      console.log('   ⚠️  This will remove password protection.');
-      console.log('   ⚠️  Your private key will be stored in plain text.\n');
-      
-      // Show hints if available
-      const hints = getWalletHints();
-      if (hints.length > 0) {
-        console.log('   Your hints:');
-        hints.forEach((h, i) => console.log(`     ${i + 1}. ${h}`));
-        console.log('');
-      }
-      
-      const password = await prompt('Current password: ');
-      const result = decryptWallet(password);
-      if (result.error) {
-        console.error(`\n❌ ${result.error}\n`);
-        process.exit(1);
-      }
-      
-      console.log('\n✅ Wallet decrypted. Password protection removed.\n');
-      return;
-    }
-    
-    // --- UNLOCK ---
-    if (action === 'unlock') {
-      if (!walletExists()) {
-        console.error('\n❌ No wallet found. Run: apechurch install\n');
-        process.exit(1);
-      }
-      if (!isWalletEncrypted()) {
-        console.log('\n✅ Wallet is not encrypted. No unlock needed.\n');
-        return;
-      }
-      
-      // Check if already unlocked
-      const remaining = getSessionTimeRemaining();
-      if (remaining > 0) {
-        const hours = Math.floor(remaining / 3600);
-        const mins = Math.floor((remaining % 3600) / 60);
-        console.log(`\n✅ Wallet already unlocked. ${hours}h ${mins}m remaining.\n`);
-        return;
-      }
-      
-      // Show hints if available
-      const hints = getWalletHints();
-      if (hints.length > 0) {
-        console.log('\n   Your hints:');
-        hints.forEach((h, i) => console.log(`     ${i + 1}. ${h}`));
-        console.log('');
-      }
-      
-      const password = process.env.APECHURCH_PASSWORD || await prompt('Password: ');
-      const timeoutMs = parseFloat(opts.timeout) * 60 * 60 * 1000;
-      const result = unlockWallet(password, timeoutMs);
-      
-      if (result.error) {
-        if (opts.json) console.log(JSON.stringify({ error: result.error }));
-        else console.error(`\n❌ ${result.error}\n`);
-        process.exit(1);
-      }
-      
-      if (opts.json) {
-        console.log(JSON.stringify({ status: 'unlocked', timeout_hours: parseFloat(opts.timeout) }));
-      } else {
-        console.log(`\n✅ Wallet unlocked for ${opts.timeout} hours.\n`);
-      }
-      return;
-    }
-    
-    // --- LOCK ---
-    if (action === 'lock') {
-      clearSession();
-      if (opts.json) {
-        console.log(JSON.stringify({ status: 'locked' }));
-      } else {
-        console.log('\n🔒 Session cleared. Wallet locked.\n');
-      }
-      return;
-    }
-    
-    // --- HINTS ---
+
     if (action === 'hints') {
       if (!walletExists()) {
-        console.error('\n❌ No wallet found. Run: apechurch install\n');
+        console.error(`
+❌ No wallet found. Run: ${BINARY_NAME} install
+`);
         process.exit(1);
       }
       if (!isWalletEncrypted()) {
-        console.error('\n❌ Wallet is not encrypted. Hints only apply to encrypted wallets.\n');
+        console.error('\n❌ Wallet is not encrypted. Hints apply only to encrypted wallets.\n');
         process.exit(1);
       }
-      
+
       const currentHints = getWalletHints();
-      
       console.log('\n📝 Password Hints\n');
       if (currentHints.length > 0) {
         console.log('   Current hints:');
@@ -669,137 +542,104 @@ program
       } else {
         console.log('   No hints set.');
       }
-      
+
       const update = await prompt('\nUpdate hints? (y/N): ');
       if (update.toLowerCase() !== 'y') {
         console.log('');
         return;
       }
-      
+
       console.log('\n   Set up to 3 hints (press Enter to skip):\n');
       const newHints = [];
       for (let i = 1; i <= 3; i++) {
         const hint = await prompt(`   Hint ${i}: `);
         if (hint.trim()) newHints.push(hint.trim());
       }
-      
-      setWalletHints(newHints);
+
+      try {
+        setWalletHints(newHints);
+      } catch (error) {
+        console.error(`
+❌ ${sanitizeError(error)}
+`);
+        process.exit(1);
+      }
+
       console.log('\n✅ Hints updated.\n');
       return;
     }
-    
-    // --- STATUS ---
+
     if (action === 'status') {
-      const encrypted = isWalletEncrypted();
-      const remaining = getSessionTimeRemaining();
-      const hints = getWalletHints();
-      
+      const meta = getWalletPublicMetadata();
+      const payload = {
+        exists: walletExists(),
+        encrypted: Boolean(meta?.encrypted),
+        legacy_plaintext_wallet_detected: Boolean(meta?.legacyPlaintext),
+        address: meta?.address || null,
+        hints_count: meta?.hints?.length || 0,
+        session_caching: false,
+        local_only_signing: true,
+        password_env_var: PASS_ENV_VAR,
+        password_env_configured: Boolean(process.env[PASS_ENV_VAR]),
+      };
+
       if (opts.json) {
-        console.log(JSON.stringify({
-          encrypted,
-          session_remaining_seconds: remaining,
-          hints_count: hints.length,
-        }));
+        console.log(JSON.stringify(payload));
       } else {
         console.log('\n🔐 Wallet Security Status\n');
-        console.log(`   Encrypted:  ${encrypted ? 'Yes' : 'No'}`);
-        if (encrypted) {
-          if (remaining > 0) {
-            const hours = Math.floor(remaining / 3600);
-            const mins = Math.floor((remaining % 3600) / 60);
-            console.log(`   Session:    Unlocked (${hours}h ${mins}m remaining)`);
-          } else {
-            console.log('   Session:    Locked');
-          }
-          console.log(`   Hints:      ${hints.length} set`);
-        }
+        console.log(`   Exists:                 ${payload.exists ? 'Yes' : 'No'}`);
+        console.log(`   Encrypted:              ${payload.encrypted ? 'Yes' : 'No'}`);
+        console.log(`   Legacy plaintext file:  ${payload.legacy_plaintext_wallet_detected ? 'Yes (migrate immediately)' : 'No'}`);
+        console.log(`   Address:                ${payload.address || 'N/A'}`);
+        console.log(`   Password hints:         ${payload.hints_count}`);
+        console.log('   Session cache:          Disabled');
+        console.log('   Signing:                Local only, decrypt-on-sign');
+        console.log(`   Password env var:       ${payload.password_env_var}`);
+        console.log(`   Password env configured:${payload.password_env_configured ? ' Yes' : ' No'}`);
         console.log('');
       }
       return;
     }
-    
-    // --- RESET ---
+
     if (action === 'reset') {
-      const existingData = loadWalletData();
-      
       console.log('\n' + '⚠️'.repeat(20));
-      console.log('\n🚨 DANGER: WALLET RESET 🚨\n');
+      console.log('\n🚨 DANGER: LOCAL WALLET RESET 🚨\n');
       console.log('This will:');
-      console.log('  • DELETE your current wallet permanently');
+      console.log('  • DELETE your local encrypted wallet file permanently');
       console.log('  • DELETE all game history');
       console.log('  • DELETE all local state');
-      console.log('  • Generate a NEW wallet with a NEW address');
-      console.log('  • Your username will NOT transfer (tied to old wallet)\n');
-      
-      if (existingData) {
-        // Get current address (need to decrypt if encrypted)
-        const keyResult = getPrivateKey(process.env.APECHURCH_PASSWORD);
-        if (!keyResult.error) {
-          const account = privateKeyToAccount(keyResult.privateKey);
-          console.log(`Current wallet: ${account.address}`);
-        }
-        console.log('\nMake sure you have:');
-        console.log('  1. Withdrawn all funds (APE, GP, NFTs)');
-        console.log('  2. Backed up your private key (apechurch wallet export)\n');
-      }
-      
+      console.log('  • DELETE local skill installation files');
+      console.log('  • NOT export or reveal the private key\n');
+      console.log(`To reinstall afterwards you must provide ${PRIVATE_KEY_ENV_VAR} again and rerun ${BINARY_NAME} install.\n`);
+
       if (!opts.yes) {
         const confirm = await prompt('Type "RESET" to confirm permanent deletion: ');
         if (confirm.trim() !== 'RESET') {
-          console.log('\nCancelled. Your wallet is safe.\n');
+          console.log('\nCancelled. Your local data is unchanged.\n');
           return;
         }
       }
-      
-      // Show old private key one last time (if accessible)
-      if (existingData && !opts.yes) {
-        const keyResult = getPrivateKey(process.env.APECHURCH_PASSWORD);
-        if (!keyResult.error) {
-          console.log('\n📋 Your OLD private key (last chance to save):');
-          console.log(`   ${keyResult.privateKey}\n`);
-        }
-      }
-      
-      // Delete everything
+
       try {
         if (fs.existsSync(APECHURCH_DIR)) {
           fs.rmSync(APECHURCH_DIR, { recursive: true, force: true });
         }
       } catch (error) {
-        console.error(`\n❌ Failed to clear data: ${error.message}\n`);
+        console.error(`
+❌ Failed to clear data: ${error.message}
+`);
         process.exit(1);
       }
-      
-      // Generate new wallet
-      ensureDir(APECHURCH_DIR);
-      const newPrivateKey = generatePrivateKey();
-      const newAccount = privateKeyToAccount(newPrivateKey);
-      fs.writeFileSync(WALLET_FILE, JSON.stringify({ encrypted: false, privateKey: newPrivateKey }), { mode: 0o600 });
-      
-      // Create fresh profile
-      saveProfile({
-        version: 1,
-        persona: 'balanced',
-        username: null,
-        paused: false,
-        referral: null,
-        overrides: {},
-      });
-      
-      console.log('\n✅ Wallet reset complete!\n');
-      console.log(`   New address: ${newAccount.address}`);
-      console.log('\n   ⚠️  Your old username is tied to your old wallet.');
-      console.log('   You\'ll need to register a new username for this address.\n');
-      console.log('   Next steps:');
-      console.log('   1. Fund your new wallet with APE');
-      console.log('   2. Run: apechurch register --username <name>');
-      console.log('   3. Run: apechurch wallet export (to back up)\n');
+
+      console.log('\n✅ Local wallet and state deleted.\n');
+      console.log(`   Next steps:`);
+      console.log(`   1. Export ${PRIVATE_KEY_ENV_VAR}=0xYOUR_PRIVATE_KEY on this local machine`);
+      console.log(`   2. Run: ${BINARY_NAME} install\n`);
       return;
     }
-    
-    // --- UNKNOWN ---
+
     console.log(`Unknown wallet action: ${action}`);
-    console.log('Available: export, reset, encrypt, decrypt, unlock, lock, hints, status');
+    console.log('Available: status, encrypt, hints, reset');
   });
 
 // ============================================================================
@@ -1833,7 +1673,7 @@ program
           console.log(`  Entry Fee:     ${CONTEST_ENTRY_FEE} APE (one-time)`);
           console.log(`  Eligibility:   Must have wagered < ${CONTEST_WAGER_LIMIT} APE total`);
           console.log(`  Ends:          ${CONTEST_END_DATE.toDateString()}\n`);
-          console.log('  Run: apechurch install  (to set up your agent first)');
+          console.log('  Run: ${BINARY_NAME} install  (to set up your agent first)');
         }
         console.log('═══════════════════════════════════════════════════════════════════\n');
       }
@@ -1919,7 +1759,7 @@ program
       } else if (!canAfford) {
         console.log(`  ⚠️  Fund your wallet with ${CONTEST_ENTRY_FEE}+ APE to register.\n`);
       } else {
-        console.log('  → Run: apechurch contest register\n');
+        console.log('  → Run: ${BINARY_NAME} contest register\n');
       }
     }
     console.log('═══════════════════════════════════════════════════════════════════\n');
@@ -2069,9 +1909,9 @@ ${'─'.repeat(60)}
   COMMANDS
 ${'─'.repeat(60)}
 
-  apechurch blackjack <amount>      Start new game with bet
-  apechurch blackjack resume        Resume unfinished game
-  apechurch blackjack status        Check current game state
+  ${BINARY_NAME} blackjack <amount>      Start new game with bet
+  ${BINARY_NAME} blackjack resume        Resume unfinished game
+  ${BINARY_NAME} blackjack status        Check current game state
 
 ${'─'.repeat(60)}
   OPTIONS
@@ -2097,10 +1937,10 @@ ${'─'.repeat(60)}
   EXAMPLES
 ${'─'.repeat(60)}
 
-  apechurch blackjack 10                   Play one hand, 10 APE
-  apechurch blackjack 25 --auto            Bot plays one hand
-  apechurch blackjack 25 --auto --loop     Bot grinds until broke
-  apechurch blackjack 10 --auto --loop --target 500
+  ${BINARY_NAME} blackjack 10                   Play one hand, 10 APE
+  ${BINARY_NAME} blackjack 25 --auto            Bot plays one hand
+  ${BINARY_NAME} blackjack 25 --auto --loop     Bot grinds until broke
+  ${BINARY_NAME} blackjack 10 --auto --loop --target 500
                                            Bot plays until 500 APE balance
 
 ${'═'.repeat(60)}
@@ -2139,10 +1979,10 @@ ${'─'.repeat(60)}
   COMMANDS
 ${'─'.repeat(60)}
 
-  apechurch video-poker <amount>    Start new game (1/5/10/25/50/100 APE)
-  apechurch video-poker resume      Resume unfinished game
-  apechurch video-poker status      Check current game state
-  apechurch video-poker payouts     Show payout table
+  ${BINARY_NAME} video-poker <amount>    Start new game (1/5/10/25/50/100 APE)
+  ${BINARY_NAME} video-poker resume      Resume unfinished game
+  ${BINARY_NAME} video-poker status      Check current game state
+  ${BINARY_NAME} video-poker payouts     Show payout table
 
 ${'─'.repeat(60)}
   OPTIONS
@@ -2171,10 +2011,10 @@ ${'─'.repeat(60)}
   EXAMPLES
 ${'─'.repeat(60)}
 
-  apechurch video-poker 10              Play one hand, 10 APE
-  apechurch video-poker 100             Max bet (jackpot eligible)
-  apechurch video-poker 25 --auto       Bot plays one hand
-  apechurch video-poker 25 --auto --loop
+  ${BINARY_NAME} video-poker 10              Play one hand, 10 APE
+  ${BINARY_NAME} video-poker 100             Max bet (jackpot eligible)
+  ${BINARY_NAME} video-poker 25 --auto       Bot plays one hand
+  ${BINARY_NAME} video-poker 25 --auto --loop
                                         Bot grinds until broke
 
 ${'═'.repeat(60)}
@@ -2243,51 +2083,47 @@ program
 🦍 APE CHURCH CLI - COMMAND REFERENCE
 
 SETUP
-  apechurch install              Setup wallet and register
-  apechurch uninstall            Remove local data
+  ${BINARY_NAME} install              Setup encrypted wallet and register
+  ${BINARY_NAME} uninstall            Remove local data
 
 WALLET
-  apechurch wallet export        Show private key (back this up!)
-  apechurch wallet reset         Generate new wallet (DANGER: deletes old one)
-  apechurch wallet status        Check encryption and session status
-  apechurch wallet encrypt       Add password protection (optional, not for AI agents)
-  apechurch wallet decrypt       Remove password protection
-  apechurch wallet unlock        Start session (default: 3 hours)
-  apechurch wallet lock          End session immediately
-  apechurch wallet hints         View or update password hints (up to 3)
-  apechurch send APE <amt> <to>  Send APE (native currency) to an address
-  apechurch send GP <amt> <to>   Send GP (Gimbo Points, 0 decimals) to an address
+  ${BINARY_NAME} wallet status        Check wallet encryption status
+  ${BINARY_NAME} wallet encrypt       Migrate legacy plaintext wallet to encrypted-only storage
+  ${BINARY_NAME} wallet hints         View or update password hints (up to 3)
+  ${BINARY_NAME} wallet reset         Delete local wallet/profile/state files (requires reinstall)
+  ${BINARY_NAME} send APE <amt> <to>  Send APE (native currency) to an address
+  ${BINARY_NAME} send GP <amt> <to>   Send GP (Gimbo Points, 0 decimals) to an address
 
 THE HOUSE (Staking)
-  apechurch house                Show house stats and your position
-  apechurch house deposit <amt>  Deposit APE (15-min lock, 2% withdraw fee)
-  apechurch house withdraw <amt> Withdraw APE (must be unlocked)
+  ${BINARY_NAME} house                Show house stats and your position
+  ${BINARY_NAME} house deposit <amt>  Deposit APE (15-min lock, 2% withdraw fee)
+  ${BINARY_NAME} house withdraw <amt> Withdraw APE
 
 STATUS
-  apechurch status               Check balance and state
-  apechurch profile show         Show profile
-  apechurch profile set          Update profile (--persona, --referral)
+  ${BINARY_NAME} status               Check balance and state
+  ${BINARY_NAME} profile show         Show profile
+  ${BINARY_NAME} profile set          Update profile (--persona, --referral)
 
 PLAY
-  apechurch play                 Play random game
-  apechurch play <game> <amt>    Play specific game
-  apechurch play --loop          Continuous play
-  apechurch bet --game X --amount Y   Manual bet
+  ${BINARY_NAME} play                 Play random game
+  ${BINARY_NAME} play <game> <amt>    Play specific game
+  ${BINARY_NAME} play --loop          Continuous play
+  ${BINARY_NAME} bet --game X --amount Y   Manual bet
 
 CONTROL
-  apechurch pause                Stop autonomous play
-  apechurch resume               Resume play
-  apechurch register --username <name>   Set or change username
+  ${BINARY_NAME} pause                Stop autonomous play
+  ${BINARY_NAME} resume               Resume play
+  ${BINARY_NAME} register --username <name>   Set or change username
 
 INFO
-  apechurch games                List all games
-  apechurch game <name>          Game details
-  apechurch history              Recent games
-  apechurch commands             This help
+  ${BINARY_NAME} games                List all games
+  ${BINARY_NAME} game <name>          Game details
+  ${BINARY_NAME} history              Recent games
+  ${BINARY_NAME} commands             This help
 
 CONTEST
-  apechurch contest              Contest info and your status
-  apechurch contest register     Register for the contest (5 APE)
+  ${BINARY_NAME} contest              Contest info and your status
+  ${BINARY_NAME} contest register     Register for the contest (5 APE)
 
 LOOP OPTIONS
   --loop                  Play continuously
@@ -2305,38 +2141,38 @@ BETTING STRATEGIES
   dalembert               +1 unit on loss, -1 on win
 
 EXAMPLES
-  apechurch play jungle-plinko 10 2 50
-  apechurch play roulette 50 RED
-  apechurch play ape-strong 10 50
-  
+  ${BINARY_NAME} play jungle-plinko 10 2 50
+  ${BINARY_NAME} play roulette 50 RED
+  ${BINARY_NAME} play ape-strong 10 50
+
   # Loop with safety limits
-  apechurch play --loop --target 200 --stop-loss 50
-  
+  ${BINARY_NAME} play --loop --target 200 --stop-loss 50
+
   # Martingale: start at 10, double on loss, max 100
-  apechurch play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
-  
+  ${BINARY_NAME} play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
+
   # Blackjack with strategy
-  apechurch blackjack 5 --auto --loop --bet-strategy martingale --target 100
-  
+  ${BINARY_NAME} blackjack 5 --auto --loop --bet-strategy martingale --target 100
+
   # Run exactly 20 games
-  apechurch play ape-strong 10 --loop --max-games 20
-  
-  apechurch register --username my_bot_name
-  apechurch send APE 10 0x1234...abcd
+  ${BINARY_NAME} play ape-strong 10 --loop --max-games 20
+
+  ${BINARY_NAME} register --username my_bot_name
+  ${BINARY_NAME} send APE 10 0x1234...abcd
 
 ASSETS
   APE    Native currency (18 decimals)
          - Used for betting, gas fees, and transfers
-         - Check balance: apechurch status
-  
+         - Check balance: ${BINARY_NAME} status
+
   GP     Gimbo Points (0 decimals, whole numbers only)
          - Earned as cashback from playing games
          - Non-transferable until claimed (use getCurrentEXP to check)
-         - Send to others: apechurch send GP <amount> <address>
+         - Send to others: ${BINARY_NAME} send GP <amount> <address>
 
 DETAILED HELP
-  apechurch help <topic>         Get detailed help on a topic
-  
+  ${BINARY_NAME} help <topic>         Get detailed help on a topic
+
   Topics: loop, strategies, auto, wallet, house
 `);
   });
@@ -2357,8 +2193,8 @@ ${'─'.repeat(70)}
   BASIC USAGE
 ${'─'.repeat(70)}
 
-  apechurch play --loop                    # Loop until balance runs out
-  apechurch play roulette 10 RED --loop    # Loop specific game
+  ${BINARY_NAME} play --loop                    # Loop until balance runs out
+  ${BINARY_NAME} play roulette 10 RED --loop    # Loop specific game
 
 ${'─'.repeat(70)}
   SAFETY CONTROLS (Highly Recommended!)
@@ -2374,7 +2210,7 @@ ${'─'.repeat(70)}
                        Example: --max-games 100 (play 100 games then stop)
 
   These can be combined:
-    apechurch play --loop --target 200 --stop-loss 50 --max-games 500
+    ${BINARY_NAME} play --loop --target 200 --stop-loss 50 --max-games 500
 
 ${'─'.repeat(70)}
   BETTING STRATEGIES (use with --loop)
@@ -2388,12 +2224,12 @@ ${'─'.repeat(70)}
                           Prevents runaway betting in progressive strategies
                           
   Example - Martingale with safety:
-    apechurch play roulette 10 RED --loop \\
+    ${BINARY_NAME} play roulette 10 RED --loop \\
       --bet-strategy martingale \\
       --max-bet 100 \\
       --stop-loss 50
 
-  See: apechurch help strategies
+  See: ${BINARY_NAME} help strategies
 
 ${'─'.repeat(70)}
   DISPLAY DURING LOOP
@@ -2417,8 +2253,8 @@ ${'─'.repeat(70)}
 ${'─'.repeat(70)}
 
   • All simple games (play command)
-  • Blackjack (apechurch blackjack <amt> --loop --auto)
-  • Video Poker (apechurch video-poker <amt> --loop --auto)
+  • Blackjack (${BINARY_NAME} blackjack <amt> --loop --auto)
+  • Video Poker (${BINARY_NAME} video-poker <amt> --loop --auto)
 
 ${'═'.repeat(70)}
 `,
@@ -2432,7 +2268,7 @@ ${'═'.repeat(70)}
   Use with --loop for continuous play.
 
   SYNTAX:
-    apechurch play <game> <base-bet> --loop --bet-strategy <name> --max-bet <cap>
+    ${BINARY_NAME} play <game> <base-bet> --loop --bet-strategy <name> --max-bet <cap>
 
 ${'─'.repeat(70)}
   FLAT (Default) - Safest
@@ -2444,7 +2280,7 @@ ${'─'.repeat(70)}
   • Bankroll Impact: Predictable, slow grind
   • Best For: Long sessions, learning games
   
-  Example: apechurch play roulette 10 RED --loop
+  Example: ${BINARY_NAME} play roulette 10 RED --loop
 
 ${'─'.repeat(70)}
   MARTINGALE - High Risk
@@ -2460,7 +2296,7 @@ ${'─'.repeat(70)}
   ⚠️  ALWAYS use --max-bet to cap progression!
   
   Example:
-    apechurch play roulette 10 RED --loop \\
+    ${BINARY_NAME} play roulette 10 RED --loop \\
       --bet-strategy martingale --max-bet 100
 
 ${'─'.repeat(70)}
@@ -2475,7 +2311,7 @@ ${'─'.repeat(70)}
   • Downside: One loss wipes streak gains
   
   Example:
-    apechurch play roulette 10 RED --loop \\
+    ${BINARY_NAME} play roulette 10 RED --loop \\
       --bet-strategy reverse-martingale --max-bet 80
 
 ${'─'.repeat(70)}
@@ -2490,7 +2326,7 @@ ${'─'.repeat(70)}
   • Recovery: Win jumps back 2 positions
   
   Example:
-    apechurch play roulette 10 RED --loop \\
+    ${BINARY_NAME} play roulette 10 RED --loop \\
       --bet-strategy fibonacci --max-bet 150
 
 ${'─'.repeat(70)}
@@ -2505,7 +2341,7 @@ ${'─'.repeat(70)}
   • Best For: Conservative players wanting some progression
   
   Example:
-    apechurch play roulette 10 RED --loop \\
+    ${BINARY_NAME} play roulette 10 RED --loop \\
       --bet-strategy dalembert --max-bet 100
 
 ${'─'.repeat(70)}
@@ -2540,8 +2376,8 @@ ${'─'.repeat(70)}
     • Available actions (hit, stand, double, split, etc.)
   
   Commands:
-    apechurch blackjack 10 --auto              # One hand, auto-play
-    apechurch blackjack 10 --auto --loop       # Continuous auto-play
+    ${BINARY_NAME} blackjack 10 --auto              # One hand, auto-play
+    ${BINARY_NAME} blackjack 10 --auto --loop       # Continuous auto-play
   
   Strategy includes:
     • When to hit vs stand
@@ -2559,8 +2395,8 @@ ${'─'.repeat(70)}
     • Picks the hold with highest expected value
   
   Commands:
-    apechurch video-poker 10 --auto            # One hand, auto-play
-    apechurch video-poker 10 --auto --loop     # Continuous auto-play
+    ${BINARY_NAME} video-poker 10 --auto            # One hand, auto-play
+    ${BINARY_NAME} video-poker 10 --auto --loop     # Continuous auto-play
 
 ${'─'.repeat(70)}
   SIMPLE GAMES
@@ -2569,8 +2405,8 @@ ${'─'.repeat(70)}
   Games like Roulette, Plinko, etc. don't need --auto because
   there are no mid-game decisions. Just use --loop for continuous play:
   
-    apechurch play roulette 10 RED --loop
-    apechurch play plinko 10 2 50 --loop
+    ${BINARY_NAME} play roulette 10 RED --loop
+    ${BINARY_NAME} play plinko 10 2 50 --loop
 
 ${'─'.repeat(70)}
   COMBINING WITH STRATEGIES
@@ -2578,7 +2414,7 @@ ${'─'.repeat(70)}
 
   Auto-play works with all betting strategies:
   
-    apechurch blackjack 10 --auto --loop \\
+    ${BINARY_NAME} blackjack 10 --auto --loop \\
       --bet-strategy martingale --max-bet 100 \\
       --target 200 --stop-loss 50
 
@@ -2599,76 +2435,55 @@ ${'═'.repeat(70)}
   WALLET MANAGEMENT
 ${'═'.repeat(70)}
 
-  Your wallet is stored in ~/.apechurch/wallet.json
-  It holds your private key - this controls your funds!
+  Wallet path:
+    ~/.apechurch-cli-gx54/wallet.json
+
+  Security model in this hardened build:
+    • The private key is stored only in encrypted form on disk
+    • Signing happens only locally on this machine
+    • No plaintext private key export is available
+    • No unlock/session cache exists
+    • Password is read from ${PASS_ENV_VAR} or prompted immediately before signing
 
 ${'─'.repeat(70)}
-  BASIC COMMANDS
+  SUPPORTED COMMANDS
 ${'─'.repeat(70)}
 
-  apechurch wallet export      Show your private key (BACK THIS UP!)
-  apechurch wallet status      Check encryption status and session
-  apechurch wallet reset       Generate new wallet (⚠️ DELETES OLD ONE)
+  ${BINARY_NAME} wallet status        Check encrypted wallet status
+  ${BINARY_NAME} wallet encrypt       Migrate a legacy plaintext wallet in place
+  ${BINARY_NAME} wallet hints         View/update password hints
+  ${BINARY_NAME} wallet reset         Delete local wallet/profile/state files
 
 ${'─'.repeat(70)}
-  OPTIONAL ENCRYPTION
+  INSTALL / REINSTALL
 ${'─'.repeat(70)}
 
-  You can password-protect your wallet file.
-  
-  ⚠️  NOT RECOMMENDED FOR AI AGENTS
-  ⚠️  FORGOT PASSWORD = FUNDS LOST FOREVER
-  
-  Commands:
-    apechurch wallet encrypt   Add password protection
-    apechurch wallet decrypt   Remove password protection
-  
-  When encrypted:
-    • Private key is encrypted with AES-256-GCM
-    • Password required for any transaction
-    • Sessions cache decrypted key temporarily
+  New installs require the private key only via environment variable:
+    export ${PRIVATE_KEY_ENV_VAR}="0x..."
+
+  Then run:
+    ${BINARY_NAME} install
+
+  You will be asked for a wallet password unless ${PASS_ENV_VAR} is set.
 
 ${'─'.repeat(70)}
-  SESSIONS (for encrypted wallets)
+  AUTOMATION
 ${'─'.repeat(70)}
 
-  Sessions let you unlock once and play without re-entering password.
-  
-  apechurch wallet unlock               # 3-hour session (default)
-  apechurch wallet unlock --timeout 8   # 8-hour session
-  apechurch wallet lock                 # End session immediately
-  
-  Sessions auto-expire. Check with:
-    apechurch wallet status
+  To avoid an interactive password prompt before each signature:
+    export ${PASS_ENV_VAR}="your-password"
+
+  Risk:
+    • Environment variables remain local, but may still be exposed to other
+      local processes/users depending on OS configuration.
 
 ${'─'.repeat(70)}
-  PASSWORD HINTS
+  IMPORTANT RISKS
 ${'─'.repeat(70)}
 
-  Store up to 3 hints to help remember your password:
-  
-  apechurch wallet hints                # View current hints
-  apechurch wallet hints --set          # Update hints interactively
-
-${'─'.repeat(70)}
-  AUTOMATION (AI Agents)
-${'─'.repeat(70)}
-
-  For automated systems, set the password via environment variable:
-  
-    export APECHURCH_PASSWORD="your-password"
-  
-  This avoids interactive prompts. But again, for AI agents,
-  it's simpler to just leave the wallet unencrypted.
-
-${'─'.repeat(70)}
-  BACKUP YOUR KEY!
-${'─'.repeat(70)}
-
-  Run: apechurch wallet export
-  
-  Store the private key somewhere safe (password manager, etc.)
-  Anyone with this key can steal your funds.
+  • Forgetting the wallet password prevents local decryption/signing.
+  • If you also lose the original private key, control of funds may be lost permanently.
+  • ${BINARY_NAME} wallet reset irreversibly deletes local wallet/profile/state files.
 
 ${'═'.repeat(70)}
 `,
@@ -2689,7 +2504,7 @@ ${'─'.repeat(70)}
   CHECK STATUS
 ${'─'.repeat(70)}
 
-  apechurch house
+  ${BINARY_NAME} house
   
   Shows:
     • Total House liquidity
@@ -2702,9 +2517,9 @@ ${'─'.repeat(70)}
   DEPOSIT
 ${'─'.repeat(70)}
 
-  apechurch house deposit <amount>
+  ${BINARY_NAME} house deposit <amount>
   
-  Example: apechurch house deposit 100
+  Example: ${BINARY_NAME} house deposit 100
   
   • You send APE, receive HOUSE tokens
   • HOUSE tokens = your share of the pool
@@ -2715,9 +2530,9 @@ ${'─'.repeat(70)}
   WITHDRAW
 ${'─'.repeat(70)}
 
-  apechurch house withdraw <amount>
+  ${BINARY_NAME} house withdraw <amount>
   
-  Example: apechurch house withdraw 50
+  Example: ${BINARY_NAME} house withdraw 50
   
   • Burns HOUSE tokens, returns APE
   • 2% WITHDRAWAL FEE (protocol revenue)
@@ -2771,16 +2586,16 @@ ${'═'.repeat(60)}
   HELP TOPICS
 ${'═'.repeat(60)}
 
-  apechurch help loop         Loop mode and safety controls
-  apechurch help strategies   Betting strategies in detail
-  apechurch help auto         Auto-play for Blackjack/Video Poker
-  apechurch help wallet       Wallet security and encryption
-  apechurch help house        The House staking system
+  ${BINARY_NAME} help loop         Loop mode and safety controls
+  ${BINARY_NAME} help strategies   Betting strategies in detail
+  ${BINARY_NAME} help auto         Auto-play for Blackjack/Video Poker
+  ${BINARY_NAME} help wallet       Wallet security and encryption
+  ${BINARY_NAME} help house        The House staking system
 
   Also see:
-    apechurch commands        Full command reference
-    apechurch games           List all games
-    apechurch game <name>     Detailed game info
+    ${BINARY_NAME} commands        Full command reference
+    ${BINARY_NAME} games           List all games
+    ${BINARY_NAME} game <name>     Detailed game info
 
 ${'═'.repeat(60)}
 `);
@@ -3112,9 +2927,9 @@ program
           console.log(formatField('Unlock', lockSeconds > 0 ? theme.locked(formatTimeRemaining(lockSeconds)) : theme.success('Unlocked'), 14));
         } else if (hasWallet) {
           console.log(`\n   ${theme.dim('You have no APE staked in The House.')}`);
-          console.log(`   ${theme.dim('Run:')} ${theme.command('apechurch house deposit <amount>')}`);
+          console.log(`   ${theme.dim('Run:')} ${theme.command('${BINARY_NAME} house deposit <amount>')}`);
         } else {
-          console.log(`\n   ${theme.warning('No wallet found.')} ${theme.dim('Run:')} ${theme.command('apechurch install')}`);
+          console.log(`\n   ${theme.warning('No wallet found.')} ${theme.dim('Run:')} ${theme.command('${BINARY_NAME} install')}`);
         }
         console.log('');
       }
@@ -3124,9 +2939,9 @@ program
     // --- DEPOSIT ---
     if (action === 'deposit') {
       if (!amount) {
-        const error = { error: 'Amount required. Usage: apechurch house deposit <amount>' };
+        const error = { error: 'Amount required. Usage: ${BINARY_NAME} house deposit <amount>' };
         if (opts.json) console.log(JSON.stringify(error));
-        else console.error('\n❌ Amount required. Usage: apechurch house deposit <amount>\n');
+        else console.error('\n❌ Amount required. Usage: ${BINARY_NAME} house deposit <amount>\n');
         process.exit(1);
       }
 
@@ -3208,9 +3023,9 @@ program
     // --- WITHDRAW ---
     if (action === 'withdraw') {
       if (!amount) {
-        const error = { error: 'Amount required. Usage: apechurch house withdraw <amount>' };
+        const error = { error: 'Amount required. Usage: ${BINARY_NAME} house withdraw <amount>' };
         if (opts.json) console.log(JSON.stringify(error));
-        else console.error('\n❌ Amount required. Usage: apechurch house withdraw <amount>\n');
+        else console.error('\n❌ Amount required. Usage: ${BINARY_NAME} house withdraw <amount>\n');
         process.exit(1);
       }
 
@@ -3311,7 +3126,7 @@ program
     // Unknown action
     const error = { error: `Unknown action: ${action}. Use: deposit, withdraw, or no action for status` };
     if (opts.json) console.log(JSON.stringify(error));
-    else console.error(`\n❌ Unknown action: ${action}\nUsage:\n  apechurch house                  Show house stats\n  apechurch house deposit <amt>    Deposit APE\n  apechurch house withdraw <amt>   Withdraw APE\n`);
+    else console.error(`\n❌ Unknown action: ${action}\nUsage:\n  ${BINARY_NAME} house                  Show house stats\n  ${BINARY_NAME} house deposit <amt>    Deposit APE\n  ${BINARY_NAME} house withdraw <amt>   Withdraw APE\n`);
   });
 
 // ============================================================================
@@ -3340,8 +3155,8 @@ program
       const betAmount = action || amount;
       if (!betAmount) {
         console.error('\n❌ Bet amount required');
-        console.error('   Usage: apechurch blackjack <amount>\n');
-        console.error('   Example: apechurch blackjack 10\n');
+        console.error('   Usage: ${BINARY_NAME} blackjack <amount>\n');
+        console.error('   Example: ${BINARY_NAME} blackjack 10\n');
         return;
       }
       return blackjack.start(betAmount, opts);
@@ -3413,8 +3228,8 @@ program
       if (!betAmount) {
         console.error('\n❌ Bet amount required');
         console.error('   Valid bets: 1, 5, 10, 25, 50, 100 APE');
-        console.error('   Usage: apechurch video-poker <amount>\n');
-        console.error('   Example: apechurch video-poker 10\n');
+        console.error('   Usage: ${BINARY_NAME} video-poker <amount>\n');
+        console.error('   Example: ${BINARY_NAME} video-poker 10\n');
         return;
       }
       return videoPoker.start(betAmount, opts);
@@ -3462,5 +3277,5 @@ program.parse(process.argv);
 // Show update notification if available (after command completes)
 notifier.notify({
   isGlobal: true,
-  message: 'Update available: {currentVersion} → {latestVersion}\nRun: npm i -g @ape-church/skill',
+  message: 'Update available: {currentVersion} → {latestVersion}\nRun: npm i -g @apechurch-hf/apechurch-cli-gx54',
 });

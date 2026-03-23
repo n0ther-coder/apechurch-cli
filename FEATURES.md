@@ -17,14 +17,11 @@
 - **Session-based unlock** — Unlock once, stay unlocked for 3 hours
 - **Auto-prompting** — Any command that needs your key will prompt if locked
 - **Password hints** — Store up to 3 hints to help remember your password
-- **Environment variable support** — Set `APECHURCH_PASSWORD` for automation
+- **Environment variable support** — Set `APECHURCH_CLI_GX54_PASS` for local automation
 - **Commands:**
   - `wallet encrypt` — Add password protection
-  - `wallet decrypt` — Remove password protection
-  - `wallet unlock` — Start a 3-hour session
-  - `wallet lock` — End your session
   - `wallet hints` — View or update password hints
-  - `wallet status` — Check encryption and session status
+  - `wallet status` — Check encrypted-wallet status
 
 ## Gaming (10+ Games)
 - **Slots:** Jungle Plinko, Dino Dough, Bubblegum Heist
@@ -53,7 +50,7 @@
 - JSON output on all commands (`--json`)
 - Scriptable and pipe-friendly
 - No browser required (headless servers, VPS, containers)
-- npm package: `npm install -g @ape-church/skill`
+- npm package: `npm install -g @apechurch-hf/apechurch-cli-gx54`
 - Transaction hashes and game IDs returned
 
 ## 🤖 AI Agent Compatible
@@ -105,8 +102,8 @@
 ## Installation
 
 ```bash
-npm install -g @ape-church/skill
-apechurch install
+npm install -g @apechurch-hf/apechurch-cli-gx54
+apechurch-cli-gx54 install
 ```
 
 ---
@@ -116,7 +113,7 @@ apechurch install
 - **Website:** https://ape.church
 - **Games:** https://ape.church/games
 - **GitHub:** https://github.com/ape-church/agent-skills
-- **npm:** https://www.npmjs.com/package/@ape-church/skill
+- **npm:** https://www.npmjs.com/package/@apechurch-hf/apechurch-cli-gx54
 
 ---
 

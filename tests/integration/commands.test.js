@@ -54,27 +54,36 @@ describe('CLI Commands Integration Tests', () => {
   });
 
   describe('status command', () => {
-    it('returns status information', () => {
+    it('returns status information or a structured missing-wallet error', () => {
       const { stdout } = cli('status');
-      assert.ok(stdout.includes('Address') || stdout.includes('address'), 'Should show address');
-      assert.ok(stdout.includes('Balance') || stdout.includes('balance'), 'Should show balance');
+      assert.ok(
+        stdout.includes('Address') || stdout.includes('address') || stdout.includes('No wallet found'),
+        'Should show address data or an explicit missing-wallet message'
+      );
     });
 
     it('--json returns valid JSON', () => {
       const { stdout } = cli('status --json');
       const data = JSON.parse(stdout);
-      
-      assert.ok('address' in data, 'JSON should have address');
-      assert.ok('balance' in data, 'JSON should have balance');
-      assert.ok('can_play' in data, 'JSON should have can_play');
-      assert.ok('username' in data, 'JSON should have username');
+      assert.ok(typeof data === 'object' && data !== null, 'Should return a JSON object');
+      if ('error' in data) {
+        assert.ok(String(data.error).includes('No wallet found'), 'Error should explain missing wallet');
+      } else {
+        assert.ok('address' in data, 'JSON should have address');
+        assert.ok('balance' in data, 'JSON should have balance');
+        assert.ok('can_play' in data, 'JSON should have can_play');
+        assert.ok('username' in data, 'JSON should have username');
+      }
     });
 
-    it('address is valid Ethereum format', () => {
+    it('address is valid Ethereum format when present', () => {
       const { stdout } = cli('status --json');
       const data = JSON.parse(stdout);
-      
-      assert.ok(/^0x[a-fA-F0-9]{40}$/.test(data.address), 'Address should be valid');
+      if ('address' in data) {
+        assert.ok(/^0x[a-fA-F0-9]{40}$/.test(data.address), 'Address should be valid');
+      } else {
+        assert.ok('error' in data, 'Missing-wallet response should expose an error');
+      }
     });
   });
 

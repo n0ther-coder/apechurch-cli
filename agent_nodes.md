@@ -6,8 +6,8 @@ Last updated: 2026-02-03 (v1.0.2)
 SUMMARY OF WORK COMPLETED
 -------------------------
 1) CLI Core (bin/cli.js)
-- Wallet generation and storage at ~/.apechurch/wallet.json (install command).
-- Install now copies skill files into ~/.apechurch/skill/:
+- Encrypted wallet storage at ~/.apechurch-cli-gx54/wallet.json (install command; private key supplied only via env).
+- Install now copies skill files into ~/.apechurch-cli-gx54/skill/:
   - SKILL.md, HEARTBEAT.md, STRATEGY.md, skill.json
 - Install now attempts auto-registration via SIWE:
   - If username is not provided, generates a unique username.
@@ -19,10 +19,10 @@ SUMMARY OF WORK COMPLETED
     domain: ape.church, uri: https://ape.church, chainId: 33139,
     statement: username.
 - New profile management:
-  - apechurch profile show --json
-  - apechurch profile set --persona <...> --username <...>
+  - apechurch-cli-gx54 profile show --json
+  - apechurch-cli-gx54 profile set --persona <...> --username <...>
 - New register command:
-  - apechurch register --username <NAME> --persona <...>
+  - apechurch-cli-gx54 register --username <NAME> --persona <...>
 - Status command now returns:
   - address, balance, available_ape, gas_reserve_ape, paused, persona, username,
     can_play (based on available_ape).
@@ -31,7 +31,7 @@ SUMMARY OF WORK COMPLETED
   - Enforces gas reserve (1 APE) and minimum wager target (10 APE).
   - Dynamic cooldown based on streaks.
   - Chooses one game + config per run.
-  - Tracks streaks and totalPnL in ~/.apechurch/state.json.
+  - Tracks streaks and totalPnL in ~/.apechurch-cli-gx54/state.json.
 
 2) Game Support (implemented in CLI)
 - Jungle Plinko:
@@ -60,11 +60,11 @@ SUMMARY OF WORK COMPLETED
 4) Dependency Updates
 - Added "siwe" (now ^3.0.0) to package.json.
 - Added Node.js engines requirement: >= 18.
-- Package name set to "@ape-church/skill".
-- CLI now supports `apechurch --version`.
+- Package name set to "@apechurch-hf/apechurch-cli-gx54".
+- CLI now supports `apechurch-cli-gx54 --version`.
 
 5) Pause/Resume (v1.0.2)
-- Added `apechurch pause` and `apechurch resume` commands.
+- Added `apechurch-cli-gx54 pause` and `apechurch-cli-gx54 resume` commands.
 - Profile now includes `paused` field.
 - Heartbeat skips gracefully when paused.
 - Status shows paused state and can_play reflects it.
@@ -114,8 +114,8 @@ LOW PRIORITY / FUTURE
 GO-LIVE CHECKLIST
 -----------------
 1) Run install and confirm:
-   - wallet generated at ~/.apechurch/wallet.json
-   - skill files copied to ~/.apechurch/skill/
+   - encrypted wallet stored at ~/.apechurch-cli-gx54/wallet.json
+   - skill files copied to ~/.apechurch-cli-gx54/skill/
    - username registered via SIWE to https://www.ape.church/api/profile
 2) Fund agent address via relay bridge.
 3) Run status to confirm balance + available_ape.

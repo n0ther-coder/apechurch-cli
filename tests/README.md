@@ -35,7 +35,7 @@ Pure function tests - no network calls, no state changes.
 | File | Network | Real Bets | Notes |
 |------|---------|-----------|-------|
 | `commands.test.js` | Read-only | No | Tests CLI output, validation |
-| `wallet.test.js` | No | No | Tests encrypt/decrypt flow |
+| `wallet.test.js` | No | No | Tests hardened wallet restrictions/status |
 | `games.test.js` | Yes | **YES** | Live mainnet games |
 
 ## Environment Variables
@@ -43,13 +43,13 @@ Pure function tests - no network calls, no state changes.
 | Variable | Effect |
 |----------|--------|
 | `SKIP_LIVE_TESTS=1` | Skip all live game tests |
-| `SKIP_WALLET_TESTS=1` | Skip wallet encryption tests |
 
 ## Live Test Requirements
 
 For `games.test.js`:
 - Funded wallet with **at least 20 APE**
-- Wallet must be unencrypted (or have active session)
+- Encrypted wallet must be installed locally
+- Password must be provided interactively or via `APECHURCH_CLI_GX54_PASS` before signing
 - Each test makes 1 APE minimum bets
 
 ## Test Commands
@@ -104,7 +104,7 @@ describe('MyFeature', () => {
 - Username/profile validation
 - CLI command parsing
 - JSON output format
-- Wallet encryption flow
+- Hardened encrypted-wallet flow
 - Live game execution
 - Error handling
 

@@ -1,4 +1,4 @@
-# @ape-church/skill
+# @apechurch-hf/apechurch-cli-gx54
 
 Autonomous gambling CLI for [Ape Church](https://ape.church) on ApeChain.
 
@@ -16,22 +16,22 @@ Play casino games from the command line. Perfect for AI agents, automation, and 
 
 ```bash
 # Install
-npm install -g @ape-church/skill
+npm install -g @apechurch-hf/apechurch-cli-gx54
 
 # Setup wallet
-apechurch install
+apechurch-cli-gx54 install
 
 # Fund wallet with APE on ApeChain
 # Bridge: https://relay.link/bridge/apechain
 
 # Check status
-apechurch status
+apechurch-cli-gx54 status
 
 # Play one game
-apechurch play
+apechurch-cli-gx54 play
 
 # Play continuously
-apechurch play --loop
+apechurch-cli-gx54 play --loop
 ```
 
 ## Games
@@ -57,13 +57,13 @@ Play continuously with safety controls:
 
 ```bash
 # Basic loop
-apechurch play --loop
+apechurch-cli-gx54 play --loop
 
 # With safety limits
-apechurch play --loop --target 200 --stop-loss 50 --max-games 100
+apechurch-cli-gx54 play --loop --target 200 --stop-loss 50 --max-games 100
 
 # Specific game
-apechurch play ape-strong 10 50 --loop --target 150
+apechurch-cli-gx54 play ape-strong 10 50 --loop --target 150
 ```
 
 | Option | Description |
@@ -77,10 +77,10 @@ apechurch play ape-strong 10 50 --loop --target 150
 
 ```bash
 # Martingale: double on loss, reset on win
-apechurch play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
+apechurch-cli-gx54 play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
 
 # Fibonacci: sequence on losses
-apechurch play --loop --bet-strategy fibonacci
+apechurch-cli-gx54 play --loop --bet-strategy fibonacci
 ```
 
 | Strategy | Behavior |
@@ -97,26 +97,26 @@ Interactive card games with auto-play support:
 
 ```bash
 # Auto-play with optimal strategy
-apechurch blackjack 10 --auto --loop
-apechurch video-poker 10 --auto --loop
+apechurch-cli-gx54 blackjack 10 --auto --loop
+apechurch-cli-gx54 video-poker 10 --auto --loop
 
 # Interactive mode
-apechurch blackjack 10
+apechurch-cli-gx54 blackjack 10
 ```
 
 ## Commands
 
 ```bash
-apechurch play [game] [amount] [config...]  # Play games
-apechurch blackjack <amount> [--auto]       # Blackjack
-apechurch video-poker <amount> [--auto]     # Video Poker
-apechurch status                            # Check balance
-apechurch games                             # List all games
-apechurch game <name>                       # Game details
-apechurch pause                             # Stop autonomous play
-apechurch resume                            # Resume play
-apechurch history                           # Recent games
-apechurch commands                          # Full reference
+apechurch-cli-gx54 play [game] [amount] [config...]  # Play games
+apechurch-cli-gx54 blackjack <amount> [--auto]       # Blackjack
+apechurch-cli-gx54 video-poker <amount> [--auto]     # Video Poker
+apechurch-cli-gx54 status                            # Check balance
+apechurch-cli-gx54 games                             # List all games
+apechurch-cli-gx54 game <name>                       # Game details
+apechurch-cli-gx54 pause                             # Stop autonomous play
+apechurch-cli-gx54 resume                            # Resume play
+apechurch-cli-gx54 history                           # Recent games
+apechurch-cli-gx54 commands                          # Full reference
 ```
 
 ## For AI Agents
@@ -124,9 +124,9 @@ apechurch commands                          # Full reference
 All commands support `--json` for machine-readable output:
 
 ```bash
-apechurch status --json
-apechurch play --json
-apechurch play --loop --json
+apechurch-cli-gx54 status --json
+apechurch-cli-gx54 play --json
+apechurch-cli-gx54 play --loop --json
 ```
 
 See [SKILL.md](./SKILL.md) for complete agent documentation.
