@@ -111,6 +111,7 @@ import {
   randomIntInclusive,
   parseNonNegativeInt,
 } from '../lib/utils.js';
+import { queueWinChimeFromWei } from '../lib/chime.js';
 import {
   getWallet,
   walletExists,
@@ -1467,6 +1468,11 @@ program
             const wagerApeNum = parseFloat(wagerApeString);
             if (won) {
               console.log(`${theme.win('🎉 WON!')} ${theme.amount(`${wagerApeNum.toFixed(2)} APE`)} → ${theme.balance(`${payoutApe.toFixed(2)} APE`)} ${theme.positive(`(+${pnlApe.toFixed(2)} APE)`)}\n`);
+              queueWinChimeFromWei({
+                payoutWei: playResponse.result.payout_wei,
+                wagerWei: playResponse.result.buy_in_wei,
+                isJson: false,
+              });
             } else if (payoutApe > 0) {
               // Partial loss - got some back
               const lostApe = Math.abs(pnlApe);
@@ -3290,8 +3296,8 @@ program
   .option('--display <mode>', 'Display mode: full, simple, json')
   .option('--json', 'JSON output only')
   .option('--auto [mode]', 'Auto-play mode: simple (default) or best (currently falls back to simple)')
-  .option('--delay <seconds>', 'Delay between looped games', '5')
-  .option('--human', 'Add humanized random timing (3-9s) on top of --delay')
+  .option('--delay <seconds>', 'Fixed delay between looped games')
+  .option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top')
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
@@ -3366,8 +3372,8 @@ program
   .option('--display <mode>', 'Display mode: full, simple, json')
   .option('--json', 'JSON output only')
   .option('--auto [mode]', 'Auto-play mode: simple (default) or best EV')
-  .option('--delay <seconds>', 'Delay between looped games', '5')
-  .option('--human', 'Add humanized random timing (3-9s) on top of --delay')
+  .option('--delay <seconds>', 'Fixed delay between looped games')
+  .option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top')
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')

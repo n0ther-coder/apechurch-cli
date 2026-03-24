@@ -6,7 +6,7 @@ import {
   AUTO_MODE_SIMPLE,
   normalizeAutoMode,
 } from '../../lib/stateful/auto.js';
-import { getLoopDelayMs } from '../../lib/stateful/timing.js';
+import { getLoopDelayMs, resolveLoopDelaySeconds } from '../../lib/stateful/timing.js';
 
 describe('Stateful Auto Mode', () => {
   it('treats bare --auto as simple mode', () => {
@@ -22,7 +22,23 @@ describe('Stateful Auto Mode', () => {
     assert.strictEqual(normalizeAutoMode('turbo'), null);
   });
 
-  it('adds human delay on top of fixed delay', () => {
+  it('uses the default 5s only when no human timing is requested', () => {
+    assert.strictEqual(resolveLoopDelaySeconds({ rawDelay: undefined, human: false }), 5);
+    assert.strictEqual(resolveLoopDelaySeconds({ rawDelay: undefined, human: true }), 0);
+  });
+
+  it('keeps only the humanized 3-9s jitter when --human is used without --delay', () => {
+    for (let i = 0; i < 200; i++) {
+      const delayMs = getLoopDelayMs({
+        delaySeconds: resolveLoopDelaySeconds({ rawDelay: undefined, human: true }),
+        human: true,
+      });
+      assert.ok(delayMs >= 3000, `delay ${delayMs} should be at least 3s`);
+      assert.ok(delayMs <= 9000, `delay ${delayMs} should be at most 9s`);
+    }
+  });
+
+  it('adds human delay on top of an explicit fixed delay', () => {
     for (let i = 0; i < 200; i++) {
       const delayMs = getLoopDelayMs({ delaySeconds: 5, human: true });
       assert.ok(delayMs >= 8000, `delay ${delayMs} should be at least 8s`);
