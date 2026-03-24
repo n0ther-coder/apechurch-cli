@@ -4,6 +4,7 @@ import assert from 'node:assert';
 import {
   canEmitWinChime,
   getRoundedWinMultiplier,
+  getWinChimeNotes,
   getWinChimeIntervals,
 } from '../../lib/chime.js';
 
@@ -17,15 +18,22 @@ describe('Win Chime', () => {
 
   it('returns a deterministic slot-like cadence', () => {
     assert.deepStrictEqual(getWinChimeIntervals(0), []);
-    assert.deepStrictEqual(getWinChimeIntervals(5), [90, 115, 130, 110, 90]);
+    assert.deepStrictEqual(getWinChimeIntervals(5), [90, 115, 130, 110, 140]);
   });
 
-  it('requires a tty stream and non-json mode', () => {
-    const ttyStream = { isTTY: true, write() {} };
-    const nonTtyStream = { isTTY: false, write() {} };
+  it('builds a repeatable slot-like note pattern', () => {
+    const notes = getWinChimeNotes(5);
 
-    assert.strictEqual(canEmitWinChime({ stream: ttyStream }), true);
-    assert.strictEqual(canEmitWinChime({ stream: ttyStream, isJson: true }), false);
-    assert.strictEqual(canEmitWinChime({ stream: nonTtyStream }), false);
+    assert.strictEqual(notes.length, 5);
+    assert.strictEqual(notes[0].frequency, 1046.5);
+    assert.strictEqual(notes[1].frequency, 1318.51);
+    assert.strictEqual(notes[4].frequency, 1760);
+    assert.ok(notes.every((note) => note.durationMs >= 55));
+    assert.ok(notes.every((note) => note.gapMs >= 18));
+  });
+
+  it('disables the chime only in json mode', () => {
+    assert.strictEqual(canEmitWinChime({}), true);
+    assert.strictEqual(canEmitWinChime({ isJson: true }), false);
   });
 });
