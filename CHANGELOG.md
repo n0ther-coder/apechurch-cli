@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- `--auto [simple|best]` for stateful games
+- Exact EV `best` solver for Video Poker, including live jackpot value at max bet
+- Unit coverage for stateful auto parsing, video poker evaluation, and EV solver
+
+### Changed
+- `--auto` without a mode now explicitly means `simple`
+- `blackjack --auto best` now prints `not implemented (fallback to simple)`
+- `--human` now adds a weighted 3-9s delay on top of `--delay`
+- Video Poker docs now describe Royal Flush correctly as `250x + jackpot`
+
 ## [1.2.15] - 2026-02-05
 
 ### Added

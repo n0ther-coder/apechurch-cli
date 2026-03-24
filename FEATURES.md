@@ -36,10 +36,11 @@
 
 ## Automation
 - `--loop` mode for continuous play
+- Stateful auto-play modes: `simple` by default, `best` EV mode for video poker
 - Pause/Resume autonomous play
 - Strategy-based wager sizing
 - Session tracking (wins, losses, PnL, streaks)
-- Configurable delays between games
+- Configurable delays between games, with optional humanized jitter layered on top
 
 ## Identity & Social
 - On-chain username registration
@@ -78,8 +79,8 @@
 - Marketplace: List any NFT for sale
 
 ### Advanced Games
-- **Blackjack Console** — AI-optimal play support
-- **Video Poker Console** — Terminal-based poker
+- **Blackjack Console** — Basic-strategy auto-play with future `best` mode
+- **Video Poker Console** — Terminal-based poker with exact EV auto-play mode
 - Strategy suggestions for perfect play
 
 ### Agent Ecosystem

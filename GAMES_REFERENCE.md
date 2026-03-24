@@ -502,12 +502,14 @@ See [SKILL.md](./SKILL.md#blackjack) for complete documentation.
 ```bash
 # Auto-play
 apechurch-cli blackjack 10 --auto
+apechurch-cli blackjack 10 --auto best   # Falls back to simple for now
 
 # Interactive
 apechurch-cli blackjack 10
 
 # Loop with strategy
 apechurch-cli blackjack 10 --auto --loop --bet-strategy martingale --max-bet 80
+apechurch-cli blackjack 10 --auto --loop --delay 5 --human
 ```
 
 ---
@@ -519,23 +521,27 @@ See [SKILL.md](./SKILL.md#video-poker) for complete documentation.
 ```bash
 # Auto-play
 apechurch-cli video-poker 10 --auto
+apechurch-cli video-poker 10 --auto best
 
 # Interactive
 apechurch-cli video-poker 10
 
 # Loop
 apechurch-cli video-poker 10 --auto --loop --max-games 50
+apechurch-cli video-poker 10 --auto best --loop --delay 5 --human
 ```
 
 ---
 
 ## Common Loop Options
 
-All games support these with `--loop`:
+All games support these with `--loop`.
+Note: `play` defaults to `--delay 3`, while `blackjack` and `video-poker` default to `--delay 5`.
 
 ```bash
 --loop                    # Enable continuous play
---delay <seconds>         # Time between games (default: 3)
+--delay <seconds>         # Fixed time between games
+--human                   # Add weighted 3-9s human-like delay on top of --delay
 --target <ape>            # Stop at target balance
 --stop-loss <ape>         # Stop at loss limit
 --max-games <n>           # Stop after N games
@@ -551,4 +557,5 @@ All games support these with `--loop`:
 - All amounts are in APE
 - Minimum bet is typically 1 APE
 - VRF fees are automatically calculated and added
+- Stateful games use `--auto simple` by default; video poker also supports `--auto best`
 - Use `apechurch-cli game <name>` for detailed in-CLI help

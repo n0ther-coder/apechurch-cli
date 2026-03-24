@@ -2002,7 +2002,7 @@ program
           key: 'blackjack',
           aliases: ['bj'],
           contract: '0x720D68C867aC4De7e035c2C1346c4eb070b29Aae',
-          description: 'Classic blackjack with optimal strategy bot',
+          description: 'Classic blackjack with simple auto-play and future best-EV mode',
         }));
         return;
       }
@@ -2031,7 +2031,7 @@ ${'─'.repeat(60)}
   OPTIONS
 ${'─'.repeat(60)}
 
-  --auto          Bot plays optimal basic strategy for you
+  --auto [mode]   Auto-play mode: simple (default) | best
   --loop          Keep playing until balance runs out
   --target <ape>  Stop when balance reaches this amount
   --stop-loss <ape>  Stop when balance drops to this amount
@@ -2053,6 +2053,7 @@ ${'─'.repeat(60)}
 
   ${BINARY_NAME} blackjack 10                   Play one hand, 10 APE
   ${BINARY_NAME} blackjack 25 --auto            Bot plays one hand
+  ${BINARY_NAME} blackjack 25 --auto best       Currently falls back to simple
   ${BINARY_NAME} blackjack 25 --auto --loop     Bot grinds until broke
   ${BINARY_NAME} blackjack 10 --auto --loop --target 500
                                            Bot plays until 500 APE balance
@@ -2071,7 +2072,7 @@ ${'═'.repeat(60)}
           key: 'video-poker',
           aliases: ['vp', 'gimboz-poker'],
           contract: '0x4f7D016704bC9A1d373E512e10CF86A0E7015D1D',
-          description: 'Jacks or Better video poker with optimal strategy bot',
+          description: 'Jacks or Better video poker with simple and best-EV auto-play',
         }));
         return;
       }
@@ -2102,7 +2103,7 @@ ${'─'.repeat(60)}
   OPTIONS
 ${'─'.repeat(60)}
 
-  --auto          Bot plays optimal discard strategy
+  --auto [mode]   Auto-play mode: simple (default) | best
   --loop          Keep playing until balance runs out
   --target <ape>  Stop when balance reaches this amount
   --stop-loss <ape>  Stop when balance drops to this amount
@@ -2127,7 +2128,8 @@ ${'─'.repeat(60)}
 
   ${BINARY_NAME} video-poker 10              Play one hand, 10 APE
   ${BINARY_NAME} video-poker 100             Max bet (jackpot eligible)
-  ${BINARY_NAME} video-poker 25 --auto       Bot plays one hand
+  ${BINARY_NAME} video-poker 25 --auto          Bot plays one hand (simple)
+  ${BINARY_NAME} video-poker 25 --auto best     Exact EV solver
   ${BINARY_NAME} video-poker 25 --auto --loop
                                         Bot grinds until broke
 
@@ -2483,20 +2485,28 @@ ${'═'.repeat(70)}
   AUTO-PLAY MODE
 ${'═'.repeat(70)}
 
-  The --auto flag makes the CLI play optimally without human input.
+  The --auto flag lets the CLI play without human input.
   Available on games that require decisions (Blackjack, Video Poker).
+
+  Modes:
+    • simple   Fast heuristic mode (default)
+    • best     Exact EV mode where implemented
 
 ${'─'.repeat(70)}
   BLACKJACK --auto
 ${'─'.repeat(70)}
 
-  Uses Basic Strategy - mathematically optimal play based on:
+  simple: Uses Basic Strategy based on:
     • Your hand total (hard/soft)
     • Dealer's up card
     • Available actions (hit, stand, double, split, etc.)
+
+  best: Not implemented yet for Blackjack.
+        Falls back to simple with a notice.
   
   Commands:
     ${BINARY_NAME} blackjack 10 --auto              # One hand, auto-play
+    ${BINARY_NAME} blackjack 10 --auto best         # Falls back to simple
     ${BINARY_NAME} blackjack 10 --auto --loop       # Continuous auto-play
   
   Strategy includes:
@@ -2510,12 +2520,18 @@ ${'─'.repeat(70)}
   VIDEO POKER --auto
 ${'─'.repeat(70)}
 
-  Uses Optimal Hold Strategy for Jacks or Better:
+  simple:
+    • Uses the existing priority-based hold strategy
+
+  best:
     • Analyzes all 32 possible hold combinations
+    • Enumerates all redraw outcomes
     • Picks the hold with highest expected value
-  
+    • Includes live jackpot bonus at max bet
+
   Commands:
     ${BINARY_NAME} video-poker 10 --auto            # One hand, auto-play
+    ${BINARY_NAME} video-poker 10 --auto best       # Exact EV solver
     ${BINARY_NAME} video-poker 10 --auto --loop     # Continuous auto-play
 
 ${'─'.repeat(70)}
@@ -3273,9 +3289,9 @@ program
   .option('--game <id>', 'Specify game ID (for resume/action)')
   .option('--display <mode>', 'Display mode: full, simple, json')
   .option('--json', 'JSON output only')
-  .option('--auto', 'Auto-play using optimal basic strategy')
+  .option('--auto [mode]', 'Auto-play mode: simple (default) or best (currently falls back to simple)')
   .option('--delay <seconds>', 'Delay between looped games', '5')
-  .option('--human', 'Use humanized random timing (3-9s between games, overrides --delay)')
+  .option('--human', 'Add humanized random timing (3-9s) on top of --delay')
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
@@ -3349,9 +3365,9 @@ program
   .option('--game <id>', 'Specify game ID (for resume)')
   .option('--display <mode>', 'Display mode: full, simple, json')
   .option('--json', 'JSON output only')
-  .option('--auto', 'Auto-play using optimal strategy')
+  .option('--auto [mode]', 'Auto-play mode: simple (default) or best EV')
   .option('--delay <seconds>', 'Delay between looped games', '5')
-  .option('--human', 'Use humanized random timing (3-9s between games, overrides --delay)')
+  .option('--human', 'Add humanized random timing (3-9s) on top of --delay')
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')

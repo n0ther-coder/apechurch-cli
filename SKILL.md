@@ -408,14 +408,16 @@ Lose → bet 10 → Lose → bet 10 → Lose → bet 20 → Lose → bet 30 → 
 
 ## Blackjack
 
-Interactive or auto-play blackjack with optimal strategy.
+Interactive blackjack with `simple` auto-play by default.
 
 ### Quick Play (Auto)
 
 ```bash
-apechurch-cli blackjack 10 --auto              # Single game, optimal play
+apechurch-cli blackjack 10 --auto              # Single game, simple auto-play
+apechurch-cli blackjack 10 --auto best         # Not implemented yet; falls back to simple
 apechurch-cli blackjack 10 --auto --loop       # Continuous auto-play
 apechurch-cli blackjack 10 --auto --loop --max-games 20 --bet-strategy martingale
+apechurch-cli blackjack 10 --auto --loop --delay 5 --human
 ```
 
 ### Interactive Play
@@ -437,10 +439,13 @@ apechurch-cli blackjack 10   # Prompts for each decision
 
 ### Auto Strategy
 
-The `--auto` flag uses mathematically optimal basic strategy:
+`--auto simple` uses basic strategy:
 - Considers your hand value (hard/soft)
 - Considers dealer's upcard
 - Makes statistically best decision
+
+`--auto best` is reserved for a future stricter solver and currently prints:
+- `not implemented (fallback to simple)`
 
 ### Managing Games
 
@@ -454,14 +459,16 @@ apechurch-cli blackjack clear      # Clear stuck games
 
 ## Video Poker
 
-Jacks or Better video poker with optimal hold strategy.
+Jacks or Better video poker with two auto-play modes: `simple` and `best`.
 
 ### Quick Play (Auto)
 
 ```bash
-apechurch-cli video-poker 10 --auto              # Single game
+apechurch-cli video-poker 10 --auto              # Single game, simple mode
+apechurch-cli video-poker 10 --auto best         # Exact EV solver
 apechurch-cli video-poker 10 --auto --loop       # Continuous
 apechurch-cli vp 10 --auto --loop --max-games 50 # Using alias
+apechurch-cli video-poker 10 --auto best --loop --delay 5 --human
 ```
 
 ### Bet Amounts
@@ -472,7 +479,7 @@ Video poker uses fixed denominations: **1, 5, 10, 25, 50, 100 APE**
 
 | Hand | Payout |
 |------|--------|
-| Royal Flush | Jackpot (max bet) or 800x |
+| Royal Flush | 250x base (+ progressive jackpot at max bet) |
 | Straight Flush | 50x |
 | Four of a Kind | 25x |
 | Full House | 9x |
@@ -481,6 +488,17 @@ Video poker uses fixed denominations: **1, 5, 10, 25, 50, 100 APE**
 | Three of a Kind | 3x |
 | Two Pair | 2x |
 | Jacks or Better | 1x |
+
+### Auto Modes
+
+- `--auto simple`
+  - Uses the existing priority-ranked hold table
+  - Fast, deterministic, and good for general grinding
+- `--auto best`
+  - Evaluates all 32 hold combinations
+  - Enumerates all possible redraw outcomes
+  - Chooses the hold with the highest expected value
+  - Includes the live jackpot value when betting 100 APE
 
 ### Managing Games
 
@@ -536,6 +554,7 @@ apechurch-cli video-poker payouts  # Show payout table
 | `--json` | Machine-readable JSON output |
 | `--loop` | Continuous play mode |
 | `--delay <sec>` | Delay between games |
+| `--human` | Add a weighted 3-9s human-like delay on top of `--delay` |
 | `--target <ape>` | Stop at target balance |
 | `--stop-loss <ape>` | Stop at loss limit |
 | `--max-games <n>` | Stop after N games |

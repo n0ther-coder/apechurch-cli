@@ -26,7 +26,10 @@ Pure function tests - no network calls, no state changes.
 | `utils.test.js` | Utility functions (formatters, random generators) |
 | `theme.test.js` | Color theme and formatting functions |
 | `strategies.test.js` | All betting strategy implementations |
+| `stateful-auto.test.js` | Auto mode parsing and human delay timing |
 | `profile.test.js` | Username validation, profile functions |
+| `video-poker-evaluator.test.js` | Video poker hand evaluator and payouts |
+| `video-poker-solver.test.js` | Exact EV solver for video poker hold choices |
 
 **Safe to run anytime.** No side effects.
 
@@ -108,6 +111,8 @@ describe('MyFeature', () => {
 - CLI command parsing
 - JSON output format
 - Hardened encrypted-wallet flow
+- Stateful auto mode parsing and humanized delay logic
+- Video poker hand evaluation and exact EV hold solver
 - Live game execution
 - Error handling
 

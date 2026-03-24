@@ -8,6 +8,7 @@ Play casino games from the command line. Perfect for AI agents, automation, and 
 
 - **12+ Games:** Roulette, Blackjack, Video Poker, Plinko, Slots, Keno, and more
 - **Loop Mode:** Continuous play with safety controls (target, stop-loss, max-games)
+- **Stateful Auto Modes:** `simple` by default, `best` EV solver for video poker
 - **Betting Strategies:** Flat, Martingale, Fibonacci, D'Alembert, Reverse Martingale
 - **AI Agent Ready:** JSON output, structured responses, self-documenting
 - **Fully On-Chain:** Every bet settled on ApeChain with Chainlink VRF
@@ -62,8 +63,8 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 | Bubblegum Heist | `play bubblegum-heist 10 10` | Slot machine |
 | Monkey Match | `play monkey-match 10` | Poker hands from barrels |
 | Bear-A-Dice | `play bear-dice 10` | Avoid unlucky numbers |
-| Blackjack | `blackjack 10 --auto` | Card game with strategy |
-| Video Poker | `video-poker 10 --auto` | Jacks or Better |
+| Blackjack | `blackjack 10 --auto` | Card game with simple auto-play strategy |
+| Video Poker | `video-poker 10 --auto best` | Jacks or Better with exact EV mode |
 
 ## Loop Mode
 
@@ -110,20 +111,31 @@ apechurch-cli play --loop --bet-strategy fibonacci
 Interactive card games with auto-play support:
 
 ```bash
-# Auto-play with optimal strategy
+# Auto-play modes
 apechurch-cli blackjack 10 --auto --loop
+apechurch-cli blackjack 10 --auto best   # Currently falls back to simple
 apechurch-cli video-poker 10 --auto --loop
+apechurch-cli video-poker 10 --auto best
+
+# Humanized pacing adds 3-9s on top of the fixed delay
+apechurch-cli video-poker 10 --auto best --loop --delay 5 --human
 
 # Interactive mode
 apechurch-cli blackjack 10
 ```
 
+- `--auto` without a mode means `simple`
+- `video-poker --auto best` evaluates all 32 holds and maximizes EV using the live jackpot at max bet
+- `blackjack --auto best` is not implemented yet and falls back to `simple`
+- `blackjack` and `video-poker` use `--delay 5` by default in loop mode
+- `--human` adds a weighted extra `3-9s` delay on top of the fixed delay
+
 ## Commands
 
 ```bash
 apechurch-cli play [game] [amount] [config...]  # Play games
-apechurch-cli blackjack <amount> [--auto]       # Blackjack
-apechurch-cli video-poker <amount> [--auto]     # Video Poker
+apechurch-cli blackjack <amount> [--auto [mode]]    # Blackjack
+apechurch-cli video-poker <amount> [--auto [mode]]  # Video Poker
 apechurch-cli status                            # Check balance
 apechurch-cli games                             # List all games
 apechurch-cli game <name>                       # Game details
