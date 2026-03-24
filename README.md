@@ -1,4 +1,4 @@
-# @apechurch-hf/apechurch-cli-gx54
+# @n0ther/apechurch-cli
 
 Autonomous gambling CLI for [Ape Church](https://ape.church) on ApeChain.
 
@@ -16,23 +16,37 @@ Play casino games from the command line. Perfect for AI agents, automation, and 
 
 ```bash
 # Install
-npm install -g @apechurch-hf/apechurch-cli-gx54
+npm install -g @n0ther/apechurch-cli
 
-# Setup wallet
-apechurch-cli-gx54 install
+# Optional for non-interactive local signing
+export APECHURCH_CLI_PASS=your-local-password
+
+# Optional to override the username/profile API
+export APECHURCH_CLI_PROFILE_URL=https://www.ape.church/api/profile
+
+# Fresh install/import prompts securely for the private key
+apechurch-cli install
 
 # Fund wallet with APE on ApeChain
 # Bridge: https://relay.link/bridge/apechain
 
 # Check status
-apechurch-cli-gx54 status
+apechurch-cli status
 
 # Play one game
-apechurch-cli-gx54 play
+apechurch-cli play
 
 # Play continuously
-apechurch-cli-gx54 play --loop
+apechurch-cli play --loop
 ```
+
+If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses the encrypted wallet and does not ask for the private key again.
+
+## Environment Variables
+
+- `APECHURCH_CLI_PK`: optional fallback for non-interactive fresh install/reinstall
+- `APECHURCH_CLI_PASS`: required for non-interactive install/signing; optional otherwise
+- `APECHURCH_CLI_PROFILE_URL`: optional override for the username/profile API endpoint
 
 ## Games
 
@@ -57,13 +71,13 @@ Play continuously with safety controls:
 
 ```bash
 # Basic loop
-apechurch-cli-gx54 play --loop
+apechurch-cli play --loop
 
 # With safety limits
-apechurch-cli-gx54 play --loop --target 200 --stop-loss 50 --max-games 100
+apechurch-cli play --loop --target 200 --stop-loss 50 --max-games 100
 
 # Specific game
-apechurch-cli-gx54 play ape-strong 10 50 --loop --target 150
+apechurch-cli play ape-strong 10 50 --loop --target 150
 ```
 
 | Option | Description |
@@ -77,10 +91,10 @@ apechurch-cli-gx54 play ape-strong 10 50 --loop --target 150
 
 ```bash
 # Martingale: double on loss, reset on win
-apechurch-cli-gx54 play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
+apechurch-cli play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
 
 # Fibonacci: sequence on losses
-apechurch-cli-gx54 play --loop --bet-strategy fibonacci
+apechurch-cli play --loop --bet-strategy fibonacci
 ```
 
 | Strategy | Behavior |
@@ -97,26 +111,26 @@ Interactive card games with auto-play support:
 
 ```bash
 # Auto-play with optimal strategy
-apechurch-cli-gx54 blackjack 10 --auto --loop
-apechurch-cli-gx54 video-poker 10 --auto --loop
+apechurch-cli blackjack 10 --auto --loop
+apechurch-cli video-poker 10 --auto --loop
 
 # Interactive mode
-apechurch-cli-gx54 blackjack 10
+apechurch-cli blackjack 10
 ```
 
 ## Commands
 
 ```bash
-apechurch-cli-gx54 play [game] [amount] [config...]  # Play games
-apechurch-cli-gx54 blackjack <amount> [--auto]       # Blackjack
-apechurch-cli-gx54 video-poker <amount> [--auto]     # Video Poker
-apechurch-cli-gx54 status                            # Check balance
-apechurch-cli-gx54 games                             # List all games
-apechurch-cli-gx54 game <name>                       # Game details
-apechurch-cli-gx54 pause                             # Stop autonomous play
-apechurch-cli-gx54 resume                            # Resume play
-apechurch-cli-gx54 history                           # Recent games
-apechurch-cli-gx54 commands                          # Full reference
+apechurch-cli play [game] [amount] [config...]  # Play games
+apechurch-cli blackjack <amount> [--auto]       # Blackjack
+apechurch-cli video-poker <amount> [--auto]     # Video Poker
+apechurch-cli status                            # Check balance
+apechurch-cli games                             # List all games
+apechurch-cli game <name>                       # Game details
+apechurch-cli pause                             # Stop autonomous play
+apechurch-cli resume                            # Resume play
+apechurch-cli history                           # Recent games
+apechurch-cli commands                          # Full reference
 ```
 
 ## For AI Agents
@@ -124,9 +138,9 @@ apechurch-cli-gx54 commands                          # Full reference
 All commands support `--json` for machine-readable output:
 
 ```bash
-apechurch-cli-gx54 status --json
-apechurch-cli-gx54 play --json
-apechurch-cli-gx54 play --loop --json
+apechurch-cli status --json
+apechurch-cli play --json
+apechurch-cli play --loop --json
 ```
 
 See [SKILL.md](./SKILL.md) for complete agent documentation.

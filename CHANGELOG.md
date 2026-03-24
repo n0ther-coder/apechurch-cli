@@ -84,19 +84,19 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **Blackjack**: Full interactive blackjack with optimal strategy
-  - `apechurch-cli-gx54 blackjack <amount>` — Interactive play
-  - `apechurch-cli-gx54 blackjack <amount> --auto` — Auto-play with basic strategy
+  - `apechurch-cli blackjack <amount>` — Interactive play
+  - `apechurch-cli blackjack <amount> --auto` — Auto-play with basic strategy
   - `--loop` support for continuous play
   - All actions: hit, stand, double, split, insurance, surrender
   - Resume unfinished games with `blackjack resume`
 - **Video Poker**: Jacks or Better with optimal hold strategy
-  - `apechurch-cli-gx54 video-poker <amount>` — Interactive play
-  - `apechurch-cli-gx54 video-poker <amount> --auto` — Auto-play
+  - `apechurch-cli video-poker <amount>` — Interactive play
+  - `apechurch-cli video-poker <amount> --auto` — Auto-play
   - Fixed denominations: 1, 5, 10, 25, 50, 100 APE
   - Progressive jackpot on Royal Flush at max bet
 - **Game Clear Commands**: Remove stuck active games
-  - `apechurch-cli-gx54 blackjack clear`
-  - `apechurch-cli-gx54 video-poker clear`
+  - `apechurch-cli blackjack clear`
+  - `apechurch-cli video-poker clear`
 
 ### Fixed
 - Windows path handling for `__dirname` (ENOENT double drive letter)
@@ -107,7 +107,7 @@ All notable changes to this project will be documented in this file.
 - **ApeStrong game**: Pick-your-odds dice game
   - Choose win probability from 5-95%
   - Lower range = higher payout (e.g., 5% → 19.5x, 50% → 1.95x)
-  - `apechurch-cli-gx54 play ape-strong 10 50`
+  - `apechurch-cli play ape-strong 10 50`
   - Aliases: `strong`, `dice`, `limbo`
   - Strategy support with persona-based range selection
 - **Keno**: Classic keno with 1-10 picks from 1-40
@@ -119,8 +119,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **Pause/Resume commands**: Control autonomous play
-  - `apechurch-cli-gx54 pause` — stops heartbeat from playing
-  - `apechurch-cli-gx54 resume` — allows heartbeat to play again
+  - `apechurch-cli pause` — stops heartbeat from playing
+  - `apechurch-cli resume` — allows heartbeat to play again
 - **Balance check in bet command**: Prevents play if balance ≤ 1 APE
 
 ### Changed

@@ -49,11 +49,11 @@
  * └──────────────────────────────────────────────────────────────────────────┘
  *
  * Data Storage:
- * - ~/.apechurch-cli-gx54/wallet.json   - Encrypted private key + public metadata
- * - ~/.apechurch-cli-gx54/profile.json  - Username, persona, preferences
- * - ~/.apechurch-cli-gx54/state.json    - Local stats, betting strategy state
- * - ~/.apechurch-cli-gx54/history.json  - Game history (last 1000 games)
- * - ~/.apechurch-cli-gx54/active_games.json - Unfinished stateful games
+ * - wallet.json       - Encrypted private key + public metadata
+ * - profile.json      - Username, persona, preferences
+ * - state.json        - Local stats, betting strategy state
+ * - history.json      - Game history (last 1000 games)
+ * - active_games.json - Unfinished stateful games
  *
  * @module bin/cli
  * @see {@link https://ape.church} - Ape Church website
@@ -69,7 +69,10 @@ import updateNotifier from 'update-notifier';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-const notifier = updateNotifier({ pkg, updateCheckInterval: 1000 * 60 * 60 * 24 });
+const shouldShowUpdateNotifier = process.stdout.isTTY && process.stderr.isTTY && !process.argv.includes('--json');
+const notifier = shouldShowUpdateNotifier
+  ? updateNotifier({ pkg, updateCheckInterval: 1000 * 60 * 60 * 24 })
+  : null;
 import readline from 'readline';
 import { formatEther, parseEther } from 'viem';
 
@@ -94,8 +97,10 @@ import {
   HOUSE_ABI,
   HOUSE_LOCK_TIME,
   HOUSE_WITHDRAW_FEE,
+  PACKAGE_NAME,
   BINARY_NAME,
   PASS_ENV_VAR,
+  PROFILE_URL_ENV_VAR,
   PRIVATE_KEY_ENV_VAR,
 } from '../lib/constants.js';
 import {
@@ -228,6 +233,15 @@ program
   .option('--username <name>', 'Username for your bot')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
   .option('-y, --quick', 'Skip optional interactive prompts, use defaults')
+  .addHelpText('after', `
+Install:
+  Fresh install/reinstall prompts securely for the private key (hidden input)
+
+Environment:
+  ${PRIVATE_KEY_ENV_VAR}   Optional fallback for non-interactive install/reinstall
+  ${PASS_ENV_VAR}          Required for non-interactive install/signing; optional otherwise
+  ${PROFILE_URL_ENV_VAR}   Optional override for the username/profile API endpoint
+`)
   .action(async (opts) => {
     const isInteractive = !opts.quick && !opts.username;
 
@@ -241,12 +255,20 @@ program
       const envPassword = process.env[PASS_ENV_VAR];
       if (envPassword) return envPassword;
 
-      const password = await promptSecret('Set wallet password: ');
+      if (!process.stdin.isTTY || !process.stderr.isTTY) {
+        console.error(`
+❌ Secure password entry requires an interactive terminal.
+   Fallback: set ${PASS_ENV_VAR} only if you must run ${BINARY_NAME} install non-interactively.
+`);
+        process.exit(1);
+      }
+
+      const password = await promptSecret('Set wallet password (input hidden): ');
       if (!password || password.length < 8) {
         console.error('\n❌ Password must be at least 8 characters\n');
         process.exit(1);
       }
-      const confirm = await promptSecret('Confirm wallet password: ');
+      const confirm = await promptSecret('Confirm wallet password (input hidden): ');
       if (password !== confirm) {
         console.error('\n❌ Passwords do not match\n');
         process.exit(1);
@@ -263,6 +285,37 @@ program
         if (hint.trim()) hints.push(hint.trim());
       }
       return hints;
+    }
+
+    async function collectPrivateKeyForWalletImport() {
+      const envPrivateKey = getConfiguredPrivateKey();
+      if (envPrivateKey) return envPrivateKey;
+
+      if (!process.stdin.isTTY || !process.stderr.isTTY) {
+        console.error(`
+❌ Fresh install/reinstall requires an interactive terminal for secure private key entry.
+   Fallback: set ${PRIVATE_KEY_ENV_VAR} only if you must run ${BINARY_NAME} install non-interactively.
+`);
+        process.exit(1);
+      }
+
+      let privateKeyInput;
+      try {
+        privateKeyInput = await promptSecret('Enter private key (input hidden): ');
+      } catch (error) {
+        console.error(`
+❌ ${sanitizeError(error)}
+`);
+        process.exit(1);
+      }
+
+      const privateKey = privateKeyInput.trim();
+      if (!privateKey) {
+        console.error('\n❌ Private key is required for a fresh install/reinstall.\n');
+        process.exit(1);
+      }
+
+      return privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
     }
 
     if (existingWallet && isWalletEncrypted()) {
@@ -284,18 +337,7 @@ program
       createdOrMigratedWallet = true;
       console.log(`✅ Wallet migrated to encrypted-only storage: ${address}`);
     } else {
-      const privateKey = getConfiguredPrivateKey();
-      if (!privateKey) {
-        console.error(`
-❌ No wallet configured. Set ${PRIVATE_KEY_ENV_VAR} and run ${BINARY_NAME} install.
-`);
-        console.error(`   Example:
-   export ${PRIVATE_KEY_ENV_VAR}=0xYOUR_PRIVATE_KEY
-   ${BINARY_NAME} install
-`);
-        process.exit(1);
-      }
-
+      const privateKey = await collectPrivateKeyForWalletImport();
       const password = await collectPasswordForWalletFile();
       const hints = await collectHintsIfInteractive();
 
@@ -304,10 +346,10 @@ program
         address = result.address;
         createdOrMigratedWallet = true;
         console.log(`
-✅ Imported wallet from ${PRIVATE_KEY_ENV_VAR} into encrypted-only storage: ${address}`);
+✅ Imported wallet into encrypted-only storage: ${address}`);
       } catch (error) {
         console.error(`
-❌ Invalid private key in ${PRIVATE_KEY_ENV_VAR}: ${sanitizeError(error)}
+❌ Invalid private key: ${sanitizeError(error)}
 `);
         process.exit(1);
       }
@@ -395,7 +437,9 @@ Registering \"${username}\"...`);
     console.log('  ⚠️  Forgot password = permanent loss of access to signing with this local setup.');
     console.log('');
     console.log(`  For headless/agent use, set ${PASS_ENV_VAR} only on the local machine.`);
-    console.log(`  For import/reinstall, set ${PRIVATE_KEY_ENV_VAR} only on the local machine.`);
+    console.log(`  Fresh install/reinstall prompts locally for the private key.`);
+    console.log(`  Fallback for non-interactive install only: ${PRIVATE_KEY_ENV_VAR} on the local machine.`);
+    console.log(`  To override the username/profile API, set ${PROFILE_URL_ENV_VAR} on the local machine.`);
     console.log('  Bridge APE:  https://relay.link/bridge/apechain');
     console.log('═══════════════════════════════════════════════════════════════════');
 
@@ -421,11 +465,11 @@ Registering \"${username}\"...`);
 // ============================================================================
 program
   .command('uninstall')
-  .description('Remove local apechurch-cli-gx54 data from this machine')
+  .description(`Remove local ${BINARY_NAME} data from this machine`)
   .option('-y, --yes', 'Skip confirmation')
   .action(async (opts) => {
     if (!fs.existsSync(APECHURCH_DIR)) {
-      console.log('\nNo Ape Church data found. Nothing to remove.\n');
+      console.log(`\nNo local ${BINARY_NAME} data found. Nothing to remove.\n`);
       return;
     }
 
@@ -435,7 +479,8 @@ program
       console.log(`   - Profile at ${APECHURCH_DIR}/profile.json`);
       console.log(`   - All local state and history`);
       console.log('\n   Make sure you still control the original private key outside this local installation.');
-      console.log(`   Reinstall requires ${PRIVATE_KEY_ENV_VAR} on this local machine.\n`);
+      console.log(`   Reinstall will prompt for the private key on this local machine.`);
+      console.log(`   Fallback for non-interactive reinstall only: ${PRIVATE_KEY_ENV_VAR}.\n`);
       
       const confirm = await prompt('Type "DELETE" to confirm: ');
       if (confirm.trim() !== 'DELETE') {
@@ -446,7 +491,7 @@ program
 
     try {
       fs.rmSync(APECHURCH_DIR, { recursive: true, force: true });
-      console.log('\n✅ apechurch-cli-gx54 local data removed.\n');
+      console.log(`\n✅ ${BINARY_NAME} local data removed.\n`);
     } catch (error) {
       console.error(`\n❌ Failed to remove: ${error.message}\n`);
     }
@@ -610,7 +655,8 @@ program
       console.log('  • DELETE all local state');
       console.log('  • DELETE local skill installation files');
       console.log('  • NOT export or reveal the private key\n');
-      console.log(`To reinstall afterwards you must provide ${PRIVATE_KEY_ENV_VAR} again and rerun ${BINARY_NAME} install.\n`);
+      console.log(`To reinstall afterwards rerun ${BINARY_NAME} install and enter the private key when prompted.`);
+      console.log(`Fallback for non-interactive reinstall only: ${PRIVATE_KEY_ENV_VAR}.\n`);
 
       if (!opts.yes) {
         const confirm = await prompt('Type "RESET" to confirm permanent deletion: ');
@@ -633,8 +679,9 @@ program
 
       console.log('\n✅ Local wallet and state deleted.\n');
       console.log(`   Next steps:`);
-      console.log(`   1. Export ${PRIVATE_KEY_ENV_VAR}=0xYOUR_PRIVATE_KEY on this local machine`);
-      console.log(`   2. Run: ${BINARY_NAME} install\n`);
+      console.log(`   1. Run: ${BINARY_NAME} install`);
+      console.log(`   2. Enter the private key when prompted`);
+      console.log(`   3. Fallback for non-interactive reinstall only: ${PRIVATE_KEY_ENV_VAR}\n`);
       return;
     }
 
@@ -1673,7 +1720,7 @@ program
           console.log(`  Entry Fee:     ${CONTEST_ENTRY_FEE} APE (one-time)`);
           console.log(`  Eligibility:   Must have wagered < ${CONTEST_WAGER_LIMIT} APE total`);
           console.log(`  Ends:          ${CONTEST_END_DATE.toDateString()}\n`);
-          console.log('  Run: ${BINARY_NAME} install  (to set up your agent first)');
+          console.log(`  Run: ${BINARY_NAME} install  (to set up your agent first)`);
         }
         console.log('═══════════════════════════════════════════════════════════════════\n');
       }
@@ -1759,7 +1806,7 @@ program
       } else if (!canAfford) {
         console.log(`  ⚠️  Fund your wallet with ${CONTEST_ENTRY_FEE}+ APE to register.\n`);
       } else {
-        console.log('  → Run: ${BINARY_NAME} contest register\n');
+        console.log(`  → Run: ${BINARY_NAME} contest register\n`);
       }
     }
     console.log('═══════════════════════════════════════════════════════════════════\n');
@@ -2125,6 +2172,11 @@ CONTEST
   ${BINARY_NAME} contest              Contest info and your status
   ${BINARY_NAME} contest register     Register for the contest (5 APE)
 
+ENVIRONMENT
+  ${PRIVATE_KEY_ENV_VAR}   Optional fallback for non-interactive install/reinstall
+  ${PASS_ENV_VAR}          Required for non-interactive install/signing; optional otherwise
+  ${PROFILE_URL_ENV_VAR}   Optional override for the username/profile API
+
 LOOP OPTIONS
   --loop                  Play continuously
   --target <ape>          Stop when balance reaches target
@@ -2436,7 +2488,7 @@ ${'═'.repeat(70)}
 ${'═'.repeat(70)}
 
   Wallet path:
-    ~/.apechurch-cli-gx54/wallet.json
+    ${WALLET_FILE}
 
   Security model in this hardened build:
     • The private key is stored only in encrypted form on disk
@@ -2458,13 +2510,27 @@ ${'─'.repeat(70)}
   INSTALL / REINSTALL
 ${'─'.repeat(70)}
 
-  New installs require the private key only via environment variable:
-    export ${PRIVATE_KEY_ENV_VAR}="0x..."
-
-  Then run:
+  Fresh install/reinstall prompts for the private key with hidden input:
     ${BINARY_NAME} install
 
-  You will be asked for a wallet password unless ${PASS_ENV_VAR} is set.
+  If ${WALLET_FILE} already exists, install reuses it and
+  does not ask for the private key again.
+
+  Optional non-interactive fallback:
+    export ${PRIVATE_KEY_ENV_VAR}="0x..."
+
+  In interactive installs, you will be asked for a wallet password.
+  In non-interactive installs, ${PASS_ENV_VAR} is required.
+
+${'─'.repeat(70)}
+  PROFILE / USERNAME API
+${'─'.repeat(70)}
+
+  Default endpoint:
+    https://www.ape.church/api/profile
+
+  To override it locally:
+    export ${PROFILE_URL_ENV_VAR}="https://your-endpoint.example/api/profile"
 
 ${'─'.repeat(70)}
   AUTOMATION
@@ -2927,9 +2993,9 @@ program
           console.log(formatField('Unlock', lockSeconds > 0 ? theme.locked(formatTimeRemaining(lockSeconds)) : theme.success('Unlocked'), 14));
         } else if (hasWallet) {
           console.log(`\n   ${theme.dim('You have no APE staked in The House.')}`);
-          console.log(`   ${theme.dim('Run:')} ${theme.command('${BINARY_NAME} house deposit <amount>')}`);
+          console.log(`   ${theme.dim('Run:')} ${theme.command(`${BINARY_NAME} house deposit <amount>`)}`);
         } else {
-          console.log(`\n   ${theme.warning('No wallet found.')} ${theme.dim('Run:')} ${theme.command('${BINARY_NAME} install')}`);
+          console.log(`\n   ${theme.warning('No wallet found.')} ${theme.dim('Run:')} ${theme.command(`${BINARY_NAME} install`)}`);
         }
         console.log('');
       }
@@ -2939,9 +3005,9 @@ program
     // --- DEPOSIT ---
     if (action === 'deposit') {
       if (!amount) {
-        const error = { error: 'Amount required. Usage: ${BINARY_NAME} house deposit <amount>' };
+        const error = { error: `Amount required. Usage: ${BINARY_NAME} house deposit <amount>` };
         if (opts.json) console.log(JSON.stringify(error));
-        else console.error('\n❌ Amount required. Usage: ${BINARY_NAME} house deposit <amount>\n');
+        else console.error(`\n❌ Amount required. Usage: ${BINARY_NAME} house deposit <amount>\n`);
         process.exit(1);
       }
 
@@ -3023,9 +3089,9 @@ program
     // --- WITHDRAW ---
     if (action === 'withdraw') {
       if (!amount) {
-        const error = { error: 'Amount required. Usage: ${BINARY_NAME} house withdraw <amount>' };
+        const error = { error: `Amount required. Usage: ${BINARY_NAME} house withdraw <amount>` };
         if (opts.json) console.log(JSON.stringify(error));
-        else console.error('\n❌ Amount required. Usage: ${BINARY_NAME} house withdraw <amount>\n');
+        else console.error(`\n❌ Amount required. Usage: ${BINARY_NAME} house withdraw <amount>\n`);
         process.exit(1);
       }
 
@@ -3155,8 +3221,8 @@ program
       const betAmount = action || amount;
       if (!betAmount) {
         console.error('\n❌ Bet amount required');
-        console.error('   Usage: ${BINARY_NAME} blackjack <amount>\n');
-        console.error('   Example: ${BINARY_NAME} blackjack 10\n');
+        console.error(`   Usage: ${BINARY_NAME} blackjack <amount>\n`);
+        console.error(`   Example: ${BINARY_NAME} blackjack 10\n`);
         return;
       }
       return blackjack.start(betAmount, opts);
@@ -3228,8 +3294,8 @@ program
       if (!betAmount) {
         console.error('\n❌ Bet amount required');
         console.error('   Valid bets: 1, 5, 10, 25, 50, 100 APE');
-        console.error('   Usage: ${BINARY_NAME} video-poker <amount>\n');
-        console.error('   Example: ${BINARY_NAME} video-poker 10\n');
+        console.error(`   Usage: ${BINARY_NAME} video-poker <amount>\n`);
+        console.error(`   Example: ${BINARY_NAME} video-poker 10\n`);
         return;
       }
       return videoPoker.start(betAmount, opts);
@@ -3275,7 +3341,9 @@ program
 program.parse(process.argv);
 
 // Show update notification if available (after command completes)
-notifier.notify({
-  isGlobal: true,
-  message: 'Update available: {currentVersion} → {latestVersion}\nRun: npm i -g @apechurch-hf/apechurch-cli-gx54',
-});
+if (notifier) {
+  notifier.notify({
+    isGlobal: true,
+    message: `Update available: {currentVersion} → {latestVersion}\nRun: npm i -g ${PACKAGE_NAME}`,
+  });
+}

@@ -1,8 +1,8 @@
 {
-  "name": "@apechurch-hf/apechurch-cli-gx54",
-  "version": "1.2.18",
+  "name": "@n0ther/apechurch-cli",
+  "version": "2.0.1",
   "description": "Hardened autonomous agent CLI for Ape Church on ApeChain. Local-only signing with encrypted wallet storage.",
-  "main": "index.js",
+  "main": "./registry.js",
   "scripts": {
     "test": "node --test tests/unit/*.test.js tests/integration/*.test.js",
     "test:unit": "node --test tests/unit/*.test.js",
@@ -12,7 +12,7 @@
     "prepublishOnly": "npm run test:unit"
   },
   "bin": {
-    "apechurch-cli-gx54": "./bin/cli.js"
+    "apechurch-cli": "./bin/cli.js"
   },
   "type": "module",
   "engines": {
@@ -38,12 +38,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ape-church/agent-skills.git"
+    "url": "git+https://github.com/n0ther-coder/apechurch-cli.git"
   },
   "bugs": {
-    "url": "https://github.com/ape-church/agent-skills/issues"
+    "url": "https://github.com/n0ther-coder/apechurch-cli/issues"
   },
-  "homepage": "https://ape.church",
+  "homepage": "https://github.com/n0ther-coder/apechurch-cli#readme",
   "dependencies": {
     "chalk": "^5.6.2",
     "commander": "^14.0.3",

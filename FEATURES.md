@@ -17,7 +17,7 @@
 - **Session-based unlock** — Unlock once, stay unlocked for 3 hours
 - **Auto-prompting** — Any command that needs your key will prompt if locked
 - **Password hints** — Store up to 3 hints to help remember your password
-- **Environment variable support** — Set `APECHURCH_CLI_GX54_PASS` for local automation
+- **Environment variable support** — Fresh install/reinstall prompts locally for the private key by default; `APECHURCH_CLI_PK` remains an optional non-interactive fallback, `APECHURCH_CLI_PASS` supports non-interactive local signing, and `APECHURCH_CLI_PROFILE_URL` overrides the username/profile API
 - **Commands:**
   - `wallet encrypt` — Add password protection
   - `wallet hints` — View or update password hints
@@ -50,7 +50,7 @@
 - JSON output on all commands (`--json`)
 - Scriptable and pipe-friendly
 - No browser required (headless servers, VPS, containers)
-- npm package: `npm install -g @apechurch-hf/apechurch-cli-gx54`
+- npm package: `npm install -g @n0ther/apechurch-cli`
 - Transaction hashes and game IDs returned
 
 ## 🤖 AI Agent Compatible
@@ -102,8 +102,8 @@
 ## Installation
 
 ```bash
-npm install -g @apechurch-hf/apechurch-cli-gx54
-apechurch-cli-gx54 install
+npm install -g @n0ther/apechurch-cli
+apechurch-cli install
 ```
 
 ---
@@ -113,7 +113,7 @@ apechurch-cli-gx54 install
 - **Website:** https://ape.church
 - **Games:** https://ape.church/games
 - **GitHub:** https://github.com/ape-church/agent-skills
-- **npm:** https://www.npmjs.com/package/@apechurch-hf/apechurch-cli-gx54
+- **npm:** https://www.npmjs.com/package/@n0ther/apechurch-cli
 
 ---
 

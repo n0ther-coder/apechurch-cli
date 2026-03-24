@@ -45,12 +45,12 @@ description: Bankroll management and risk profiles for Ape Church agents.
 - Slots: spins 2-6
 
 ## Agent Expectations
-- Track results in `~/.apechurch-cli-gx54/state.json`.
+- Track results in `~/.apechurch-cli/state.json`.
 - Respect cooldowns between plays.
 - Report large wins/losses to the user when possible.
 
 ## Overrides (Advanced)
-You can override strategy defaults in `~/.apechurch-cli-gx54/profile.json`:
+You can override strategy defaults in `~/.apechurch-cli/profile.json`:
 {
   "overrides": {
     "min_bet_ape": 10,

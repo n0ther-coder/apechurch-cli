@@ -43,13 +43,16 @@ Pure function tests - no network calls, no state changes.
 | Variable | Effect |
 |----------|--------|
 | `SKIP_LIVE_TESTS=1` | Skip all live game tests |
+| `APECHURCH_CLI_PASS=...` | Supply the local wallet password non-interactively during live signing |
+| `APECHURCH_CLI_PK=0x...` | Optional non-interactive fallback if you must run `apechurch-cli install` on a fresh machine without a terminal prompt |
+| `APECHURCH_CLI_PROFILE_URL=https://...` | Override the profile API endpoint during local setup/registration |
 
 ## Live Test Requirements
 
 For `games.test.js`:
 - Funded wallet with **at least 20 APE**
 - Encrypted wallet must be installed locally
-- Password must be provided interactively or via `APECHURCH_CLI_GX54_PASS` before signing
+- Password must be provided interactively or via `APECHURCH_CLI_PASS` before signing
 - Each test makes 1 APE minimum bets
 
 ## Test Commands
