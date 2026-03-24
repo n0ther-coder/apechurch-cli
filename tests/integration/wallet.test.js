@@ -58,4 +58,16 @@ describe('Wallet Integration Tests', () => {
       'Should explain that unlock/session caching is disabled'
     );
   });
+
+  it('wallet new-password is exposed and fails safely when unavailable', () => {
+    const { stdout, stderr, code } = cli('wallet new-password');
+    const out = stdout + stderr;
+    assert.ok(code !== 0, 'wallet new-password should not silently succeed in non-interactive tests');
+    assert.ok(
+      out.includes('No wallet found') ||
+      out.includes('Wallet is not encrypted') ||
+      out.includes('interactive terminal'),
+      'Should fail with a safe explanatory message'
+    );
+  });
 });

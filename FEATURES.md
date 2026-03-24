@@ -20,6 +20,7 @@
 - **Environment variable support** — Fresh install/reinstall prompts locally for the private key by default; `APECHURCH_CLI_PK` remains an optional non-interactive fallback, `APECHURCH_CLI_PASS` supports non-interactive local signing, and `APECHURCH_CLI_PROFILE_URL` overrides the username/profile API
 - **Commands:**
   - `wallet encrypt` — Add password protection
+  - `wallet new-password` — Rotate the local wallet password in place
   - `wallet hints` — View or update password hints
   - `wallet status` — Check encrypted-wallet status
 

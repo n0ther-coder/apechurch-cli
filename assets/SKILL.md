@@ -517,6 +517,7 @@ apechurch-cli video-poker payouts  # Show payout table
 | Command | Description |
 |---------|-------------|
 | `apechurch-cli wallet encrypt` | Migrate a legacy plaintext wallet to encrypted-only storage |
+| `apechurch-cli wallet new-password` | Re-encrypt the local wallet with a new password |
 | `apechurch-cli send APE <amount> <address>` | Send APE |
 | `apechurch-cli send GP <amount> <address>` | Send Gimbo Points |
 
@@ -708,7 +709,7 @@ Your encrypted wallet material is stored at `~/.apechurch-cli/wallet.json`.
 - Never share your private key
 - Never paste it into prompts or third-party tools
 - The CLI handles all signing locally
-- Consider using `wallet encrypt` for password protection
+- Consider using `wallet new-password` periodically to rotate local password protection
 
 ---
 

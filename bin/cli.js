@@ -121,6 +121,7 @@ import {
   getWalletHints,
   setWalletHints,
   createEncryptedWalletFromPrivateKey,
+  rotateEncryptedWalletPassword,
   getConfiguredPrivateKey,
   getWalletAddress,
   getWalletPublicMetadata,
@@ -502,7 +503,7 @@ program
 // ============================================================================
 program
   .command('wallet <action>')
-  .description('Wallet management (status, encrypt legacy wallet, hints, reset)')
+  .description('Wallet management (status, encrypt legacy wallet, rotate password, hints, reset)')
   .option('-y, --yes', 'Skip confirmation')
   .option('--json', 'JSON output')
   .action(async (action, opts) => {
@@ -564,6 +565,72 @@ program
       console.log('\n✅ Wallet migrated to encrypted-only storage successfully!');
       console.log(`   Address: ${result.address}`);
       console.log(`   Wallet file: ${WALLET_FILE}\n`);
+      return;
+    }
+
+    if (action === 'new-password') {
+      if (!walletExists()) {
+        const message = `No wallet found. Run: ${BINARY_NAME} install`;
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(`\n❌ ${message}\n`);
+        process.exit(1);
+      }
+      if (!isWalletEncrypted()) {
+        const message = `Wallet is not encrypted. Run: ${BINARY_NAME} wallet encrypt`;
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(`\n❌ ${message}\n`);
+        process.exit(1);
+      }
+      if (!process.stdin.isTTY || !process.stderr.isTTY) {
+        const message = 'wallet new-password requires an interactive terminal for secure hidden prompts.';
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(`\n❌ ${message}\n`);
+        process.exit(1);
+      }
+
+      let currentPassword;
+      let newPassword;
+      try {
+        currentPassword = process.env[PASS_ENV_VAR] || await promptSecret('Current wallet password (input hidden): ');
+        newPassword = await promptSecret('New wallet password (input hidden): ');
+        if (!newPassword || newPassword.length < 8) {
+          const message = 'New password must be at least 8 characters.';
+          if (opts.json) console.log(JSON.stringify({ error: message }));
+          else console.error(`\n❌ ${message}\n`);
+          process.exit(1);
+        }
+
+        const confirm = await promptSecret('Confirm new wallet password (input hidden): ');
+        if (newPassword !== confirm) {
+          const message = 'New passwords do not match.';
+          if (opts.json) console.log(JSON.stringify({ error: message }));
+          else console.error(`\n❌ ${message}\n`);
+          process.exit(1);
+        }
+
+        const result = rotateEncryptedWalletPassword(currentPassword, newPassword);
+        if (result.error) {
+          if (opts.json) console.log(JSON.stringify({ error: result.error }));
+          else console.error(`\n❌ ${result.error}\n`);
+          process.exit(1);
+        }
+
+        if (opts.json) {
+          console.log(JSON.stringify({
+            success: true,
+            address: result.address,
+            hints_count: result.hintsCount,
+          }));
+        } else {
+          console.log('\n✅ Wallet password updated successfully!');
+          console.log(`   Address: ${result.address}`);
+          console.log(`   Password hints preserved: ${result.hintsCount}\n`);
+        }
+      } finally {
+        currentPassword = null;
+        newPassword = null;
+      }
+
       return;
     }
 
@@ -686,7 +753,7 @@ program
     }
 
     console.log(`Unknown wallet action: ${action}`);
-    console.log('Available: status, encrypt, hints, reset');
+    console.log('Available: status, encrypt, new-password, hints, reset');
   });
 
 // ============================================================================
@@ -2136,6 +2203,7 @@ SETUP
 WALLET
   ${BINARY_NAME} wallet status        Check wallet encryption status
   ${BINARY_NAME} wallet encrypt       Migrate legacy plaintext wallet to encrypted-only storage
+  ${BINARY_NAME} wallet new-password  Re-encrypt local wallet with a new password
   ${BINARY_NAME} wallet hints         View or update password hints (up to 3)
   ${BINARY_NAME} wallet reset         Delete local wallet/profile/state files (requires reinstall)
   ${BINARY_NAME} send APE <amt> <to>  Send APE (native currency) to an address
@@ -2503,6 +2571,7 @@ ${'─'.repeat(70)}
 
   ${BINARY_NAME} wallet status        Check encrypted wallet status
   ${BINARY_NAME} wallet encrypt       Migrate a legacy plaintext wallet in place
+  ${BINARY_NAME} wallet new-password  Re-encrypt the local wallet with a new password
   ${BINARY_NAME} wallet hints         View/update password hints
   ${BINARY_NAME} wallet reset         Delete local wallet/profile/state files
 
