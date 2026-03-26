@@ -55,4 +55,27 @@ describe('Loop Stats', () => {
       '⏳ Next game in 6s',
     ]);
   });
+
+  it('formats break-even points using the base conversion rate', () => {
+    const stats = createLoopStats();
+
+    recordLoopGame(stats, { won: false, wageredApe: 25, payoutApe: 25 });
+
+    const output = formatLoopProgress({
+      currentBalanceApe: 150,
+      startingBalanceApe: 150,
+      stats,
+      nextDelayLabel: '6s',
+    });
+
+    const lines = output.split('\n');
+
+    assert.deepStrictEqual(lines, [
+      '💰 Balance: 150.00 APE (+0.00)',
+      '✌️  Win rate: 0.0% (0/1)',
+      '🎲 RTP: 100.0% (payout 25.00  wagered 25.00  even 0.00)',
+      '🧮 Points: 250, 10 GB/APE',
+      '⏳ Next game in 6s',
+    ]);
+  });
 });
