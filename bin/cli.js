@@ -112,6 +112,7 @@ import {
   parseNonNegativeInt,
 } from '../lib/utils.js';
 import { queueWinChimeFromWei } from '../lib/chime.js';
+import { createLoopStats, formatLoopProgress, recordLoopGame } from '../lib/loop-stats.js';
 import {
   getWallet,
   walletExists,
@@ -1088,6 +1089,7 @@ program
     let startingBalance = null;
     let gamesPlayed = 0;
     let lastGameResult = null; // Track for betting strategy
+    const loopStats = createLoopStats();
 
     const gameInput = gameArg || opts.game;
     const amountInput = amountArg || opts.amount;
@@ -1594,6 +1596,11 @@ program
         // Track result for betting strategy
         if (result.gameResult) {
           lastGameResult = result.gameResult;
+          recordLoopGame(loopStats, {
+            won: result.gameResult.won,
+            wageredApe: result.gameResult.bet,
+            payoutApe: result.gameResult.payout,
+          });
           consecutiveErrors = 0; // Reset on success
         }
         
@@ -1621,9 +1628,13 @@ program
           const { publicClient: pc } = createClients();
           const currentBal = await pc.getBalance({ address: account.address });
           const currentApe = parseFloat(formatEther(currentBal));
-          const change = startingBalance !== null ? currentApe - startingBalance : 0;
-          const changeStr = change >= 0 ? `+${change.toFixed(2)}` : change.toFixed(2);
-          console.log(`\n⏳ Next game in ${delaySeconds}s | 💰 Balance: ${currentApe.toFixed(2)} APE (${changeStr})`);
+          console.log('');
+          console.log(formatLoopProgress({
+            currentBalanceApe: currentApe,
+            startingBalanceApe: startingBalance,
+            stats: loopStats,
+            nextDelayLabel: `${delaySeconds}s`,
+          }));
         }
         await new Promise(r => setTimeout(r, delayMs));
       }
