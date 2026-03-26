@@ -116,6 +116,7 @@ apechurch-cli blackjack 10 --auto --loop
 apechurch-cli blackjack 10 --auto best   # Currently falls back to simple
 apechurch-cli video-poker 10 --auto --loop
 apechurch-cli video-poker 10 --auto best
+apechurch-cli video-poker 10 --solver    # Interactive hold suggestion (best EV)
 
 # Humanized pacing adds 3-9s on top of the fixed delay
 apechurch-cli video-poker 10 --auto best --loop --delay 5 --human
@@ -127,6 +128,8 @@ apechurch-cli blackjack 10
 
 - `--auto` without a mode means `simple`
 - `video-poker --auto best` evaluates all 32 holds and maximizes EV using the live jackpot at max bet
+- `video-poker --solver` shows the same best-EV hold suggestion in interactive mode
+- `video-poker --display full` now uses the boxed ASCII table layout; `simple` keeps the compact text layout
 - `blackjack --auto best` is not implemented yet and falls back to `simple`
 - `blackjack` and `video-poker` use `--delay 5` by default in loop mode
 - `--human` adds a weighted extra `3-9s` delay on top of the fixed delay

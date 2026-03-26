@@ -522,6 +522,7 @@ See [SKILL.md](./SKILL.md#video-poker) for complete documentation.
 # Auto-play
 apechurch-cli video-poker 10 --auto
 apechurch-cli video-poker 10 --auto best
+apechurch-cli video-poker 10 --solver
 
 # Interactive
 apechurch-cli video-poker 10
@@ -559,4 +560,6 @@ Note: `play` defaults to `--delay 3`, while `blackjack` and `video-poker` defaul
 - Minimum bet is typically 1 APE
 - VRF fees are automatically calculated and added
 - Stateful games use `--auto simple` by default; video poker also supports `--auto best`
+- `video-poker --solver` shows a best-EV hold suggestion in interactive mode
+- `video-poker --display full` uses the boxed ASCII table renderer; `simple` stays compact
 - Use `apechurch-cli game <name>` for detailed in-CLI help

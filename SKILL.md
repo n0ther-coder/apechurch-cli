@@ -466,6 +466,7 @@ Jacks or Better video poker with two auto-play modes: `simple` and `best`.
 ```bash
 apechurch-cli video-poker 10 --auto              # Single game, simple mode
 apechurch-cli video-poker 10 --auto best         # Exact EV solver
+apechurch-cli video-poker 10 --solver           # Show best-EV hold suggestion
 apechurch-cli video-poker 10 --auto --loop       # Continuous
 apechurch-cli vp 10 --auto --loop --max-games 50 # Using alias
 apechurch-cli video-poker 10 --auto best --loop --delay 5 --human
@@ -500,6 +501,16 @@ Video poker uses fixed denominations: **1, 5, 10, 25, 50, 100 APE**
   - Enumerates all possible redraw outcomes
   - Chooses the hold with the highest expected value
   - Includes the live jackpot value when betting 100 APE
+- `--solver`
+  - Leaves play interactive
+  - Shows the best-EV hold suggestion before you choose cards to keep
+
+### Display Modes
+
+- `--display full`
+  - Uses the boxed ASCII table renderer for video poker
+- `--display simple`
+  - Keeps the compact text renderer
 
 ### Managing Games
 
@@ -556,6 +567,7 @@ apechurch-cli video-poker payouts  # Show payout table
 | `--loop` | Continuous play mode |
 | `--delay <sec>` | Delay between games |
 | `--human` | Add a weighted 3-9s human-like delay on top of `--delay` |
+| `--solver` | Show the best-EV hold suggestion in interactive video poker |
 | `--target <ape>` | Stop at target balance |
 | `--stop-loss <ape>` | Stop at loss limit |
 | `--max-games <n>` | Stop after N games |

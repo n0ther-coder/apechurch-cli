@@ -3382,6 +3382,7 @@ program
   .option('--json', 'JSON output only')
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--auto [mode]', 'Auto-play mode: simple (default) or best EV')
+  .option('--solver', 'Show best-EV hold suggestion in interactive video poker')
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top')
   .option('--loop', 'Keep playing until balance runs out')
