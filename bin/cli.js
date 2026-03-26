@@ -167,18 +167,14 @@ import {
 
 // --- CLI Setup ---
 const program = new Command();
-const PACKAGE_VERSION = (() => {
-  try {
-    const pkgUrl = new URL('../package.json', import.meta.url);
-    const pkg = JSON.parse(fs.readFileSync(pkgUrl, 'utf8'));
-    return pkg.version || '0.0.0';
-  } catch {
-    return '0.0.0';
-  }
-})();
+const PACKAGE_VERSION = pkg.version || '0.0.0';
 
 program.name(BINARY_NAME).version(PACKAGE_VERSION, '-v, --version', 'output the current version');
 const GAME_LIST = listGames().join(' | ');
+
+function printInvocationVersion() {
+  console.error(`${BINARY_NAME} v${PACKAGE_VERSION}`);
+}
 
 // --- Helper: Interactive prompt ---
 function prompt(question) {
@@ -3447,6 +3443,7 @@ program
 // ============================================================================
 // PARSE
 // ============================================================================
+printInvocationVersion();
 program.parse(process.argv);
 
 // Show update notification if available (after command completes)

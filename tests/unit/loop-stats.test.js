@@ -56,7 +56,7 @@ describe('Loop Stats', () => {
     ]);
   });
 
-  it('formats break-even points using the base conversion rate', () => {
+  it('formats break-even points as positive GP only', () => {
     const stats = createLoopStats();
 
     recordLoopGame(stats, { won: false, wageredApe: 25, payoutApe: 25 });
@@ -74,7 +74,7 @@ describe('Loop Stats', () => {
       '💰 Balance: 150.00 APE (+0.00)',
       '✌️  Win rate: 0.0% (0/1)',
       '🎲 RTP: 100.0% (payout 25.00  wagered 25.00  even 0.00)',
-      '🧮 Points: 250, 10 GB/APE',
+      '🧮 Points: 250, +250 GB',
       '⏳ Next game in 6s',
     ]);
   });
