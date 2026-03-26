@@ -26,7 +26,7 @@ describe('Loop Stats', () => {
     assert.deepStrictEqual(lines, [
       '💰 Balance: 173.40 APE (+23.40)',
       '✌️  Win rate: 50.0% (1/2)',
-      '🎲 RTP: 95.6% (payout 129.00  wagered 135.00)',
+      '🎲 RTP: 95.6% (payout 129.00  wagered 135.00  loss 6.00)',
       '🧮 Points: 1350, 225.0 GB/APE',
       '⏳ Next game in 6s',
     ]);
@@ -50,7 +50,7 @@ describe('Loop Stats', () => {
     assert.deepStrictEqual(lines, [
       '💰 Balance: 173.40 APE (+23.40)',
       '✌️  Win rate: 50.0% (1/2)',
-      '🎲 RTP: 131.5% (payout 177.50  wagered 135.00)',
+      '🎲 RTP: 131.5% (payout 177.50  wagered 135.00  win 42.50)',
       '🧮 Points: 1350, +1350 GB, +42.50 APE',
       '⏳ Next game in 6s',
     ]);

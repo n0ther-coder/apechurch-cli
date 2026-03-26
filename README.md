@@ -119,6 +119,7 @@ apechurch-cli video-poker 10 --auto best
 
 # Humanized pacing adds 3-9s on top of the fixed delay
 apechurch-cli video-poker 10 --auto best --loop --delay 5 --human
+apechurch-cli video-poker --auto best --loop --human --delay 3 --target 2000 --max-games 50 25
 
 # Interactive mode
 apechurch-cli blackjack 10

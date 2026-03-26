@@ -468,7 +468,7 @@ apechurch-cli video-poker 10 --auto              # Single game, simple mode
 apechurch-cli video-poker 10 --auto best         # Exact EV solver
 apechurch-cli video-poker 10 --auto --loop       # Continuous
 apechurch-cli vp 10 --auto --loop --max-games 50 # Using alias
-apechurch-cli video-poker 10 --auto best --loop --delay 5 --human
+apechurch-cli video-poker --auto best --loop --human --delay 3 --target 2000 --max-games 50 25
 ```
 
 ### Bet Amounts
