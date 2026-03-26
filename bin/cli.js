@@ -1041,6 +1041,7 @@ program
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
+  .option('-v, --verbose', 'Show technical progress logs')
   .option('--json', 'JSON output only')
   .action(async (gameArg, amountArg, configArgs, opts) => {
     const account = await getWalletWithPrompt({ json: opts.json });
@@ -3306,6 +3307,7 @@ program
   .option('--game <id>', 'Specify game ID (for resume/action)')
   .option('--display <mode>', 'Display mode: full, simple, json')
   .option('--json', 'JSON output only')
+  .option('-v, --verbose', 'Show technical progress logs')
   .option('--auto [mode]', 'Auto-play mode: simple (default) or best (currently falls back to simple)')
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top')
@@ -3382,6 +3384,7 @@ program
   .option('--game <id>', 'Specify game ID (for resume)')
   .option('--display <mode>', 'Display mode: full, simple, json')
   .option('--json', 'JSON output only')
+  .option('-v, --verbose', 'Show technical progress logs')
   .option('--auto [mode]', 'Auto-play mode: simple (default) or best EV')
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top')

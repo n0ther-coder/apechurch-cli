@@ -4,6 +4,60 @@ import assert from 'node:assert';
 import { renderGame } from '../../lib/stateful/video-poker/display.js';
 
 describe('Video Poker Display', () => {
+  it('renders the loop game label in the header', () => {
+    const output = renderGame(
+      {
+        gameId: '123',
+        betAmount: 5000000000000000000n,
+        betAmountApe: 5,
+        totalPayout: 0n,
+        totalPayoutApe: 0,
+        initialCards: [],
+        finalCards: [],
+        gameState: 1,
+        gameStateName: 'PLAYER_DECISION',
+        handStatus: 0,
+        handStatusName: 'NOTHING',
+        awaitingRNG: false,
+        timestamp: 1234567890,
+        isComplete: false,
+        awaitingDecision: false,
+        payout: 0,
+      },
+      { displayMode: 'full', gameLabel: 'Game #3 /10' }
+    );
+
+    assert.match(output, /VIDEO POKER\s+│\s+Bet: 5 APE\s+\|\s+Game #3 \/10/);
+    const lines = output.split('\n');
+    assert.ok(lines[1].length > lines[2].length);
+  });
+
+  it('can suppress the header for intermediate renders', () => {
+    const output = renderGame(
+      {
+        gameId: '123',
+        betAmount: 5000000000000000000n,
+        betAmountApe: 5,
+        totalPayout: 0n,
+        totalPayoutApe: 0,
+        initialCards: [],
+        finalCards: [],
+        gameState: 1,
+        gameStateName: 'PLAYER_DECISION',
+        handStatus: 0,
+        handStatusName: 'NOTHING',
+        awaitingRNG: false,
+        timestamp: 1234567890,
+        isComplete: false,
+        awaitingDecision: false,
+        payout: 0,
+      },
+      { displayMode: 'full', gameLabel: 'Game #3 /10', showHeader: false }
+    );
+
+    assert.doesNotMatch(output, /VIDEO POKER/);
+  });
+
   it('serializes bigint fields in json mode', () => {
     const json = renderGame(
       {

@@ -21,11 +21,15 @@ describe('Loop Stats', () => {
       nextDelayLabel: '6s',
     });
 
-    assert.match(output, /💰 Balance: 173\.40 APE \(\+23\.40\)/);
-    assert.match(output, /✌️ Win rate: 50\.0% \(1\/2\)/);
-    assert.match(output, /🎲 RTP: 95\.6% \(payout 129\.00  wagered 135\.00\)/);
-    assert.match(output, /🧮 Points: 1350, 225\.0 GB\/APE/);
-    assert.match(output, /⏳ Next game in 6s/);
+    const lines = output.split('\n');
+
+    assert.deepStrictEqual(lines, [
+      '💰 Balance: 173.40 APE (+23.40)',
+      '✌️  Win rate: 50.0% (1/2)',
+      '🎲 RTP: 95.6% (payout 129.00  wagered 135.00)',
+      '🧮 Points: 1350, 225.0 GB/APE',
+      '⏳ Next game in 6s',
+    ]);
   });
 
   it('formats profit-side points as total GB and APE gained', () => {
@@ -41,10 +45,14 @@ describe('Loop Stats', () => {
       nextDelayLabel: '6s',
     });
 
-    assert.match(output, /💰 Balance: 173\.40 APE \(\+23\.40\)/);
-    assert.match(output, /✌️ Win rate: 50\.0% \(1\/2\)/);
-    assert.match(output, /🎲 RTP: 131\.5% \(payout 177\.50  wagered 135\.00\)/);
-    assert.match(output, /🧮 Points: 1350, \+1350 GB, \+42\.50 APE/);
-    assert.match(output, /⏳ Next game in 6s/);
+    const lines = output.split('\n');
+
+    assert.deepStrictEqual(lines, [
+      '💰 Balance: 173.40 APE (+23.40)',
+      '✌️  Win rate: 50.0% (1/2)',
+      '🎲 RTP: 131.5% (payout 177.50  wagered 135.00)',
+      '🧮 Points: 1350, +1350 GB, +42.50 APE',
+      '⏳ Next game in 6s',
+    ]);
   });
 });
