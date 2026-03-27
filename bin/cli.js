@@ -1567,10 +1567,6 @@ program
         
         // Check max games
         if (maxGames !== null && gamesPlayed >= maxGames) {
-          const netResult = balanceApe - startingBalance;
-          const sign = netResult >= 0 ? '+' : '';
-          console.log(`\n🏁 Max games reached! Played ${gamesPlayed}/${maxGames} games`);
-          console.log(`   Balance: ${balanceApe.toFixed(2)} APE (${sign}${netResult.toFixed(2)} APE)`);
           break;
         }
         
@@ -1625,13 +1621,19 @@ program
           const { publicClient: pc } = createClients();
           const currentBal = await pc.getBalance({ address: account.address });
           const currentApe = parseFloat(formatEther(currentBal));
+          const terminalConditionReached = (
+            (targetBalance !== null && currentApe >= targetBalance) ||
+            (stopLoss !== null && currentApe <= stopLoss) ||
+            (maxGames !== null && gamesPlayed >= maxGames)
+          );
           console.log('');
           console.log(formatLoopProgress({
             currentBalanceApe: currentApe,
             startingBalanceApe: startingBalance,
             stats: loopStats,
-            nextDelayLabel: `${delaySeconds}s`,
+            nextDelayLabel: terminalConditionReached ? null : `${delaySeconds}s`,
           }));
+          if (terminalConditionReached) continue;
         }
         await new Promise(r => setTimeout(r, delayMs));
       }
