@@ -36,7 +36,7 @@
 
 ## Automation
 - `--loop` mode for continuous play
-- Stateful auto-play modes: `simple` by default, `best` EV mode for video poker
+- Stateful auto-play modes: `simple` by default, `best` exact-EV mode for blackjack and video poker
 - Pause/Resume autonomous play
 - Strategy-based wager sizing
 - Session tracking (wins, losses, PnL, streaks)

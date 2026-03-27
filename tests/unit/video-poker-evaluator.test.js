@@ -61,4 +61,12 @@ describe('Video Poker Evaluator', () => {
       26234,
     );
   });
+
+  it('does not add jackpot bonus for royal payout below max bet', () => {
+    assert.strictEqual(isMaxBetAmount(50), false);
+    assert.strictEqual(
+      getPayoutApe(HandStatus.ROYAL_FLUSH, { betAmountApe: 50, jackpotApe: 1234 }),
+      12500,
+    );
+  });
 });

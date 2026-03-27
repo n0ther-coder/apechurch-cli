@@ -414,7 +414,7 @@ Interactive blackjack with `simple` auto-play by default.
 
 ```bash
 apechurch-cli blackjack 10 --auto              # Single game, simple auto-play
-apechurch-cli blackjack 10 --auto best         # Not implemented yet; falls back to simple
+apechurch-cli blackjack 10 --auto best         # Exact EV solver
 apechurch-cli blackjack 10 --auto --loop       # Continuous auto-play
 apechurch-cli blackjack 10 --auto --loop --max-games 20 --bet-strategy martingale
 apechurch-cli blackjack 10 --auto --loop --delay 5 --human
@@ -444,8 +444,10 @@ apechurch-cli blackjack 10   # Prompts for each decision
 - Considers dealer's upcard
 - Makes statistically best decision
 
-`--auto best` is reserved for a future stricter solver and currently prints:
-- `not implemented (fallback to simple)`
+`--auto best` uses an exact EV solver on the live hand state:
+- Enumerates the remaining deck without replacement
+- Models early surrender, insurance, double, and split
+- Maximizes expected return for the current decision
 
 ### Managing Games
 

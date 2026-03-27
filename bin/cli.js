@@ -2016,7 +2016,7 @@ program
           key: 'blackjack',
           aliases: ['bj'],
           contract: '0x720D68C867aC4De7e035c2C1346c4eb070b29Aae',
-          description: 'Classic blackjack with simple auto-play and future best-EV mode',
+          description: 'Classic blackjack with simple and exact-EV auto-play',
         }));
         return;
       }
@@ -2067,7 +2067,7 @@ ${'─'.repeat(60)}
 
   ${BINARY_NAME} blackjack 10                   Play one hand, 10 APE
   ${BINARY_NAME} blackjack 25 --auto            Bot plays one hand
-  ${BINARY_NAME} blackjack 25 --auto best       Currently falls back to simple
+  ${BINARY_NAME} blackjack 25 --auto best       Exact EV solver
   ${BINARY_NAME} blackjack 25 --auto --loop     Bot grinds until broke
   ${BINARY_NAME} blackjack 10 --auto --loop --target 500
                                            Bot plays until 500 APE balance
@@ -2515,12 +2515,14 @@ ${'─'.repeat(70)}
     • Dealer's up card
     • Available actions (hit, stand, double, split, etc.)
 
-  best: Not implemented yet for Blackjack.
-        Falls back to simple with a notice.
+  best: Exact EV solver on the live hand state:
+    • Enumerates the remaining deck without replacement
+    • Models early surrender, insurance, double, and split
+    • Optimizes current-hand RTP under the contract's rules
   
   Commands:
     ${BINARY_NAME} blackjack 10 --auto              # One hand, auto-play
-    ${BINARY_NAME} blackjack 10 --auto best         # Falls back to simple
+    ${BINARY_NAME} blackjack 10 --auto best         # Exact EV solver
     ${BINARY_NAME} blackjack 10 --auto --loop       # Continuous auto-play
   
   Strategy includes:
@@ -2528,7 +2530,7 @@ ${'─'.repeat(70)}
     • When to double down
     • When to split pairs
     • When to surrender (if offered)
-    • Insurance decisions (always decline - correct play)
+    • Insurance decisions from exact live EV
 
 ${'─'.repeat(70)}
   VIDEO POKER --auto
@@ -3304,7 +3306,7 @@ program
   .option('--display <mode>', 'Display mode: full, simple, json')
   .option('--json', 'JSON output only')
   .option('-v, --verbose', 'Show technical progress logs')
-  .option('--auto [mode]', 'Auto-play mode: simple (default) or best (currently falls back to simple)')
+  .option('--auto [mode]', 'Auto-play mode: simple (default) or best exact EV')
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top')
   .option('--loop', 'Keep playing until balance runs out')

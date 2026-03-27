@@ -66,4 +66,27 @@ describe('Video Poker EV Solver', () => {
     assert.ok(withJackpot.evApe > withoutJackpot.evApe);
     assert.ok(withJackpot.evMultiplier > withoutJackpot.evMultiplier);
   });
+
+  it('ignores jackpot value for sub-max bets', () => {
+    const royalDraw = [
+      card(1, 0),
+      card(13, 0),
+      card(12, 0),
+      card(11, 0),
+      card(2, 1),
+    ];
+    const hold = [true, true, true, true, false];
+
+    const withoutJackpot = calculateHoldExpectedValue(royalDraw, hold, {
+      betAmountApe: 50,
+      jackpotApe: 0,
+    });
+    const withJackpot = calculateHoldExpectedValue(royalDraw, hold, {
+      betAmountApe: 50,
+      jackpotApe: 5000,
+    });
+
+    assert.strictEqual(withJackpot.evApe, withoutJackpot.evApe);
+    assert.strictEqual(withJackpot.evMultiplier, withoutJackpot.evMultiplier);
+  });
 });
