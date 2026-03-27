@@ -56,7 +56,7 @@ describe('Video Poker Display', () => {
     assert.match(output, /╠═+/);
   });
 
-  it('renders the boxed auto-play closing half with final cards and result', () => {
+  it('renders the boxed auto-play closing half with hold markers over the final hand', () => {
     const output = renderGameFullDecisionEndAuto({
       ...makeDecisionState(),
       gameState: 3,
@@ -72,11 +72,14 @@ describe('Video Poker Display', () => {
         makeCard(13, 2, 'K', '♣'),
         makeCard(1, 2, 'A', '♣'),
       ],
+    }, {
+      hold: [true, false, true, true, false],
     });
 
-    assert.match(output, /║ ┌────┬────┬────┬────┬────┐/);
-    assert.match(output, /║ → Straight\s+║/);
+    assert.match(output, /║ │\s*✔\s*│\s*│\s*✔\s*│\s*✔\s*│\s*│/);
+    assert.match(output, /║ │\s*10 │\s*J │\s*Q │\s*K │\s*A │/);
     assert.match(output, /╚═+/);
+    assert.doesNotMatch(output, /║ → Straight\s+║/);
   });
 
   it('renders the interactive closing half with hold markers over the final hand', () => {
@@ -145,6 +148,29 @@ describe('Video Poker Display', () => {
 
     assert.strictEqual(winFooter, '🎉 Straight! → 10 APE (4x)');
     assert.strictEqual(lossFooter, '💀 No winning hand');
+  });
+
+  it('keeps the full-mode result line only in the footer for completed hands', () => {
+    const output = renderGame({
+      ...makeDecisionState(),
+      gameState: 3,
+      gameStateName: 'HAND_COMPLETE',
+      handStatus: 5,
+      handStatusName: 'FLUSH',
+      isComplete: true,
+      awaitingDecision: false,
+      totalPayoutApe: 15,
+      finalCards: [
+        makeCard(2, 2, '2', '♣'),
+        makeCard(5, 2, '5', '♣'),
+        makeCard(9, 2, '9', '♣'),
+        makeCard(11, 2, 'J', '♣'),
+        makeCard(13, 2, 'K', '♣'),
+      ],
+    }, { displayMode: 'full' });
+
+    assert.doesNotMatch(output, /║ → Flush\s+║/);
+    assert.match(output, /🎉 Flush! → 15 APE \(6x\)/);
   });
 
   it('serializes bigint fields in json mode', () => {
