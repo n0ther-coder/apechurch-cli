@@ -59,7 +59,7 @@
  * @see {@link https://ape.church} - Ape Church website
  * @see {@link https://docs.ape.church} - Documentation
  */
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -82,7 +82,6 @@ import {
   SKILL_TARGET_DIR,
   WALLET_FILE,
   GAS_RESERVE_APE,
-  GAME_CONTRACT_ABI,
   CONTEST_REGISTER_CONTRACT,
   USER_INFO_CONTRACT,
   CONTEST_ENTRY_FEE,
@@ -153,6 +152,7 @@ import {
 import { playGame, resolveGame } from '../lib/games/index.js';
 import { GAME_REGISTRY, listGames } from '../registry.js';
 import { getStrategy, listStrategies, getStrategyNames, calculateNextBet } from '../lib/strategies/index.js';
+import { fetchHistoryEntriesForContract, selectHistoryGames } from '../lib/history.js';
 import {
   theme,
   formatPnL,
@@ -1901,14 +1901,18 @@ program
 program
   .command('history')
   .option('--limit <n>', 'Number of games to show', '10')
+  .option('--all', 'Show all saved games')
   .option('--json', 'JSON output')
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: opts.json });
     const { publicClient } = createClients();
     const history = loadHistory();
     const limit = parseInt(opts.limit) || 10;
-    
-    const recentGames = history.games.slice(0, limit);
+
+    const recentGames = selectHistoryGames(history.games, {
+      limit,
+      all: Boolean(opts.all),
+    });
     
     if (recentGames.length === 0) {
       if (opts.json) console.log(JSON.stringify({ games: [] }));
@@ -1924,49 +1928,41 @@ program
     }
 
     const results = [];
+    let failedHistoryFetches = 0;
     
     for (const [contract, games] of Object.entries(gamesByContract)) {
-      const gameIds = games.map(g => BigInt(g.gameId));
-      
-      try {
-        const [players, buyIns, payouts, timestamps, hasEndeds] = await publicClient.readContract({
-          address: contract,
-          abi: GAME_CONTRACT_ABI,
-          functionName: 'getEssentialGameInfo',
-          args: [gameIds],
-        });
-
-        for (let i = 0; i < games.length; i++) {
-          const game = games[i];
-          const gameEntry = GAME_REGISTRY.find(g => g.contract.toLowerCase() === contract.toLowerCase());
-          
-          results.push({
-            timestamp: game.timestamp,
-            game: gameEntry?.name || 'Unknown',
-            gameId: game.gameId,
-            contract,
-            player: players[i],
-            wager_ape: formatEther(buyIns[i]),
-            payout_ape: formatEther(payouts[i]),
-            pnl_ape: formatEther(payouts[i] - buyIns[i]),
-            won: payouts[i] > buyIns[i],
-            settled: hasEndeds[i],
-            chain_timestamp: Number(timestamps[i]),
-          });
-        }
-      } catch (error) {
-        // Skip failed fetches
-      }
+      const { entries, failedFetches } = await fetchHistoryEntriesForContract(publicClient, contract, games);
+      results.push(...entries);
+      failedHistoryFetches += failedFetches;
     }
 
     // Sort by timestamp descending
     results.sort((a, b) => b.timestamp - a.timestamp);
+    const numberedResults = results.map((result, index) => ({
+      ...result,
+      historyIndex: index + 1,
+    }));
+
+    if (numberedResults.length === 0) {
+      if (opts.json) {
+        console.log(JSON.stringify({
+          games: [],
+          warning: 'Unable to fetch on-chain history details.',
+          saved_games: recentGames.length,
+          failed_fetches: failedHistoryFetches,
+        }));
+      } else {
+        console.log('\n📜 Recent Games\n');
+        console.log('   Unable to fetch on-chain history details for saved games.\n');
+      }
+      return;
+    }
 
     if (opts.json) {
-      console.log(JSON.stringify({ games: results }));
+      console.log(JSON.stringify({ games: numberedResults }));
     } else {
       console.log(`\n${formatHeader('Recent Games', '📜')}\n`);
-      for (const r of results) {
+      for (const r of numberedResults) {
         console.log(formatHistoryLine(r));
       }
       console.log('');
@@ -2047,7 +2043,7 @@ ${'─'.repeat(60)}
   OPTIONS
 ${'─'.repeat(60)}
 
-  --auto [mode]   Auto-play mode: simple (default) | best
+  --auto [mode]   Auto-play the hand
   --loop          Keep playing until balance runs out
   --target <ape>  Stop when balance reaches this amount
   --stop-loss <ape>  Stop when balance drops to this amount
@@ -2119,7 +2115,7 @@ ${'─'.repeat(60)}
   OPTIONS
 ${'─'.repeat(60)}
 
-  --auto [mode]   Auto-play mode: simple (default) | best
+  --auto [mode]   Auto-play the hand
   --loop          Keep playing until balance runs out
   --target <ape>  Stop when balance reaches this amount
   --stop-loss <ape>  Stop when balance drops to this amount
@@ -2251,7 +2247,7 @@ CONTROL
 INFO
   ${BINARY_NAME} games                List all games
   ${BINARY_NAME} game <name>          Game details
-  ${BINARY_NAME} history              Recent games
+  ${BINARY_NAME} history [--all]      Recent games
   ${BINARY_NAME} commands             This help
 
 CONTEST
@@ -2571,6 +2567,15 @@ ${'─'.repeat(70)}
     ${BINARY_NAME} blackjack 10 --auto --loop \\
       --bet-strategy martingale --max-bet 100 \\
       --target 200 --stop-loss 50
+
+${'─'.repeat(70)}
+  TIMING EXAMPLE
+${'─'.repeat(70)}
+
+  For slower, less robotic pacing during loops:
+
+    ${BINARY_NAME} video-poker 10 --auto best --loop \\
+      --delay 5 --human
 
 ${'─'.repeat(70)}
   DISPLAY MODES
@@ -3308,9 +3313,9 @@ program
   .option('--display <mode>', 'Display mode: full, simple, json')
   .option('--json', 'JSON output only')
   .option('-v, --verbose', 'Show technical progress logs')
-  .option('--auto [mode]', 'Auto-play mode: simple (default) or best exact EV')
+  .option('--auto [mode]', 'Auto-play the hand')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top')
+  .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
@@ -3385,10 +3390,10 @@ program
   .option('--display <mode>', 'Display mode: full, simple, json')
   .option('--json', 'JSON output only')
   .option('-v, --verbose', 'Show technical progress logs')
-  .option('--auto [mode]', 'Auto-play mode: simple (default) or best EV')
+  .option('--auto [mode]', 'Auto-play the hand')
   .option('--solver', 'Show best-EV hold suggestion in interactive video poker')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top')
+  .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')

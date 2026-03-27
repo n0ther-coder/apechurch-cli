@@ -63,8 +63,8 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 | Bubblegum Heist | `play bubblegum-heist 10 10` | Slot machine |
 | Monkey Match | `play monkey-match 10` | Poker hands from barrels |
 | Bear-A-Dice | `play bear-dice 10` | Avoid unlucky numbers |
-| Blackjack | `blackjack 10 --auto` | Card game with simple auto-play strategy |
-| Video Poker | `video-poker 10 --auto best` | Jacks or Better with exact EV mode |
+| Blackjack | `blackjack 10 --auto` | Card game with auto-play support |
+| Video Poker | `video-poker 10 --auto best` | Jacks or Better with advanced auto-play |
 
 ## Loop Mode
 
@@ -124,28 +124,28 @@ apechurch-cli video-poker --auto best --loop --human --delay 3 --target 2000 --m
 
 # Interactive mode
 apechurch-cli blackjack 10
+
+# Full local history
+apechurch-cli history --all
 ```
 
 - `--auto` without a mode means `simple`
-- `blackjack --auto best` computes exact EV on the live hand state, including early surrender, insurance, double, and split under the contract rules
-- `video-poker --auto best` evaluates all 32 holds and maximizes EV using the live jackpot at max bet
 - `video-poker --solver` shows the same best-EV hold suggestion in interactive mode
 - `video-poker --display full` now uses the boxed ASCII table layout; `simple` keeps the compact text layout
 - `blackjack` and `video-poker` use `--delay 5` by default in loop mode
-- `--human` adds a weighted extra `3-9s` delay on top of the fixed delay
 
 ## Commands
 
 ```bash
 apechurch-cli play [game] [amount] [config...]  # Play games
-apechurch-cli blackjack <amount> [--auto [mode]]    # Blackjack
-apechurch-cli video-poker <amount> [--auto [mode]]  # Video Poker
+apechurch-cli blackjack <amount> [--auto]       # Blackjack
+apechurch-cli video-poker <amount> [--auto]     # Video Poker
 apechurch-cli status                            # Check balance
 apechurch-cli games                             # List all games
 apechurch-cli game <name>                       # Game details
 apechurch-cli pause                             # Stop autonomous play
 apechurch-cli resume                            # Resume play
-apechurch-cli history                           # Recent games
+apechurch-cli history [--all]                   # Recent games
 apechurch-cli commands                          # Full reference
 ```
 

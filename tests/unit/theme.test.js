@@ -191,32 +191,69 @@ describe('Theme', () => {
     it('formats winning game line', () => {
       const game = {
         game: 'ApeStrong',
+        gameId: '123456789',
+        historyIndex: 1,
+        timestamp: Date.UTC(2026, 2, 27, 14, 28, 51),
         wager_ape: '10',
         pnl_ape: '9.5',
         won: true,
         settled: true,
       };
       const result = formatHistoryLine(game);
-      assert.ok(result.includes('✅'));
+      assert.ok(result.includes('🎉'));
+      assert.ok(result.includes('2026-03-27 14:28:51 UTC 🎉'));
+      assert.ok(result.includes('       9.50 APE'));
+      assert.ok(result.includes('(wagered 10.00 APE)'));
       assert.ok(result.includes('ApeStrong'));
+      assert.ok(result.includes('<123456789>'));
     });
 
     it('formats losing game line', () => {
       const game = {
         game: 'Roulette',
+        gameId: '42',
+        historyIndex: 2,
+        timestamp: Date.UTC(2026, 2, 27, 14, 30, 0),
         wager_ape: '5',
         pnl_ape: '-5',
         won: false,
         settled: true,
       };
       const result = formatHistoryLine(game);
-      assert.ok(result.includes('❌'));
+      assert.ok(result.includes('💀'));
+      assert.ok(result.includes('2026-03-27 14:30:00 UTC 💀'));
+      assert.ok(result.includes('       5.00 APE'));
+      assert.ok(result.includes('(wagered 5.00 APE)'));
       assert.ok(result.includes('Roulette'));
+      assert.ok(result.includes('<42>'));
+    });
+
+    it('formats break-even game line with handshake icon', () => {
+      const game = {
+        game: 'Blackjack',
+        gameId: '987654321',
+        historyIndex: 3,
+        timestamp: Date.UTC(2026, 2, 27, 14, 31, 0),
+        wager_ape: '1',
+        pnl_ape: '0',
+        won: false,
+        settled: true,
+      };
+      const result = formatHistoryLine(game);
+      assert.ok(result.includes('🤝'));
+      assert.ok(result.includes('2026-03-27 14:31:00 UTC 🤝'));
+      assert.ok(result.includes('(wagered 1.00 APE)'));
+      assert.ok(result.includes('Blackjack'));
+      assert.ok(result.includes('<987654321>'));
+      assert.ok(result.includes('       0.00 APE'));
     });
 
     it('formats pending game line', () => {
       const game = {
         game: 'Plinko',
+        gameId: '555',
+        historyIndex: 4,
+        timestamp: Date.UTC(2026, 2, 27, 14, 32, 0),
         wager_ape: '2',
         pnl_ape: '0',
         won: false,
@@ -224,6 +261,23 @@ describe('Theme', () => {
       };
       const result = formatHistoryLine(game);
       assert.ok(result.includes('⏳'));
+      assert.ok(result.includes('2026-03-27 14:32:00 UTC ⏳'));
+      assert.ok(result.includes('pending'));
+      assert.ok(result.includes('(wagered 2.00 APE)'));
+    });
+
+    it('keeps full width when result already uses eight integer digits', () => {
+      const game = {
+        game: 'ApeStrong',
+        gameId: '123',
+        timestamp: Date.UTC(2026, 2, 27, 14, 33, 0),
+        wager_ape: '10',
+        pnl_ape: '12345678.9',
+        won: true,
+        settled: true,
+      };
+      const result = formatHistoryLine(game);
+      assert.ok(result.includes('12345678.90 APE'));
     });
   });
 

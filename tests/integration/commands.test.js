@@ -13,6 +13,10 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_PATH = path.join(__dirname, '../../bin/cli.js');
 
+function stripVersionBanner(output) {
+  return String(output || '').replace(/^apechurch-cli v[^\n]*\n+/, '');
+}
+
 /**
  * Run CLI command and return output
  */
@@ -23,11 +27,11 @@ function cli(args, options = {}) {
       timeout: options.timeout || 30000,
       ...options,
     });
-    return { stdout: result, stderr: '', code: 0 };
+    return { stdout: stripVersionBanner(result), stderr: '', code: 0 };
   } catch (error) {
     return {
-      stdout: error.stdout || '',
-      stderr: error.stderr || '',
+      stdout: stripVersionBanner(error.stdout || ''),
+      stderr: stripVersionBanner(error.stderr || ''),
       code: error.status || 1,
     };
   }
@@ -50,6 +54,26 @@ describe('CLI Commands Integration Tests', () => {
     it('commands shows full reference', () => {
       const { stdout } = cli('commands');
       assert.ok(stdout.includes('play') || stdout.includes('PLAY'), 'Should mention play command');
+    });
+
+    it('blackjack --help keeps --human hidden and documents generic auto-play', () => {
+      const { stdout } = cli('blackjack --help');
+      assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
+      assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
+      assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
+    });
+
+    it('video-poker --help keeps --human hidden and documents generic auto-play', () => {
+      const { stdout } = cli('video-poker --help');
+      assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
+      assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
+      assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
+    });
+
+    it('help auto still shows advanced examples', () => {
+      const { stdout } = cli('help auto');
+      assert.ok(stdout.includes('--auto best'), 'Should keep best-mode examples in helper text');
+      assert.ok(stdout.includes('--human'), 'Should keep humanized pacing example in helper text');
     });
   });
 
@@ -155,6 +179,19 @@ describe('CLI Commands Integration Tests', () => {
       const data = JSON.parse(stdout);
       
       assert.ok(data.games.length <= 5, 'Should respect limit');
+    });
+
+    it('--all is accepted', () => {
+      const { stdout } = cli('history --json --all');
+      const data = JSON.parse(stdout);
+
+      assert.ok('games' in data, 'Should have games key');
+      assert.ok(Array.isArray(data.games), 'Games should be array');
+    });
+
+    it('--help documents --all', () => {
+      const { stdout } = cli('history --help');
+      assert.ok(stdout.includes('--all'), 'Should expose --all in help');
     });
   });
 
