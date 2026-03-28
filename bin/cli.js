@@ -45,7 +45,7 @@
  * │ CONTESTS                                                                │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ contest          View and join agent competitions                       │
- * │ pause / resume   Control autonomous play for contests                   │
+ * │ pause / continue Control autonomous play for contests                   │
  * └──────────────────────────────────────────────────────────────────────────┘
  *
  * Data Storage:
@@ -152,12 +152,15 @@ import {
 import { playGame, resolveGame } from '../lib/games/index.js';
 import { GAME_REGISTRY, listGames } from '../registry.js';
 import { getStrategy, listStrategies, getStrategyNames, calculateNextBet } from '../lib/strategies/index.js';
-import { fetchHistoryEntriesForContract, selectHistoryGames } from '../lib/history.js';
+import { fetchSavedHistoryEntries, selectHistoryGames } from '../lib/history.js';
+import { buildGameStatusSummary, summarizeUnfinishedGames } from '../lib/status.js';
 import {
   theme,
   formatPnL,
   formatBalance,
   formatAmount,
+  formatOutcomeIcon,
+  formatNetProfitLabel,
   formatField,
   formatYesNo,
   formatHeader,
@@ -763,6 +766,8 @@ program
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: opts.json });
     const profile = loadProfile();
+    const history = loadHistory();
+    const activeGames = loadActiveGames();
     const { publicClient } = createClients();
 
     let balance;
@@ -807,6 +812,23 @@ program
     const houseBalanceApe = parseFloat(formatEther(houseBalance));
     const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
     const canPlay = availableApe >= 1 && !profile.paused;
+    const unfinishedGames = summarizeUnfinishedGames(activeGames);
+
+    let historyEntries = [];
+    let failedHistoryFetches = 0;
+    try {
+      const historyResult = await fetchSavedHistoryEntries(publicClient, history.games);
+      historyEntries = historyResult.entries;
+      failedHistoryFetches = historyResult.failedFetches;
+    } catch {
+      failedHistoryFetches = history.games.length;
+    }
+
+    const gameStats = buildGameStatusSummary({
+      historyGames: history.games,
+      historyEntries,
+      activeGames,
+    });
 
     const response = {
       address: account.address,
@@ -819,12 +841,18 @@ program
       persona: profile.persona,
       username: profile.username,
       can_play: canPlay,
+      unfinished_games: unfinishedGames,
+      game_stats: gameStats,
     };
+
+    if (failedHistoryFetches > 0) {
+      response.history_failed_fetches = failedHistoryFetches;
+    }
 
     if (opts.json) {
       console.log(JSON.stringify(response));
     } else {
-      console.log(`\n${formatHeader('Ape Church Status', '🎰')}\n`);
+      console.log(`${formatHeader('Wallet Status', '👛')}\n`);
       console.log(formatField('Address', formatAddress(response.address)));
       console.log(formatField('Balance', formatBalance(response.balance)));
       console.log(formatField('GP', theme.yellow(`${response.gp_balance} GP`)));
@@ -836,6 +864,37 @@ program
       console.log(formatField('Persona', theme.value(response.persona)));
       console.log(formatField('Paused', response.paused ? theme.warning('Yes') : theme.success('No')));
       console.log(formatField('Can Play', formatYesNo(response.can_play)));
+      console.log('');
+
+      console.log(`${formatHeader('Game Status', '🎮')}\n`);
+      if (failedHistoryFetches > 0) {
+        console.log(`   ${theme.warning(`Net profit unavailable for ${failedHistoryFetches} saved game(s) while on-chain history was loading.`)}`);
+      }
+      if (gameStats.length === 0) {
+        console.log(`   ${theme.dim('No completed or unfinished games tracked yet.')}`);
+      } else {
+        for (const game of gameStats) {
+          const netProfit = game.net_profit_ape === null
+            ? theme.dim('unavailable')
+            : formatPnL(game.net_profit_ape);
+          console.log(
+            `   ${theme.gameName(game.game)}  ${theme.dim('played')} ${theme.value(String(game.games_played))}  ${theme.dim('net')} ${netProfit}  ${theme.dim('unfinished')} ${theme.value(String(game.unfinished_games))}`
+          );
+        }
+      }
+      console.log('');
+
+      console.log(`${formatHeader('Unfinished Games', '🧩')}\n`);
+      if (unfinishedGames.length === 0) {
+        console.log(`   ${theme.dim('No unfinished games.')}`);
+      } else {
+        for (const unfinished of unfinishedGames) {
+          console.log(`   ${theme.gameName(unfinished.game)} ${theme.dim(`(${unfinished.unfinished_games})`)}`);
+          for (const gameId of unfinished.game_ids) {
+            console.log(`     ${theme.dim('-')} ${theme.value(gameId)}`);
+          }
+        }
+      }
       console.log('');
     }
   });
@@ -853,12 +912,12 @@ program
   });
 
 program
-  .command('resume')
-  .description('Resume autonomous play')
+  .command('continue')
+  .description('Continue autonomous play')
   .action(() => {
     const profile = loadProfile();
     saveProfile({ ...profile, paused: false });
-    console.log(JSON.stringify({ status: 'resumed', message: 'Autonomous play resumed.' }));
+    console.log(JSON.stringify({ status: 'continued', message: 'Autonomous play continued.' }));
   });
 
 // ============================================================================
@@ -1465,20 +1524,21 @@ program
           if (hasResult) {
             const payoutApe = parseFloat(playResponse.result.payout_ape);
             const wagerApeNum = parseFloat(wagerApeString);
+            const outcomeIcon = formatOutcomeIcon(pnlApe);
+            const outcomeLabel = pnlApe > 0
+              ? theme.win('WON!')
+              : pnlApe < 0
+                ? theme.loss('LOST')
+                : theme.push('PUSH');
+            const outcomeLine = `${outcomeIcon} ${outcomeLabel} ${theme.amount(`${wagerApeNum.toFixed(2)} APE`)} → ${theme.balance(`${payoutApe.toFixed(2)} APE`)} ${formatNetProfitLabel(pnlApe, 2)}`;
+
+            console.log(`${outcomeLine}\n`);
             if (won) {
-              console.log(`${theme.win('🎉 WON!')} ${theme.amount(`${wagerApeNum.toFixed(2)} APE`)} → ${theme.balance(`${payoutApe.toFixed(2)} APE`)} ${theme.positive(`(+${pnlApe.toFixed(2)} APE)`)}\n`);
               queueWinChimeFromWei({
                 payoutWei: playResponse.result.payout_wei,
                 wagerWei: playResponse.result.buy_in_wei,
                 isJson: false,
               });
-            } else if (payoutApe > 0) {
-              // Partial loss - got some back
-              const lostApe = Math.abs(pnlApe);
-              console.log(`${theme.loss('❌ Lost')} ${theme.negative(`${lostApe.toFixed(2)} APE`)} ${theme.dim(`(${wagerApeNum.toFixed(2)} → ${payoutApe.toFixed(2)} APE)`)}\n`);
-            } else {
-              // Total loss
-              console.log(`${theme.loss('❌ Lost')} ${theme.negative(`${wagerApeNum.toFixed(2)} APE`)} ${theme.dim('— better luck next time!')}\n`);
             }
           } else {
             // Result pending (rare - if event didn't fire in time)
@@ -1920,24 +1980,7 @@ program
       return;
     }
 
-    // Group games by contract to batch fetch
-    const gamesByContract = {};
-    for (const game of recentGames) {
-      if (!gamesByContract[game.contract]) gamesByContract[game.contract] = [];
-      gamesByContract[game.contract].push(game);
-    }
-
-    const results = [];
-    let failedHistoryFetches = 0;
-    
-    for (const [contract, games] of Object.entries(gamesByContract)) {
-      const { entries, failedFetches } = await fetchHistoryEntriesForContract(publicClient, contract, games);
-      results.push(...entries);
-      failedHistoryFetches += failedFetches;
-    }
-
-    // Sort by timestamp descending
-    results.sort((a, b) => b.timestamp - a.timestamp);
+    const { entries: results, failedFetches: failedHistoryFetches } = await fetchSavedHistoryEntries(publicClient, recentGames);
     const numberedResults = results.map((result, index) => ({
       ...result,
       historyIndex: index + 1,
@@ -2036,7 +2079,7 @@ ${'─'.repeat(60)}
 ${'─'.repeat(60)}
 
   ${BINARY_NAME} blackjack <amount>      Start new game with bet
-  ${BINARY_NAME} blackjack resume        Resume unfinished game
+  ${BINARY_NAME} blackjack resume        Resume unfinished games in queue
   ${BINARY_NAME} blackjack status        Check current game state
 
 ${'─'.repeat(60)}
@@ -2109,7 +2152,7 @@ ${'─'.repeat(60)}
 ${'─'.repeat(60)}
 
   ${BINARY_NAME} video-poker <amount>    Start new game (1/5/10/25/50/100 APE)
-  ${BINARY_NAME} video-poker resume      Resume unfinished game
+  ${BINARY_NAME} video-poker resume      Resume unfinished games in queue
   ${BINARY_NAME} video-poker status      Check current game state
   ${BINARY_NAME} video-poker payouts     Show payout table
 
@@ -2243,7 +2286,7 @@ PLAY
 
 CONTROL
   ${BINARY_NAME} pause                Stop autonomous play
-  ${BINARY_NAME} resume               Resume play
+  ${BINARY_NAME} continue             Continue play
   ${BINARY_NAME} register --username <name>   Set or change username
 
 INFO

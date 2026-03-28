@@ -104,4 +104,14 @@ describe('Blackjack Display', () => {
       'Insurance (+12.5 APE)'
     );
   });
+
+  it('shows the realized net profit and push icon for zero-net completed hands', () => {
+    const output = renderGame(makeState({
+      isComplete: true,
+      totalPayout: 25000000000000000000n,
+    }), [], { displayMode: 'simple' });
+
+    assert.match(output, /🤝 RESULT: PUSH/);
+    assert.match(output, /\(net profit 0\.0000 APE\)/);
+  });
 });

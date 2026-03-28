@@ -147,7 +147,7 @@ apechurch-cli status                            # Check balance
 apechurch-cli games                             # List all games
 apechurch-cli game <name>                       # Game details
 apechurch-cli pause                             # Stop autonomous play
-apechurch-cli resume                            # Resume play
+apechurch-cli continue                          # Continue play
 apechurch-cli history [--all]                   # Recent games
 apechurch-cli commands                          # Full reference
 ```

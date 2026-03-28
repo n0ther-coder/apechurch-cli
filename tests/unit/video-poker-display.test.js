@@ -129,6 +129,7 @@ describe('Video Poker Display', () => {
     }, { displayMode: 'simple' });
 
     assert.match(output, /💀 No winning hand/);
+    assert.match(output, /\(net profit -25\.0000 APE\)/);
     assert.doesNotMatch(output, /❌ No winning hand/);
   });
 
@@ -137,7 +138,13 @@ describe('Video Poker Display', () => {
       ...makeDecisionState(),
       isComplete: true,
       handStatus: 4,
-      totalPayoutApe: 10,
+      totalPayoutApe: 100,
+    });
+    const pushFooter = formatOutcomeFooter({
+      ...makeDecisionState(),
+      isComplete: true,
+      handStatus: 1,
+      totalPayoutApe: 25,
     });
     const lossFooter = formatOutcomeFooter({
       ...makeDecisionState(),
@@ -146,8 +153,9 @@ describe('Video Poker Display', () => {
       totalPayoutApe: 0,
     });
 
-    assert.strictEqual(winFooter, '🎉 Straight! → 10 APE (4x)');
-    assert.strictEqual(lossFooter, '💀 No winning hand');
+    assert.match(winFooter, /🎉 Straight! → 100 APE \(4x\) \(net profit \+75\.0000 APE\)/);
+    assert.match(pushFooter, /🤝 Jacks or Better! → 25 APE \(1x\) \(net profit 0\.0000 APE\)/);
+    assert.match(lossFooter, /💀 No winning hand \(net profit -25\.0000 APE\)/);
   });
 
   it('keeps the full-mode result line only in the footer for completed hands', () => {
@@ -159,7 +167,7 @@ describe('Video Poker Display', () => {
       handStatusName: 'FLUSH',
       isComplete: true,
       awaitingDecision: false,
-      totalPayoutApe: 15,
+      totalPayoutApe: 150,
       finalCards: [
         makeCard(2, 2, '2', '♣'),
         makeCard(5, 2, '5', '♣'),
@@ -170,7 +178,7 @@ describe('Video Poker Display', () => {
     }, { displayMode: 'full' });
 
     assert.doesNotMatch(output, /║ → Flush\s+║/);
-    assert.match(output, /🎉 Flush! → 15 APE \(6x\)/);
+    assert.match(output, /🎉 Flush! → 150 APE \(6x\) \(net profit \+125\.0000 APE\)/);
   });
 
   it('serializes bigint fields in json mode', () => {

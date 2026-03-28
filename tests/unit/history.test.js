@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { parseEther } from 'viem';
 import {
+  fetchSavedHistoryEntries,
   fetchHistoryEntriesForContract,
   resolveHistoryGameName,
   selectHistoryGames,
@@ -94,6 +95,47 @@ describe('History Helpers', () => {
       assert.strictEqual(entries[0].payout_ape, '45');
       assert.strictEqual(entries[0].pnl_ape, '20');
       assert.strictEqual(entries[0].settled, true);
+    });
+  });
+
+  describe('fetchSavedHistoryEntries', () => {
+    it('groups saved games by contract and sorts combined results', async () => {
+      const calls = [];
+      const publicClient = {
+        async readContract(params) {
+          calls.push(params);
+
+          if (params.address === VIDEO_POKER_CONTRACT) {
+            return {
+              player: '0x2222222222222222222222222222222222222222',
+              betAmount: parseEther('25'),
+              totalPayout: parseEther('45'),
+              gameState: 3,
+              timestamp: 9999n,
+            };
+          }
+
+          return [
+            ['0x1111111111111111111111111111111111111111'],
+            [parseEther('1')],
+            [parseEther('2.5')],
+            [1234n],
+            [true],
+          ];
+        },
+      };
+
+      const { entries, failedFetches } = await fetchSavedHistoryEntries(publicClient, [
+        { contract: '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600', gameId: '42', timestamp: 1000 },
+        { contract: VIDEO_POKER_CONTRACT, gameId: '99', timestamp: 2000 },
+      ]);
+
+      assert.strictEqual(calls.length, 2);
+      assert.strictEqual(failedFetches, 0);
+      assert.strictEqual(entries.length, 2);
+      assert.strictEqual(entries[0].game, 'Video Poker');
+      assert.strictEqual(entries[1].game, 'ApeStrong');
+      assert.ok(entries[0].timestamp > entries[1].timestamp, 'Combined results should be sorted by saved timestamp');
     });
   });
 });

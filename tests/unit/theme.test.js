@@ -11,6 +11,8 @@ import {
   formatPnL,
   formatBalance,
   formatAmount,
+  formatOutcomeIcon,
+  formatNetProfitLabel,
   formatField,
   formatYesNo,
   formatHeader,
@@ -104,6 +106,21 @@ describe('Theme', () => {
     it('formats amount with APE suffix', () => {
       const result = formatAmount(25);
       assert.ok(result.includes('25'));
+      assert.ok(result.includes('APE'));
+    });
+  });
+
+  describe('net outcome helpers', () => {
+    it('formats outcome icons from realized net profit', () => {
+      assert.ok(formatOutcomeIcon(10).includes('🎉'));
+      assert.ok(formatOutcomeIcon(0).includes('🤝'));
+      assert.ok(formatOutcomeIcon(-1).includes('💀'));
+    });
+
+    it('formats a labeled net profit suffix', () => {
+      const result = formatNetProfitLabel(12.5, 2);
+      assert.ok(result.includes('net profit'));
+      assert.ok(result.includes('+12.50'));
       assert.ok(result.includes('APE'));
     });
   });
