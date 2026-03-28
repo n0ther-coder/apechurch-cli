@@ -63,7 +63,7 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 | Bubblegum Heist | `play bubblegum-heist 10 10` | Slot machine |
 | Monkey Match | `play monkey-match 10` | Poker hands from barrels |
 | Bear-A-Dice | `play bear-dice 10` | Avoid unlucky numbers |
-| Blackjack | `blackjack 10 --auto` | Card game with auto-play support |
+| Blackjack | `blackjack 25 --side 1 --auto` | Card game with auto-play and optional player side bet |
 | Video Poker | `video-poker 10 --auto best` | Jacks or Better with advanced auto-play |
 
 ## Loop Mode
@@ -114,6 +114,7 @@ Interactive card games with auto-play support:
 # Auto-play modes
 apechurch-cli blackjack 10 --auto --loop
 apechurch-cli blackjack 10 --auto best   # Exact EV solver
+apechurch-cli blackjack 25 --side 1 --auto
 apechurch-cli video-poker 10 --auto --loop
 apechurch-cli video-poker 10 --auto best
 apechurch-cli video-poker 10 --solver    # Interactive hold suggestion (best EV)
@@ -130,15 +131,17 @@ apechurch-cli history --all
 ```
 
 - `--auto` without a mode means `simple`
+- `blackjack --side <ape>` adds a player side bet to the opening deal without changing the in-hand EV solver
 - `video-poker --solver` shows the same best-EV hold suggestion in interactive mode
 - `video-poker --display full` now uses the boxed ASCII table layout; `simple` keeps the compact text layout
 - `blackjack` and `video-poker` use `--delay 5` by default in loop mode
+- where loop game estimates are supported, startup prints a pre-loop estimate before asking `Proceed? (Y/n)`; games with a Monte Carlo model show the typical run plus lucky-day / bad-run bounds, while the others keep the EV-based estimate
 
 ## Commands
 
 ```bash
 apechurch-cli play [game] [amount] [config...]  # Play games
-apechurch-cli blackjack <amount> [--auto]       # Blackjack
+apechurch-cli blackjack <amount> [--auto] [--side <ape>]  # Blackjack
 apechurch-cli video-poker <amount> [--auto]     # Video Poker
 apechurch-cli status                            # Check balance
 apechurch-cli games                             # List all games

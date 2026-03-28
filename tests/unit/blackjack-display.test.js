@@ -69,6 +69,20 @@ describe('Blackjack Display', () => {
     assert.match(output, /║  Dealer Side: none\s+║/);
   });
 
+  it('shows a configured player side bet amount in full mode', () => {
+    const output = renderGame(makeState({
+      sideBets: [
+        { bet: 1000000000000000000n, payout: 0n, amountForHouse: 0n, hasBet: true },
+        { bet: 0n, payout: 0n, amountForHouse: 0n, hasBet: false },
+      ],
+      totalBet: 26000000000000000000n,
+    }), [], { displayMode: 'full', gameLabel: 'Game #1 /50' });
+
+    assert.match(output, /║  Main Bet: 25 APE\s+║/);
+    assert.match(output, /║  Player Side: 1 APE\s+║/);
+    assert.match(output, /║  Dealer Side: none\s+║/);
+  });
+
   it('serializes side bets in json mode even when they are zero', () => {
     const output = renderGame(makeState(), [], { displayMode: 'json' });
     const parsed = JSON.parse(output);

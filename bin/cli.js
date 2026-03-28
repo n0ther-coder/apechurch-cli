@@ -2044,6 +2044,7 @@ ${'─'.repeat(60)}
 ${'─'.repeat(60)}
 
   --auto [mode]   Auto-play the hand
+  --side <ape>    Player side bet amount
   --loop          Keep playing until balance runs out
   --target <ape>  Stop when balance reaches this amount
   --stop-loss <ape>  Stop when balance drops to this amount
@@ -2064,6 +2065,7 @@ ${'─'.repeat(60)}
 ${'─'.repeat(60)}
 
   ${BINARY_NAME} blackjack 10                   Play one hand, 10 APE
+  ${BINARY_NAME} blackjack 25 --side 1          Add 1 APE player side bet
   ${BINARY_NAME} blackjack 25 --auto            Bot plays one hand
   ${BINARY_NAME} blackjack 25 --auto best       Exact EV solver
   ${BINARY_NAME} blackjack 25 --auto --loop     Bot grinds until broke
@@ -2346,6 +2348,12 @@ ${'─'.repeat(70)}
   These can be combined:
     ${BINARY_NAME} play --loop --target 200 --stop-loss 50 --max-games 500
 
+  Where loop game estimates are supported, startup also prints a pre-loop estimate.
+  Games with a full Monte Carlo model show the typical run plus lucky / bad-run bounds:
+    Estimate games before wallet squandering: ~8 ⚠️. On a lucky day, it could be 104 🍀; on a bad run, just 3 💀. Proceed? (Y/n)
+  Other supported games fall back to an EV-based estimate:
+    Estimate games before stop-loss ~17 games. Proceed? (Y/n)
+
 ${'─'.repeat(70)}
   BETTING STRATEGIES (use with --loop)
 ${'─'.repeat(70)}
@@ -2522,6 +2530,7 @@ ${'─'.repeat(70)}
     ${BINARY_NAME} blackjack 10 --auto              # One hand, auto-play
     ${BINARY_NAME} blackjack 10 --auto best         # Exact EV solver
     ${BINARY_NAME} blackjack 10 --auto --loop       # Continuous auto-play
+    ${BINARY_NAME} blackjack 25 --side 1 --auto     # Auto-play with player side bet
   
   Strategy includes:
     • When to hit vs stand
@@ -2529,6 +2538,7 @@ ${'─'.repeat(70)}
     • When to split pairs
     • When to surrender (if offered)
     • Insurance decisions from exact live EV
+    • Opening side bets are independent from the in-hand auto solver
 
 ${'─'.repeat(70)}
   VIDEO POKER --auto
@@ -3314,6 +3324,7 @@ program
   .option('--json', 'JSON output only')
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--auto [mode]', 'Auto-play the hand')
+  .option('--side <ape>', 'Player side bet amount')
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')

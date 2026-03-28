@@ -59,6 +59,7 @@ describe('CLI Commands Integration Tests', () => {
     it('blackjack --help keeps --human hidden and documents generic auto-play', () => {
       const { stdout } = cli('blackjack --help');
       assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
+      assert.ok(stdout.includes('--side <ape>'), 'Should show player side bet option');
       assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
@@ -74,6 +75,13 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout } = cli('help auto');
       assert.ok(stdout.includes('--auto best'), 'Should keep best-mode examples in helper text');
       assert.ok(stdout.includes('--human'), 'Should keep humanized pacing example in helper text');
+    });
+
+    it('help loop documents startup game estimates where RTP is known', () => {
+      const { stdout } = cli('help loop');
+      assert.ok(stdout.includes('Estimate games before wallet squandering'), 'Should document wallet squandering estimate');
+      assert.ok(stdout.includes('Estimate games before stop-loss'), 'Should document stop-loss estimate');
+      assert.ok(stdout.includes('Proceed? (Y/n)'), 'Should document the confirmation prompt');
     });
   });
 
