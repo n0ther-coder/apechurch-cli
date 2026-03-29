@@ -155,4 +155,19 @@ describe('Blackjack EV Solver', () => {
     assert.ok(result.actionValues[Action.SPLIT] > result.actionValues[Action.HIT]);
     assert.ok(result.actionValues[Action.SPLIT] > result.actionValues[Action.STAND]);
   });
+
+  it('fails fast when the exact EV search exceeds the configured player-state budget', () => {
+    const state = makeState({
+      playerHands: [[3, 3]],
+      dealer: [3],
+    });
+
+    assert.throws(
+      () => getBestActionByEV(state, {
+        allowedActions: [Action.HIT, Action.STAND, Action.DOUBLE, Action.SPLIT, Action.SURRENDER],
+        maxPlayerStates: 100,
+      }),
+      /search budget exceeded/
+    );
+  });
 });
