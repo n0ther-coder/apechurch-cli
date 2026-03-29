@@ -15,12 +15,16 @@ tools:
     cmd: apechurch-cli video-poker <amount> --auto --json
   - name: status
     cmd: apechurch-cli status --json
+  - name: wallet_download
+    cmd: apechurch-cli wallet download [address] --json
+  - name: history
+    cmd: apechurch-cli history [address] --json
   - name: games
     cmd: apechurch-cli games --json
   - name: pause
     cmd: apechurch-cli pause
-  - name: resume
-    cmd: apechurch-cli resume
+  - name: continue
+    cmd: apechurch-cli continue
 ---
 
 # Ape Church CLI 🦍🎰
@@ -34,15 +38,16 @@ Every bet is placed and settled on-chain via smart contracts. Provably fair with
 ## Table of Contents
 
 1. [Quick Start](#quick-start)
-2. [All Games](#all-games)
-3. [Loop Mode & Automation](#loop-mode--automation)
-4. [Betting Strategies](#betting-strategies)
-5. [Blackjack](#blackjack)
-6. [Video Poker](#video-poker)
-7. [Commands Reference](#commands-reference)
-8. [JSON Output Schemas](#json-output-schemas)
-9. [Agent Play Patterns](#agent-play-patterns)
-10. [Costs & Limits](#costs--limits)
+2. [History Download & Stats](#history-download--stats)
+3. [All Games](#all-games)
+4. [Loop Mode & Automation](#loop-mode--automation)
+5. [Betting Strategies](#betting-strategies)
+6. [Blackjack](#blackjack)
+7. [Video Poker](#video-poker)
+8. [Commands Reference](#commands-reference)
+9. [JSON Output Schemas](#json-output-schemas)
+10. [Agent Play Patterns](#agent-play-patterns)
+11. [Costs & Limits](#costs--limits)
 
 ---
 
@@ -67,6 +72,12 @@ apechurch-cli install --username MY_AGENT
 # Check status
 apechurch-cli status
 
+# Download wallet history from chain data
+apechurch-cli wallet download
+
+# Read cached history stats
+apechurch-cli history --stats
+
 # Play one game
 apechurch-cli play
 
@@ -75,6 +86,72 @@ apechurch-cli play --loop
 ```
 
 On a fresh install/reinstall, `apechurch-cli install` prompts securely for the private key with hidden input. If `~/.apechurch-cli/wallet.json` already exists, the encrypted wallet is reused and the private key is not requested again. `APECHURCH_CLI_PK` remains an optional non-interactive fallback, `APECHURCH_CLI_PASS` is required for non-interactive install/signing, and `APECHURCH_CLI_PROFILE_URL` overrides the default username/profile API.
+
+---
+
+## History Download & Stats
+
+Use `wallet download` to reconstruct supported gaming history directly from ApeChain into a local per-wallet cache, then read it with `history`.
+
+```bash
+# Download the local wallet history
+apechurch-cli wallet download
+
+# Download a specific address
+apechurch-cli wallet download 0x1234...abcd
+
+# Scan only a recent block range
+apechurch-cli wallet download 0x1234...abcd --from-block 35000000 --to-block 35300000
+
+# JSON output for automation
+apechurch-cli wallet download 0x1234...abcd --json
+
+# Read saved history and stats
+apechurch-cli history 0x1234...abcd
+
+# Stats only
+apechurch-cli history 0x1234...abcd --stats
+
+# Stats split by game
+apechurch-cli history 0x1234...abcd --breakdown
+
+# Refresh before reading
+apechurch-cli history 0x1234...abcd --refresh
+```
+
+`history --refresh` runs the same sync as `wallet download` before reading the local file. `history --breakdown` appends the aggregate stats split by game.
+
+### Report Fields
+
+| Field | Meaning |
+|------|---------|
+| `🎰 Games` | Synced games included in the economic stats |
+| `💸 Contract fees paid` | Contract-side fees effectively paid by the wallet |
+| `⛽️ Gas paid` | Network gas effectively paid by the wallet |
+| `Net result` | `payout - wager - contract fees - gas` |
+| `✌️ Win rate` | Wins divided by synced games |
+| `🎲 RTP` | `total payout / total wagered` |
+| `🎟️ wAPE` | Current on-chain balance / total received from synced games |
+| `🧮 GP` | Current on-chain balance / total received from synced games |
+
+### Download / History Options
+
+| Option | Description |
+|------|---------|
+| `wallet download --from-block <n>` | Start block for the sync |
+| `wallet download --to-block <n>` | End block for the sync (default: latest block) |
+| `wallet download --chunk-size <n>` | Block span per log query (default: `50000`) |
+| `history --stats` | Show only history stats |
+| `history --breakdown` | Show history stats split by game |
+| `history --refresh` | Refresh from chain before rendering |
+| `history --json` | Full machine-readable local report |
+
+### Coverage Limits
+
+- Downloaded histories live under `~/.apechurch-cli/history/church_<wallet>.json`.
+- Enumerates the supported single-transaction games in the local registry via indexed `GameEnded(user, ...)` logs.
+- `Blackjack` and `Video Poker` cannot yet be generically enumerated from raw RPC, so locally-known entries remain minimal until a reliable fetch path is implemented.
+- Sponsored transactions contribute `0` contract fees and `0` gas for the analyzed wallet.
 
 ---
 
@@ -537,16 +614,19 @@ apechurch-cli video-poker payouts  # Show payout table
 | `apechurch-cli play [game] [amount]` | Play a game |
 | `apechurch-cli blackjack <amount>` | Play blackjack |
 | `apechurch-cli video-poker <amount>` | Play video poker |
+| `apechurch-cli wallet download [address]` | Download supported on-chain history into local cache |
 | `apechurch-cli games` | List all games |
 | `apechurch-cli game <name>` | Detailed game info |
-| `apechurch-cli history` | Recent game history |
+| `apechurch-cli history [address]` | Read cached history and history stats |
 | `apechurch-cli pause` | Stop autonomous play |
-| `apechurch-cli resume` | Resume play |
+| `apechurch-cli continue` | Resume play |
 
 ### Wallet Commands
 
 | Command | Description |
 |---------|-------------|
+| `apechurch-cli wallet status` | Check encrypted wallet status |
+| `apechurch-cli wallet download [address]` | Download supported on-chain history into local cache |
 | `apechurch-cli wallet encrypt` | Migrate a legacy plaintext wallet to encrypted-only storage |
 | `apechurch-cli wallet new-password` | Re-encrypt the local wallet with a new password |
 | `apechurch-cli send APE <amount> <address>` | Send APE |
@@ -587,13 +667,25 @@ All commands support `--json` for machine-readable output.
 {
   "address": "0x1234...abcd",
   "balance": "52.4500",
-  "gp": "150",
   "available_ape": "51.4500",
   "gas_reserve_ape": "1.0000",
+  "gp_balance": "150",
+  "house_balance": "0.0000",
   "paused": false,
   "persona": "balanced",
   "username": "MY_AGENT",
-  "can_play": true
+  "can_play": true,
+  "unfinished_games": [],
+  "game_stats": [
+    {
+      "game": "ApeStrong",
+      "games_played": 12,
+      "net_profit_ape": "3.5000",
+      "net_profit_complete": true,
+      "unfinished_games": 0,
+      "unfinished_game_ids": []
+    }
+  ]
 }
 ```
 
@@ -616,6 +708,94 @@ All commands support `--json` for machine-readable output.
     "won": true,
     "pnl_ape": "9.500000"
   }
+}
+```
+
+### Wallet Download Response
+
+```json
+{
+  "history": {
+    "version": 1,
+    "wallet": "0x1234...abcd",
+    "chain_id": 33139,
+    "last_synced_block": "35300000",
+    "last_download_on": "2026-03-29T12:00:00.000Z",
+    "games": [
+      {
+        "game": "Bear-A-Dice",
+        "gameId": "1137230...",
+        "tx": "0xabc123...",
+        "settlement_tx": "0xdef456...",
+        "wager_ape": "5",
+        "payout_ape": "0",
+        "contract_fee_ape": "0.1",
+        "gas_fee_ape": "0.02",
+        "gp_received_display": "25",
+        "wape_received_ape": "5"
+      }
+    ]
+  },
+  "stats": {
+    "games": 11,
+    "contract_fees_paid_ape": "0.75528483626624",
+    "gas_paid_ape": "0.50494651956676",
+    "net_result_ape": "-500.867599619911120003",
+    "win_rate": 63.6
+  },
+  "sync": {
+    "wallet": "0x1234...abcd",
+    "file_path": "/Users/me/.apechurch-cli/history/church_0x1234...abcd.json",
+    "from_block": "35000000",
+    "to_block": "35300000",
+    "downloaded_games": 11,
+    "new_games": 11,
+    "saved_games": 14
+  }
+}
+```
+
+### History Response
+
+```json
+{
+  "wallet": "0x1234...abcd",
+  "history_file": "/Users/me/.apechurch-cli/history/church_0x1234...abcd.json",
+  "meta": {
+    "version": 1,
+    "chain_id": 33139,
+    "last_synced_block": "35300000",
+    "last_download_on": "2026-03-29T12:00:00.000Z"
+  },
+  "stats": {
+    "games": 11,
+    "contract_fees_paid_ape": "0.75528483626624",
+    "gas_paid_ape": "0.50494651956676",
+    "net_result_ape": "-500.867599619911120003",
+    "win_rate": 63.6,
+    "rtp": 11.1
+  },
+  "breakdown": [
+    {
+      "game": "Bear-A-Dice",
+      "games": 6,
+      "contract_fees_paid_ape": "0.4",
+      "gas_paid_ape": "0.12",
+      "net_result_ape": "-32.52"
+    }
+  ],
+  "sync": null,
+  "games": [
+    {
+      "game": "Bear-A-Dice",
+      "gameId": "1137230...",
+      "settled": true,
+      "wager_ape": "5",
+      "payout_ape": "0",
+      "contract_fee_ape": "0.1",
+      "gas_fee_ape": "0.02"
+    }
+  ]
 }
 ```
 
@@ -694,14 +874,14 @@ apechurch-cli status --json | jq '.available_ape'
 apechurch-cli play --loop --max-games 10
 ```
 
-### Pattern 7: Handle Pause/Resume
+### Pattern 7: Handle Pause/Continue
 
 ```bash
 # Human says "stop gambling"
 apechurch-cli pause
 
 # Human says "you can play again"
-apechurch-cli resume
+apechurch-cli continue
 
 # Check state
 apechurch-cli status --json | jq '.paused'

@@ -16,7 +16,7 @@
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ install          Setup the Ape Church Agent (wallet + profile)          │
  * │ uninstall        Remove all Ape Church data from this machine           │
- * │ wallet <action>  Wallet management (encrypted-only local signer)       │
+ * │ wallet <action>  Wallet management + history download                  │
  * │ profile <action> Profile management (show, set username/persona)        │
  * │ register         Register username on-chain via SIWE                    │
  * ├──────────────────────────────────────────────────────────────────────────┤
@@ -52,7 +52,7 @@
  * - wallet.json       - Encrypted private key + public metadata
  * - profile.json      - Username, persona, preferences
  * - state.json        - Local stats, betting strategy state
- * - history.json      - Game history (last 1000 games)
+ * - history/          - Per-wallet downloaded game histories
  * - active_games.json - Unfinished stateful games
  *
  * @module bin/cli
@@ -74,7 +74,7 @@ const notifier = shouldShowUpdateNotifier
   ? updateNotifier({ pkg, updateCheckInterval: 1000 * 60 * 60 * 24 })
   : null;
 import readline from 'readline';
-import { formatEther, parseEther } from 'viem';
+import { formatEther, isAddress, parseEther } from 'viem';
 
 // --- Local modules ---
 import {
@@ -134,6 +134,7 @@ import {
   loadState,
   saveState,
   loadHistory,
+  getHistoryFilePath,
   registerUsername,
   generateUsername,
   normalizeUsername,
@@ -152,8 +153,15 @@ import {
 import { playGame, resolveGame } from '../lib/games/index.js';
 import { GAME_REGISTRY, listGames } from '../registry.js';
 import { getStrategy, listStrategies, getStrategyNames, calculateNextBet } from '../lib/strategies/index.js';
-import { fetchSavedHistoryEntries, selectHistoryGames } from '../lib/history.js';
+import { fetchSavedHistoryEntries, resolveHistoryGameName, selectHistoryGames } from '../lib/history.js';
 import { buildGameStatusSummary, summarizeUnfinishedGames } from '../lib/status.js';
+import {
+  downloadWalletHistory,
+  readCurrentHistoryBalances,
+  summarizeHistoryGames,
+  summarizeHistoryGamesByGame,
+  DEFAULT_HISTORY_SYNC_CHUNK_SIZE,
+} from '../lib/wallet-analysis.js';
 import {
   theme,
   formatPnL,
@@ -190,6 +198,166 @@ function prompt(question) {
       rl.close();
       resolve(answer);
     });
+  });
+}
+
+function formatPlainApe(apeAmount, decimals = 2) {
+  const value = Number.parseFloat(apeAmount || 0);
+  if (!Number.isFinite(value)) {
+    return `0.${'0'.repeat(decimals)} APE`;
+  }
+  return `${value.toFixed(decimals)} APE`;
+}
+
+function formatPlainTokenAmount(amount, decimals = 2) {
+  const value = Number.parseFloat(amount || 0);
+  if (!Number.isFinite(value)) {
+    return `0.${'0'.repeat(decimals)}`;
+  }
+  return value.toFixed(decimals);
+}
+
+function formatNullableValue(value, formatter) {
+  if (value === null || value === undefined) {
+    return 'n.a.';
+  }
+
+  return formatter ? formatter(value) : String(value);
+}
+
+function formatHistoryOutcomeLabel(apeAmount, decimals = 2) {
+  const value = Number.parseFloat(apeAmount || 0);
+  const absoluteValue = Number.isFinite(value) ? Math.abs(value) : 0;
+  const formattedAmount = formatPlainApe(absoluteValue.toString(), decimals);
+
+  if (value > 0) {
+    return `win ${formattedAmount}`;
+  }
+  if (value < 0) {
+    return `loss ${formattedAmount}`;
+  }
+  return `even ${formattedAmount}`;
+}
+
+function formatHistoryRtpDetails(stats) {
+  return theme.dim(`(payout ${formatPlainApe(stats.total_payout_ape, 2)}  wagered ${formatPlainApe(stats.total_wagered_ape, 2)}  ${formatHistoryOutcomeLabel(stats.win_loss_ape)})`);
+}
+
+function formatHistoryStatsReport(stats) {
+  const netResultValue = Number.parseFloat(stats.net_result_ape || 0);
+  const netResultIcon = netResultValue > 0 ? '🎉' : netResultValue < 0 ? '💀' : '🤝';
+  const lines = [
+    '',
+    '📜 History Stats:',
+    `   🎰 Games: ${stats.games}`,
+    `   💸 Contract fees paid: ${formatPlainApe(stats.contract_fees_paid_ape, 4)}`,
+    `   ⛽️ Gas paid: ${formatPlainApe(stats.gas_paid_ape, 4)}`,
+    `   ${netResultIcon} Net result: ${formatPnL(stats.net_result_ape, 2)} ${theme.dim(`(gross ${formatPlainApe(stats.gross_result_ape)})`)}`,
+    `   ✌️  Win rate: ${stats.win_rate.toFixed(2)}% (${stats.wins}/${stats.games})`,
+    `   🎲 RTP: ${stats.rtp.toFixed(2)}% ${formatHistoryRtpDetails(stats)}`,
+    `   🎟️  APE Wagered (wAPE): ${formatNullableValue(stats.current_wape_balance_ape, (value) => formatPlainTokenAmount(value, 2))}/${formatPlainTokenAmount(stats.total_wape_received_ape, 2)}`,
+    `   🧮 Gimbo Points (GP): ${formatNullableValue(stats.current_gp_balance_display)}/${stats.total_gp_received_display}`,
+  ];
+
+  if (stats.unsynced_games > 0) {
+    lines.push(`   ${theme.warning(`${stats.unsynced_games} saved game(s) are still excluded from economic stats.`)}`);
+  }
+
+  return lines.join('\n');
+}
+
+function formatHistoryBreakdownReport(gameStats) {
+  if (!Array.isArray(gameStats) || gameStats.length === 0) {
+    return '';
+  }
+
+  const lines = [
+    '',
+    '🎮 Breakdown:',
+  ];
+
+  for (const stats of gameStats) {
+    const netResultValue = Number.parseFloat(stats.net_result_ape || 0);
+    const netResultIcon = netResultValue > 0 ? '🎉' : netResultValue < 0 ? '💀' : '🤝';
+
+    lines.push(`   ${theme.label(`${stats.game || 'Unknown'}:`)}`);
+    lines.push(`      🎰 Games: ${stats.games}`);
+    lines.push(`      💸 Contract fees paid: ${formatPlainApe(stats.contract_fees_paid_ape, 4)}`);
+    lines.push(`      ⛽️ Gas paid: ${formatPlainApe(stats.gas_paid_ape, 4)}`);
+    lines.push(`      ${netResultIcon} Net result: ${formatPnL(stats.net_result_ape, 2)} ${theme.dim(`(gross ${formatPlainApe(stats.gross_result_ape)})`)}`);
+    lines.push(`      ✌️  Win rate: ${stats.win_rate.toFixed(2)}% (${stats.wins}/${stats.games})`);
+    lines.push(`      🎲 RTP: ${stats.rtp.toFixed(2)}% ${formatHistoryRtpDetails(stats)}`);
+    lines.push(`      🎟️  APE Wagered (wAPE) received: ${formatPlainTokenAmount(stats.total_wape_received_ape, 2)}`);
+    lines.push(`      🧮 Gimbo Points (GP) received: ${stats.total_gp_received_display}`);
+
+    if (stats.unsynced_games > 0) {
+      lines.push(`      ${theme.warning(`${stats.unsynced_games} saved game(s) are still excluded from economic stats.`)}`);
+    }
+
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+function formatWalletDownloadReport(downloadResult) {
+  const { sync, stats } = downloadResult;
+  const lines = [
+    '',
+    formatHeader('History Download', '📥'),
+    '',
+    `   ${theme.label('Address:')} ${formatAddress(sync.wallet)}`,
+    `   ${theme.label('Blocks:')} ${theme.value(`${sync.from_block} -> ${sync.to_block}`)}`,
+    `   ${theme.label('File:')} ${theme.dim(sync.file_path)}`,
+    `   ${theme.label('Downloaded:')} ${sync.downloaded_games} supported game(s)`,
+    `   ${theme.label('New:')} ${sync.new_games}`,
+    `   ${theme.label('Saved:')} ${sync.saved_games}`,
+  ];
+
+  if (sync.missing_transaction_metadata > 0) {
+    lines.push(`   ${theme.warning(`Missing tx metadata for ${sync.missing_transaction_metadata} game(s); gas/fees may be incomplete.`)}`);
+  }
+
+  lines.push(formatHistoryStatsReport(stats), '');
+  return lines.join('\n');
+}
+
+function resolveHistoryTargetAddress(address) {
+  const targetAddress = address || getWalletAddress();
+  return targetAddress || null;
+}
+
+async function downloadHistoryForCli(targetAddress, opts = {}) {
+  const { publicClient } = createClients();
+
+  let fromBlock;
+  let toBlock;
+  let chunkSize;
+
+  try {
+    if (opts.fromBlock !== undefined) {
+      fromBlock = BigInt(parseNonNegativeInt(opts.fromBlock, 'from-block'));
+    }
+    chunkSize = BigInt(parseNonNegativeInt(opts.chunkSize ?? DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString(), 'chunk-size'));
+    if (chunkSize <= 0n) {
+      throw new Error('chunk-size must be greater than 0.');
+    }
+
+    if (opts.toBlock !== undefined) {
+      toBlock = BigInt(parseNonNegativeInt(opts.toBlock, 'to-block'));
+    }
+
+    if (fromBlock !== undefined && toBlock !== undefined && toBlock < fromBlock) {
+      throw new Error('to-block must be greater than or equal to from-block.');
+    }
+  } catch (error) {
+    throw new Error(sanitizeError(error));
+  }
+
+  return downloadWalletHistory(publicClient, targetAddress, {
+    fromBlock,
+    toBlock,
+    chunkSize,
   });
 }
 
@@ -503,11 +671,14 @@ program
 // COMMAND: WALLET
 // ============================================================================
 program
-  .command('wallet <action>')
-  .description('Wallet management (status, encrypt legacy wallet, rotate password, hints, reset)')
+  .command('wallet <action> [address]')
+  .description('Wallet management (status, download, encrypt legacy wallet, rotate password, hints, reset)')
   .option('-y, --yes', 'Skip confirmation')
   .option('--json', 'JSON output')
-  .action(async (action, opts) => {
+  .option('--from-block <n>', 'Start block for wallet history download')
+  .option('--to-block <n>', 'End block for wallet history download (default latest)')
+  .option('--chunk-size <n>', 'Block range per log query for wallet history download', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
+  .action(async (action, address, opts) => {
     const unsupportedActions = new Set(['export', 'decrypt', 'unlock', 'lock']);
     if (unsupportedActions.has(action)) {
       const message = `${action} is disabled in this hardened build. Plaintext key export/storage and cached unlock sessions are not allowed.`;
@@ -516,6 +687,44 @@ program
 ❌ ${message}
 `);
       process.exit(1);
+    }
+
+    if (action === 'download') {
+      const targetAddress = resolveHistoryTargetAddress(address);
+      if (!targetAddress) {
+        const message = `No wallet address provided and no local wallet found. Use: ${BINARY_NAME} wallet download <address>`;
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(`\n❌ ${message}\n`);
+        process.exit(1);
+      }
+
+      if (!isAddress(targetAddress)) {
+        const message = `Invalid wallet address: ${targetAddress}`;
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(`\n❌ ${message}\n`);
+        process.exit(1);
+      }
+
+      try {
+        if (!opts.json) {
+          console.log(`\n📥 Downloading history for ${targetAddress}${opts.fromBlock !== undefined ? ` from block ${opts.fromBlock}` : ''}${opts.toBlock !== undefined ? ` to block ${opts.toBlock}` : ' to latest'}...\n`);
+        }
+
+        const downloadResult = await downloadHistoryForCli(targetAddress, opts);
+
+        if (opts.json) {
+          console.log(JSON.stringify(downloadResult));
+        } else {
+          console.log(formatWalletDownloadReport(downloadResult));
+        }
+      } catch (error) {
+        const message = `Failed to download wallet history: ${sanitizeError(error)}`;
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(`\n❌ ${message}\n`);
+        process.exit(1);
+      }
+
+      return;
     }
 
     if (action === 'encrypt') {
@@ -754,7 +963,7 @@ program
     }
 
     console.log(`Unknown wallet action: ${action}`);
-    console.log('Available: status, encrypt, new-password, hints, reset');
+    console.log('Available: status, download, encrypt, new-password, hints, reset');
   });
 
 // ============================================================================
@@ -766,7 +975,7 @@ program
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: opts.json });
     const profile = loadProfile();
-    const history = loadHistory();
+    const history = loadHistory(account.address);
     const activeGames = loadActiveGames();
     const { publicClient } = createClients();
 
@@ -1959,54 +2168,115 @@ program
 // COMMAND: HISTORY
 // ============================================================================
 program
-  .command('history')
+  .command('history [address]')
+  .description('Read cached per-wallet history and history stats')
   .option('--limit <n>', 'Number of games to show', '10')
   .option('--all', 'Show all saved games')
+  .option('--stats', 'Show only history stats')
+  .option('--breakdown', 'Show history stats split by game')
+  .option('--refresh', 'Refresh local history from chain before showing it')
+  .option('--from-block <n>', 'Start block for history refresh')
+  .option('--to-block <n>', 'End block for history refresh (default latest)')
+  .option('--chunk-size <n>', 'Block range per log query for history refresh', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .option('--json', 'JSON output')
-  .action(async (opts) => {
-    const account = await getWalletWithPrompt({ json: opts.json });
-    const { publicClient } = createClients();
-    const history = loadHistory();
-    const limit = parseInt(opts.limit) || 10;
+  .action(async (address, opts) => {
+    const targetAddress = resolveHistoryTargetAddress(address);
+    if (!targetAddress) {
+      const message = `No wallet address provided and no local wallet found. Use: ${BINARY_NAME} history <address>`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.error(`\n❌ ${message}\n`);
+      process.exit(1);
+    }
 
+    if (!isAddress(targetAddress)) {
+      const message = `Invalid wallet address: ${targetAddress}`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.error(`\n❌ ${message}\n`);
+      process.exit(1);
+    }
+
+    let history;
+    let refreshResult = null;
+
+    if (opts.refresh) {
+      try {
+        if (!opts.json) {
+          console.log(`\n📥 Refreshing history for ${targetAddress}...\n`);
+        }
+        refreshResult = await downloadHistoryForCli(targetAddress, opts);
+        history = refreshResult.history;
+      } catch (error) {
+        const message = `Failed to refresh history: ${sanitizeError(error)}`;
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(`\n❌ ${message}\n`);
+        process.exit(1);
+      }
+    } else {
+      history = loadHistory(targetAddress);
+    }
+
+    const historyFilePath = getHistoryFilePath(targetAddress);
+    const hasDownloadedHistory = Boolean(history.last_download_on) || history.games.length > 0;
+    if (!hasDownloadedHistory) {
+      const message = `No downloaded history for this wallet. Run: ${BINARY_NAME} wallet download ${targetAddress}`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.log(`\n${message}\n`);
+      return;
+    }
+
+    const { publicClient } = createClients();
+    let currentBalances = {};
+    try {
+      currentBalances = await readCurrentHistoryBalances(publicClient, targetAddress);
+    } catch {
+      currentBalances = {};
+    }
+
+    const stats = summarizeHistoryGames(history, currentBalances);
+    const breakdown = opts.breakdown ? summarizeHistoryGamesByGame(history) : [];
+    const limit = parseInt(opts.limit) || 10;
     const recentGames = selectHistoryGames(history.games, {
       limit,
       all: Boolean(opts.all),
     });
-    
-    if (recentGames.length === 0) {
-      if (opts.json) console.log(JSON.stringify({ games: [] }));
-      else console.log('\nNo games in history.\n');
-      return;
-    }
 
-    const { entries: results, failedFetches: failedHistoryFetches } = await fetchSavedHistoryEntries(publicClient, recentGames);
-    const numberedResults = results.map((result, index) => ({
+    const numberedResults = recentGames.map((result, index) => ({
       ...result,
+      game: result.game || resolveHistoryGameName(result.contract),
+      settled: result.settled ?? Boolean(result.last_sync_on && typeof result.payout_wei === 'string'),
       historyIndex: index + 1,
     }));
 
-    if (numberedResults.length === 0) {
-      if (opts.json) {
-        console.log(JSON.stringify({
-          games: [],
-          warning: 'Unable to fetch on-chain history details.',
-          saved_games: recentGames.length,
-          failed_fetches: failedHistoryFetches,
-        }));
-      } else {
-        console.log('\n📜 Recent Games\n');
-        console.log('   Unable to fetch on-chain history details for saved games.\n');
-      }
-      return;
-    }
-
     if (opts.json) {
-      console.log(JSON.stringify({ games: numberedResults }));
+      console.log(JSON.stringify({
+        wallet: targetAddress.toLowerCase(),
+        history_file: historyFilePath,
+        meta: {
+          version: history.version,
+          chain_id: history.chain_id,
+          last_synced_block: history.last_synced_block,
+          last_download_on: history.last_download_on,
+        },
+        stats,
+        breakdown,
+        sync: refreshResult?.sync || null,
+        games: opts.stats ? [] : numberedResults,
+      }));
     } else {
-      console.log(`\n${formatHeader('Recent Games', '📜')}\n`);
-      for (const r of numberedResults) {
-        console.log(formatHistoryLine(r));
+      if (!opts.stats) {
+        console.log(`\n${formatHeader('Recent Games', '👀')}\n`);
+        if (numberedResults.length === 0) {
+          console.log('   No saved games.\n');
+        } else {
+          for (const r of numberedResults) {
+            console.log(formatHistoryLine(r));
+          }
+          console.log('');
+        }
+      }
+      console.log(formatHistoryStatsReport(stats));
+      if (opts.breakdown) {
+        console.log(formatHistoryBreakdownReport(breakdown));
       }
       console.log('');
     }
@@ -2261,6 +2531,7 @@ SETUP
 
 WALLET
   ${BINARY_NAME} wallet status        Check wallet encryption status
+  ${BINARY_NAME} wallet download      Download on-chain history into the local per-wallet cache
   ${BINARY_NAME} wallet encrypt       Migrate legacy plaintext wallet to encrypted-only storage
   ${BINARY_NAME} wallet new-password  Re-encrypt local wallet with a new password
   ${BINARY_NAME} wallet hints         View or update password hints (up to 3)
@@ -2292,7 +2563,7 @@ CONTROL
 INFO
   ${BINARY_NAME} games                List all games
   ${BINARY_NAME} game <name>          Game details
-  ${BINARY_NAME} history [--all]      Recent games
+  ${BINARY_NAME} history [address]    Read downloaded history and show history stats
   ${BINARY_NAME} commands             This help
 
 CONTEST
@@ -2338,6 +2609,7 @@ EXAMPLES
 
   ${BINARY_NAME} register --username my_bot_name
   ${BINARY_NAME} send APE 10 0x1234...abcd
+  ${BINARY_NAME} wallet download 0x1234...abcd --json
 
 ASSETS
   APE    Native currency (18 decimals)
@@ -2352,7 +2624,7 @@ ASSETS
 DETAILED HELP
   ${BINARY_NAME} help <topic>         Get detailed help on a topic
 
-  Topics: loop, strategies, auto, wallet, house
+  Topics: loop, strategies, auto, wallet, history, house
 `);
   });
 
@@ -2662,10 +2934,67 @@ ${'─'.repeat(70)}
 ${'─'.repeat(70)}
 
   ${BINARY_NAME} wallet status        Check encrypted wallet status
+  ${BINARY_NAME} wallet download      Download supported on-chain history into the local cache
   ${BINARY_NAME} wallet encrypt       Migrate a legacy plaintext wallet in place
   ${BINARY_NAME} wallet new-password  Re-encrypt the local wallet with a new password
   ${BINARY_NAME} wallet hints         View/update password hints
   ${BINARY_NAME} wallet reset         Delete local wallet/profile/state files
+
+  Download examples:
+    ${BINARY_NAME} wallet download
+    ${BINARY_NAME} wallet download 0x1234...abcd --json
+    ${BINARY_NAME} wallet download 0x1234...abcd --from-block 35000000 --to-block 35300000
+
+  Download options:
+    --from-block <n>   Start block (default incremental from local cache)
+    --to-block <n>     End block (default latest)
+    --chunk-size <n>   Block span per log query
+
+  Download writes:
+    ~/.apechurch-cli/history/church_<wallet>.json
+
+  History commands:
+    ${BINARY_NAME} history [address]
+    ${BINARY_NAME} history [address] --stats
+    ${BINARY_NAME} history [address] --breakdown
+    ${BINARY_NAME} history [address] --refresh
+
+  History stats output:
+    🎰 Games                     Synced games included in economic stats
+    💸 Contract fees paid        Fees effectively paid by the wallet
+    ⛽️ Gas paid                  Network gas effectively paid by the wallet
+    Net result                  Payout - wager - contract fees - gas
+    ✌️ Win rate                 Wins / synced games
+    🎲 RTP                      Total payout / total wagered
+    🎟️ wAPE / 🧮 GP            Current online balance / total received on-chain
+
+  History options:
+    --all                      Show all saved games in the local file
+    --stats                    Show only aggregate history stats
+    --breakdown                Show the same stats split by game
+    --refresh                  Run wallet download first, then render
+    --json                     Emit the cached report as JSON
+
+  Coverage limits:
+    • Enumerates the games in the local registry that emit indexed GameEnded(user, ...)
+    • Blackjack and Video Poker cannot be generically enumerated yet from raw RPC
+    • Locally-known Blackjack and Video Poker entries remain minimal until a
+      reliable on-chain fetch path is implemented
+    • Sponsored transactions contribute zero contract fee and zero gas for the
+      analyzed wallet
+
+${'─'.repeat(70)}
+  HISTORY FLOW
+${'─'.repeat(70)}
+
+  1. ${BINARY_NAME} wallet download [address]
+     Syncs supported games from ApeChain into the local per-wallet file.
+
+  2. ${BINARY_NAME} history [address]
+     Reads that local file, shows recent games, and prints history stats.
+
+  3. ${BINARY_NAME} history [address] --breakdown
+     Adds a per-game split of the same economic stats.
 
 ${'─'.repeat(70)}
   INSTALL / REINSTALL
@@ -2711,6 +3040,91 @@ ${'─'.repeat(70)}
   • Forgetting the wallet password prevents local decryption/signing.
   • If you also lose the original private key, control of funds may be lost permanently.
   • ${BINARY_NAME} wallet reset irreversibly deletes local wallet/profile/state files.
+
+${'═'.repeat(70)}
+`,
+
+  history: `
+${'═'.repeat(70)}
+  HISTORY CACHE & REPORTING
+${'═'.repeat(70)}
+
+  The history system has two steps:
+    • ${BINARY_NAME} wallet download [address]
+      Reconstruct supported game history from ApeChain and write the local file.
+    • ${BINARY_NAME} history [address]
+      Read that local file offline and render recent games + history stats.
+
+${'─'.repeat(70)}
+  FILES
+${'─'.repeat(70)}
+
+  Per-wallet history files are stored at:
+    ~/.apechurch-cli/history/church_<wallet>.json
+
+  The local wallet address is used automatically if you omit [address].
+
+${'─'.repeat(70)}
+  COMMON COMMANDS
+${'─'.repeat(70)}
+
+  ${BINARY_NAME} wallet download
+  ${BINARY_NAME} wallet download 0x1234...abcd --from-block 35000000 --to-block 35300000
+  ${BINARY_NAME} history
+  ${BINARY_NAME} history --stats
+  ${BINARY_NAME} history --breakdown
+  ${BINARY_NAME} history --refresh
+
+${'─'.repeat(70)}
+  OUTPUT MODES
+${'─'.repeat(70)}
+
+  Default:
+    • Recent saved games from the local file
+    • Aggregate history stats
+
+  --stats:
+    • Only aggregate history stats
+
+  --breakdown:
+    • Per-game split of the same stats
+
+  --refresh:
+    • Runs wallet download first, then reads the updated local file
+
+  --json:
+    • Returns wallet, file metadata, aggregate stats, optional breakdown,
+      refresh metadata, and rendered game entries
+
+${'─'.repeat(70)}
+  ECONOMIC FIELDS
+${'─'.repeat(70)}
+
+  Contract fees paid:
+    Fees effectively paid by the analyzed wallet, excluding network gas.
+
+  Gas paid:
+    Network gas effectively paid by the analyzed wallet.
+
+  Net result:
+    payout - wager - contract fees - gas
+
+  RTP:
+    total payout / total wagered
+
+  wAPE / GP:
+    current on-chain wallet balance / total received from synced games
+
+${'─'.repeat(70)}
+  LIMITS
+${'─'.repeat(70)}
+
+  • Only games that can be reconstructed exactly from on-chain data are
+    included in economic totals.
+  • Blackjack and Video Poker entries may exist in the local file with only
+    contract, gameId, and timestamp until a generic on-chain fetch path exists.
+  • Sponsored transactions count as zero contract fee and zero gas for the
+    analyzed wallet.
 
 ${'═'.repeat(70)}
 `,
@@ -2797,7 +3211,7 @@ ${'═'.repeat(70)}
 
 program
   .command('help [topic]')
-  .description('Get detailed help on a topic (loop, strategies, auto, wallet, house)')
+  .description('Get detailed help on a topic (loop, strategies, auto, wallet, history, house)')
   .option('--json', 'JSON output')
   .action((topic, opts) => {
     const topics = Object.keys(HELP_TOPICS);
@@ -2817,6 +3231,7 @@ ${'═'.repeat(60)}
   ${BINARY_NAME} help strategies   Betting strategies in detail
   ${BINARY_NAME} help auto         Auto-play for Blackjack/Video Poker
   ${BINARY_NAME} help wallet       Wallet security and encryption
+  ${BINARY_NAME} help history      History download, cache, and reporting
   ${BINARY_NAME} help house        The House staking system
 
   Also see:

@@ -1,0 +1,422 @@
+/**
+ * Unit Tests: lib/wallet-analysis.js
+ */
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
+import { parseEther } from 'viem';
+import {
+  analyzeWalletHistory,
+  mergeDownloadedHistoryGames,
+  summarizeHistoryGames,
+  summarizeHistoryGamesByGame,
+} from '../../lib/wallet-analysis.js';
+import { BLACKJACK_CONTRACT } from '../../lib/stateful/blackjack/constants.js';
+
+const WALLET = '0x1111111111111111111111111111111111111111';
+const SPONSOR = '0x2222222222222222222222222222222222222222';
+const APESTRONG = '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600';
+const ROULETTE = '0x1f48A104C1808eb4107f3999999D36aeafEC56d5';
+
+describe('Wallet History Analysis', () => {
+  describe('summarizeHistoryGames', () => {
+    it('aggregates synced history stats and excludes unsynced saved games', () => {
+      const summary = summarizeHistoryGames({
+        wallet: WALLET,
+        last_synced_block: '100',
+        last_download_on: '2026-03-29T12:00:00.000Z',
+        games: [
+          {
+            contract: APESTRONG,
+            gameId: '1',
+            timestamp: 1_700_000_000_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('10').toString(),
+            payout_wei: parseEther('20').toString(),
+            contract_fee_wei: parseEther('1').toString(),
+            gas_fee_wei: parseEther('0.5').toString(),
+            gp_received_raw: '25',
+            wape_received_wei: parseEther('10').toString(),
+            won: true,
+            push: false,
+          },
+          {
+            contract: ROULETTE,
+            gameId: '2',
+            timestamp: 1_700_000_100_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('5').toString(),
+            payout_wei: parseEther('5').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: parseEther('0.5').toString(),
+            gp_received_raw: '5',
+            wape_received_wei: parseEther('5').toString(),
+            won: false,
+            push: true,
+          },
+          {
+            contract: BLACKJACK_CONTRACT,
+            gameId: '3',
+            timestamp: 1_700_000_200_000,
+            last_sync_on: null,
+            last_sync_msg: null,
+          },
+        ],
+      }, {
+        current_gp_balance_raw: '42',
+        current_gp_balance_display: '42',
+        current_wape_balance_wei: parseEther('3').toString(),
+        current_wape_balance_ape: '3',
+      });
+
+      assert.strictEqual(summary.total_saved_games, 3);
+      assert.strictEqual(summary.games, 2);
+      assert.strictEqual(summary.unsynced_games, 1);
+      assert.strictEqual(summary.wins, 1);
+      assert.strictEqual(summary.pushes, 1);
+      assert.strictEqual(summary.losses, 0);
+      assert.strictEqual(summary.total_wagered_ape, '15');
+      assert.strictEqual(summary.total_payout_ape, '25');
+      assert.strictEqual(summary.contract_fees_paid_ape, '1');
+      assert.strictEqual(summary.gas_paid_ape, '1');
+      assert.strictEqual(summary.gross_result_ape, '10');
+      assert.strictEqual(summary.net_result_ape, '8');
+      assert.strictEqual(summary.win_rate, 50.0);
+      assert.strictEqual(summary.rtp, 166.7);
+      assert.strictEqual(summary.total_gp_received_display, '30');
+      assert.strictEqual(summary.total_wape_received_ape, '15');
+      assert.strictEqual(summary.current_gp_balance_display, '42');
+      assert.strictEqual(summary.current_wape_balance_ape, '3');
+    });
+
+    it('groups synced history stats by game and keeps unsupported entries as unsynced', () => {
+      const breakdown = summarizeHistoryGamesByGame({
+        wallet: WALLET,
+        last_synced_block: '100',
+        last_download_on: '2026-03-29T12:00:00.000Z',
+        games: [
+          {
+            contract: APESTRONG,
+            game: 'ApeStrong',
+            game_key: 'ape-strong',
+            gameId: '1',
+            timestamp: 1_700_000_000_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('10').toString(),
+            payout_wei: parseEther('20').toString(),
+            contract_fee_wei: parseEther('1').toString(),
+            gas_fee_wei: parseEther('0.5').toString(),
+            gp_received_raw: '25',
+            wape_received_wei: parseEther('10').toString(),
+            won: true,
+            push: false,
+          },
+          {
+            contract: APESTRONG,
+            game: 'ApeStrong',
+            game_key: 'ape-strong',
+            gameId: '2',
+            timestamp: 1_700_000_050_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('3').toString(),
+            payout_wei: '0',
+            contract_fee_wei: parseEther('0.3').toString(),
+            gas_fee_wei: parseEther('0.2').toString(),
+            gp_received_raw: '3',
+            wape_received_wei: parseEther('3').toString(),
+            won: false,
+            push: false,
+          },
+          {
+            contract: ROULETTE,
+            game: 'Roulette',
+            game_key: 'roulette',
+            gameId: '3',
+            timestamp: 1_700_000_100_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('5').toString(),
+            payout_wei: parseEther('5').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: parseEther('0.5').toString(),
+            gp_received_raw: '5',
+            wape_received_wei: parseEther('5').toString(),
+            won: false,
+            push: true,
+          },
+          {
+            contract: BLACKJACK_CONTRACT,
+            game: 'Blackjack',
+            game_key: 'blackjack',
+            gameId: '4',
+            timestamp: 1_700_000_200_000,
+            last_sync_on: null,
+            last_sync_msg: null,
+          },
+        ],
+      });
+
+      assert.strictEqual(breakdown.length, 3);
+
+      const apeStrong = breakdown.find((entry) => entry.game_key === 'ape-strong');
+      const roulette = breakdown.find((entry) => entry.game_key === 'roulette');
+      const blackjack = breakdown.find((entry) => entry.game_key === 'blackjack');
+
+      assert.ok(apeStrong);
+      assert.ok(roulette);
+      assert.ok(blackjack);
+
+      assert.strictEqual(apeStrong.wallet, WALLET);
+      assert.strictEqual(apeStrong.total_saved_games, 2);
+      assert.strictEqual(apeStrong.games, 2);
+      assert.strictEqual(apeStrong.wins, 1);
+      assert.strictEqual(apeStrong.losses, 1);
+      assert.strictEqual(apeStrong.total_wagered_ape, '13');
+      assert.strictEqual(apeStrong.total_payout_ape, '20');
+      assert.strictEqual(apeStrong.contract_fees_paid_ape, '1.3');
+      assert.strictEqual(apeStrong.gas_paid_ape, '0.7');
+      assert.strictEqual(apeStrong.total_gp_received_display, '28');
+      assert.strictEqual(apeStrong.total_wape_received_ape, '13');
+
+      assert.strictEqual(roulette.total_saved_games, 1);
+      assert.strictEqual(roulette.games, 1);
+      assert.strictEqual(roulette.pushes, 1);
+      assert.strictEqual(roulette.total_wagered_ape, '5');
+      assert.strictEqual(roulette.total_payout_ape, '5');
+
+      assert.strictEqual(blackjack.total_saved_games, 1);
+      assert.strictEqual(blackjack.games, 0);
+      assert.strictEqual(blackjack.unsynced_games, 1);
+      assert.strictEqual(blackjack.total_wagered_ape, '0');
+      assert.strictEqual(blackjack.total_gp_received_display, '0');
+    });
+  });
+
+  describe('mergeDownloadedHistoryGames', () => {
+    it('keeps a richer play-tx record when an incremental sync only sees a sponsored settlement tx', () => {
+      const merged = mergeDownloadedHistoryGames(
+        [
+          {
+            contract: '0x6a48A513A46955D8622C809Fce876d2f11142003',
+            gameId: '42',
+            tx: '0xplay',
+            settlement_tx: '0xsettle',
+            transaction_from: WALLET,
+            sponsored_transaction: false,
+            chain_timestamp: 1774786033,
+            timestamp: 1774786033000,
+            wager_wei: parseEther('5').toString(),
+            payout_wei: parseEther('6').toString(),
+            contract_fee_wei: parseEther('0.1').toString(),
+            contract_fee_ape: '0.1',
+            gas_fee_wei: parseEther('0.02').toString(),
+            gas_fee_ape: '0.02',
+            gp_received_raw: '25',
+            gp_received_display: '25',
+            wape_received_wei: parseEther('5').toString(),
+            wape_received_ape: '5',
+            net_result_wei: parseEther('0.88').toString(),
+            net_result_ape: '0.88',
+            pnl_ape: '0.88',
+            gross_result_wei: parseEther('1').toString(),
+            gross_result_ape: '1',
+            won: true,
+            push: false,
+            last_sync_on: '2026-03-29T16:46:36.398Z',
+          },
+        ],
+        [
+          {
+            contract: '0x6a48A513A46955D8622C809Fce876d2f11142003',
+            gameId: '42',
+            tx: '0xsettle',
+            settlement_tx: '0xsettle',
+            transaction_from: SPONSOR,
+            sponsored_transaction: true,
+            chain_timestamp: 1774786034,
+            timestamp: 1774786034000,
+            wager_wei: parseEther('5').toString(),
+            payout_wei: parseEther('6').toString(),
+            contract_fee_wei: '0',
+            contract_fee_ape: '0',
+            gas_fee_wei: '0',
+            gas_fee_ape: '0',
+            gp_received_raw: '0',
+            gp_received_display: '0',
+            wape_received_wei: '0',
+            wape_received_ape: '0',
+            net_result_wei: parseEther('1').toString(),
+            net_result_ape: '1',
+            pnl_ape: '1',
+            gross_result_wei: parseEther('1').toString(),
+            gross_result_ape: '1',
+            won: true,
+            push: false,
+            last_sync_on: '2026-03-29T17:28:34.923Z',
+          },
+        ],
+        '2026-03-29T17:28:34.923Z'
+      );
+
+      assert.strictEqual(merged.length, 1);
+      assert.strictEqual(merged[0].tx, '0xplay');
+      assert.strictEqual(merged[0].settlement_tx, '0xsettle');
+      assert.strictEqual(merged[0].transaction_from, WALLET);
+      assert.strictEqual(merged[0].sponsored_transaction, false);
+      assert.strictEqual(merged[0].contract_fee_ape, '0.1');
+      assert.strictEqual(merged[0].gas_fee_ape, '0.02');
+      assert.strictEqual(merged[0].gp_received_display, '25');
+      assert.strictEqual(merged[0].wape_received_ape, '5');
+      assert.strictEqual(merged[0].chain_timestamp, 1774786033);
+      assert.strictEqual(merged[0].timestamp, 1774786033000);
+      assert.strictEqual(merged[0].net_result_ape, '0.88');
+      assert.strictEqual(merged[0].last_sync_on, '2026-03-29T17:28:34.923Z');
+    });
+  });
+
+  describe('analyzeWalletHistory', () => {
+    it('scans settlement logs in chunks and counts fees only when the wallet paid the tx', async () => {
+      const chunkCalls = [];
+      const txCalls = [];
+      const receiptCalls = [];
+      const blockCalls = [];
+      const txByHash = {
+        ['0x' + 'a'.repeat(64)]: {
+          hash: '0x' + 'a'.repeat(64),
+          from: WALLET,
+          value: parseEther('1.1'),
+          gasPrice: parseEther('0.0000001'),
+        },
+        ['0x' + 'b'.repeat(64)]: {
+          hash: '0x' + 'b'.repeat(64),
+          from: SPONSOR,
+          value: parseEther('2.2'),
+          gasPrice: parseEther('0.0000001'),
+        },
+      };
+      const receiptByHash = {
+        ['0x' + 'a'.repeat(64)]: {
+          logs: [],
+          gasUsed: 2_000_000n,
+          effectiveGasPrice: parseEther('0.0000001'),
+        },
+        ['0x' + 'b'.repeat(64)]: {
+          logs: [],
+          gasUsed: 3_000_000n,
+          effectiveGasPrice: parseEther('0.0000001'),
+        },
+      };
+      const blockByNumber = {
+        75: { timestamp: 1_700_000_000n },
+        100: { timestamp: 1_700_000_100n },
+      };
+      const publicClient = {
+        async getBlockNumber() {
+          return 100n;
+        },
+        async getLogs(params) {
+          if (params.topics) {
+            return [];
+          }
+
+          chunkCalls.push({
+            fromBlock: params.fromBlock,
+            toBlock: params.toBlock,
+          });
+
+          if (params.fromBlock === 50n) {
+            return [
+              {
+                address: APESTRONG,
+                blockNumber: 75n,
+                logIndex: 0,
+                transactionHash: '0x' + 'a'.repeat(64),
+                removed: false,
+                args: {
+                  user: WALLET,
+                  gameId: 42n,
+                  buyIn: parseEther('1'),
+                  payout: parseEther('2'),
+                },
+              },
+            ];
+          }
+
+          if (params.fromBlock === 100n) {
+            return [
+              {
+                address: ROULETTE,
+                blockNumber: 100n,
+                logIndex: 0,
+                transactionHash: '0x' + 'b'.repeat(64),
+                removed: false,
+                args: {
+                  user: WALLET,
+                  gameId: 7n,
+                  buyIn: parseEther('2'),
+                  payout: 0n,
+                },
+              },
+            ];
+          }
+
+          return [];
+        },
+        async getTransaction({ hash }) {
+          txCalls.push(hash);
+          return txByHash[hash];
+        },
+        async getTransactionReceipt({ hash }) {
+          receiptCalls.push(hash);
+          return receiptByHash[hash];
+        },
+        async getBlock({ blockNumber }) {
+          blockCalls.push(blockNumber);
+          return blockByNumber[Number(blockNumber)];
+        },
+        async readContract(params) {
+          if (params.functionName === 'getCurrentEXP') {
+            return 12n;
+          }
+
+          if (params.functionName === 'balanceOf') {
+            return parseEther('3');
+          }
+
+          throw new Error(`Unexpected contract read: ${params.functionName}`);
+        },
+      };
+
+      const analysis = await analyzeWalletHistory(publicClient, WALLET, {
+        chunkSize: 50n,
+      });
+
+      assert.deepStrictEqual(chunkCalls, [
+        { fromBlock: 0n, toBlock: 49n },
+        { fromBlock: 50n, toBlock: 99n },
+        { fromBlock: 100n, toBlock: 100n },
+      ]);
+      assert.strictEqual(txCalls.length, 2);
+      assert.strictEqual(receiptCalls.length, 2);
+      assert.deepStrictEqual(blockCalls, [100n, 75n]);
+      assert.strictEqual(analysis.stats.games, 2);
+      assert.strictEqual(analysis.stats.total_saved_games, 2);
+      assert.strictEqual(analysis.stats.total_wagered_ape, '3');
+      assert.strictEqual(analysis.stats.total_payout_ape, '2');
+      assert.strictEqual(analysis.stats.contract_fees_paid_ape, '0.1');
+      assert.strictEqual(analysis.stats.gas_paid_ape, '0.2');
+      assert.strictEqual(analysis.stats.net_result_ape, '-1.3');
+      assert.strictEqual(analysis.stats.win_rate, 50.0);
+      assert.strictEqual(analysis.stats.rtp, 66.7);
+      assert.strictEqual(analysis.stats.current_gp_balance_display, '12');
+      assert.strictEqual(analysis.stats.current_wape_balance_ape, '3');
+      assert.strictEqual(analysis.recent_games.length, 2);
+      assert.strictEqual(analysis.recent_games[0].game, 'Roulette');
+      assert.strictEqual(analysis.recent_games[0].contract_fee_ape, '0');
+      assert.strictEqual(analysis.recent_games[0].gas_fee_ape, '0');
+      assert.strictEqual(analysis.recent_games[0].sponsored_transaction, true);
+      assert.strictEqual(analysis.recent_games[1].game, 'ApeStrong');
+      assert.strictEqual(analysis.recent_games[1].chain_timestamp, 1700000000);
+      assert.strictEqual(analysis.recent_games[1].contract_fee_ape, '0.1');
+      assert.strictEqual(analysis.recent_games[1].gas_fee_ape, '0.2');
+    });
+  });
+});

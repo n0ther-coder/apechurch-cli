@@ -25,9 +25,9 @@ describe('Loop Stats', () => {
     const lines = output.split('\n');
 
     assert.deepStrictEqual(lines, [
-      '⚖️ Balance: 173.40 APE (+23.40)',
-      '✌️  Win rate: 50.0% (1/2)',
-      '🎲 RTP: 95.6% (payout 129.00  wagered 135.00  loss 6.00)',
+      '⚖️  Balance: 173.40 APE (+23.40)',
+      '✌️  Win rate: 50.00% (1/2)',
+      '🎲 RTP: 95.56% (payout 129.00  wagered 135.00  loss 6.00)',
       '🧮 Points: 1350 (225.0 GB/APE)',
       '⏳ Next game in 6s',
     ]);
@@ -49,9 +49,9 @@ describe('Loop Stats', () => {
     const lines = output.split('\n');
 
     assert.deepStrictEqual(lines, [
-      '⚖️ Balance: 173.40 APE (+23.40)',
-      '✌️  Win rate: 50.0% (1/2)',
-      '🎲 RTP: 131.5% (payout 177.50  wagered 135.00  win 42.50)',
+      '⚖️  Balance: 173.40 APE (+23.40)',
+      '✌️  Win rate: 50.00% (1/2)',
+      '🎲 RTP: 131.48% (payout 177.50  wagered 135.00  win 42.50)',
       '🧮 Points: 1350 (+1350 GB, +42.50 APE)',
       '⏳ Next game in 6s',
     ]);
@@ -72,9 +72,9 @@ describe('Loop Stats', () => {
     const lines = output.split('\n');
 
     assert.deepStrictEqual(lines, [
-      '⚖️ Balance: 150.00 APE (+0.00)',
-      '✌️  Win rate: 0.0% (0/1)',
-      '🎲 RTP: 100.0% (payout 25.00  wagered 25.00  even 0.00)',
+      '⚖️  Balance: 150.00 APE (+0.00)',
+      '✌️  Win rate: 0.00% (0/1)',
+      '🎲 RTP: 100.00% (payout 25.00  wagered 25.00  even 0.00)',
       '🧮 Points: 250 (+250 GB)',
       '⏳ Next game in 6s',
     ]);
@@ -92,9 +92,9 @@ describe('Loop Stats', () => {
     });
 
     assert.deepStrictEqual(output.split('\n'), [
-      '⚖️ Balance: 200.00 APE (+50.00)',
-      '✌️  Win rate: 100.0% (1/1)',
-      '🎲 RTP: 150.0% (payout 150.00  wagered 100.00  win 50.00)',
+      '⚖️  Balance: 200.00 APE (+50.00)',
+      '✌️  Win rate: 100.00% (1/1)',
+      '🎲 RTP: 150.00% (payout 150.00  wagered 100.00  win 50.00)',
       '🧮 Points: 1000 (+1000 GB, +50.00 APE)',
     ]);
   });
@@ -117,10 +117,10 @@ describe('Loop Stats', () => {
     assert.deepStrictEqual(lines, [
       '🏁 Session Stats:',
       '   🎰 Games: 2',
-      '   💸 Fees paid: 2.00 APE',
-      '   🎉 Net result: +38.00 APE (⚖️ end 188.00 > start 150.00)',
-      '   ✌️  Win rate: 50.0% (1/2)',
-      '   🎲 RTP: 129.6% (payout 175.00  wagered 135.00  win 40.00)',
+      '   💸 Fees paid: 2.0000 APE',
+      '   🎉 Net result: +38.00 APE (⚖️  end 188.00 > start 150.00)',
+      '   ✌️  Win rate: 50.00% (1/2)',
+      '   🎲 RTP: 129.63% (payout 175.00  wagered 135.00  win 40.00)',
       '   🧮 Points: 1350 (+1350 GB, +40.00 APE)',
     ]);
   });
@@ -137,6 +137,6 @@ describe('Loop Stats', () => {
       stats,
     });
 
-    assert.match(output, /🤝 Net result: \+0\.00 APE \(⚖️ end 150\.00 = start 150\.00\)/);
+    assert.match(output, /🤝 Net result: \+0\.00 APE \(⚖️  end 150\.00 = start 150\.00\)/);
   });
 });

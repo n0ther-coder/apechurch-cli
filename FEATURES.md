@@ -9,16 +9,19 @@
 - Send APE (native currency) to any address
 - Send GP (Gimbo Points / cashback rewards)
 - Real-time balance checking (APE + GP)
+- Per-wallet history download with cached history stats and per-game breakdowns
 - Wallet reset with safety warnings
-- Private key export
 
 ## Private Key Encryption (Optional)
 - **Password protection** — Encrypt your private key with scrypt + AES-256-GCM
-- **Session-based unlock** — Unlock once, stay unlocked for 3 hours
-- **Auto-prompting** — Any command that needs your key will prompt if locked
+- **Encrypted-only local signer** — Private keys stay encrypted on disk in this hardened build
+- **No unlock cache** — Signing reads the password each time from prompt or `APECHURCH_CLI_PASS`
+- **No plaintext export** — Plaintext key export/storage is disabled
 - **Password hints** — Store up to 3 hints to help remember your password
 - **Environment variable support** — Fresh install/reinstall prompts locally for the private key by default; `APECHURCH_CLI_PK` remains an optional non-interactive fallback, `APECHURCH_CLI_PASS` supports non-interactive local signing, and `APECHURCH_CLI_PROFILE_URL` overrides the username/profile API
 - **Commands:**
+  - `wallet download` — Download supported on-chain history for any wallet
+  - `history` — Read cached history, aggregate stats, and per-game breakdowns
   - `wallet encrypt` — Add password protection
   - `wallet new-password` — Rotate the local wallet password in place
   - `wallet hints` — View or update password hints
@@ -54,6 +57,7 @@
 - No browser required (headless servers, VPS, containers)
 - npm package: `npm install -g @n0ther/apechurch-cli`
 - Transaction hashes and game IDs returned
+- Downloaded history reports with cached stats, per-game breakdowns, token totals, and recent settlements
 
 ## 🤖 AI Agent Compatible
 - Structured JSON responses for parsing
