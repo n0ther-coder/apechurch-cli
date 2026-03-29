@@ -16,7 +16,7 @@
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ install          Setup the Ape Church Agent (wallet + profile)          │
  * │ uninstall        Remove all Ape Church data from this machine           │
- * │ wallet <action>  Wallet management + history download                  │
+ * │ wallet <action>  Wallet management + per-wallet history download       │
  * │ profile <action> Profile management (show, set username/persona)        │
  * │ register         Register username on-chain via SIWE                    │
  * ├──────────────────────────────────────────────────────────────────────────┤
@@ -31,7 +31,7 @@
  * │ INFORMATION                                                             │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ status           Show wallet balance and local state                    │
- * │ history          Show recent game history with outcomes                 │
+ * │ history          Read cached per-wallet history, games, and stats      │
  * │ games            List all available games                               │
  * │ game <name>      Detailed info about a specific game                    │
  * │ commands         Full help reference for all commands                   │
@@ -52,7 +52,7 @@
  * - wallet.json       - Encrypted private key + public metadata
  * - profile.json      - Username, persona, preferences
  * - state.json        - Local stats, betting strategy state
- * - history/          - Per-wallet downloaded game histories
+ * - history/          - Per-wallet cached game histories and sync state
  * - active_games.json - Unfinished stateful games
  *
  * @module bin/cli
@@ -675,7 +675,7 @@ program
   .description('Wallet management (status, download, encrypt legacy wallet, rotate password, hints, reset)')
   .option('-y, --yes', 'Skip confirmation')
   .option('--json', 'JSON output')
-  .option('--from-block <n>', 'Start block for wallet history download')
+  .option('--from-block <n>', 'Start block for wallet history download or backfill')
   .option('--to-block <n>', 'End block for wallet history download (default latest)')
   .option('--chunk-size <n>', 'Block range per log query for wallet history download', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .action(async (action, address, opts) => {
@@ -2169,15 +2169,15 @@ program
 // ============================================================================
 program
   .command('history [address]')
-  .description('Read cached per-wallet history and history stats')
-  .option('--limit <n>', 'Number of games to show', '10')
-  .option('--all', 'Show all saved games')
+  .description('Read cached per-wallet history, recent games, and history stats')
+  .option('--limit <n>', 'Number of recent cached games to show', '10')
+  .option('--all', 'Show all cached games instead of the recent slice')
   .option('--stats', 'Show only history stats')
   .option('--breakdown', 'Show history stats split by game')
   .option('--refresh', 'Refresh local history from chain before showing it')
-  .option('--from-block <n>', 'Start block for history refresh')
-  .option('--to-block <n>', 'End block for history refresh (default latest)')
-  .option('--chunk-size <n>', 'Block range per log query for history refresh', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
+  .option('--from-block <n>', 'Start block for --refresh sync or backfill')
+  .option('--to-block <n>', 'End block for --refresh sync (default latest)')
+  .option('--chunk-size <n>', 'Block range per log query for --refresh sync', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .option('--json', 'JSON output')
   .action(async (address, opts) => {
     const targetAddress = resolveHistoryTargetAddress(address);
@@ -2531,7 +2531,7 @@ SETUP
 
 WALLET
   ${BINARY_NAME} wallet status        Check wallet encryption status
-  ${BINARY_NAME} wallet download      Download on-chain history into the local per-wallet cache
+  ${BINARY_NAME} wallet download [address]  Download on-chain history into the local per-wallet cache
   ${BINARY_NAME} wallet encrypt       Migrate legacy plaintext wallet to encrypted-only storage
   ${BINARY_NAME} wallet new-password  Re-encrypt local wallet with a new password
   ${BINARY_NAME} wallet hints         View or update password hints (up to 3)
@@ -2563,7 +2563,7 @@ CONTROL
 INFO
   ${BINARY_NAME} games                List all games
   ${BINARY_NAME} game <name>          Game details
-  ${BINARY_NAME} history [address]    Read downloaded history and show history stats
+  ${BINARY_NAME} history [address]    Read cached history, recent games, and history stats
   ${BINARY_NAME} commands             This help
 
 CONTEST
@@ -2934,7 +2934,8 @@ ${'─'.repeat(70)}
 ${'─'.repeat(70)}
 
   ${BINARY_NAME} wallet status        Check encrypted wallet status
-  ${BINARY_NAME} wallet download      Download supported on-chain history into the local cache
+  ${BINARY_NAME} wallet download [address]
+                                   Download supported on-chain history into the local cache
   ${BINARY_NAME} wallet encrypt       Migrate a legacy plaintext wallet in place
   ${BINARY_NAME} wallet new-password  Re-encrypt the local wallet with a new password
   ${BINARY_NAME} wallet hints         View/update password hints
@@ -2944,38 +2945,57 @@ ${'─'.repeat(70)}
     ${BINARY_NAME} wallet download
     ${BINARY_NAME} wallet download 0x1234...abcd --json
     ${BINARY_NAME} wallet download 0x1234...abcd --from-block 35000000 --to-block 35300000
+    ${BINARY_NAME} wallet download 0x1234...abcd --from-block 0
+
+  Download behavior:
+    • If [address] is omitted, the local wallet address is used
+    • Default sync is incremental from the cached last_synced_block + 1
+    • Use --from-block 0 for a full backfill
+    • Explicit backfills merge and deduplicate by contract + gameId
+    • Gaps are not tracked automatically as ranges; backfill them explicitly
 
   Download options:
-    --from-block <n>   Start block (default incremental from local cache)
+    --from-block <n>   Start block for sync or backfill
     --to-block <n>     End block (default latest)
     --chunk-size <n>   Block span per log query
+    --json             Emit the machine-readable download report
 
   Download writes:
     ~/.apechurch-cli/history/church_<wallet>.json
 
   History commands:
     ${BINARY_NAME} history [address]
+    ${BINARY_NAME} history [address] --limit 25
+    ${BINARY_NAME} history [address] --all
     ${BINARY_NAME} history [address] --stats
     ${BINARY_NAME} history [address] --breakdown
     ${BINARY_NAME} history [address] --refresh
+    ${BINARY_NAME} history [address] --refresh --from-block 0
 
   History stats output:
-    🎰 Games                     Synced games included in economic stats
+    🎰 Games                     Economically synced games included in totals
     💸 Contract fees paid        Fees effectively paid by the wallet
     ⛽️ Gas paid                  Network gas effectively paid by the wallet
     Net result                  Payout - wager - contract fees - gas
-    ✌️ Win rate                 Wins / synced games
+    ✌️ Win rate                 Wins / economically synced games
     🎲 RTP                      Total payout / total wagered
-    🎟️ wAPE / 🧮 GP            Current online balance / total received on-chain
+    🎟️  APE Wagered (wAPE)     Current online balance / total received on-chain
+    🧮 Gimbo Points (GP)        Current online balance / total received on-chain
 
   History options:
-    --all                      Show all saved games in the local file
+    --limit <n>                Show N recent cached games (default 10)
+    --all                      Show all cached games in the local file
     --stats                    Show only aggregate history stats
     --breakdown                Show the same stats split by game
     --refresh                  Run wallet download first, then render
+    --from-block <n>           Start block for --refresh
+    --to-block <n>             End block for --refresh
+    --chunk-size <n>           Block span per log query for --refresh
     --json                     Emit the cached report as JSON
 
   Coverage limits:
+    • Economic totals only include games whose wager, payout, fees, gas, GP,
+      and wAPE can be reconstructed exactly from on-chain data
     • Enumerates the games in the local registry that emit indexed GameEnded(user, ...)
     • Blackjack and Video Poker cannot be generically enumerated yet from raw RPC
     • Locally-known Blackjack and Video Poker entries remain minimal until a
@@ -3070,7 +3090,10 @@ ${'─'.repeat(70)}
 
   ${BINARY_NAME} wallet download
   ${BINARY_NAME} wallet download 0x1234...abcd --from-block 35000000 --to-block 35300000
+  ${BINARY_NAME} wallet download 0x1234...abcd --from-block 0
   ${BINARY_NAME} history
+  ${BINARY_NAME} history --limit 25
+  ${BINARY_NAME} history --all
   ${BINARY_NAME} history --stats
   ${BINARY_NAME} history --breakdown
   ${BINARY_NAME} history --refresh
@@ -3080,8 +3103,14 @@ ${'─'.repeat(70)}
 ${'─'.repeat(70)}
 
   Default:
-    • Recent saved games from the local file
+    • Recent cached games from the local file (10 by default)
     • Aggregate history stats
+
+  --limit <n>:
+    • Increase or shrink the recent-games slice
+
+  --all:
+    • Show every cached game in the local file
 
   --stats:
     • Only aggregate history stats
@@ -3114,6 +3143,18 @@ ${'─'.repeat(70)}
 
   wAPE / GP:
     current on-chain wallet balance / total received from synced games
+
+${'─'.repeat(70)}
+  SYNC BEHAVIOR
+${'─'.repeat(70)}
+
+  • If [address] is omitted, the local wallet address is used.
+  • wallet download is incremental by default from the cached
+    last_synced_block + 1.
+  • Use --from-block 0 for a full backfill.
+  • Explicit backfills merge and deduplicate by contract + gameId.
+  • Gaps are not tracked automatically as synced ranges; fill them with
+    explicit backfill commands when needed.
 
 ${'─'.repeat(70)}
   LIMITS

@@ -38,7 +38,7 @@ Every bet is placed and settled on-chain via smart contracts. Provably fair with
 ## Table of Contents
 
 1. [Quick Start](#quick-start)
-2. [History Download & Stats](#history-download--stats)
+2. [History Download & Reporting](#history-download--reporting)
 3. [All Games](#all-games)
 4. [Loop Mode & Automation](#loop-mode--automation)
 5. [Betting Strategies](#betting-strategies)
@@ -89,9 +89,11 @@ On a fresh install/reinstall, `apechurch-cli install` prompts securely for the p
 
 ---
 
-## History Download & Stats
+## History Download & Reporting
 
 Use `wallet download` to reconstruct supported gaming history directly from ApeChain into a local per-wallet cache, then read it with `history`.
+
+If `[address]` is omitted, both commands use the local wallet address.
 
 ```bash
 # Download the local wallet history
@@ -109,6 +111,12 @@ apechurch-cli wallet download 0x1234...abcd --json
 # Read saved history and stats
 apechurch-cli history 0x1234...abcd
 
+# Show more than the default 10 cached games
+apechurch-cli history 0x1234...abcd --limit 25
+
+# Show every cached game
+apechurch-cli history 0x1234...abcd --all
+
 # Stats only
 apechurch-cli history 0x1234...abcd --stats
 
@@ -117,38 +125,59 @@ apechurch-cli history 0x1234...abcd --breakdown
 
 # Refresh before reading
 apechurch-cli history 0x1234...abcd --refresh
+
+# Full backfill before reading
+apechurch-cli history 0x1234...abcd --refresh --from-block 0
 ```
 
-`history --refresh` runs the same sync as `wallet download` before reading the local file. `history --breakdown` appends the aggregate stats split by game.
+Sync and cache behavior:
+
+- `wallet download` is incremental by default. Without `--from-block`, it resumes from `last_synced_block + 1`.
+- Use `--from-block 0` for a full backfill, or pass an explicit historical range to fill older blocks.
+- Explicit backfills are merged into the local file and deduplicated by `contract + gameId`.
+- `history --refresh` runs the same sync path as `wallet download` before reading the local file.
+- `history` shows `👀 Recent Games` plus `📜 History Stats` by default. `--stats` suppresses the game list, while `--breakdown` appends the same stats split by game.
 
 ### Report Fields
 
 | Field | Meaning |
 |------|---------|
-| `🎰 Games` | Synced games included in the economic stats |
+| `🎰 Games` | Economically synced games included in totals |
 | `💸 Contract fees paid` | Contract-side fees effectively paid by the wallet |
 | `⛽️ Gas paid` | Network gas effectively paid by the wallet |
 | `Net result` | `payout - wager - contract fees - gas` |
-| `✌️ Win rate` | Wins divided by synced games |
+| `✌️ Win rate` | Wins divided by economically synced games |
 | `🎲 RTP` | `total payout / total wagered` |
-| `🎟️ wAPE` | Current on-chain balance / total received from synced games |
-| `🧮 GP` | Current on-chain balance / total received from synced games |
+| `🎟️  APE Wagered (wAPE)` | Current on-chain balance / total received from synced games |
+| `🧮 Gimbo Points (GP)` | Current on-chain balance / total received from synced games |
 
-### Download / History Options
+### Wallet Download Options
 
 | Option | Description |
 |------|---------|
-| `wallet download --from-block <n>` | Start block for the sync |
+| `wallet download --from-block <n>` | Start block for the sync or explicit backfill |
 | `wallet download --to-block <n>` | End block for the sync (default: latest block) |
 | `wallet download --chunk-size <n>` | Block span per log query (default: `50000`) |
+| `wallet download --json` | Machine-readable download report |
+
+### History Options
+
+| Option | Description |
+|------|---------|
+| `history --limit <n>` | Number of recent cached games to show (default: `10`) |
+| `history --all` | Show all cached games instead of the recent slice |
 | `history --stats` | Show only history stats |
 | `history --breakdown` | Show history stats split by game |
 | `history --refresh` | Refresh from chain before rendering |
+| `history --from-block <n>` | Start block for `--refresh` |
+| `history --to-block <n>` | End block for `--refresh` |
+| `history --chunk-size <n>` | Block span per log query for `--refresh` |
 | `history --json` | Full machine-readable local report |
 
 ### Coverage Limits
 
 - Downloaded histories live under `~/.apechurch-cli/history/church_<wallet>.json`.
+- Economic totals only include games whose wager, payout, fees, gas, GP, and wAPE can be reconstructed exactly from on-chain data.
 - Enumerates the supported single-transaction games in the local registry via indexed `GameEnded(user, ...)` logs.
 - `Blackjack` and `Video Poker` cannot yet be generically enumerated from raw RPC, so locally-known entries remain minimal until a reliable fetch path is implemented.
 - Sponsored transactions contribute `0` contract fees and `0` gas for the analyzed wallet.
@@ -485,16 +514,14 @@ Lose → bet 10 → Lose → bet 10 → Lose → bet 20 → Lose → bet 30 → 
 
 ## Blackjack
 
-Interactive blackjack with `simple` auto-play by default.
+Interactive blackjack with optional auto-play.
 
 ### Quick Play (Auto)
 
 ```bash
 apechurch-cli blackjack 10 --auto              # Single game, simple auto-play
-apechurch-cli blackjack 10 --auto best         # Exact EV solver
 apechurch-cli blackjack 10 --auto --loop       # Continuous auto-play
 apechurch-cli blackjack 10 --auto --loop --max-games 20 --bet-strategy martingale
-apechurch-cli blackjack 10 --auto --loop --delay 5 --human
 ```
 
 ### Interactive Play
@@ -516,15 +543,12 @@ apechurch-cli blackjack 10   # Prompts for each decision
 
 ### Auto Strategy
 
-`--auto simple` uses basic strategy:
-- Considers your hand value (hard/soft)
-- Considers dealer's upcard
-- Makes statistically best decision
+`--auto` enables automatic play for decision-heavy hands:
+- Considers your hand value and dealer context
+- Chooses actions such as hit, stand, double, split, insurance, and surrender when available
+- Supports loop mode and betting strategies
 
-`--auto best` uses an exact EV solver on the live hand state:
-- Enumerates the remaining deck without replacement
-- Models early surrender, insurance, double, and split
-- Maximizes expected return for the current decision
+Use `apechurch-cli help auto` for advanced auto-play modes and pacing controls.
 
 ### Managing Games
 
@@ -538,18 +562,15 @@ apechurch-cli blackjack clear      # Clear stuck games
 
 ## Video Poker
 
-Jacks or Better video poker with two auto-play modes: `simple` and `best`.
+Jacks or Better video poker with interactive and auto-play flows.
 
 ### Quick Play (Auto)
 
 ```bash
 apechurch-cli video-poker 10 --auto              # Single game, simple mode
-apechurch-cli video-poker 10 --auto best         # Exact EV solver
 apechurch-cli video-poker 10 --solver           # Show best-EV hold suggestion
 apechurch-cli video-poker 10 --auto --loop       # Continuous
 apechurch-cli vp 10 --auto --loop --max-games 50 # Using alias
-apechurch-cli video-poker 10 --auto best --loop --delay 5 --human
-apechurch-cli video-poker --auto best --loop --human --delay 3 --target 2000 --max-games 50 25
 ```
 
 ### Bet Amounts
@@ -570,19 +591,16 @@ Video poker uses fixed denominations: **1, 5, 10, 25, 50, 100 APE**
 | Two Pair | 2x |
 | Jacks or Better | 1x |
 
-### Auto Modes
+### Auto & Solver Behavior
 
-- `--auto simple`
-  - Uses the existing priority-ranked hold table
-  - Fast, deterministic, and good for general grinding
-- `--auto best`
-  - Evaluates all 32 hold combinations
-  - Enumerates all possible redraw outcomes
-  - Chooses the hold with the highest expected value
-  - Includes the live jackpot value when betting 100 APE
+- `--auto`
+  - Enables automatic play for the draw and hold phases
+  - Works with loop mode and betting strategies
 - `--solver`
   - Leaves play interactive
   - Shows the best-EV hold suggestion before you choose cards to keep
+
+Use `apechurch-cli help auto` for advanced auto-play modes and pacing controls.
 
 ### Display Modes
 
@@ -618,7 +636,7 @@ apechurch-cli video-poker payouts  # Show payout table
 | `apechurch-cli wallet download [address]` | Download supported on-chain history into local cache |
 | `apechurch-cli games` | List all games |
 | `apechurch-cli game <name>` | Detailed game info |
-| `apechurch-cli history [address]` | Read cached history and history stats |
+| `apechurch-cli history [address]` | Read cached history, recent games, and history stats |
 | `apechurch-cli pause` | Stop autonomous play |
 | `apechurch-cli continue` | Resume play |
 
@@ -648,7 +666,6 @@ apechurch-cli video-poker payouts  # Show payout table
 | `--json` | Machine-readable JSON output |
 | `--loop` | Continuous play mode |
 | `--delay <sec>` | Delay between games |
-| `--human` | Add a weighted 3-9s human-like delay on top of `--delay` |
 | `--solver` | Show the best-EV hold suggestion in interactive video poker |
 | `--target <ape>` | Stop at target balance |
 | `--stop-loss <ape>` | Stop at loss limit |
@@ -660,7 +677,7 @@ apechurch-cli video-poker payouts  # Show payout table
 
 ## JSON Output Schemas
 
-All commands support `--json` for machine-readable output.
+All commands support `--json` for machine-readable output. Samples below are abridged to the stable fields most agents typically consume.
 
 ### Status Response
 
@@ -738,20 +755,29 @@ All commands support `--json` for machine-readable output.
     ]
   },
   "stats": {
+    "total_saved_games": 14,
     "games": 11,
+    "unsynced_games": 3,
     "contract_fees_paid_ape": "0.75528483626624",
     "gas_paid_ape": "0.50494651956676",
+    "gross_result_ape": "-500.60836035",
     "net_result_ape": "-500.867599619911120003",
-    "win_rate": 63.6
+    "win_rate": 63.6,
+    "rtp": 11.1,
+    "total_wape_received_ape": "35",
+    "total_gp_received_display": "175"
   },
   "sync": {
     "wallet": "0x1234...abcd",
     "file_path": "/Users/me/.apechurch-cli/history/church_0x1234...abcd.json",
     "from_block": "35000000",
     "to_block": "35300000",
+    "latest_block": "35300000",
     "downloaded_games": 11,
     "new_games": 11,
-    "saved_games": 14
+    "saved_games": 14,
+    "missing_transaction_metadata": 0,
+    "unsupported_saved_games": 3
   }
 }
 ```
@@ -769,12 +795,19 @@ All commands support `--json` for machine-readable output.
     "last_download_on": "2026-03-29T12:00:00.000Z"
   },
   "stats": {
+    "total_saved_games": 14,
     "games": 11,
+    "unsynced_games": 3,
     "contract_fees_paid_ape": "0.75528483626624",
     "gas_paid_ape": "0.50494651956676",
+    "gross_result_ape": "-500.60836035",
     "net_result_ape": "-500.867599619911120003",
     "win_rate": 63.6,
-    "rtp": 11.1
+    "rtp": 11.1,
+    "current_wape_balance_ape": "32306.9125",
+    "total_wape_received_ape": "35",
+    "current_gp_balance_display": "188777",
+    "total_gp_received_display": "175"
   },
   "breakdown": [
     {
@@ -854,7 +887,7 @@ apechurch-cli play --loop --max-games 20
 
 ### Pattern 5: Blackjack Grinding
 
-Auto-play blackjack with optimal strategy.
+Auto-play blackjack in loop mode.
 
 ```bash
 apechurch-cli blackjack 10 --auto --loop --max-games 50 --target 200

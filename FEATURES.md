@@ -9,7 +9,7 @@
 - Send APE (native currency) to any address
 - Send GP (Gimbo Points / cashback rewards)
 - Real-time balance checking (APE + GP)
-- Per-wallet history download with cached history stats and per-game breakdowns
+- Per-wallet history download with cached recent games, history stats, and per-game breakdowns
 - Wallet reset with safety warnings
 
 ## Private Key Encryption (Optional)
@@ -20,8 +20,8 @@
 - **Password hints** — Store up to 3 hints to help remember your password
 - **Environment variable support** — Fresh install/reinstall prompts locally for the private key by default; `APECHURCH_CLI_PK` remains an optional non-interactive fallback, `APECHURCH_CLI_PASS` supports non-interactive local signing, and `APECHURCH_CLI_PROFILE_URL` overrides the username/profile API
 - **Commands:**
-  - `wallet download` — Download supported on-chain history for any wallet
-  - `history` — Read cached history, aggregate stats, and per-game breakdowns
+  - `wallet download` — Download supported on-chain history for any wallet into local cache
+  - `history` — Read cached history, recent games, aggregate stats, and per-game breakdowns
   - `wallet encrypt` — Add password protection
   - `wallet new-password` — Rotate the local wallet password in place
   - `wallet hints` — View or update password hints
@@ -39,11 +39,11 @@
 
 ## Automation
 - `--loop` mode for continuous play
-- Stateful auto-play modes: `simple` by default, `best` exact-EV mode for blackjack and video poker
+- Stateful card-game auto-play for blackjack and video poker
 - Pause/Resume autonomous play
 - Strategy-based wager sizing
 - Session tracking (wins, losses, PnL, streaks)
-- Configurable delays between games, with optional humanized jitter layered on top
+- Configurable delays between games
 
 ## Identity & Social
 - On-chain username registration
@@ -82,10 +82,10 @@
 - Open Loot NFTs and reveal prizes
 - Marketplace: List any NFT for sale
 
-### Advanced Games
-- **Blackjack Console** — Basic-strategy auto-play with future `best` mode
-- **Video Poker Console** — Terminal-based poker with exact EV auto-play mode
-- Strategy suggestions for perfect play
+### History Coverage
+- **Raw-RPC coverage for Blackjack** — Upgrade the downloader beyond minimal local entries
+- **Raw-RPC coverage for Video Poker** — Upgrade the downloader beyond minimal local entries
+- **Gap-aware sync tracking** — Track downloaded ranges in addition to the latest synced block
 
 ### Agent Ecosystem
 - Autonomous tournaments (agent vs agent)

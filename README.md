@@ -8,11 +8,11 @@ Play casino games from the command line. Perfect for AI agents, automation, and 
 
 - **12+ Games:** Roulette, Blackjack, Video Poker, Plinko, Slots, Keno, and more
 - **Loop Mode:** Continuous play with safety controls (target, stop-loss, max-games)
-- **Stateful Auto Modes:** `simple` by default, `best` EV solver for video poker
+- **Stateful Card Games:** Blackjack and Video Poker support interactive and auto-play flows
 - **Betting Strategies:** Flat, Martingale, Fibonacci, D'Alembert, Reverse Martingale
 - **AI Agent Ready:** JSON output, structured responses, self-documenting
 - **Fully On-Chain:** Every bet settled on ApeChain with Chainlink VRF
-- **History Download:** Build and cache per-wallet on-chain history with local stats and per-game breakdowns
+- **History Download:** Build and cache per-wallet on-chain history with offline reporting and per-game breakdowns
 
 ## Quick Start
 
@@ -38,7 +38,7 @@ apechurch-cli status
 # Download on-chain history for the local wallet
 apechurch-cli wallet download
 
-# Read the downloaded history and stats
+# Read cached history and stats
 apechurch-cli history --stats
 
 # Play one game
@@ -56,9 +56,11 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 - `APECHURCH_CLI_PASS`: required for non-interactive install/signing; optional otherwise
 - `APECHURCH_CLI_PROFILE_URL`: optional override for the username/profile API endpoint
 
-## History Download & Stats
+## History Download & Reporting
 
-Download supported gaming history from ApeChain into a per-wallet local file, then read it back without reconstructing the chain every time:
+Use `wallet download` to reconstruct supported gaming history from ApeChain into a per-wallet local file, then read that cache with `history` without rebuilding the chain view every time.
+
+If `[address]` is omitted, both commands use the local wallet address.
 
 ```bash
 # Download history for the local wallet address
@@ -73,6 +75,12 @@ apechurch-cli wallet download 0x1234...abcd --from-block 35000000 --to-block 353
 # Read saved history plus history stats
 apechurch-cli history 0x1234...abcd
 
+# Show more than the default 10 recent cached games
+apechurch-cli history 0x1234...abcd --limit 25
+
+# Show every cached game
+apechurch-cli history 0x1234...abcd --all
+
 # Show only history stats
 apechurch-cli history 0x1234...abcd --stats
 
@@ -82,38 +90,59 @@ apechurch-cli history 0x1234...abcd --breakdown
 # Refresh from chain before showing
 apechurch-cli history 0x1234...abcd --refresh
 
+# Full backfill before showing
+apechurch-cli history 0x1234...abcd --refresh --from-block 0
+
 # Machine-readable output
 apechurch-cli history 0x1234...abcd --json
 ```
 
-`history --refresh` runs the same on-chain sync as `wallet download` before reading the local file. `history --breakdown` appends the aggregate stats split by game.
+Sync and cache behavior:
+
+- `wallet download` is incremental by default. Without `--from-block`, it resumes from `last_synced_block + 1`.
+- Use `--from-block 0` for a full backfill, or pass an explicit historical range to fill older blocks.
+- Explicit backfills are merged into the local file and deduplicated by `contract + gameId`.
+- `history --refresh` runs the same on-chain sync path as `wallet download` before reading the local file.
+- `history` shows `👀 Recent Games` plus `📜 History Stats` by default. `--stats` suppresses the game list, while `--breakdown` appends the same stats split by game.
 
 Text output includes:
 
-- `🎰 Games`: synced games included in the economic stats
+- `🎰 Games`: economically synced games included in totals
 - `💸 Contract fees paid`: contract-side fees actually paid by the wallet
 - `⛽️ Gas paid`: network gas actually paid by the wallet
 - `Net result`: `payout - wager - contract fees - gas`
-- `✌️ Win rate`: wins divided by synced games
+- `✌️ Win rate`: wins divided by economically synced games
 - `🎲 RTP`: `total payout / total wagered`
-- `🎟️ wAPE`: current on-chain balance / total wAPE received from synced games
-- `🧮 GP`: current on-chain balance / total GP received from synced games
+- `🎟️  APE Wagered (wAPE)`: current on-chain balance / total wAPE received from synced games
+- `🧮 Gimbo Points (GP)`: current on-chain balance / total GP received from synced games
 
-Options:
+`wallet download` options:
 
 | Option | Description |
 |--------|-------------|
-| `wallet download --from-block <n>` | Start block for the sync |
-| `wallet download --to-block <n>` | End block for the sync (default: latest block) |
-| `wallet download --chunk-size <n>` | Block span per log query (default: `50000`) |
-| `history --stats` | Show only history stats |
-| `history --breakdown` | Show history stats split by game |
-| `history --refresh` | Refresh from chain before rendering |
-| `history --json` | Emit the machine-readable local report |
+| `--from-block <n>` | Start block for the sync or explicit backfill |
+| `--to-block <n>` | End block for the sync (default: latest block) |
+| `--chunk-size <n>` | Block span per log query (default: `50000`) |
+| `--json` | Emit the machine-readable download report |
+
+`history` options:
+
+| Option | Description |
+|--------|-------------|
+| `--limit <n>` | Number of recent cached games to show (default: `10`) |
+| `--all` | Show all cached games instead of the recent slice |
+| `--stats` | Show only history stats |
+| `--breakdown` | Append the same stats split by game |
+| `--refresh` | Run `wallet download` before rendering |
+| `--from-block <n>` | Start block for `--refresh` |
+| `--to-block <n>` | End block for `--refresh` (default: latest block) |
+| `--chunk-size <n>` | Block span per log query for `--refresh` |
+| `--json` | Emit the machine-readable cached report |
 
 Coverage and limits:
 
 - Downloaded histories live under `~/.apechurch-cli/history/church_<wallet>.json`.
+- Economic totals only include games whose wager, payout, fees, gas, GP, and wAPE can be reconstructed exactly from on-chain data.
 - The downloader enumerates supported single-transaction games in the local registry via indexed `GameEnded(user, ...)` logs.
 - `Blackjack` and `Video Poker` cannot yet be generically enumerated from raw RPC, so locally-known entries remain minimal until a reliable fetch path is implemented.
 - Sponsored transactions contribute `0` contract fees and `0` gas for the analyzed wallet.
@@ -133,7 +162,7 @@ Coverage and limits:
 | Monkey Match | `play monkey-match 10` | Poker hands from barrels |
 | Bear-A-Dice | `play bear-dice 10` | Avoid unlucky numbers |
 | Blackjack | `blackjack 25 --side 1 --auto` | Card game with auto-play and optional player side bet |
-| Video Poker | `video-poker 10 --auto best` | Jacks or Better with advanced auto-play |
+| Video Poker | `video-poker 10 --auto` | Jacks or Better with auto-play and solver tools |
 
 ## Loop Mode
 
@@ -180,31 +209,23 @@ apechurch-cli play --loop --bet-strategy fibonacci
 Interactive card games with auto-play support:
 
 ```bash
-# Auto-play modes
+# Auto-play
 apechurch-cli blackjack 10 --auto --loop
-apechurch-cli blackjack 10 --auto best   # Exact EV solver
 apechurch-cli blackjack 25 --side 1 --auto
 apechurch-cli video-poker 10 --auto --loop
-apechurch-cli video-poker 10 --auto best
 apechurch-cli video-poker 10 --solver    # Interactive hold suggestion (best EV)
-
-# Humanized pacing adds 3-9s on top of the fixed delay
-apechurch-cli video-poker 10 --auto best --loop --delay 5 --human
-apechurch-cli video-poker --auto best --loop --human --delay 3 --target 2000 --max-games 50 25
 
 # Interactive mode
 apechurch-cli blackjack 10
-
-# Full local history
-apechurch-cli history --all
 ```
 
-- `--auto` without a mode means `simple`
+- `--auto` enables automatic play for stateful card games
 - `blackjack --side <ape>` adds a player side bet to the opening deal without changing the in-hand EV solver
 - `video-poker --solver` shows the same best-EV hold suggestion in interactive mode
 - `video-poker --display full` now uses the boxed ASCII table layout; `simple` keeps the compact text layout
 - `blackjack` and `video-poker` use `--delay 5` by default in loop mode
 - where loop game estimates are supported, startup prints a pre-loop estimate before asking `Proceed? (Y/n)`; games with a Monte Carlo model show the typical run plus lucky-day / bad-run bounds, while the others keep the EV-based estimate
+- use `apechurch-cli help auto` for advanced stateful auto-play modes and pacing controls
 
 ## Commands
 
@@ -218,7 +239,7 @@ apechurch-cli games                             # List all games
 apechurch-cli game <name>                       # Game details
 apechurch-cli pause                             # Stop autonomous play
 apechurch-cli continue                          # Continue play
-apechurch-cli history [address] [--stats] [--breakdown] [--refresh]  # Read downloaded history
+apechurch-cli history [address] [--stats] [--breakdown] [--refresh]  # Read cached history and reporting
 apechurch-cli commands                          # Full reference
 ```
 
