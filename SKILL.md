@@ -137,6 +137,7 @@ Sync and cache behavior:
 - Explicit backfills are merged into the local file and deduplicated by `contract + gameId`.
 - `history --refresh` runs the same sync path as `wallet download` before reading the local file.
 - `history` shows `👀 Recent Games` plus `📜 History Stats` by default. `--stats` suppresses the game list, while `--breakdown` appends the same stats split by game.
+- Standard `history` output also includes a compact `🎮 Game Status` section with per-game `played`, `net`, `win rate`, `RTP`, and local `unfinished` counts when available.
 
 ### Report Fields
 
@@ -700,6 +701,11 @@ All commands support `--json` for machine-readable output. Samples below are abr
       "games_played": 12,
       "net_profit_ape": "3.5000",
       "net_profit_complete": true,
+      "wins": 6,
+      "pushes": 1,
+      "losses": 5,
+      "win_rate": 50,
+      "rtp": 129.17,
       "unfinished_games": 0,
       "unfinished_game_ids": []
     }
@@ -809,6 +815,21 @@ All commands support `--json` for machine-readable output. Samples below are abr
     "current_gp_balance_display": "188777",
     "total_gp_received_display": "175"
   },
+  "game_stats": [
+    {
+      "game": "Bear-A-Dice",
+      "games_played": 6,
+      "net_profit_ape": "-32.5200",
+      "net_profit_complete": true,
+      "wins": 2,
+      "pushes": 0,
+      "losses": 4,
+      "win_rate": 33.33,
+      "rtp": 45.8,
+      "unfinished_games": 0,
+      "unfinished_game_ids": []
+    }
+  ],
   "breakdown": [
     {
       "game": "Bear-A-Dice",

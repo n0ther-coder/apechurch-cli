@@ -154,7 +154,11 @@ import { playGame, resolveGame } from '../lib/games/index.js';
 import { GAME_REGISTRY, listGames } from '../registry.js';
 import { getStrategy, listStrategies, getStrategyNames, calculateNextBet } from '../lib/strategies/index.js';
 import { fetchSavedHistoryEntries, resolveHistoryGameName, selectHistoryGames } from '../lib/history.js';
-import { buildGameStatusSummary, summarizeUnfinishedGames } from '../lib/status.js';
+import {
+  buildGameStatusSummary,
+  buildHistoryGameStatusSummary,
+  summarizeUnfinishedGames,
+} from '../lib/status.js';
 import {
   downloadWalletHistory,
   readCurrentHistoryBalances,
@@ -298,6 +302,30 @@ function formatHistoryBreakdownReport(gameStats) {
   }
 
   return lines.join('\n').trimEnd();
+}
+
+function formatNullablePercent(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return theme.dim('n.a.');
+  }
+
+  return theme.value(`${Number(value).toFixed(2)}%`);
+}
+
+function formatGameStatusLine(game) {
+  const parts = [
+    `   ${theme.gameName(game.game)}`,
+    `${theme.dim('played')} ${theme.value(String(game.games_played))}`,
+    `${theme.dim('net')} ${game.net_profit_ape === null ? theme.dim('unavailable') : formatPnL(game.net_profit_ape, 4)}`,
+    `${theme.dim('win rate')} ${formatNullablePercent(game.win_rate)}`,
+    `${theme.dim('RTP')} ${formatNullablePercent(game.rtp)}`,
+  ];
+
+  if ((game.unfinished_games || 0) > 0) {
+    parts.push(`${theme.dim('unfinished')} ${theme.value(String(game.unfinished_games))}`);
+  }
+
+  return parts.join('  ');
 }
 
 function formatWalletDownloadReport(downloadResult) {
@@ -1077,18 +1105,13 @@ program
 
       console.log(`${formatHeader('Game Status', '🎮')}\n`);
       if (failedHistoryFetches > 0) {
-        console.log(`   ${theme.warning(`Net profit unavailable for ${failedHistoryFetches} saved game(s) while on-chain history was loading.`)}`);
+        console.log(`   ${theme.warning(`Per-game stats are unavailable for ${failedHistoryFetches} saved game(s) while on-chain history was loading.`)}`);
       }
       if (gameStats.length === 0) {
         console.log(`   ${theme.dim('No completed or unfinished games tracked yet.')}`);
       } else {
         for (const game of gameStats) {
-          const netProfit = game.net_profit_ape === null
-            ? theme.dim('unavailable')
-            : formatPnL(game.net_profit_ape);
-          console.log(
-            `   ${theme.gameName(game.game)}  ${theme.dim('played')} ${theme.value(String(game.games_played))}  ${theme.dim('net')} ${netProfit}  ${theme.dim('unfinished')} ${theme.value(String(game.unfinished_games))}`
-          );
+          console.log(formatGameStatusLine(game));
         }
       }
       console.log('');
@@ -2233,7 +2256,15 @@ program
     }
 
     const stats = summarizeHistoryGames(history, currentBalances);
-    const breakdown = opts.breakdown ? summarizeHistoryGamesByGame(history) : [];
+    const historyBreakdown = summarizeHistoryGamesByGame(history);
+    const breakdown = opts.breakdown ? historyBreakdown : [];
+    const localWalletAddress = getWalletAddress();
+    const includeActiveGames = Boolean(localWalletAddress)
+      && localWalletAddress.toLowerCase() === targetAddress.toLowerCase();
+    const gameStatus = buildHistoryGameStatusSummary({
+      historyBreakdown,
+      activeGames: includeActiveGames ? loadActiveGames() : {},
+    });
     const limit = parseInt(opts.limit) || 10;
     const recentGames = selectHistoryGames(history.games, {
       limit,
@@ -2258,6 +2289,7 @@ program
           last_download_on: history.last_download_on,
         },
         stats,
+        game_stats: gameStatus,
         breakdown,
         sync: refreshResult?.sync || null,
         games: opts.stats ? [] : numberedResults,
@@ -2275,7 +2307,15 @@ program
         }
       }
       console.log(formatHistoryStatsReport(stats));
+      if (!opts.stats && gameStatus.length > 0) {
+        console.log('');
+        console.log(`${formatHeader('Game Status', '🎮')}\n`);
+        for (const game of gameStatus) {
+          console.log(formatGameStatusLine(game));
+        }
+      }
       if (opts.breakdown) {
+        console.log('');
         console.log(formatHistoryBreakdownReport(breakdown));
       }
       console.log('');
@@ -3105,6 +3145,7 @@ ${'─'.repeat(70)}
   Default:
     • Recent cached games from the local file (10 by default)
     • Aggregate history stats
+    • Compact game status split by game
 
   --limit <n>:
     • Increase or shrink the recent-games slice

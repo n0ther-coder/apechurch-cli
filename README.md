@@ -104,6 +104,7 @@ Sync and cache behavior:
 - Explicit backfills are merged into the local file and deduplicated by `contract + gameId`.
 - `history --refresh` runs the same on-chain sync path as `wallet download` before reading the local file.
 - `history` shows `👀 Recent Games` plus `📜 History Stats` by default. `--stats` suppresses the game list, while `--breakdown` appends the same stats split by game.
+- Standard `history` output also includes a compact `🎮 Game Status` section with per-game `played`, `net`, `win rate`, `RTP`, and local `unfinished` counts when available.
 
 Text output includes:
 
