@@ -1,4 +1,4 @@
-# Ape Church Skill - Publishing & Client Setup
+# Ape Church CLI - Publishing & Client Setup
 
 ## Maintainer: Publish to npm
 
@@ -8,9 +8,9 @@
 ### 1) Prepare release
 1. Update `registry.js` if adding or changing games.
 2. Update docs if needed:
-   - `SKILL.md`, `HEARTBEAT.md`, `STRATEGY.md`, `skill.json`
-   - `assets/SKILL.md`, `assets/HEARTBEAT.md`, `assets/STRATEGY.md`, `assets/skill.json`
-3. Update `agent_nodes.md` with new changes and any open items.
+   - Canonical install bundle in root: `SKILL.md`, `HEARTBEAT.md`, `STRATEGY.md`, `skill.json`
+   - Maintainer docs in `docs/`
+3. Update `docs/README.md` if the doc layout or purpose changed.
 
 ### 2) Versioning
 Use semver:
@@ -143,7 +143,7 @@ Common override keys:
 ## Release Checklist
 1. Update `CHANGELOG.md` under [Unreleased].
 2. Update `registry.js` if adding games.
-3. Update docs in both root and `assets/`.
+3. Update the canonical root install-bundle docs and any touched files in `docs/`.
 4. Run a local sanity check:
    - `node -v`
    - `npm -v`

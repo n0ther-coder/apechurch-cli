@@ -556,11 +556,16 @@ Environment:
     if (!fs.existsSync(SKILL_TARGET_DIR)) {
       fs.mkdirSync(SKILL_TARGET_DIR, { recursive: true });
     }
-    const assetsDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../assets');
-    const assetFiles = ['SKILL.md', 'HEARTBEAT.md', 'STRATEGY.md', 'skill.json'];
-    for (const file of assetFiles) {
-      const source = path.join(assetsDir, file);
-      if (fs.existsSync(source)) {
+    const skillSourceDirs = [
+      path.join(__dirname, '..'),
+      path.join(__dirname, '..', 'assets'),
+    ];
+    const skillBundleFiles = ['SKILL.md', 'HEARTBEAT.md', 'STRATEGY.md', 'skill.json'];
+    for (const file of skillBundleFiles) {
+      const source = skillSourceDirs
+        .map((dir) => path.join(dir, file))
+        .find((candidate) => fs.existsSync(candidate));
+      if (source) {
         fs.copyFileSync(source, path.join(SKILL_TARGET_DIR, file));
       }
     }

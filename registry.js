@@ -12,7 +12,7 @@
  * 1. Add entry to GAME_REGISTRY array
  * 2. Implement game handler in lib/games/<type>.js
  * 3. Register handler in lib/games/index.js
- * 4. See ADDING_GAMES.md for full guide
+ * 4. See docs/ADDING_GAMES.md for the full guide
  *
  * @module registry
  */

@@ -257,6 +257,7 @@ apechurch-cli history 0x1234...abcd --breakdown --json
 ```
 
 See [SKILL.md](./SKILL.md) for complete agent documentation.
+Maintainer and deep-dive docs live under `docs/README.md` in the repo.
 
 ## Requirements
 

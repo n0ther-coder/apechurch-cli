@@ -497,7 +497,7 @@ apechurch-cli play bear-dice 10 --difficulty 0 --loop --max-games 20
 
 ## Blackjack
 
-See [SKILL.md](./SKILL.md#blackjack) for complete documentation.
+See [SKILL.md](../SKILL.md#blackjack) for complete documentation.
 
 ```bash
 # Auto-play
@@ -516,7 +516,7 @@ apechurch-cli blackjack 10 --auto --loop --delay 5 --human
 
 ## Video Poker
 
-See [SKILL.md](./SKILL.md#video-poker) for complete documentation.
+See [SKILL.md](../SKILL.md#video-poker) for complete documentation.
 
 ```bash
 # Auto-play
