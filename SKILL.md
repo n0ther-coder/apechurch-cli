@@ -152,7 +152,7 @@ Sync and cache behavior:
 | `✌️ Win rate` | Wins divided by economically synced games |
 | `🎲 RTP` | `total payout / total wagered` |
 | `🎟️  APE Wagered (wAPE)` | Current on-chain balance / total received from synced games |
-| `🧮 Gimbo Points (GP)` | Current on-chain balance / total received from synced games |
+| `🧮 Gimbo Points (GP)` | Current on-chain balance / total received from synced games; every `10,000 GP` equals `1 Level` |
 
 ### Wallet Download Options
 

@@ -117,7 +117,7 @@ Text output includes:
 - `✌️ Win rate`: wins divided by economically synced games
 - `🎲 RTP`: `total payout / total wagered`
 - `🎟️  APE Wagered (wAPE)`: current on-chain balance / total wAPE received from synced games
-- `🧮 Gimbo Points (GP)`: current on-chain balance / total GP received from synced games
+- `🧮 Gimbo Points (GP)`: current on-chain balance / total GP received from synced games; every `10,000 GP` equals `1 Level`
 
 `wallet download` options:
 

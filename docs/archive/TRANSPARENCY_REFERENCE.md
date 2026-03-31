@@ -18,7 +18,7 @@ notes:
 
 # Ape Church — mechanics, odds, payouts, and stats
 
-> Summary: Consolidated reference of Transparency-section metrics, payout tables, and derived notes, cross-checked against the current repo so agents can distinguish implemented behavior from external-doc-only claims.
+> Summary: Archived extraction of Transparency-section metrics, payout tables, and derived notes. Kept for raw detail and source archaeology after the supported-game highlights were folded into `docs/GAMES_REFERENCE.md`.
 
 ## Purpose
 

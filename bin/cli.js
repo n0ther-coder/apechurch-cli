@@ -92,6 +92,7 @@ import {
   GP_TOKEN_CONTRACT,
   GP_TOKEN_ABI,
   GP_DECIMALS,
+  GP_PER_LEVEL,
   HOUSE_CONTRACT,
   HOUSE_ABI,
   HOUSE_LOCK_TIME,
@@ -261,6 +262,7 @@ function formatHistoryStatsReport(stats) {
     `   🎲 RTP: ${stats.rtp.toFixed(2)}% ${formatHistoryRtpDetails(stats)}`,
     `   🎟️  APE Wagered (wAPE): ${formatNullableValue(stats.current_wape_balance_ape, (value) => formatPlainTokenAmount(value, 2))}/${formatPlainTokenAmount(stats.total_wape_received_ape, 2)}`,
     `   🧮 Gimbo Points (GP): ${formatNullableValue(stats.current_gp_balance_display)}/${stats.total_gp_received_display}`,
+    `   🪜 Level rate: Every ${GP_PER_LEVEL.toLocaleString('en-US')} GP = 1 Level`,
   ];
 
   if (stats.unsynced_games > 0) {
@@ -293,6 +295,7 @@ function formatHistoryBreakdownReport(gameStats) {
     lines.push(`      🎲 RTP: ${stats.rtp.toFixed(2)}% ${formatHistoryRtpDetails(stats)}`);
     lines.push(`      🎟️  APE Wagered (wAPE) received: ${formatPlainTokenAmount(stats.total_wape_received_ape, 2)}`);
     lines.push(`      🧮 Gimbo Points (GP) received: ${stats.total_gp_received_display}`);
+    lines.push(`      🪜 Level rate: Every ${GP_PER_LEVEL.toLocaleString('en-US')} GP = 1 Level`);
 
     if (stats.unsynced_games > 0) {
       lines.push(`      ${theme.warning(`${stats.unsynced_games} saved game(s) are still excluded from economic stats.`)}`);
@@ -2663,6 +2666,7 @@ ASSETS
 
   GP     Gimbo Points (0 decimals, whole numbers only)
          - Earned as cashback from playing games
+         - Every 10,000 GP equals 1 Level
          - Non-transferable until claimed (use getCurrentEXP to check)
          - Send to others: ${BINARY_NAME} send GP <amount> <address>
 
@@ -3026,6 +3030,7 @@ ${'─'.repeat(70)}
     🎲 RTP                      Total payout / total wagered
     🎟️  APE Wagered (wAPE)     Current online balance / total received on-chain
     🧮 Gimbo Points (GP)        Current online balance / total received on-chain
+    🪜 Level rate               Every 10,000 GP = 1 Level
 
   History options:
     --limit <n>                Show N recent cached games (default 10)

@@ -18,8 +18,7 @@ Everything else lives under `docs/` or next to the code it explains.
 | File | Audience | Usefulness | Keep? | Notes |
 |------|----------|------------|-------|-------|
 | `docs/ADDING_GAMES.md` | Maintainers | High | Yes | Source of truth for extending the game registry and CLI handlers. |
-| `docs/TRANSPARENCY_REFERENCE.md` | Users / maintainers / agents | High | Yes | Consolidated transparency snapshot reference, with repo-aware caveats and naming bridges such as `Gimboz Poker` ⇄ `video-poker`. |
-| `docs/GAMES_REFERENCE.md` | Users / maintainers | Medium | Yes | Quick syntax cookbook; overlaps with `SKILL.md`, but is still faster to skim for commands. |
+| `docs/GAMES_REFERENCE.md` | Users / maintainers | High | Yes | Quick syntax cookbook plus transparency-derived RTP, payout, paytable, comparison, and GP-farming notes for supported games, with a compact appendix for public-but-unsupported titles. |
 | `docs/PUBLISHING.md` | Maintainers | High | Yes | Release and packaging checklist. |
 | `docs/FEATURES.md` | Marketing / product | Medium | Maybe | Useful as a product snapshot, but some sections overlap with `README.md`. |
 | `docs/THESIS.md` | Marketing / narrative | Low | Maybe | Positioning document, not operational documentation. |
@@ -33,8 +32,9 @@ Historical notes that are not current source of truth live in `docs/archive/`:
 
 - `docs/archive/REFACTOR_PLAN.md`
 - `docs/archive/agent_nodes.md`
+- `docs/archive/TRANSPARENCY_REFERENCE.md`
 
-These are worth keeping for context, but they should not drive current implementation or release steps.
+These are worth keeping for context, but they should not drive current implementation or release steps. `TRANSPARENCY_REFERENCE.md` stays archived as the fuller extraction snapshot after the supported-game details were folded into `docs/GAMES_REFERENCE.md`.
 
 ## Layout Policy
 

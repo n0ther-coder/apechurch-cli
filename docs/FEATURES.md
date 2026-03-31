@@ -9,7 +9,7 @@
 ## Wallet & Assets
 - Self-custodial wallet generation and import
 - Send APE (native currency) to any address
-- Send GP (Gimbo Points / cashback rewards)
+- Send GP (Gimbo Points / cashback rewards; every 10,000 GP equals 1 level)
 - Real-time balance checking (APE + GP)
 - Per-wallet history download with cached recent games, history stats, and per-game breakdowns
 - Wallet reset with safety warnings
