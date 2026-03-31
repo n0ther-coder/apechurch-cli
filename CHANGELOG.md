@@ -1,5 +1,7 @@
 # Changelog
 
+> Summary: Release history for `apechurch-cli`. Track notable changes by version, with `Unreleased` collecting work that has not been published yet.
+
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]

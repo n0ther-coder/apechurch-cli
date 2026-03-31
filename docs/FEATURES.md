@@ -1,5 +1,7 @@
 # Ape Church CLI — Feature List
 
+> Summary: Product and marketing inventory of the CLI's capabilities. Useful for high-level positioning, release summaries, and quick feature review without digging into operational details.
+
 > The first command-line interface for on-chain gaming on ApeChain. Play, automate, and integrate Ape Church games without a browser.
 
 ---

@@ -1,5 +1,7 @@
 # Ape Church CLI Tests
 
+> Summary: Entry point for the test suite. Explains safe versus live commands, required environment variables, current coverage, and where new tests should be added.
+
 ## Quick Start
 
 ```bash

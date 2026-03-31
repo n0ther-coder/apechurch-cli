@@ -1,5 +1,7 @@
 # Adding Games to Ape Church CLI
 
+> Summary: Maintainer guide for adding or changing supported games. Points to the registry, CLI wiring, encoding patterns, validation steps, and release checklist updates tied to new game support.
+
 This guide documents everything needed to add or modify games in the `apechurch-cli` CLI.
 
 ## Quick Reference

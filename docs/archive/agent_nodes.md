@@ -1,3 +1,7 @@
+# Agent Nodes Archive
+
+> Summary: Historical handoff notes from an earlier packaging phase. Useful only for archaeological context around past decisions, release state, and old documentation layout.
+
 AGENT NOTES - APE CHURCH SKILL PACKAGE
 ======================================
 

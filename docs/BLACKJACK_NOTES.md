@@ -1,5 +1,7 @@
 # Blackjack Contract Integration Notes
 
+> Summary: Structured blackjack integration notes for the CLI. Summarizes contract state, action rules, parsing details, and implementation checkpoints derived from the raw contract notes.
+
 > Complete working document for blackjack CLI integration.
 > Source: Mark's contract + BLACKJACK_CONTRACT.md
 

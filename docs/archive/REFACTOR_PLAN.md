@@ -1,5 +1,7 @@
 # Ape Church CLI Refactor Plan
 
+> Summary: Historical refactor plan kept for context only. Captures the intended architecture and migration steps from an earlier phase, but is not current source of truth.
+
 ## Goals
 1. Split 3000+ line cli.js into logical modules
 2. Make adding new single-tx games trivial (data-only in most cases)

@@ -1,3 +1,7 @@
+# Blackjack Contract Raw Notes
+
+> Summary: Raw working notes captured from the blackjack contract during integration. Preserves low-level state, ABI details, and action rules that feed the cleaner CLI integration notes.
+
 Game Name: blackjack
 Slug: blackjack
 Contract: 0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7

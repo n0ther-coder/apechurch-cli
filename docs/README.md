@@ -1,5 +1,7 @@
 # Documentation Map
 
+> Summary: Index of the repository documentation layout. Explains which files are canonical, which docs are active references, and which ones are preserved only for archival context.
+
 This repo keeps only one canonical copy of the agent install bundle in the project root:
 
 - `README.md` - primary project overview for humans browsing the repo or npm.

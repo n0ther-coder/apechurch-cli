@@ -1,5 +1,7 @@
 # Games Reference
 
+> Summary: Command cookbook for every supported game. Gives quick syntax, parameter reminders, and examples without the broader agent-focused context in `SKILL.md`.
+
 Complete syntax and examples for all Ape Church CLI games.
 
 ---

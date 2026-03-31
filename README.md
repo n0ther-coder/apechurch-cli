@@ -1,5 +1,7 @@
 # @n0ther/apechurch-cli
 
+> Summary: Primary overview of the project for GitHub and npm readers. Covers installation, core commands, supported games, history reporting, automation features, and key links.
+
 Autonomous gambling CLI for [Ape Church](https://ape.church) on ApeChain.
 
 Play casino games from the command line. Perfect for AI agents, automation, and degens who prefer terminals.

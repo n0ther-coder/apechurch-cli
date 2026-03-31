@@ -6,6 +6,8 @@ description: Bankroll management and risk profiles for Ape Church agents.
 
 # Ape Church Strategy
 
+> Summary: Compact bankroll and risk-profile reference for Ape Church agents. Defines personas, bet sizing posture, game coverage, and advanced override expectations.
+
 ## Principles
 - Never chase losses.
 - Always keep at least 1 APE for gas.

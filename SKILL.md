@@ -29,6 +29,8 @@ tools:
 
 # Ape Church CLI 🦍🎰
 
+> Summary: Agent-facing manual for the Ape Church CLI skill bundle. Documents commands, game syntax, automation patterns, JSON schemas, bankroll constraints, and recommended operating flows.
+
 **Fully on-chain, decentralized casino on ApeChain.**
 
 Every bet is placed and settled on-chain via smart contracts. Provably fair with Chainlink VRF randomness. No servers, no trust required.

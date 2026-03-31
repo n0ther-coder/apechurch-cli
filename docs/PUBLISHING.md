@@ -1,5 +1,7 @@
 # Ape Church CLI - Publishing & Client Setup
 
+> Summary: Maintainer checklist for versioning, packaging, publishing, and install validation. Describes what to update before release and how humans or agents should refresh local setups.
+
 ## Maintainer: Publish to npm
 
 ### Prerequisites

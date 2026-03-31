@@ -6,6 +6,8 @@ description: Autonomous play rules for Ape Church agents.
 
 # Ape Church - Autonomous Play
 
+> Summary: Operational guide for running Ape Church on a schedule. Explains heartbeat-style execution, loop behavior, safety controls, local state, and agent control rules.
+
 ## Quick Start
 
 For continuous play (recommended for competitions):

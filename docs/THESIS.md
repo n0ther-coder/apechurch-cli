@@ -1,5 +1,7 @@
 # Why Ape Church? The Permissionless Advantage
 
+> Summary: Short positioning note on why an on-chain CLI matters for automation. Useful as narrative context for the project, not as day-to-day operational documentation.
+
 Traditional online casinos are walled gardens. To build a bot, you'd need:
 - API keys (if they even offer one)
 - Account approval
