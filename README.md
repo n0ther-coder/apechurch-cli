@@ -8,9 +8,9 @@ Play casino games from the command line. Perfect for AI agents, automation, and 
 
 ## Features
 
-- **12+ Games:** Roulette, Blackjack, Video Poker, Plinko, Slots, Keno, and more
+- **12+ Games:** Roulette, Blackjack, Video Poker (Gimboz Poker), Plinko, Slots, Keno, and more
 - **Loop Mode:** Continuous play with safety controls (target, stop-loss, max-games)
-- **Stateful Card Games:** Blackjack and Video Poker support interactive and auto-play flows
+- **Stateful Card Games:** Blackjack and Video Poker (Gimboz Poker) support interactive and auto-play flows
 - **Betting Strategies:** Flat, Martingale, Fibonacci, D'Alembert, Reverse Martingale
 - **AI Agent Ready:** JSON output, structured responses, self-documenting
 - **Fully On-Chain:** Every bet settled on ApeChain with Chainlink VRF
@@ -147,7 +147,7 @@ Coverage and limits:
 - Downloaded histories live under `~/.apechurch-cli/history/church_<wallet>.json`.
 - Economic totals only include games whose wager, payout, fees, gas, GP, and wAPE can be reconstructed exactly from on-chain data.
 - The downloader enumerates supported single-transaction games in the local registry via indexed `GameEnded(user, ...)` logs.
-- `Blackjack` and `Video Poker` cannot yet be generically enumerated from raw RPC, so locally-known entries remain minimal until a reliable fetch path is implemented.
+- `Blackjack` and `Video Poker` (`Gimboz Poker` in Ape Church naming) cannot yet be generically enumerated from raw RPC, so locally-known entries remain minimal until a reliable fetch path is implemented.
 - Sponsored transactions contribute `0` contract fees and `0` gas for the analyzed wallet.
 
 ## Games
@@ -165,7 +165,7 @@ Coverage and limits:
 | Monkey Match | `play monkey-match 10` | Poker hands from barrels |
 | Bear-A-Dice | `play bear-dice 10` | Avoid unlucky numbers |
 | Blackjack | `blackjack 25 --side 1 --auto` | Card game with auto-play and optional player side bet |
-| Video Poker | `video-poker 10 --auto` | Jacks or Better with auto-play and solver tools |
+| Video Poker / Gimboz Poker | `video-poker 10 --auto` | Jacks or Better with auto-play and solver tools |
 
 ## Loop Mode
 
@@ -209,6 +209,8 @@ apechurch-cli play --loop --bet-strategy fibonacci
 
 ## Blackjack & Video Poker
 
+`video-poker` is the CLI command for Ape Church's `Gimboz Poker`.
+
 Interactive card games with auto-play support:
 
 ```bash
@@ -224,6 +226,7 @@ apechurch-cli blackjack 10
 
 - `--auto` enables automatic play for stateful card games
 - `blackjack --side <ape>` adds a player side bet to the opening deal without changing the in-hand EV solver
+- `video-poker` is also available through the alias `gimboz-poker`
 - `video-poker --solver` shows the same best-EV hold suggestion in interactive mode
 - `video-poker --display full` now uses the boxed ASCII table layout; `simple` keeps the compact text layout
 - `blackjack` and `video-poker` use `--delay 5` by default in loop mode
@@ -235,7 +238,7 @@ apechurch-cli blackjack 10
 ```bash
 apechurch-cli play [game] [amount] [config...]  # Play games
 apechurch-cli blackjack <amount> [--auto] [--side <ape>]  # Blackjack
-apechurch-cli video-poker <amount> [--auto]     # Video Poker
+apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker
 apechurch-cli status                            # Check balance
 apechurch-cli wallet download [address]         # Download supported on-chain history into local cache
 apechurch-cli games                             # List all games

@@ -18,6 +18,7 @@ Everything else lives under `docs/` or next to the code it explains.
 | File | Audience | Usefulness | Keep? | Notes |
 |------|----------|------------|-------|-------|
 | `docs/ADDING_GAMES.md` | Maintainers | High | Yes | Source of truth for extending the game registry and CLI handlers. |
+| `docs/TRANSPARENCY_REFERENCE.md` | Users / maintainers / agents | High | Yes | Consolidated transparency snapshot reference, with repo-aware caveats and naming bridges such as `Gimboz Poker` ⇄ `video-poker`. |
 | `docs/GAMES_REFERENCE.md` | Users / maintainers | Medium | Yes | Quick syntax cookbook; overlaps with `SKILL.md`, but is still faster to skim for commands. |
 | `docs/PUBLISHING.md` | Maintainers | High | Yes | Release and packaging checklist. |
 | `docs/FEATURES.md` | Marketing / product | Medium | Maybe | Useful as a product snapshot, but some sections overlap with `README.md`. |

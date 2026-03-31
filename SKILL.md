@@ -204,7 +204,7 @@ Sync and cache behavior:
 | Monkey Match | `play monkey-match 10` | Match | `--mode 1-2` |
 | Bear-A-Dice | `play bear-dice 10` | Dice | `--difficulty 0-4` `--rolls 1-5` |
 | Blackjack | `blackjack 10 --auto` | Cards | Interactive or `--auto` |
-| Video Poker | `video-poker 10 --auto` | Cards | Interactive or `--auto` |
+| Video Poker / Gimboz Poker | `video-poker 10 --auto` | Cards | Interactive or `--auto` |
 
 ---
 
@@ -565,7 +565,7 @@ apechurch-cli blackjack clear      # Clear stuck games
 
 ## Video Poker
 
-Jacks or Better video poker with interactive and auto-play flows.
+Jacks or Better video poker with interactive and auto-play flows. Ape Church calls this game `Gimboz Poker`; the CLI command is `video-poker` and the alias `gimboz-poker` is supported too.
 
 ### Quick Play (Auto)
 
@@ -621,7 +621,7 @@ apechurch-cli video-poker clear    # Clear stuck games
 apechurch-cli video-poker payouts  # Show payout table
 ```
 
-**Aliases:** `vp`, `gimboz-poker`
+**CLI aliases:** `vp`, `gimboz-poker`
 
 ---
 

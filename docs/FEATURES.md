@@ -41,7 +41,7 @@
 
 ## Automation
 - `--loop` mode for continuous play
-- Stateful card-game auto-play for blackjack and video poker
+- Stateful card-game auto-play for blackjack and video poker (`Gimboz Poker` in Ape Church naming)
 - Pause/Resume autonomous play
 - Strategy-based wager sizing
 - Session tracking (wins, losses, PnL, streaks)
@@ -86,7 +86,7 @@
 
 ### History Coverage
 - **Raw-RPC coverage for Blackjack** — Upgrade the downloader beyond minimal local entries
-- **Raw-RPC coverage for Video Poker** — Upgrade the downloader beyond minimal local entries
+- **Raw-RPC coverage for Video Poker / Gimboz Poker** — Upgrade the downloader beyond minimal local entries
 - **Gap-aware sync tracking** — Track downloaded ranges in addition to the latest synced block
 
 ### Agent Ecosystem

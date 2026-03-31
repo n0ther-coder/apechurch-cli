@@ -518,6 +518,8 @@ apechurch-cli blackjack 10 --auto --loop --delay 5 --human
 
 ## Video Poker
 
+`video-poker` is the CLI command for Ape Church's `Gimboz Poker`.
+
 See [SKILL.md](../SKILL.md#video-poker) for complete documentation.
 
 ```bash
