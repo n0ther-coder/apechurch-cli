@@ -1,8 +1,12 @@
-const { ethers } = require('ethers');
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
-const { encodeAbiParameters } = require('viem');
-const { hashMessage } = require('viem');
+import 'dotenv/config';
+import { createClient } from '@supabase/supabase-js';
+import { ethers } from 'ethers';
+import {
+  APESTRONG_CONTRACT,
+  BEAR_DICE_CONTRACT,
+  ROULETTE_CONTRACT,
+} from './lib/constants.js';
+import { encodeAbiParameters, hashMessage } from 'viem';
 
 // --- Configuration ---
 const {
@@ -16,10 +20,9 @@ const BOT_PRIVATE_KEYS = BOT_PRIVATE_KEYS_ARRAY
     ? BOT_PRIVATE_KEYS_ARRAY.split(',').map(key => key.trim()).filter(key => key.length > 0)
     : [];
 
-const ROULETTE = "0x1f48A104C1808eb4107f3999999D36aeafEC56d5";
-const APESTRONG = "0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600";
+// Legacy example-only contract. The active runtime registry in this repo does
+// not define a supported replacement for Gimboz Smash, so keep it isolated here.
 const GIMBO_SMASH = "0x17e219844F25F3FED6E422DdaFfD2E6557eBCEd3";
-const BEAR_DICE = "0x6a48A513A46955D8622C809Fce876d2f11142003";
 
 // Your Contract ABI - updated with the correct functions
 const CONTRACT_ABI = ["function play(address player, bytes calldata gameData) external payable"];
@@ -59,10 +62,10 @@ async function main() {
         return {
             wallet: wallet,
             games: [
-                new ethers.Contract(ROULETTE, CONTRACT_ABI, wallet),
-                new ethers.Contract(APESTRONG, CONTRACT_ABI, wallet),
+                new ethers.Contract(ROULETTE_CONTRACT, CONTRACT_ABI, wallet),
+                new ethers.Contract(APESTRONG_CONTRACT, CONTRACT_ABI, wallet),
                 new ethers.Contract(GIMBO_SMASH, CONTRACT_ABI, wallet),
-                new ethers.Contract(BEAR_DICE, CONTRACT_ABI, wallet),
+                new ethers.Contract(BEAR_DICE_CONTRACT, CONTRACT_ABI, wallet),
             ],
             gameNames: [
                 "Roulette",

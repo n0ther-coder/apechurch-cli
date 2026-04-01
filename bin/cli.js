@@ -97,11 +97,14 @@ import {
   HOUSE_ABI,
   HOUSE_LOCK_TIME,
   HOUSE_WITHDRAW_FEE,
+  BLACKJACK_CONTRACT,
   PACKAGE_NAME,
   BINARY_NAME,
   PASS_ENV_VAR,
   PROFILE_URL_ENV_VAR,
   PRIVATE_KEY_ENV_VAR,
+  VIDEO_POKER_CONTRACT,
+  ZERO_ADDRESS,
 } from '../lib/constants.js';
 import {
   sanitizeError,
@@ -1028,7 +1031,7 @@ program
     // Fetch GP balance (Gimbo Points - 0 decimals)
     let gpBalance = 0n;
     try {
-      if (GP_TOKEN_CONTRACT !== '0x0000000000000000000000000000000000000000') {
+      if (GP_TOKEN_CONTRACT !== ZERO_ADDRESS) {
         gpBalance = await publicClient.readContract({
           address: GP_TOKEN_CONTRACT,
           abi: GP_TOKEN_ABI,
@@ -2374,7 +2377,7 @@ program
           type: 'stateful',
           key: 'blackjack',
           aliases: ['bj'],
-          contract: '0x720D68C867aC4De7e035c2C1346c4eb070b29Aae',
+          contract: BLACKJACK_CONTRACT,
           description: 'Classic blackjack with simple and exact-EV auto-play',
         }));
         return;
@@ -2390,7 +2393,7 @@ ${'═'.repeat(60)}
   Type:     stateful
   Key:      blackjack
   Aliases:  bj
-  Contract: 0x720D68C867aC4De7e035c2C1346c4eb070b29Aae
+  Contract: ${BLACKJACK_CONTRACT}
 
 ${'─'.repeat(60)}
   COMMANDS
@@ -2446,7 +2449,7 @@ ${'═'.repeat(60)}
           type: 'stateful',
           key: 'video-poker',
           aliases: ['vp', 'gimboz-poker'],
-          contract: '0x4f7D016704bC9A1d373E512e10CF86A0E7015D1D',
+          contract: VIDEO_POKER_CONTRACT,
           description: 'Jacks or Better video poker with simple and best-EV auto-play',
         }));
         return;
@@ -2463,7 +2466,7 @@ ${'═'.repeat(60)}
   Type:     stateful
   Key:      video-poker
   Aliases:  vp, gimboz-poker
-  Contract: 0x4f7D016704bC9A1d373E512e10CF86A0E7015D1D
+  Contract: ${VIDEO_POKER_CONTRACT}
 
 ${'─'.repeat(60)}
   COMMANDS
@@ -3459,7 +3462,7 @@ program
 
     } else if (assetUpper === 'GP') {
       // --- GP (Gimbo Points - 0 decimals) ---
-      if (GP_TOKEN_CONTRACT === '0x0000000000000000000000000000000000000000') {
+      if (GP_TOKEN_CONTRACT === ZERO_ADDRESS) {
         const error = { error: 'GP token contract not configured' };
         if (opts.json) console.log(JSON.stringify(error));
         else console.error('\n❌ GP token contract not configured\n');

@@ -16,6 +16,18 @@
  *
  * @module registry
  */
+import {
+  APESTRONG_CONTRACT,
+  BACCARAT_CONTRACT,
+  BEAR_DICE_CONTRACT,
+  BUBBLEGUM_HEIST_CONTRACT,
+  DINO_DOUGH_CONTRACT,
+  JUNGLE_PLINKO_CONTRACT,
+  KENO_CONTRACT,
+  MONKEY_MATCH_CONTRACT,
+  ROULETTE_CONTRACT,
+  SPEED_KENO_CONTRACT,
+} from './lib/constants.js';
 
 // ============================================================================
 // GAME REGISTRY
@@ -48,7 +60,7 @@ export const GAME_REGISTRY = [
     slug: 'keno',
     type: 'keno',
     description: 'Pick 1-10 numbers from 1-40. More picks = riskier but bigger payouts. Hit 10/10 for up to 1,000,000x!',
-    contract: '0xc936D6691737afe5240975622f0597fA2d122FAd',
+    contract: KENO_CONTRACT,
     aliases: ['k'],
     config: {
       picks: {
@@ -76,7 +88,7 @@ export const GAME_REGISTRY = [
     slug: 'ape-strong',
     type: 'apestrong',
     description: 'Pick your odds! Choose a range (5-95) — roll under to win. Higher range = more likely to win, lower payout.',
-    contract: '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600',
+    contract: APESTRONG_CONTRACT,
     aliases: ['strong', 'dice', 'limbo'],
     config: {
       range: {
@@ -107,7 +119,7 @@ export const GAME_REGISTRY = [
     slug: 'baccarat',
     type: 'baccarat',
     description: 'Classic baccarat. Bet on Player (2x), Banker (1.95x), or Tie (9x).',
-    contract: '0xB08C669dc0419151bA4e4920E80128802dB5497b',
+    contract: BACCARAT_CONTRACT,
     aliases: ['bacc'],
     config: {
       bet: {
@@ -135,7 +147,7 @@ export const GAME_REGISTRY = [
     slug: 'roulette',
     type: 'roulette',
     description: 'Classic roulette with American layout (0, 00, 1-36). Bet on numbers, colors, or sections.',
-    contract: '0x1f48A104C1808eb4107f3999999D36aeafEC56d5',
+    contract: ROULETTE_CONTRACT,
     aliases: ['rl'],
     config: {
       bet: {
@@ -195,7 +207,7 @@ export const GAME_REGISTRY = [
     slug: 'jungle-plinko',
     type: 'plinko',
     description: 'Drop balls through pegs into multiplier buckets. Higher modes = bigger risk & reward.',
-    contract: '0x88683B2F9E765E5b1eC2745178354C70A03531Ce',
+    contract: JUNGLE_PLINKO_CONTRACT,
     aliases: ['plinko'],
     config: {
       mode: {
@@ -240,7 +252,7 @@ export const GAME_REGISTRY = [
     slug: 'dino-dough',
     type: 'slots',
     description: 'Dinosaur-themed slot machine. Spin for matching symbols and multipliers.',
-    contract: '0x9ebb4Df257B971582BAf096b62CA41DE7723F3CB',
+    contract: DINO_DOUGH_CONTRACT,
     aliases: ['dino', 'slots'],
     config: {
       spins: {
@@ -264,7 +276,7 @@ export const GAME_REGISTRY = [
     slug: 'bubblegum-heist',
     type: 'slots',
     description: 'Candy-themed slot machine. Spin for sweet multipliers and jackpots.',
-    contract: '0xB5Da735118e848130B92994Ee16377dB2AE31a4c',
+    contract: BUBBLEGUM_HEIST_CONTRACT,
     aliases: ['bubblegum', 'heist'],
     config: {
       spins: {
@@ -288,7 +300,7 @@ export const GAME_REGISTRY = [
     slug: 'speed-keno',
     type: 'speedkeno',
     description: 'Fast keno with batching! Pick 1-5 numbers from 1-20. Batch up to 20 games. Hit 5/5 for 2000x!',
-    contract: '0x40EE3295035901e5Fd80703774E5A9FE7CE2B90C',
+    contract: SPEED_KENO_CONTRACT,
     aliases: ['sk', 'speedk'],
     config: {
       picks: {
@@ -338,7 +350,7 @@ export const GAME_REGISTRY = [
     slug: 'monkey-match',
     type: 'monkeymatch',
     description: 'Monkeys pop from 5 barrels — form poker hands! Five of a Kind = 50x. Low Risk has 6 monkeys, Normal has 7.',
-    contract: '0x59EBd3406b76DCc74102AFa2cA5284E9AAB6bA28',
+    contract: MONKEY_MATCH_CONTRACT,
     aliases: ['monkey', 'mm'],
     config: {
       mode: {
@@ -366,7 +378,7 @@ export const GAME_REGISTRY = [
     slug: 'bear-dice',
     type: 'beardice',
     description: 'Roll 2 dice up to 5 times. Avoid unlucky numbers! Easy mode: dodge 7s. Higher modes = more danger.',
-    contract: '0x6a48A513A46955D8622C809Fce876d2f11142003',
+    contract: BEAR_DICE_CONTRACT,
     aliases: ['bear', 'dice', 'bd'],
     config: {
       difficulty: {

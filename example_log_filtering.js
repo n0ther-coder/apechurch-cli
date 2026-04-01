@@ -1,13 +1,10 @@
-// index.js
-require('dotenv').config();
-const { createPublicClient, webSocket, http, formatUnits } = require('viem'); // Added http if needed, but using webSocket for transport
-const { apechain } = require('viem/chains');
-const { createClient } = require('@supabase/supabase-js');
+import 'dotenv/config';
+import { createClient } from '@supabase/supabase-js';
+import { createPublicClient, webSocket, formatUnits } from 'viem';
+import { apechain, HOUSE_CONTRACT } from './lib/constants.js';
 
 // --- CONFIGURATION ---
 const { APECHAIN_WSS_URL, SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
-
-const HOUSE_ADDRESS = "0x2054709F89F18a4CCAC6132acE7b812E32608469"
 
 // --- ABI DEFINITIONS ---
 const houseAbi = [
@@ -55,7 +52,7 @@ const handleEvent = async (log) => {
 
     // Read the current price from the contract
     const priceBigInt = await publicClient.readContract({
-      address: HOUSE_ADDRESS,
+      address: HOUSE_CONTRACT,
       abi: houseAbi,
       functionName: 'calculatePrice',
     });
@@ -86,7 +83,7 @@ const handleEvent = async (log) => {
 
 // --- LISTENER: HouseWon and HouseLost Events ---
 publicClient.watchContractEvent({
-  address: HOUSE_ADDRESS,
+  address: HOUSE_CONTRACT,
   abi: houseAbi,
   eventName: 'HouseWon',
   onLogs: async (logs) => {
@@ -99,7 +96,7 @@ publicClient.watchContractEvent({
 
 // --- LISTENER: HouseWon and HouseLost Events ---
 publicClient.watchContractEvent({
-    address: HOUSE_ADDRESS,
+    address: HOUSE_CONTRACT,
     abi: houseAbi,
     eventName: 'HouseLost',
     onLogs: async (logs) => {
