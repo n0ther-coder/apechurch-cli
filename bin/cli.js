@@ -209,6 +209,48 @@ function prompt(question) {
   });
 }
 
+async function confirmGameplayPasswordPromptBehavior({ json = false, forcePrompt = false } = {}) {
+  if ((json && !forcePrompt) || process.env[PASS_ENV_VAR]) {
+    return true;
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    return true;
+  }
+
+  const meta = getWalletPublicMetadata();
+  if (!meta?.encrypted) {
+    return true;
+  }
+
+  while (true) {
+    const answer = (await prompt(`
+🔐 No ${PASS_ENV_VAR} is set.
+If you play now, the CLI will prompt for your wallet password before each signing interaction.
+
+Choose:
+  [s] Stop now and set it first
+  [c] Continue and prompt each time
+
+Continue? [s/C]: `)).trim().toLowerCase();
+
+    if (answer === '' || answer === 'c' || answer === 'continue') {
+      console.log('');
+      return true;
+    }
+
+    if (answer === 's' || answer === 'stop' || answer === 'set') {
+      console.log(`
+Set it in your shell, then rerun the game command:
+  export ${PASS_ENV_VAR}="your-password"
+`);
+      return false;
+    }
+
+    console.log('\nPlease answer "s" to stop or "c" to continue.\n');
+  }
+}
+
 function formatPlainApe(apeAmount, decimals = 2) {
   const value = Number.parseFloat(apeAmount || 0);
   if (!Number.isFinite(value)) {
@@ -414,6 +456,16 @@ async function getWalletWithPrompt(opts = {}) {
 ❌ ${message}
 `);
     process.exit(1);
+  }
+
+  if (opts.gameplay) {
+    const shouldContinue = await confirmGameplayPasswordPromptBehavior({
+      json: opts.json,
+      forcePrompt: opts.forceGameplayPrompt,
+    });
+    if (!shouldContinue) {
+      process.exit(0);
+    }
   }
 
   try {
@@ -1136,6 +1188,7 @@ program
           for (const gameId of unfinished.game_ids) {
             console.log(`     ${theme.dim('-')} ${theme.value(gameId)}`);
           }
+          console.log(`     ${theme.dim('To clear queue:')} ${theme.command(`$ ${BINARY_NAME} ${unfinished.key} clear`)}`);
         }
       }
       console.log('');
@@ -1260,7 +1313,7 @@ program
   .option('--numbers <nums>', 'Keno numbers (e.g., 1,7,13,25,40)')
   .option('--timeout <ms>', 'Max wait for result (0 = no wait)', '0')
   .action(async (opts) => {
-    const account = await getWalletWithPrompt({ json: true });
+    const account = await getWalletWithPrompt({ json: true, gameplay: true, forceGameplayPrompt: true });
     const { publicClient } = createClients();
     
     let balance;
@@ -1342,7 +1395,7 @@ program
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--json', 'JSON output only')
   .action(async (gameArg, amountArg, configArgs, opts) => {
-    const account = await getWalletWithPrompt({ json: opts.json });
+    const account = await getWalletWithPrompt({ json: opts.json, gameplay: true });
     const loopMode = Boolean(opts.loop);
     const delaySeconds = Math.max(parseFloat(opts.delay) || 3, 1);
     const delayMs = delaySeconds * 1000;
@@ -2206,6 +2259,7 @@ program
   .description('Read cached per-wallet history, recent games, and history stats')
   .option('--limit <n>', 'Number of recent cached games to show', '10')
   .option('--all', 'Show all cached games instead of the recent slice')
+  .option('--ids', 'Show game IDs at the end of each history line')
   .option('--stats', 'Show only history stats')
   .option('--breakdown', 'Show history stats split by game')
   .option('--refresh', 'Refresh local history from chain before showing it')
@@ -2312,7 +2366,7 @@ program
           console.log('   No saved games.\n');
         } else {
           for (const r of numberedResults) {
-            console.log(formatHistoryLine(r));
+            console.log(formatHistoryLine(r, { showIds: opts.ids }));
           }
           console.log('');
         }
@@ -3871,6 +3925,7 @@ program
 // ============================================================================
 program
   .command('blackjack [action] [amount]')
+  .alias('bj')
   .description('Play Blackjack - interactive card game')
   .option('--game <id>', 'Specify game ID (for resume/action)')
   .option('--display <mode>', 'Display mode: full, simple, json')
@@ -3900,6 +3955,7 @@ program
         console.error(`   Example: ${BINARY_NAME} blackjack 10\n`);
         return;
       }
+      await getWalletWithPrompt({ json: opts.json, gameplay: true });
       return blackjack.start(betAmount, opts);
     }
     
@@ -3908,6 +3964,7 @@ program
     
     switch (actionLower) {
       case 'resume':
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
         return blackjack.resume(opts.game, opts);
         
       case 'status':
@@ -3919,6 +3976,7 @@ program
       case 'split':
       case 'insurance':
       case 'surrender':
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
         return blackjack.action(actionLower, opts);
       
       case 'clear': {
@@ -3977,6 +4035,7 @@ program
         console.error(`   Example: ${BINARY_NAME} video-poker 10\n`);
         return;
       }
+      await getWalletWithPrompt({ json: opts.json, gameplay: true });
       return videoPoker.start(betAmount, opts);
     }
     
@@ -3984,6 +4043,7 @@ program
     
     switch (actionLower) {
       case 'resume':
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
         return videoPoker.resume(opts.game, opts);
         
       case 'status':

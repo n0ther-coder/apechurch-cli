@@ -519,12 +519,15 @@ Lose → bet 10 → Lose → bet 10 → Lose → bet 20 → Lose → bet 30 → 
 
 Interactive blackjack with optional auto-play.
 
+**CLI aliases:** `bj`
+
 ### Quick Play (Auto)
 
 ```bash
 apechurch-cli blackjack 10 --auto              # Single game, simple auto-play
 apechurch-cli blackjack 10 --auto --loop       # Continuous auto-play
 apechurch-cli blackjack 10 --auto --loop --max-games 20 --bet-strategy martingale
+apechurch-cli bj 10 --auto --loop --max-games 20 # Using alias
 ```
 
 ### Interactive Play
@@ -634,7 +637,7 @@ apechurch-cli video-poker payouts  # Show payout table
 | `apechurch-cli install` | Setup wallet and register |
 | `apechurch-cli status` | Check balance, address, settings |
 | `apechurch-cli play [game] [amount]` | Play a game |
-| `apechurch-cli blackjack <amount>` | Play blackjack |
+| `apechurch-cli blackjack|bj <amount>` | Play blackjack |
 | `apechurch-cli video-poker <amount>` | Play video poker |
 | `apechurch-cli wallet download [address]` | Download supported on-chain history into local cache |
 | `apechurch-cli games` | List all games |

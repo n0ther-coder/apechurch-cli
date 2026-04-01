@@ -22,6 +22,7 @@ import {
   formatHistoryLine,
   colorsEnabled,
 } from '../../lib/theme.js';
+import { getVisibleWidth, stripAnsi } from '../../lib/ansi.js';
 
 describe('Theme', () => {
 
@@ -211,6 +212,7 @@ describe('Theme', () => {
         gameId: '123456789',
         historyIndex: 1,
         timestamp: Date.UTC(2026, 2, 27, 14, 28, 51),
+        last_sync_on: '2026-03-29T12:00:00.000Z',
         wager_ape: '10',
         pnl_ape: '9.5',
         won: true,
@@ -219,10 +221,12 @@ describe('Theme', () => {
       const result = formatHistoryLine(game);
       assert.ok(result.includes('🎉'));
       assert.ok(result.includes('2026-03-27 14:28:51 UTC 🎉'));
+      assert.ok(result.indexOf('ApeStrong') > result.indexOf('🎉'));
       assert.ok(result.includes('       9.50 APE'));
-      assert.ok(result.includes('(wagered 10.00 APE)'));
+      assert.ok(result.includes('       10.00 wAPE'));
       assert.ok(result.includes('ApeStrong'));
-      assert.ok(result.includes('<123456789>'));
+      assert.ok(!result.includes('<123456789>'));
+      assert.ok(result.includes('(verified on-chain, 2026-03-29 12:00:00 UTC)'));
     });
 
     it('formats losing game line', () => {
@@ -231,6 +235,7 @@ describe('Theme', () => {
         gameId: '42',
         historyIndex: 2,
         timestamp: Date.UTC(2026, 2, 27, 14, 30, 0),
+        last_sync_on: '2026-03-29T12:05:00.000Z',
         wager_ape: '5',
         pnl_ape: '-5',
         won: false,
@@ -239,10 +244,12 @@ describe('Theme', () => {
       const result = formatHistoryLine(game);
       assert.ok(result.includes('💀'));
       assert.ok(result.includes('2026-03-27 14:30:00 UTC 💀'));
+      assert.ok(result.indexOf('Roulette') > result.indexOf('💀'));
       assert.ok(result.includes('       5.00 APE'));
-      assert.ok(result.includes('(wagered 5.00 APE)'));
+      assert.ok(result.includes('        5.00 wAPE'));
       assert.ok(result.includes('Roulette'));
-      assert.ok(result.includes('<42>'));
+      assert.ok(!result.includes('<42>'));
+      assert.ok(result.includes('(verified on-chain, 2026-03-29 12:05:00 UTC)'));
     });
 
     it('formats break-even game line with handshake icon', () => {
@@ -251,6 +258,7 @@ describe('Theme', () => {
         gameId: '987654321',
         historyIndex: 3,
         timestamp: Date.UTC(2026, 2, 27, 14, 31, 0),
+        last_sync_on: '2026-03-29T12:06:00.000Z',
         wager_ape: '1',
         pnl_ape: '0',
         won: false,
@@ -259,10 +267,12 @@ describe('Theme', () => {
       const result = formatHistoryLine(game);
       assert.ok(result.includes('🤝'));
       assert.ok(result.includes('2026-03-27 14:31:00 UTC 🤝'));
-      assert.ok(result.includes('(wagered 1.00 APE)'));
+      assert.ok(result.indexOf('Blackjack') > result.indexOf('🤝'));
+      assert.ok(result.includes('        1.00 wAPE'));
       assert.ok(result.includes('Blackjack'));
-      assert.ok(result.includes('<987654321>'));
+      assert.ok(!result.includes('<987654321>'));
       assert.ok(result.includes('       0.00 APE'));
+      assert.ok(result.includes('(verified on-chain, 2026-03-29 12:06:00 UTC)'));
     });
 
     it('formats pending game line', () => {
@@ -271,6 +281,7 @@ describe('Theme', () => {
         gameId: '555',
         historyIndex: 4,
         timestamp: Date.UTC(2026, 2, 27, 14, 32, 0),
+        last_sync_on: '2026-03-29T12:07:00.000Z',
         wager_ape: '2',
         pnl_ape: '0',
         won: false,
@@ -279,8 +290,118 @@ describe('Theme', () => {
       const result = formatHistoryLine(game);
       assert.ok(result.includes('⏳'));
       assert.ok(result.includes('2026-03-27 14:32:00 UTC ⏳'));
+      assert.ok(result.indexOf('Plinko') > result.indexOf('⏳'));
       assert.ok(result.includes('pending'));
-      assert.ok(result.includes('(wagered 2.00 APE)'));
+      assert.ok(result.includes('        2.00 wAPE'));
+      assert.ok(result.includes('(verified on-chain, 2026-03-29 12:07:00 UTC)'));
+    });
+
+    it('formats local-only history lines with an explicit local source label', () => {
+      const game = {
+        game: 'Blackjack',
+        gameId: '777',
+        historyIndex: 5,
+        timestamp: Date.UTC(2026, 2, 27, 14, 34, 0),
+        settled: false,
+        last_sync_msg: 'unsupported game fetch',
+      };
+      const result = formatHistoryLine(game);
+
+      assert.ok(result.includes('🚫'));
+      assert.ok(result.includes('N/A'));
+      assert.ok(result.indexOf('Blackjack') > result.indexOf('🚫'));
+      assert.ok(result.includes('Blackjack'));
+      assert.ok(!result.includes('<777>'));
+      assert.ok(result.includes('(local-only record)'));
+    });
+
+    it('shows verified failure details for refreshed unsynced supported games', () => {
+      const result = formatHistoryLine({
+        game: 'Bubblegum Heist',
+        gameId: '888',
+        timestamp: Date.UTC(2026, 2, 27, 14, 34, 0),
+        last_sync_on: '2026-03-29T12:11:00.000Z',
+        last_sync_msg: 'execution reverted',
+      });
+
+      assert.ok(result.includes('🚫'));
+      assert.ok(result.includes('(execution reverted, 2026-03-29 12:11:00 UTC)'));
+    });
+
+    it('aligns N/A with the decimal columns of net-result values', () => {
+      const verified = stripAnsi(formatHistoryLine({
+        game: 'Roulette',
+        gameId: '1',
+        timestamp: Date.UTC(2026, 2, 27, 14, 35, 0),
+        last_sync_on: '2026-03-29T12:09:00.000Z',
+        wager_ape: '9.5',
+        pnl_ape: '9.5',
+        settled: true,
+      }));
+      const localOnly = stripAnsi(formatHistoryLine({
+        game: 'Blackjack',
+        gameId: '2',
+        timestamp: Date.UTC(2026, 2, 27, 14, 36, 0),
+        settled: false,
+      }));
+
+      const numberStart = verified.indexOf('9.50 APE');
+      assert.strictEqual(localOnly.indexOf('N'), numberStart + 1);
+      assert.strictEqual(localOnly.indexOf('/'), numberStart + 2);
+      assert.strictEqual(localOnly.indexOf('A'), numberStart + 3);
+    });
+
+    it('keeps game names aligned between verified and local-only rows', () => {
+      const verified = stripAnsi(formatHistoryLine({
+        game: 'Roulette',
+        gameId: '1',
+        timestamp: Date.UTC(2026, 2, 27, 14, 35, 0),
+        last_sync_on: '2026-03-29T12:09:00.000Z',
+        wager_ape: '3',
+        pnl_ape: '6',
+        settled: true,
+      }));
+      const localOnly = stripAnsi(formatHistoryLine({
+        game: 'Blackjack',
+        gameId: '2',
+        timestamp: Date.UTC(2026, 2, 27, 14, 36, 0),
+        settled: false,
+      }));
+
+      assert.strictEqual(verified.indexOf('Roulette'), localOnly.indexOf('Blackjack'));
+    });
+
+    it('caps the rendered game-name column at 16 visible characters', () => {
+      const result = formatHistoryLine({
+        game: 'Bubblegum Heist Deluxe',
+        gameId: '1000',
+        timestamp: Date.UTC(2026, 2, 27, 14, 37, 0),
+        last_sync_on: '2026-03-29T12:10:00.000Z',
+        wager_ape: '4',
+        pnl_ape: '8',
+        settled: true,
+      });
+      const plain = stripAnsi(result);
+      const afterIcon = plain.split('🎉 ')[1];
+      const gameColumn = afterIcon.slice(0, 16);
+
+      assert.strictEqual(getVisibleWidth(gameColumn), 16);
+      assert.strictEqual(gameColumn, 'Bubblegum Heist ');
+    });
+
+    it('shows the game id at the end of the line only when requested', () => {
+      const game = {
+        game: 'Roulette',
+        gameId: '999',
+        timestamp: Date.UTC(2026, 2, 27, 14, 35, 0),
+        last_sync_on: '2026-03-29T12:09:00.000Z',
+        wager_ape: '3',
+        pnl_ape: '6',
+        settled: true,
+      };
+      const result = formatHistoryLine(game, { showIds: true });
+
+      assert.ok(result.endsWith('<999>'));
     });
 
     it('keeps full width when result already uses eight integer digits', () => {

@@ -3,6 +3,7 @@ import assert from 'node:assert';
 
 import { renderGame } from '../../lib/stateful/blackjack/display.js';
 import { formatActionLabel } from '../../lib/stateful/blackjack/state.js';
+import { getVisibleWidth } from '../../lib/ansi.js';
 
 function makeCard(rank, suit, display) {
   return {
@@ -113,5 +114,40 @@ describe('Blackjack Display', () => {
 
     assert.match(output, /🤝 RESULT: PUSH/);
     assert.match(output, /\(net profit 0\.0000 APE\)/);
+  });
+
+  it('keeps the full-mode dealer-wins row aligned when it includes an emoji outcome icon', () => {
+    const output = renderGame(makeState({
+      isComplete: true,
+      totalPayout: 0n,
+      dealerHand: {
+        cards: [makeCard(10, 3, '[10♠]'), makeCard(9, 2, '[9♣]')],
+        handValue: 19,
+        isSoft: false,
+        status: 0,
+        bet: 0n,
+      },
+      playerHands: [
+        {
+          cards: [makeCard(10, 0, '[10♦]'), makeCard(5, 3, '[5♠]')],
+          handValue: 15,
+          isSoft: false,
+          status: 0,
+          bet: 25000000000000000000n,
+        },
+        {
+          cards: [],
+          handValue: 0,
+          isSoft: false,
+          status: 0,
+          bet: 0n,
+        },
+      ],
+    }), [], { displayMode: 'full' });
+
+    const dealerWinsLine = output.split('\n').find((line) => line.includes('DEALER WINS'));
+
+    assert.ok(dealerWinsLine);
+    assert.strictEqual(getVisibleWidth(dealerWinsLine), 55);
   });
 });

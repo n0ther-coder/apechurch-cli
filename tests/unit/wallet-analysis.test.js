@@ -6,6 +6,7 @@ import assert from 'node:assert';
 import { parseEther } from 'viem';
 import {
   analyzeWalletHistory,
+  diagnoseUnsyncedSupportedGames,
   mergeDownloadedHistoryGames,
   summarizeHistoryGames,
   summarizeHistoryGamesByGame,
@@ -269,6 +270,62 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(merged[0].timestamp, 1774786033000);
       assert.strictEqual(merged[0].net_result_ape, '0.88');
       assert.strictEqual(merged[0].last_sync_on, '2026-03-29T17:28:34.923Z');
+    });
+
+    it('applies refresh diagnostics to supported local-only games that remain unsynced', () => {
+      const diagnostics = new Map([
+        ['0x1f48a104c1808eb4107f3999999d36aeafec56d5:7', {
+          last_sync_on: '2026-03-29T18:00:00.000Z',
+          last_sync_msg: 'execution reverted',
+        }],
+      ]);
+
+      const merged = mergeDownloadedHistoryGames(
+        [
+          {
+            contract: ROULETTE,
+            gameId: '7',
+            timestamp: 1_700_000_000_000,
+            tx: '0xabc',
+            last_sync_on: null,
+            last_sync_msg: null,
+          },
+        ],
+        [],
+        '2026-03-29T18:00:00.000Z',
+        diagnostics
+      );
+
+      assert.strictEqual(merged[0].last_sync_on, '2026-03-29T18:00:00.000Z');
+      assert.strictEqual(merged[0].last_sync_msg, 'execution reverted');
+    });
+  });
+
+  describe('diagnoseUnsyncedSupportedGames', () => {
+    it('classifies missing, reverted, and successful unsynced stateless transactions', async () => {
+      const diagnostics = await diagnoseUnsyncedSupportedGames({
+        async getTransactionReceipt({ hash }) {
+          if (hash === '0xreverted') {
+            return { status: 'reverted' };
+          }
+          if (hash === '0xsuccess') {
+            return { status: 'success' };
+          }
+          throw new Error('not found');
+        },
+      }, [
+        { contract: ROULETTE, gameId: '1', tx: '0xreverted' },
+        { contract: APESTRONG, gameId: '2', tx: '0xsuccess' },
+        { contract: APESTRONG, gameId: '3' },
+        { contract: APESTRONG, gameId: '4', tx: '0xmissing' },
+        { contract: BLACKJACK_CONTRACT, gameId: '5' },
+      ], [], '2026-03-29T18:30:00.000Z');
+
+      assert.strictEqual(diagnostics.get(`${ROULETTE.toLowerCase()}:1`)?.last_sync_msg, 'execution reverted');
+      assert.strictEqual(diagnostics.get(`${APESTRONG.toLowerCase()}:2`)?.last_sync_msg, 'no settlement event found');
+      assert.strictEqual(diagnostics.get(`${APESTRONG.toLowerCase()}:3`)?.last_sync_msg, 'missing play transaction hash');
+      assert.ok(diagnostics.get(`${APESTRONG.toLowerCase()}:4`)?.last_sync_msg.startsWith('transaction receipt unavailable'));
+      assert.strictEqual(diagnostics.has(`${BLACKJACK_CONTRACT.toLowerCase()}:5`), false);
     });
   });
 

@@ -672,7 +672,8 @@ apechurch-cli play bear-dice 10 --difficulty 0 --loop --max-games 20
 ## Blackjack
 
 **Type:** Cards<br>
-**Contract:** `0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7`
+**Contract:** `0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7`<br>
+**Aliases:** `bj`
 
 Stateful blackjack with interactive actions and auto-play support. See [SKILL.md](../SKILL.md#blackjack) for the full command flow, action handling, and solver notes.
 
@@ -718,6 +719,7 @@ The transparency side-bet probabilities assume independent card draws for that p
 # Auto-play
 apechurch-cli blackjack 10 --auto
 apechurch-cli blackjack 10 --auto best   # Falls back to simple for now
+apechurch-cli bj 10 --auto --loop        # Using alias
 
 # Interactive
 apechurch-cli blackjack 10

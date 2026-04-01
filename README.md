@@ -209,6 +209,7 @@ apechurch-cli play --loop --bet-strategy fibonacci
 
 ## Blackjack & Video Poker
 
+`blackjack` is also available through the alias `bj`.
 `video-poker` is the CLI command for Ape Church's `Gimboz Poker`.
 
 Interactive card games with auto-play support:
@@ -217,6 +218,7 @@ Interactive card games with auto-play support:
 # Auto-play
 apechurch-cli blackjack 10 --auto --loop
 apechurch-cli blackjack 25 --side 1 --auto
+apechurch-cli bj 10 --auto --loop          # Using alias
 apechurch-cli video-poker 10 --auto --loop
 apechurch-cli video-poker 10 --solver    # Interactive hold suggestion (best EV)
 
@@ -226,6 +228,7 @@ apechurch-cli blackjack 10
 
 - `--auto` enables automatic play for stateful card games
 - `blackjack --side <ape>` adds a player side bet to the opening deal without changing the in-hand EV solver
+- `blackjack` is also available through the alias `bj`
 - `video-poker` is also available through the alias `gimboz-poker`
 - `video-poker --solver` shows the same best-EV hold suggestion in interactive mode
 - `video-poker --display full` now uses the boxed ASCII table layout; `simple` keeps the compact text layout
@@ -237,7 +240,7 @@ apechurch-cli blackjack 10
 
 ```bash
 apechurch-cli play [game] [amount] [config...]  # Play games
-apechurch-cli blackjack <amount> [--auto] [--side <ape>]  # Blackjack
+apechurch-cli blackjack|bj <amount> [--auto] [--side <ape>]  # Blackjack
 apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker
 apechurch-cli status                            # Check balance
 apechurch-cli wallet download [address]         # Download supported on-chain history into local cache

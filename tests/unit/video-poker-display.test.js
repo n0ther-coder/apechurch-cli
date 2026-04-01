@@ -10,6 +10,8 @@ import {
   renderGameFullDecisionStart,
 } from '../../lib/stateful/video-poker/display.js';
 
+const ANSI_REGEX = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
+
 function makeCard(rank, suit, rankName, suitSymbol) {
   return { rank, suit, rankName, suitSymbol, isEmpty: false };
 }
@@ -54,6 +56,17 @@ describe('Video Poker Display', () => {
     assert.match(output, /║ → High Card \(no payout\)\s+║/);
     assert.match(output, /\? Hold 2,4,5 \(EV 1\.537x\)/);
     assert.match(output, /╠═+/);
+  });
+
+  it('keeps boxed suggestion lines stable when ANSI-colored text is truncated', () => {
+    const output = renderGameFullDecisionStart(makeDecisionState(), {
+      suggestionLine: '\x1b[32mHold 1,2,3,4,5 because this recommendation text is intentionally very long\x1b[0m',
+    });
+    const suggestionLine = output.split('\n').find((line) => line.includes('? '));
+
+    assert.ok(suggestionLine);
+    assert.strictEqual(suggestionLine.replace(ANSI_REGEX, '').length, 30);
+    assert.ok(suggestionLine.includes('\x1b[0m'));
   });
 
   it('renders the boxed auto-play closing half with hold markers over the final hand', () => {
