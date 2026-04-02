@@ -113,7 +113,7 @@ describe('Live Game Tests', () => {
 
   describe('Plinko', { skip: SKIP_REASON }, () => {
     it('plays with default config', async () => {
-      const { stdout } = cli(`play plinko ${TEST_BET} --json`, { timeout: 45000 });
+      const { stdout } = cli(`play jungle ${TEST_BET} --json`, { timeout: 45000 });
       
       const data = JSON.parse(stdout);
       assert.ok('tx' in data, 'Should have transaction');

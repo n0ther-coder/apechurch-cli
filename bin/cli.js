@@ -111,6 +111,7 @@ import {
   formatApeAmount,
   ensureDir,
   addBigIntStrings,
+  clampRange,
   randomIntInclusive,
   parseNonNegativeInt,
 } from '../lib/utils.js';
@@ -155,7 +156,12 @@ import {
   computeCooldownMs,
 } from '../lib/strategy.js';
 import { playGame, resolveGame } from '../lib/games/index.js';
-import { GAME_REGISTRY, listGames } from '../registry.js';
+import {
+  GAME_REGISTRY,
+  listGames,
+  getGameDisplayName,
+  resolveGameDisplayName,
+} from '../registry.js';
 import { getStrategy, listStrategies, getStrategyNames, calculateNextBet } from '../lib/strategies/index.js';
 import { fetchSavedHistoryEntries, resolveHistoryGameName, selectHistoryGames } from '../lib/history.js';
 import {
@@ -1685,7 +1691,7 @@ program
     }
 
     if (loopMode && !opts.json) {
-      const gameInfo = fixedGame ? fixedGame.name : 'random games';
+      const gameInfo = fixedGame ? getGameDisplayName(fixedGame) : 'random games';
       const strategyInfo = betStrategyName !== 'flat' ? ` | Strategy: ${betStrategyName}` : '';
       const maxBetInfo = maxBet ? ` | Max bet: ${maxBet} APE` : '';
       console.log(`\n🔄 Loop mode: ${gameInfo} (${delaySeconds}s delay${strategyInfo}${maxBetInfo})`);
@@ -1700,7 +1706,7 @@ program
       const freshProfile = loadProfile();
       
       if (freshProfile.paused) {
-        return { shouldStop: true, reason: 'paused', gameResult: null };
+        return { shouldStop: true, reason: 'paused', gameResult: null, playedGameKey: null, playedConfig: null };
       }
 
       const strategy = normalizeStrategy(opts.strategy || freshProfile.persona);
@@ -1715,7 +1721,7 @@ program
         balance = await publicClient.getBalance({ address: account.address });
       } catch (error) {
         console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
-        return { shouldStop: true, reason: 'balance_error', gameResult: null };
+        return { shouldStop: true, reason: 'balance_error', gameResult: null, playedGameKey: null, playedConfig: null };
       }
 
       const balanceApe = parseFloat(formatEther(balance));
@@ -1731,7 +1737,7 @@ program
         };
         if (opts.json) console.log(JSON.stringify(response));
         else console.log(JSON.stringify(response, null, 2));
-        return { shouldStop: true, reason: 'insufficient_balance', gameResult: null };
+        return { shouldStop: true, reason: 'insufficient_balance', gameResult: null, playedGameKey: null, playedConfig: null };
       }
 
       // Determine wager (betOverride from betting strategy takes precedence in loop mode)
@@ -1747,11 +1753,11 @@ program
         wagerApe = parseFloat(amountInput);
         if (isNaN(wagerApe) || wagerApe <= 0) {
           console.error(JSON.stringify({ error: 'Invalid amount.' }));
-          return { shouldStop: true, reason: 'invalid_amount', gameResult: null };
+          return { shouldStop: true, reason: 'invalid_amount', gameResult: null, playedGameKey: null, playedConfig: null };
         }
         if (wagerApe > availableApe) {
           console.error(JSON.stringify({ error: `Insufficient balance. Available: ${availableApe.toFixed(4)} APE` }));
-          return { shouldStop: true, reason: 'insufficient_balance', gameResult: null };
+          return { shouldStop: true, reason: 'insufficient_balance', gameResult: null, playedGameKey: null, playedConfig: null };
         }
       } else {
         wagerApe = calculateWager(availableApe, strategyConfig);
@@ -1775,13 +1781,23 @@ program
         if (opts.mode !== undefined) gameConfig.mode = parseInt(opts.mode);
         else if (positionalConfig.mode !== undefined) gameConfig.mode = positionalConfig.mode;
         else if (gameConfig.mode === undefined) {
-          const [min, max] = strategyConfig.plinko?.mode || [0, 4];
+          const [min, max] = clampRange(
+            strategyConfig.plinko?.mode?.[0] ?? gameEntry.config.mode.default,
+            strategyConfig.plinko?.mode?.[1] ?? gameEntry.config.mode.default,
+            gameEntry.config.mode.min,
+            gameEntry.config.mode.max
+          );
           gameConfig.mode = randomIntInclusive(min, max);
         }
         if (opts.balls !== undefined) gameConfig.balls = parseInt(opts.balls);
         else if (positionalConfig.balls !== undefined) gameConfig.balls = positionalConfig.balls;
         else if (gameConfig.balls === undefined) {
-          const [min, max] = strategyConfig.plinko?.balls || [10, 100];
+          const [min, max] = clampRange(
+            strategyConfig.plinko?.balls?.[0] ?? gameEntry.config.balls.default,
+            strategyConfig.plinko?.balls?.[1] ?? gameEntry.config.balls.default,
+            gameEntry.config.balls.min,
+            gameEntry.config.balls.max
+          );
           gameConfig.balls = randomIntInclusive(min, max);
         }
       } else if (gameEntry.type === 'slots') {
@@ -1889,7 +1905,7 @@ program
       const wagerApeString = formatApeAmount(wagerApe);
 
       // Build description for human output
-      let gameDesc = gameEntry.name;
+      let gameDesc = getGameDisplayName(gameEntry);
       if (gameEntry.type === 'plinko') {
         gameDesc += ` (mode ${gameConfig.mode}, ${gameConfig.balls} balls)`;
       } else if (gameEntry.type === 'slots') {
@@ -2011,7 +2027,13 @@ program
           payout: parseFloat(playResponse.result.payout_ape),
         } : null;
         
-        return { shouldStop: false, gameResult, error: false };
+        return {
+          shouldStop: false,
+          gameResult,
+          error: false,
+          playedGameKey: gameEntry.key,
+          playedConfig: { ...gameConfig },
+        };
       } catch (error) {
         if (opts.json) {
           console.error(JSON.stringify({ error: error.message }));
@@ -2019,7 +2041,7 @@ program
           console.error(`\n❌ Error: ${error.message}\n`);
         }
         // Return error indicator - let loop decide whether to stop
-        return { shouldStop: false, reason: 'error', gameResult: null, error: true };
+        return { shouldStop: false, reason: 'error', gameResult: null, error: true, playedGameKey: null, playedConfig: null };
       }
     }
 
@@ -2032,6 +2054,8 @@ program
       // Track consecutive errors - stop loop after 3 in a row
       let consecutiveErrors = 0;
       const MAX_CONSECUTIVE_ERRORS = 3;
+      let lastPlayedGameKey = fixedGame?.key || null;
+      let lastPlayedConfig = fixedGame ? { ...positionalConfig } : null;
       
       while (true) {
         // Check balance for target/stop-loss
@@ -2103,6 +2127,11 @@ program
         
         const result = await playOnce(nextBet);
         gamesPlayed++;
+
+        if (result.playedGameKey) {
+          lastPlayedGameKey = result.playedGameKey;
+          lastPlayedConfig = result.playedConfig || null;
+        }
         
         // Track result for betting strategy
         if (result.gameResult) {
@@ -2111,8 +2140,8 @@ program
             won: result.gameResult.won,
             wageredApe: result.gameResult.bet,
             payoutApe: result.gameResult.payout,
-            rtpGame: fixedGame?.key || null,
-            rtpConfig: gameConfig || null,
+            rtpGame: result.playedGameKey || lastPlayedGameKey,
+            rtpConfig: result.playedConfig || lastPlayedConfig,
           });
           consecutiveErrors = 0; // Reset on success
         }
@@ -2151,8 +2180,8 @@ program
             currentBalanceApe: currentApe,
             startingBalanceApe: startingBalance,
             stats: loopStats,
-            rtpGame: fixedGame?.key || null,
-            rtpConfig: gameConfig || null,
+            rtpGame: lastPlayedGameKey,
+            rtpConfig: lastPlayedConfig,
             nextDelayLabel: terminalConditionReached ? null : `${delaySeconds}s`,
           }));
           if (terminalConditionReached) continue;
@@ -2504,7 +2533,11 @@ program
 
     const numberedResults = recentGames.map((result, index) => ({
       ...result,
-      game: result.game || resolveHistoryGameName(result.contract),
+      game: resolveGameDisplayName({
+        gameKey: result.game_key || null,
+        contract: result.contract,
+        fallbackName: result.game || resolveHistoryGameName(result.contract),
+      }),
       settled: result.settled ?? Boolean(result.last_sync_on && typeof result.payout_wei === 'string'),
       historyIndex: index + 1,
     }));
@@ -2575,8 +2608,10 @@ program
       const games = GAME_REGISTRY.map(g => ({
         key: g.key,
         name: g.name,
+        displayName: getGameDisplayName(g),
         type: g.type,
         description: g.description,
+        abiVerified: Boolean(g.abiVerified),
         aliases: g.aliases,
         contract: g.contract,
         config: g.config,
@@ -2588,7 +2623,7 @@ program
     } else {
       console.log(`\n${formatHeader('Available Games', '🎰')}\n`);
       for (const game of GAME_REGISTRY) {
-        console.log(`   ${theme.gameName(game.name)} ${theme.dim(`(${game.key})`)}`);
+        console.log(`   ${theme.gameName(getGameDisplayName(game))} ${theme.dim(`(${game.key})`)}`);
         console.log(`      ${theme.value(game.description)}`);
         if (game.aliases?.length) console.log(`      ${theme.label('Aliases:')} ${theme.dim(game.aliases.join(', '))}`);
         console.log('');
@@ -2614,8 +2649,10 @@ program
       if (opts.json) {
         console.log(JSON.stringify({
           name: 'Blackjack',
+          displayName: 'Blackjack',
           type: 'stateful',
           key: 'blackjack',
+          abiVerified: false,
           aliases: ['bj'],
           contract: BLACKJACK_CONTRACT,
           description: 'Classic blackjack with simple and exact-EV auto-play',
@@ -2695,8 +2732,10 @@ ${'═'.repeat(60)}
       if (opts.json) {
         console.log(JSON.stringify({
           name: 'Video Poker',
+          displayName: 'Video Poker',
           type: 'stateful',
           key: 'video-poker',
+          abiVerified: false,
           aliases: ['vp', 'gimboz-poker'],
           contract: VIDEO_POKER_CONTRACT,
           description: 'Jacks or Better video poker with simple and best-EV auto-play',
@@ -2781,14 +2820,20 @@ ${'═'.repeat(60)}
     }
 
     if (opts.json) {
-      console.log(JSON.stringify(game));
+      console.log(JSON.stringify({
+        ...game,
+        displayName: getGameDisplayName(game),
+        abiVerified: Boolean(game.abiVerified),
+      }));
     } else {
+      const displayName = getGameDisplayName(game);
       console.log(`\n${'═'.repeat(60)}`);
-      console.log(`  ${game.name.toUpperCase()}`);
+      console.log(`  ${displayName.toUpperCase()}`);
       console.log(`${'═'.repeat(60)}\n`);
       console.log(`  ${game.description}\n`);
       console.log(`  Type:     ${game.type}`);
       console.log(`  Key:      ${game.key}`);
+      console.log(`  ABI verified: ${Boolean(game.abiVerified)}`);
       if (game.aliases?.length) console.log(`  Aliases:  ${game.aliases.join(', ')}`);
       console.log(`  Contract: ${game.contract}\n`);
       
@@ -2899,7 +2944,8 @@ BETTING STRATEGIES
   dalembert               +1 unit on loss, -1 on win
 
 EXAMPLES
-  ${BINARY_NAME} play jungle-plinko 10 2 50
+  ${BINARY_NAME} play jungle 10 2 50
+  ${BINARY_NAME} play cosmic 10 1 10
   ${BINARY_NAME} play roulette 50 RED
   ${BINARY_NAME} play ape-strong 10 50
 
@@ -3194,7 +3240,7 @@ ${'─'.repeat(70)}
   there are no mid-game decisions. Just use --loop for continuous play:
   
     ${BINARY_NAME} play roulette 10 RED --loop
-    ${BINARY_NAME} play plinko 10 2 50 --loop
+    ${BINARY_NAME} play jungle 10 2 50 --loop
 
 ${'─'.repeat(70)}
   COMBINING WITH STRATEGIES

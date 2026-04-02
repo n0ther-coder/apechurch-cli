@@ -5,6 +5,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { parseEther } from 'viem';
 import {
+  COSMIC_PLINKO_CONTRACT,
+  JUNGLE_PLINKO_CONTRACT,
+} from '../../lib/constants.js';
+import {
   fetchSavedHistoryEntries,
   fetchHistoryEntriesForContract,
   resolveHistoryGameName,
@@ -35,6 +39,11 @@ describe('History Helpers', () => {
         resolveHistoryGameName('0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600'),
         'ApeStrong'
       );
+    });
+
+    it('adds the ABI verified badge for verified Plinko contracts', () => {
+      assert.strictEqual(resolveHistoryGameName(JUNGLE_PLINKO_CONTRACT), 'Jungle Plinko ✔︎');
+      assert.strictEqual(resolveHistoryGameName(COSMIC_PLINKO_CONTRACT), 'Cosmic Plinko ✔︎');
     });
   });
 

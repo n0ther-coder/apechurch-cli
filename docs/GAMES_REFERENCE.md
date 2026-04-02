@@ -15,7 +15,8 @@ Where useful, this file also folds in payout tables and live Transparency-sectio
 | ApeStrong | `play ape-strong <amt> <range>` | `--game ape-strong --amount X --range Y` |
 | Roulette | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` |
 | Baccarat | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` |
-| Plinko | `play jungle-plinko <amt> <mode> <balls>` | `--game jungle-plinko --amount X --mode Y --balls Z` |
+| Jungle Plinko ✔︎ | `play jungle <amt> <mode> <balls>` | `--game jungle --amount X --mode Y --balls Z` |
+| Cosmic Plinko ✔︎ | `play cosmic <amt> <mode> <balls>` | `--game cosmic --amount X --mode Y --balls Z` |
 | Keno | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` |
 | Speed Keno | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` |
 | Dino Dough | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` |
@@ -55,7 +56,8 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 | ApeStrong | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Roulette | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split evenly across comma-separated bets |
 | Baccarat | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | In combined bets, explicit sub-amounts must sum to the total wager |
-| Jungle Plinko | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-100` balls |
+| Jungle Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-100` balls |
+| Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-30` balls |
 | Keno | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Speed Keno | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` batched games |
 | Dino Dough | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
@@ -311,25 +313,26 @@ apechurch-cli play baccarat 25 BANKER --loop --max-games 50
 
 ---
 
-## Jungle Plinko
+## Jungle Plinko ✔︎
 
 **Type:** Plinko  
 **Contract:** `0x88683B2F9E765E5b1eC2745178354C70A03531Ce`  
-**Aliases:** `plinko`
+**ABI verified:** `true`  
+**Aliases:** `jungle`
 
 ### How It Works
 Drop balls through pegs. Higher modes = more volatile multipliers.
 
-On-chain, Jungle Plinko is resolved as a weighted bucket draw, not a peg-by-peg left/right simulation. For each ball the contract samples one uniform integer `r` in `[0, totalWeight(mode) - 1]` and maps it into a bucket via the mode's cumulative weight table.
+On-chain, Jungle Plinko ✔︎ is resolved as a weighted bucket draw, not a peg-by-peg left/right simulation. For each ball the contract samples one uniform integer `r` in `[0, totalWeight(mode) - 1]` and maps it into a bucket via the mode's cumulative weight table.
 
 ### Syntax
 
 ```bash
 # Positional
-apechurch-cli play jungle-plinko <amount> <mode> <balls>
+apechurch-cli play jungle <amount> <mode> <balls>
 
 # Flags
-apechurch-cli play --game jungle-plinko --amount <APE> --mode <0-4> --balls <1-100>
+apechurch-cli play --game jungle --amount <APE> --mode <0-4> --balls <1-100>
 ```
 
 ### Grammar (BNF)
@@ -393,16 +396,106 @@ Implications:
 
 ```bash
 # Standard play
-apechurch-cli play jungle-plinko 10 2 50
+apechurch-cli play jungle 10 2 50
 
 # High risk, max balls
-apechurch-cli play jungle-plinko 100 4 100
+apechurch-cli play jungle 100 4 100
 
 # Safe mode, few balls
-apechurch-cli play jungle-plinko 20 0 10
+apechurch-cli play jungle 20 0 10
 
 # Loop
-apechurch-cli play jungle-plinko 10 2 50 --loop --max-games 20
+apechurch-cli play jungle 10 2 50 --loop --max-games 20
+```
+
+---
+
+## Cosmic Plinko ✔︎
+
+**Type:** Plinko  
+**Contract:** `0x674Bd91adb41897fA780386E610168afBB05e694`  
+**ABI verified:** `true`  
+**Aliases:** `cosmic`
+
+### How It Works
+Drop balls through pegs into asymmetric multiplier buckets. Higher modes = more volatile multipliers and larger top-end payouts.
+
+On-chain, Cosmic Plinko ✔︎ is also resolved as a weighted bucket draw, not a peg-by-peg biased left/right simulation. For each ball the contract samples one uniform integer `r` in `[0, totalWeight(mode) - 1]` and maps it into a bucket via the mode's cumulative weight table.
+
+### Syntax
+
+```bash
+# Positional
+apechurch-cli play cosmic <amount> <mode> <balls>
+
+# Flags
+apechurch-cli play --game cosmic --amount <APE> --mode <0-2> --balls <1-30>
+```
+
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<mode> ::= <integer>               ; 0 <= value <= 2
+<balls> ::= <integer>              ; 1 <= value <= 30
+```
+
+### Parameters
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| amount | 1+ | required | Total wager (split across balls) |
+| mode | 0-2 | 1 | Risk level |
+| balls | 1-30 | 10 | Number of balls |
+
+### Modes
+
+| Mode | Name | Description |
+|------|------|-------------|
+| 0 | Low | Lowest-volatility Cosmic board |
+| 1 | Modest | Mid-volatility Cosmic board |
+| 2 | High | Highest-volatility Cosmic board |
+
+### Exact Calculated RTP
+
+Let `B` be the total wager in wei after subtracting the VRF fee, `N` the ball count, and `betPerBall = floor(B / N)`.
+
+- `deltaWeight_i(mode) = cumulativeWeight_i - cumulativeWeight_(i-1)`
+- `P(bucket_i | mode) = deltaWeight_i(mode) / totalWeight(mode)`
+- `multiplier_i(mode) = payout_i(mode) / 10,000`
+- `RTP_ball(mode) = sum_i(P(bucket_i | mode) * multiplier_i(mode))`
+- `RTP_game(mode, B, N) = RTP_ball(mode) * floor(B / N) * N / B`
+
+Implications:
+
+- If `B % N == 0`, exact RTP is independent of `N`.
+- If `B % N != 0`, exact RTP is reduced only by Solidity floor division dust; the mode table itself is unchanged.
+
+| Mode | Exact RTP | Top Multiplier |
+|------|-----------|----------------|
+| 0 / Low | `97.73%` | `50x` |
+| 1 / Modest | `97.76%` | `100x` |
+| 2 / High | `97.80%` | `250x` |
+
+### Transparency Snapshot
+
+- Running RTP: `97.32%`
+- The verified contract exposes bucket weights via `getBucketWeights(mode)` and per-bucket payouts via `getPayout(mode, index)`.
+
+### Examples
+
+```bash
+# Standard play
+apechurch-cli play cosmic 10 1 10
+
+# High risk, max balls
+apechurch-cli play cosmic 30 2 30
+
+# Low mode, fewer balls
+apechurch-cli play cosmic 12 0 6
+
+# Loop
+apechurch-cli play cosmic 10 1 10 --loop --max-games 20
 ```
 
 ---
@@ -1040,11 +1133,14 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 |------|------|-------------|-----------|--------|--------------------|
 | ApeStrong | Any supported `range` (`5-95`) | Yes | `97.50%` | Exact EV from repo payout formula | `98.53%` |
 | Roulette | All published bet classes | Yes | `97.11%` | Exact weighted sum on 38 pockets | `97.05%` |
-| Jungle Plinko | Mode 0 / Safe | Yes | `98.00%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Jungle Plinko | Mode 1 / Low | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Jungle Plinko | Mode 2 / Medium | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Jungle Plinko | Mode 3 / High | Yes | `97.94%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Jungle Plinko | Mode 4 / Extreme | Yes | `97.99%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Jungle Plinko ✔︎ | Mode 0 / Safe | Yes | `98.00%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Jungle Plinko ✔︎ | Mode 1 / Low | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Jungle Plinko ✔︎ | Mode 2 / Medium | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Jungle Plinko ✔︎ | Mode 3 / High | Yes | `97.94%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Jungle Plinko ✔︎ | Mode 4 / Extreme | Yes | `97.99%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Cosmic Plinko ✔︎ | Mode 0 / Low | Yes | `97.73%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
+| Cosmic Plinko ✔︎ | Mode 1 / Modest | Yes | `97.76%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
+| Cosmic Plinko ✔︎ | Mode 2 / High | Yes | `97.80%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
 | Keno | Picks 1 | Yes | `93.75%` | Exact hypergeometric EV | `86.35%` |
 | Keno | Picks 2 | Yes | `93.75%` | Exact hypergeometric EV | `86.35%` |
 | Keno | Picks 3 | Yes | `93.67%` | Exact hypergeometric EV | `86.35%` |
@@ -1067,9 +1163,6 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 | Blackjack | Dealer Side Only | Yes | `82.02%` | Exact EV from the published dealer-side conditions | `96.84%` |
 | Video Poker / Gimboz Poker | Base paytable at any fixed bet | Yes | `98.16%` | Exact weighted sum over final-hand odds | `89.53%` |
 | Video Poker / Gimboz Poker | `100 APE` bet with known jackpot | Yes | `98.16% + jackpot_ape / 40,000` | Exact parametric jackpot uplift | `89.53%` |
-| Cosmic Plinko | Low | No | `97.64%` | Exact weighted sum over public bucket table | `97.32%` |
-| Cosmic Plinko | Moderate | No | `98.30%` | Exact weighted sum over public bucket table | `97.32%` |
-| Cosmic Plinko | High | No | `99.29%` | Exact weighted sum over public bucket table | `97.32%` |
 | Blocks | Easy | No | `98.41%` | Exact weighted sum over cluster table | `93.92%` |
 | Blocks | Hard | No | `98.55%` | Exact weighted sum over cluster table | `93.92%` |
 | Primes | Easy | No | `98.00%` | Exact weighted sum over prime/zero table | `105.64%` |
@@ -1200,7 +1293,6 @@ These titles appear in Ape Church public docs or the Transparency section, but t
 | Cash Dash | ladder / cash-out tile game | 96.04% | aggregate only | Docs + transparency; each step raises multiplier and can bust the run |
 | Gimboz Smash | range-target risk game | 99.42% | aggregate only | Docs + transparency; not the same mechanic as the supported `ape-strong` command |
 | Hi-Lo Nebula | higher/lower card streak game | 97.84% | paytable | Docs + transparency; public header shows `97.5%` calculated RTP |
-| Cosmic Plinko | low/medium/high-risk plinko | 97.32% | paytable | Docs + transparency; separate from supported `jungle-plinko` |
 | Cult Quest | gem / trap grid cash-out game | 96.67% | aggregate only | Docs + transparency; fewer safe spots means higher risk |
 | Blocks | 3x3 cluster-matching tile game | 93.92% | paytable | Docs + transparency; payout depends on largest color cluster |
 | Glyde or Crash | crash / cash-out multiplier game | 105.59% | aggregate only | Docs + transparency; official docs also use the spelling `Glyder or Crash` |
@@ -1215,21 +1307,12 @@ These titles appear in Ape Church public docs or the Transparency section, but t
 | Game | Useful public detail |
 |------|----------------------|
 | Hi-Lo Nebula | Multiplier depends on the current card. Edge cards only allow one direction at `1.0600x`, while `8` is symmetric at `2.0833x` for either `Higher` or `Lower`. |
-| Cosmic Plinko | Three public risk tables are visible. Top multipliers are `50x` low risk, `100x` moderate, and `250x` high; the most common floor buckets are `0.4x`, `0.3x`, and `0.1x` respectively. |
 | Blocks | Largest color cluster determines payout. Easy mode starts paying at `3 blocks = 1.01x`; hard mode sacrifices that floor but pushes the top end to `5000x` for `9 blocks`. |
 | Primes | Difficulty changes digit count and win odds. Total win chance drops from `50%` on Easy to `12.3%` on Extreme, while the zero jackpot rises from `2.2x` to `500x`. |
 | Sushi Showdown | The visible public slot patterns top out at `500x` for `A A A`, with mixed patterns like `A A B`, `A B A`, and `B A A` all paying `100x`. |
 | Geez Diggerz | The visible public slot patterns top out at `50x` for `A A A`; mixed visible patterns mostly cluster around `8x` to `10x`. |
 
 ### Exact Calculated RTP by Unsupported Game
-
-#### Cosmic Plinko
-
-| Mode | Exact RTP |
-|------|-----------|
-| Low | `97.64%` |
-| Moderate | `98.30%` |
-| High | `99.29%` |
 
 #### Blocks
 

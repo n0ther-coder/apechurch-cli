@@ -389,6 +389,31 @@ describe('Theme', () => {
       assert.strictEqual(gameColumn, 'Bubblegum Heist ');
     });
 
+    it('keeps ABI-verified game names aligned in the 16-column history slot', () => {
+      const result = formatHistoryLine({
+        game: 'Jungle Plinko ✔︎',
+        gameId: '2000',
+        timestamp: Date.UTC(2026, 2, 27, 14, 38, 0),
+        last_sync_on: '2026-03-29T12:12:00.000Z',
+        wager_ape: '4',
+        pnl_ape: '8',
+        settled: true,
+      });
+      const plain = stripAnsi(result);
+      const afterIcon = plain.split('🎉 ')[1];
+      let gameColumn = '';
+      for (const char of Array.from(afterIcon)) {
+        if (getVisibleWidth(gameColumn) >= 16) {
+          break;
+        }
+
+        gameColumn += char;
+      }
+
+      assert.strictEqual(getVisibleWidth(gameColumn), 16);
+      assert.strictEqual(gameColumn, 'Jungle Plinko ✔︎ ');
+    });
+
     it('shows the game id at the end of the line only when requested', () => {
       const game = {
         game: 'Roulette',

@@ -14,6 +14,7 @@ import {
   getGameExpectedRtpReference,
   getGameMaxPayoutReference,
   getGameTheoreticalRtpReference,
+  resolveConfiguredGameVariant,
 } from '../../lib/rtp.js';
 
 describe('RTP Helpers', () => {
@@ -68,6 +69,49 @@ describe('RTP Helpers', () => {
     assert.strictEqual(maxPayout.display, '1,000x');
   });
 
+  it('uses the on-chain Cosmic Plinko mode table even when balls are specified', () => {
+    const expected = getConfiguredGameExpectedRtpReference({
+      game: 'cosmic',
+      config: { mode: 2, balls: 30 },
+    });
+    const maxPayout = getConfiguredGameMaxPayoutReference({
+      game: 'cosmic-plinko',
+      config: { mode: 2, balls: 30 },
+    });
+
+    assert.strictEqual(expected.display, '97.80%');
+    assert.strictEqual(expected.referenceType, 'calculated');
+    assert.strictEqual(expected.calculationKind, 'exact');
+    assert.strictEqual(maxPayout.display, '250x');
+  });
+
+  it('canonicalizes Plinko variants to risk mode only, ignoring balls', () => {
+    const jungle = resolveConfiguredGameVariant({
+      game: 'jungle-plinko',
+      config: { mode: 0, balls: 10 },
+    });
+    const cosmic = resolveConfiguredGameVariant({
+      game: 'cosmic-plinko',
+      variantKey: 'cosmic-plinko:mode:2:balls:30',
+      variantLabel: 'Mode 2 / 30 balls',
+    });
+
+    assert.deepStrictEqual(jungle, {
+      gameKey: 'jungle-plinko',
+      variantKey: 'jungle-plinko:mode:0',
+      variantLabel: 'Safe',
+      rtpGame: 'jungle-plinko',
+      rtpConfig: { mode: 0 },
+    });
+    assert.deepStrictEqual(cosmic, {
+      gameKey: 'cosmic-plinko',
+      variantKey: 'cosmic-plinko:mode:2',
+      variantLabel: 'High',
+      rtpGame: 'cosmic-plinko',
+      rtpConfig: { mode: 2 },
+    });
+  });
+
   it('exposes calculated RTP constants for each exact mode of a game', () => {
     const variants = getGameCalculatedVariantReferences('primes');
 
@@ -90,11 +134,25 @@ describe('RTP Helpers', () => {
       display: variant.calculated.display,
       maxPayout: variant.maxPayout.display,
     })), [
-      { variantLabel: 'Mode 0 / Safe', display: '98.00%', maxPayout: '2.2x' },
-      { variantLabel: 'Mode 1 / Low', display: '97.97%', maxPayout: '5x' },
-      { variantLabel: 'Mode 2 / Medium', display: '97.97%', maxPayout: '15x' },
-      { variantLabel: 'Mode 3 / High', display: '97.94%', maxPayout: '100x' },
-      { variantLabel: 'Mode 4 / Extreme', display: '97.99%', maxPayout: '1,000x' },
+      { variantLabel: 'Safe', display: '98.00%', maxPayout: '2.2x' },
+      { variantLabel: 'Low', display: '97.97%', maxPayout: '5x' },
+      { variantLabel: 'Medium', display: '97.97%', maxPayout: '15x' },
+      { variantLabel: 'High', display: '97.94%', maxPayout: '100x' },
+      { variantLabel: 'Extreme', display: '97.99%', maxPayout: '1,000x' },
+    ]);
+  });
+
+  it('exposes exact calculated RTP constants for every Cosmic Plinko mode', () => {
+    const variants = getGameCalculatedVariantReferences('cosmic');
+
+    assert.deepStrictEqual(variants.map((variant) => ({
+      variantLabel: variant.variantLabel,
+      display: variant.calculated.display,
+      maxPayout: variant.maxPayout.display,
+    })), [
+      { variantLabel: 'Low', display: '97.73%', maxPayout: '50x' },
+      { variantLabel: 'Modest', display: '97.76%', maxPayout: '100x' },
+      { variantLabel: 'High', display: '97.80%', maxPayout: '250x' },
     ]);
   });
 

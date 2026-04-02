@@ -4,6 +4,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { parseEther } from 'viem';
+import { JUNGLE_PLINKO_CONTRACT } from '../../lib/constants.js';
 import {
   analyzeWalletHistory,
   diagnoseUnsyncedSupportedGames,
@@ -328,6 +329,71 @@ describe('Wallet History Analysis', () => {
           game: 'Video Poker (Bet 100 APE)',
           variant_key: 'video-poker:bet:100',
           rtp_config: { betAmountApe: 100, jackpotApe: 25000 },
+        },
+      ]);
+    });
+
+    it('collapses legacy Plinko variants that differ only by balls into one mode row', () => {
+      const breakdown = summarizeHistoryGamesByGame({
+        wallet: WALLET,
+        last_synced_block: '100',
+        last_download_on: '2026-03-29T12:00:00.000Z',
+        games: [
+          {
+            contract: JUNGLE_PLINKO_CONTRACT,
+            game: 'Jungle Plinko ✔︎',
+            game_key: 'jungle-plinko',
+            variant_key: 'jungle-plinko:mode:0:balls:10',
+            variant_label: 'Mode 0 / 10 balls',
+            gameId: '1',
+            timestamp: 1_700_000_000_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('5').toString(),
+            payout_wei: parseEther('6').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: '0',
+            gp_received_raw: '5',
+            wape_received_wei: parseEther('5').toString(),
+            won: true,
+            push: false,
+          },
+          {
+            contract: JUNGLE_PLINKO_CONTRACT,
+            game: 'Jungle Plinko ✔︎',
+            game_key: 'jungle-plinko',
+            config: { mode: 0, balls: 50 },
+            variant_key: 'jungle-plinko:mode:0:balls:50',
+            variant_label: 'Mode 0 / 50 balls',
+            rtp_game: 'jungle-plinko',
+            rtp_config: { mode: 0, balls: 50 },
+            gameId: '2',
+            timestamp: 1_700_000_050_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('5').toString(),
+            payout_wei: parseEther('3').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: '0',
+            gp_received_raw: '5',
+            wape_received_wei: parseEther('5').toString(),
+            won: false,
+            push: false,
+          },
+        ],
+      });
+
+      assert.deepStrictEqual(breakdown.map((entry) => ({
+        game: entry.game,
+        variant_key: entry.variant_key,
+        variant_label: entry.variant_label,
+        rtp_config: entry.rtp_config,
+        games: entry.games,
+      })), [
+        {
+          game: 'Jungle Plinko ✔︎ (Safe)',
+          variant_key: 'jungle-plinko:mode:0',
+          variant_label: 'Safe',
+          rtp_config: { mode: 0 },
+          games: 2,
         },
       ]);
     });

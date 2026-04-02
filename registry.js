@@ -21,6 +21,7 @@ import {
   BACCARAT_CONTRACT,
   BEAR_DICE_CONTRACT,
   BUBBLEGUM_HEIST_CONTRACT,
+  COSMIC_PLINKO_CONTRACT,
   DINO_DOUGH_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   KENO_CONTRACT,
@@ -43,7 +44,8 @@ import {
  * - type: Game type for handler routing (plinko, slots, roulette, etc.)
  * - description: User-facing description
  * - contract: On-chain contract address
- * - aliases: Alternative names for CLI (e.g., 'plinko' → 'jungle-plinko')
+ * - aliases: Alternative names for CLI (e.g., 'jungle' → 'jungle-plinko')
+ * - abiVerified: Whether the verified on-chain ABI/paytable logic has been checked locally
  * - config: Game-specific parameters and their limits
  * - vrf: VRF fee calculation settings
  * - multipliers: Payout multipliers (where applicable)
@@ -232,7 +234,8 @@ export const GAME_REGISTRY = [
     type: 'plinko',
     description: 'Drop balls through pegs into multiplier buckets. Higher modes = bigger risk & reward.',
     contract: JUNGLE_PLINKO_CONTRACT,
-    aliases: ['plinko'],
+    abiVerified: true,
+    aliases: ['jungle'],
     config: {
       mode: {
         min: 0,
@@ -272,6 +275,50 @@ export const GAME_REGISTRY = [
       type: 'plinko',
       baseGas: 289000,    // Base gas for transaction
       perUnitGas: 11000,  // Additional gas per ball
+    },
+  },
+
+  // ===========================================================================
+  // COSMIC PLINKO - Biased-ball plinko with static VRF fee
+  // ===========================================================================
+  {
+    key: 'cosmic-plinko',
+    name: 'Cosmic Plinko',
+    slug: 'cosmic-plinko',
+    type: 'plinko',
+    description: 'Drop balls through pegs into asymmetric multiplier buckets. Higher modes = bigger volatility and top-end payouts.',
+    contract: COSMIC_PLINKO_CONTRACT,
+    abiVerified: true,
+    aliases: ['cosmic'],
+    config: {
+      mode: {
+        min: 0,
+        max: 2,
+        default: 1,
+        description: 'Risk level - higher = more volatile multipliers',
+        bnf: [
+          '<mode> ::= <integer>',
+          '; semantic constraint: 0 <= value <= 2',
+        ],
+        options: [
+          { value: 0, label: 'Low', desc: 'Most stable Cosmic board, top payout 50x' },
+          { value: 1, label: 'Modest', desc: 'Mid-volatility Cosmic board, top payout 100x' },
+          { value: 2, label: 'High', desc: 'Highest volatility Cosmic board, top payout 250x' },
+        ],
+      },
+      balls: {
+        min: 1,
+        max: 30,
+        default: 10,
+        description: 'Number of balls to drop. Wager is split across all balls. More balls = smoother variance.',
+        bnf: [
+          '<balls> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 30',
+        ],
+      },
+    },
+    vrf: {
+      type: 'static',
     },
   },
 
@@ -484,6 +531,34 @@ export const GAME_REGISTRY = [
 // GAME INDEX (Fast Lookup)
 // ============================================================================
 
+export const ABI_VERIFIED_SYMBOL = '✔︎';
+
+function normalizeGameLookupInput(input) {
+  return String(input || '')
+    .replace(/\s*✔︎$/, '')
+    .trim()
+    .toLowerCase();
+}
+
+export function stripAbiVerifiedSymbol(name) {
+  return String(name || '').replace(/\s*✔︎$/, '').trim();
+}
+
+export function formatGameDisplayName(name, abiVerified = false) {
+  const baseName = String(name || '').trim();
+  if (!baseName) return '';
+  if (!abiVerified) {
+    return baseName;
+  }
+
+  const normalizedBaseName = stripAbiVerifiedSymbol(baseName);
+  return `${normalizedBaseName} ${ABI_VERIFIED_SYMBOL}`;
+}
+
+export function getGameDisplayName(game) {
+  return formatGameDisplayName(game?.name, Boolean(game?.abiVerified));
+}
+
 /**
  * Map for O(1) game lookup by key or alias
  *
@@ -493,16 +568,22 @@ export const GAME_REGISTRY = [
  * @type {Map<string, Object>}
  */
 const GAME_INDEX = new Map();
+const GAME_BY_CONTRACT = new Map();
 
 // Build index from registry
 for (const game of GAME_REGISTRY) {
+  const displayName = getGameDisplayName(game);
+
   // Index by primary key
-  GAME_INDEX.set(game.key, game);
+  GAME_INDEX.set(normalizeGameLookupInput(game.key), game);
+  GAME_INDEX.set(normalizeGameLookupInput(game.name), game);
+  GAME_INDEX.set(normalizeGameLookupInput(displayName), game);
+  GAME_BY_CONTRACT.set(String(game.contract).toLowerCase(), game);
 
   // Index by all aliases
   if (Array.isArray(game.aliases)) {
     for (const alias of game.aliases) {
-      GAME_INDEX.set(alias, game);
+      GAME_INDEX.set(normalizeGameLookupInput(alias), game);
     }
   }
 }
@@ -520,15 +601,31 @@ for (const game of GAME_REGISTRY) {
  * @returns {Object|null} Game entry object, or null if not found
  *
  * @example
- * resolveGame('plinko')      // Returns jungle-plinko entry
+ * resolveGame('jungle')      // Returns jungle-plinko entry
+ * resolveGame('cosmic')      // Returns cosmic-plinko entry
  * resolveGame('jungle-plinko') // Returns jungle-plinko entry
  * resolveGame('ROULETTE')    // Returns roulette entry (case-insensitive)
  * resolveGame('invalid')     // Returns null
  */
 export function resolveGame(input) {
   if (!input) return null;
-  const key = String(input).toLowerCase();
+  const key = normalizeGameLookupInput(input);
   return GAME_INDEX.get(key) || null;
+}
+
+export function resolveGameByContract(contract) {
+  if (!contract) return null;
+  return GAME_BY_CONTRACT.get(String(contract).toLowerCase()) || null;
+}
+
+export function resolveGameDisplayName({ gameKey = null, contract = null, fallbackName = null } = {}) {
+  const gameEntry = resolveGame(gameKey) || resolveGameByContract(contract);
+  if (gameEntry) {
+    return getGameDisplayName(gameEntry);
+  }
+
+  const normalizedFallback = String(fallbackName || '').trim();
+  return normalizedFallback || 'Unknown';
 }
 
 /**

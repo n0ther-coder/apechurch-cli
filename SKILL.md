@@ -196,7 +196,8 @@ Sync and cache behavior:
 | ApeStrong | `play ape-strong 10 50` | Dice | `--range 5-95` |
 | Roulette | `play roulette 10 RED` | Table | `--bet RED,BLACK,0-36,00` |
 | Baccarat | `play baccarat 10 BANKER` | Table | `--bet PLAYER,BANKER,TIE` |
-| Jungle Plinko | `play jungle-plinko 10 2 50` | Plinko | `--mode 0-4` `--balls 1-100` |
+| Jungle Plinko ✔︎ | `play jungle 10 2 50` | Plinko | `--mode 0-4` `--balls 1-100` |
+| Cosmic Plinko ✔︎ | `play cosmic 10 1 10` | Plinko | `--mode 0-2` `--balls 1-30` |
 | Keno | `play keno 10` | Keno | `--picks 1-10` `--numbers 1-40` |
 | Speed Keno | `play speed-keno 10` | Keno | `--picks 1-5` `--games 1-20` |
 | Dino Dough | `play dino-dough 10 10` | Slots | `--spins 1-15` |
@@ -283,14 +284,14 @@ apechurch-cli play baccarat 150 140 BANKER 10 TIE  # Combined: 140 on Banker, 10
 
 ---
 
-### Jungle Plinko
+### Jungle Plinko ✔︎
 
 Drop balls through pegs into multiplier buckets.
 
 ```bash
-apechurch-cli play jungle-plinko <amount> <mode> <balls>
-apechurch-cli play jungle-plinko 10 2 50    # 10 APE, mode 2, 50 balls
-apechurch-cli play jungle-plinko 50 4 100   # High risk, max balls
+apechurch-cli play jungle <amount> <mode> <balls>
+apechurch-cli play jungle 10 2 50           # 10 APE, mode 2, 50 balls
+apechurch-cli play jungle 50 4 100          # High risk, max balls
 ```
 
 | Parameter | Range | Description |
@@ -298,7 +299,28 @@ apechurch-cli play jungle-plinko 50 4 100   # High risk, max balls
 | mode | 0-4 | Risk level (0=safe, 4=extreme) |
 | balls | 1-100 | Ball count (wager split across balls) |
 
-**Alias:** `plinko`
+**Alias:** `jungle`
+**ABI verified:** `true`
+
+---
+
+### Cosmic Plinko ✔︎
+
+Drop biased balls through pegs into asymmetric multiplier buckets.
+
+```bash
+apechurch-cli play cosmic <amount> <mode> <balls>
+apechurch-cli play cosmic 10 1 10           # 10 APE, mode 1, 10 balls
+apechurch-cli play cosmic 25 2 30           # High risk, max balls
+```
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| mode | 0-2 | Risk level (0=low, 2=high) |
+| balls | 1-30 | Ball count (wager split across balls) |
+
+**Alias:** `cosmic`
+**ABI verified:** `true`
 
 ---
 

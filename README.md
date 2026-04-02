@@ -1,20 +1,34 @@
 # @n0ther/apechurch-cli
 
-> Summary: Primary overview of the project for GitHub and npm readers. Covers installation, core commands, supported games, history reporting, automation features, and key links.
+> Summary: Hardened, fully AI agents playable Ape Church fork for GitHub and npm readers. Highlights encrypted-only wallet handling, stronger auto gameplay, expanded game support, on-chain history reporting, and operator-focused CLI tooling.
 
-Autonomous gambling CLI for [Ape Church](https://ape.church) on ApeChain.
+Encrypted-only, fully AI agents playable gambling CLI for [Ape Church](https://ape.church) on ApeChain.
 
-Play casino games from the command line. Perfect for AI agents, automation, and degens who prefer terminals.
+Private keys stay local, are stored on disk only in encrypted form in this hardened build, and are never sent by the CLI to Ape Church services in plaintext. The fork also expands game coverage, improves auto gameplay for stateful card games, and adds deeper on-chain reporting and machine-friendly flows for AI agents and terminal-first users.
 
 ## Features
 
-- **12+ Games:** Roulette, Blackjack, Video Poker (Gimboz Poker), Plinko, Slots, Keno, and more
-- **Loop Mode:** Continuous play with safety controls (target, stop-loss, max-games)
-- **Stateful Card Games:** Blackjack and Video Poker (Gimboz Poker) support interactive and auto-play flows
-- **Betting Strategies:** Flat, Martingale, Fibonacci, D'Alembert, Reverse Martingale
-- **AI Agent Ready:** JSON output, structured responses, self-documenting
-- **Fully On-Chain:** Every bet settled on ApeChain with Chainlink VRF
-- **History Download:** Build and cache per-wallet on-chain history with offline reporting and per-game breakdowns
+### Supported Games
+
+- **13 supported games:** `ApeStrong`, `Roulette`, `Baccarat`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno`, `Speed Keno`, `Dino Dough`, `Bubblegum Heist`, `Monkey Match`, `Bear-A-Dice`, `Blackjack`, and `Video Poker / Gimboz Poker`
+- **Fully AI agents playable:** browserless CLI flows, local signing, JSON output, formal command grammar, and self-describing game metadata make it straightforward for coding agents and automations to use directly
+- **Improved auto gameplay:** `Blackjack` and `Video Poker / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
+- **Fully on-chain settlement:** every wager is placed on ApeChain and resolved by the live contracts with Chainlink VRF
+
+### What This Fork Adds
+
+- **Encrypted-only local signer:** private keys stay encrypted on disk, plaintext wallet export is disabled, and signing happens locally without transmitting the key to Ape Church services
+- **AI-agent-first operator UX:** fully AI agents playable command surface with structured outputs, stable aliases, local history caches, and no browser dependency
+- **Better stateful automation:** stronger blackjack and video-poker auto gameplay, side-bet support, unfinished-game recovery, and EV / Monte Carlo helpers for loop planning
+- **Expanded Ape Church coverage:** explicit support for both `jungle` and `cosmic` Plinko instead of a single generic Plinko entry, plus a broader maintained game registry
+- **ABI-verified game metadata:** verified contracts are marked with `✔︎` in CLI output, help, JSON payloads, and docs; Jungle and Cosmic Plinko use verified on-chain contract data
+- **RTP and payout modeling overhaul:** expected RTP, reported RTP, current RTP, and max-payout references across the game catalog, with exact/formula/statistical provenance markers where available
+- **Exact Plinko modeling:** Jungle and Cosmic Plinko mode RTP and top payouts are derived from the live on-chain bucket tables, and Plinko stats are grouped by risk level rather than by ball count
+- **Per-wallet history cache:** `wallet download` reconstructs supported on-chain history into a local cache, with incremental backfills and offline `history` reads
+- **Richer reporting:** `Recent Games`, compact `Game Status`, and full `Game Stats` views show net profit, win rate, RTP, unfinished local games, and per-game breakdowns
+- **Better automation tooling:** loop mode supports `target`, `stop-loss`, `max-games`, machine-readable JSON output, and strategy-driven game/config selection
+- **Stateful UX improvements:** unfinished-game recovery, blackjack side bets, solver-backed auto decisions, and EV / Monte Carlo helpers for loop planning
+- **Documentation overhaul:** formal BNF argument grammar in CLI help, a bundled games reference, clearer examples, and explicit coverage / limitations for on-chain reporting
 
 ## Quick Start
 
@@ -164,7 +178,8 @@ Coverage and limits:
 | ApeStrong | `play ape-strong 10 50` | Pick-your-odds dice |
 | Roulette | `play roulette 10 RED` | American roulette |
 | Baccarat | `play baccarat 10 BANKER` | Classic baccarat |
-| Jungle Plinko | `play jungle-plinko 10 2 50` | Drop balls for multipliers |
+| Jungle Plinko ✔︎ | `play jungle 10 2 50` | Drop balls for multipliers |
+| Cosmic Plinko ✔︎ | `play cosmic 10 1 10` | Asymmetric plinko with higher top-end payouts |
 | Keno | `play keno 10` | Pick numbers 1-40 |
 | Speed Keno | `play speed-keno 10` | Fast batched keno |
 | Dino Dough | `play dino-dough 10 10` | Slot machine |

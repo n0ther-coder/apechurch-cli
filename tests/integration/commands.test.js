@@ -137,7 +137,8 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout } = cli('games');
       assert.ok(stdout.includes('ApeStrong') || stdout.includes('ape-strong'), 'Should list ApeStrong');
       assert.ok(stdout.includes('Roulette') || stdout.includes('roulette'), 'Should list Roulette');
-      assert.ok(stdout.includes('Plinko') || stdout.includes('plinko'), 'Should list Plinko');
+      assert.ok(stdout.includes('Jungle Plinko ✔︎'), 'Should list verified Jungle Plinko');
+      assert.ok(stdout.includes('Cosmic Plinko ✔︎'), 'Should list verified Cosmic Plinko');
     });
 
     it('--stats appends the full Game Stats catalog', () => {
@@ -185,6 +186,22 @@ describe('CLI Commands Integration Tests', () => {
     it('shows details for valid game', () => {
       const { stdout } = cli('game ape-strong');
       assert.ok(stdout.includes('ApeStrong') || stdout.includes('ape-strong'), 'Should show game name');
+    });
+
+    it('resolves the new plinko aliases', () => {
+      const jungle = cli('game jungle').stdout;
+      const cosmic = cli('game cosmic').stdout;
+
+      assert.ok(jungle.includes('Jungle Plinko ✔︎') || jungle.includes('jungle-plinko'), 'Should resolve jungle alias');
+      assert.ok(cosmic.includes('Cosmic Plinko ✔︎') || cosmic.includes('cosmic-plinko'), 'Should resolve cosmic alias');
+    });
+
+    it('exposes ABI verification metadata in JSON for verified games', () => {
+      const { stdout } = cli('game cosmic --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Cosmic Plinko ✔︎');
     });
 
     it('shows per-parameter BNF in game helpers', () => {

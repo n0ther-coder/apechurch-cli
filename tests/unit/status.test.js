@@ -3,6 +3,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { JUNGLE_PLINKO_CONTRACT } from '../../lib/constants.js';
 import { VIDEO_POKER_CONTRACT } from '../../lib/stateful/video-poker/constants.js';
 import {
   buildGameStatusSummary,
@@ -279,6 +280,79 @@ describe('Status Helpers', () => {
           group_key: 'keno:picks:10',
           rtp_game: 'keno',
           rtp_config: { picks: 10 },
+        },
+      ]);
+    });
+
+    it('canonicalizes legacy Plinko rows to risk-only variant buckets', () => {
+      const summary = buildGameStatusSummary({
+        historyGames: [
+          {
+            contract: JUNGLE_PLINKO_CONTRACT,
+            gameId: '1',
+            game: 'Jungle Plinko ✔︎',
+            game_key: 'jungle-plinko',
+            variant_key: 'jungle-plinko:mode:0:balls:10',
+            variant_label: 'Mode 0 / 10 balls',
+            rtp_game: 'jungle-plinko',
+          },
+          {
+            contract: JUNGLE_PLINKO_CONTRACT,
+            gameId: '2',
+            game: 'Jungle Plinko ✔︎',
+            game_key: 'jungle-plinko',
+            config: { mode: 0, balls: 50 },
+            variant_key: 'jungle-plinko:mode:0:balls:50',
+            variant_label: 'Mode 0 / 50 balls',
+            rtp_game: 'jungle-plinko',
+            rtp_config: { mode: 0, balls: 50 },
+          },
+        ],
+        historyEntries: [
+          {
+            contract: JUNGLE_PLINKO_CONTRACT,
+            game: 'Jungle Plinko ✔︎',
+            game_key: 'jungle-plinko',
+            config: { mode: 0, balls: 10 },
+            variant_key: 'jungle-plinko:mode:0:balls:10',
+            variant_label: 'Mode 0 / 10 balls',
+            rtp_game: 'jungle-plinko',
+            rtp_config: { mode: 0, balls: 10 },
+            pnl_ape: '1.0000',
+            wager_ape: '5',
+            payout_ape: '6',
+            won: true,
+            push: false,
+            settled: true,
+          },
+          {
+            contract: JUNGLE_PLINKO_CONTRACT,
+            game: 'Jungle Plinko ✔︎',
+            game_key: 'jungle-plinko',
+            variant_key: 'jungle-plinko:mode:0:balls:50',
+            variant_label: 'Mode 0 / 50 balls',
+            rtp_game: 'jungle-plinko',
+            pnl_ape: '-2.0000',
+            wager_ape: '5',
+            payout_ape: '3',
+            won: false,
+            push: false,
+            settled: true,
+          },
+        ],
+      });
+
+      assert.deepStrictEqual(summary.map((entry) => ({
+        game: entry.game,
+        group_key: entry.group_key,
+        games_played: entry.games_played,
+        rtp_config: entry.rtp_config,
+      })), [
+        {
+          game: 'Jungle Plinko ✔︎ (Safe)',
+          group_key: 'jungle-plinko:mode:0',
+          games_played: 2,
+          rtp_config: { mode: 0 },
         },
       ]);
     });
