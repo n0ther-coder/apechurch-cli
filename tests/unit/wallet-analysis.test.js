@@ -12,6 +12,7 @@ import {
   summarizeHistoryGamesByGame,
 } from '../../lib/wallet-analysis.js';
 import { BLACKJACK_CONTRACT } from '../../lib/stateful/blackjack/constants.js';
+import { VIDEO_POKER_CONTRACT } from '../../lib/stateful/video-poker/constants.js';
 
 const WALLET = '0x1111111111111111111111111111111111111111';
 const SPONSOR = '0x2222222222222222222222222222222222222222';
@@ -55,7 +56,7 @@ describe('Wallet History Analysis', () => {
             push: true,
           },
           {
-            contract: BLACKJACK_CONTRACT,
+            contract: VIDEO_POKER_CONTRACT,
             gameId: '3',
             timestamp: 1_700_000_200_000,
             last_sync_on: null,
@@ -83,6 +84,7 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(summary.net_result_ape, '8');
       assert.strictEqual(summary.win_rate, 50.0);
       assert.strictEqual(summary.rtp, 166.7);
+      assert.strictEqual(summary.max_hit_x, 2);
       assert.strictEqual(summary.total_gp_received_display, '30');
       assert.strictEqual(summary.total_wape_received_ape, '15');
       assert.strictEqual(summary.current_gp_balance_display, '42');
@@ -144,7 +146,7 @@ describe('Wallet History Analysis', () => {
             push: true,
           },
           {
-            contract: BLACKJACK_CONTRACT,
+            contract: VIDEO_POKER_CONTRACT,
             game: 'Blackjack',
             game_key: 'blackjack',
             gameId: '4',
@@ -172,6 +174,7 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(apeStrong.losses, 1);
       assert.strictEqual(apeStrong.total_wagered_ape, '13');
       assert.strictEqual(apeStrong.total_payout_ape, '20');
+      assert.strictEqual(apeStrong.max_hit_x, 2);
       assert.strictEqual(apeStrong.contract_fees_paid_ape, '1.3');
       assert.strictEqual(apeStrong.gas_paid_ape, '0.7');
       assert.strictEqual(apeStrong.total_gp_received_display, '28');
@@ -182,12 +185,151 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(roulette.pushes, 1);
       assert.strictEqual(roulette.total_wagered_ape, '5');
       assert.strictEqual(roulette.total_payout_ape, '5');
+      assert.strictEqual(roulette.max_hit_x, 1);
 
       assert.strictEqual(blackjack.total_saved_games, 1);
       assert.strictEqual(blackjack.games, 0);
       assert.strictEqual(blackjack.unsynced_games, 1);
       assert.strictEqual(blackjack.total_wagered_ape, '0');
+      assert.strictEqual(blackjack.max_hit_x, null);
       assert.strictEqual(blackjack.total_gp_received_display, '0');
+    });
+
+    it('groups synced history stats by saved variant key when available', () => {
+      const breakdown = summarizeHistoryGamesByGame({
+        wallet: WALLET,
+        last_synced_block: '100',
+        last_download_on: '2026-03-29T12:00:00.000Z',
+        games: [
+          {
+            contract: APESTRONG,
+            game: 'Keno',
+            game_key: 'keno',
+            variant_key: 'keno:picks:4',
+            variant_label: 'Picks 4',
+            rtp_game: 'keno',
+            rtp_config: { picks: 4 },
+            gameId: '1',
+            timestamp: 1_700_000_000_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('10').toString(),
+            payout_wei: parseEther('9').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: '0',
+            gp_received_raw: '10',
+            wape_received_wei: parseEther('10').toString(),
+            won: false,
+            push: false,
+          },
+          {
+            contract: APESTRONG,
+            game: 'Keno',
+            game_key: 'keno',
+            variant_key: 'keno:picks:5',
+            variant_label: 'Picks 5',
+            rtp_game: 'keno',
+            rtp_config: { picks: 5 },
+            gameId: '2',
+            timestamp: 1_700_000_050_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('10').toString(),
+            payout_wei: parseEther('12').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: '0',
+            gp_received_raw: '10',
+            wape_received_wei: parseEther('10').toString(),
+            won: true,
+            push: false,
+          },
+        ],
+      });
+
+      assert.deepStrictEqual(breakdown.map((entry) => ({
+        game: entry.game,
+        variant_key: entry.variant_key,
+        rtp_config: entry.rtp_config,
+        max_hit_x: entry.max_hit_x,
+      })), [
+        {
+          game: 'Keno (Picks 4)',
+          variant_key: 'keno:picks:4',
+          rtp_config: { picks: 4 },
+          max_hit_x: 0.9,
+        },
+        {
+          game: 'Keno (Picks 5)',
+          variant_key: 'keno:picks:5',
+          rtp_config: { picks: 5 },
+          max_hit_x: 1.2,
+        },
+      ]);
+    });
+
+    it('normalizes legacy video poker bet variants into the grouped base and jackpot tiers', () => {
+      const breakdown = summarizeHistoryGamesByGame({
+        wallet: WALLET,
+        last_synced_block: '100',
+        last_download_on: '2026-03-29T12:00:00.000Z',
+        games: [
+          {
+            contract: BLACKJACK_CONTRACT,
+            game: 'Video Poker',
+            game_key: 'video-poker',
+            variant_key: 'video-poker:bet:25',
+            variant_label: 'Bet 25 APE',
+            rtp_game: 'video-poker',
+            rtp_config: { betAmountApe: 25 },
+            gameId: '1',
+            timestamp: 1_700_000_000_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('25').toString(),
+            payout_wei: parseEther('50').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: '0',
+            gp_received_raw: '25',
+            wape_received_wei: parseEther('25').toString(),
+            won: true,
+            push: false,
+          },
+          {
+            contract: BLACKJACK_CONTRACT,
+            game: 'Video Poker',
+            game_key: 'video-poker',
+            variant_key: 'video-poker:bet:100:jackpot',
+            variant_label: 'Bet 100 + jackpot',
+            rtp_game: 'video-poker',
+            rtp_config: { betAmountApe: 100, jackpotApe: 25000 },
+            gameId: '2',
+            timestamp: 1_700_000_050_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('100').toString(),
+            payout_wei: parseEther('250').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: '0',
+            gp_received_raw: '100',
+            wape_received_wei: parseEther('100').toString(),
+            won: true,
+            push: false,
+          },
+        ],
+      });
+
+      assert.deepStrictEqual(breakdown.map((entry) => ({
+        game: entry.game,
+        variant_key: entry.variant_key,
+        rtp_config: entry.rtp_config,
+      })), [
+        {
+          game: 'Video Poker (Bet 1/5/10/25/50 APE)',
+          variant_key: 'video-poker:bet:base',
+          rtp_config: { betAmountApe: 25 },
+        },
+        {
+          game: 'Video Poker (Bet 100 APE)',
+          variant_key: 'video-poker:bet:100',
+          rtp_config: { betAmountApe: 100, jackpotApe: 25000 },
+        },
+      ]);
     });
   });
 

@@ -68,9 +68,18 @@ export const GAME_REGISTRY = [
         max: 10,
         default: 5,
         description: 'How many numbers to pick (1-10). More picks = higher risk/reward.',
+        bnf: [
+          '<picks> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 10',
+        ],
       },
       numbers: {
         description: 'Which numbers to bet on (1-40). If not specified, random picks are used.',
+        bnf: [
+          '<numbers> ::= "random" | <keno-number> ( "," <keno-number> )*',
+          '<keno-number> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 40',
+        ],
         examples: ['1,7,13,25,40', '5,10,15,20,25,30,35,40', 'random'],
       },
     },
@@ -96,6 +105,10 @@ export const GAME_REGISTRY = [
         max: 95,
         default: 50,
         description: 'Win probability (%). Roll under this number to win. Lower = riskier, bigger payout.',
+        bnf: [
+          '<range> ::= <integer>',
+          '; semantic constraint: 5 <= value <= 95',
+        ],
         examples: [
           { value: 50, payout: '1.95x', winChance: '50%' },
           { value: 25, payout: '3.9x', winChance: '25%' },
@@ -124,6 +137,11 @@ export const GAME_REGISTRY = [
     config: {
       bet: {
         description: 'What to bet on: PLAYER, BANKER, TIE. For combined bets, specify amounts explicitly.',
+        bnf: [
+          '<bet> ::= "PLAYER" | "BANKER" | "TIE" | <combo-bet>',
+          '<combo-bet> ::= <ape> <side-bet> <ape> "TIE"',
+          '<side-bet> ::= "PLAYER" | "BANKER"',
+        ],
         examples: ['PLAYER', 'BANKER', 'TIE', '140 BANKER 10 TIE', '180 PLAYER 20 TIE'],
       },
     },
@@ -152,6 +170,12 @@ export const GAME_REGISTRY = [
     config: {
       bet: {
         description: 'What to bet on. Numbers (0-36, 00), colors (RED, BLACK), parity (ODD, EVEN), sections, etc.',
+        bnf: [
+          '<bet-list> ::= <roulette-bet> ( "," <roulette-bet> )*',
+          '<roulette-bet> ::= "0" | "00" | <roulette-number> | "RED" | "BLACK" | "ODD" | "EVEN" | "FIRST_HALF" | "SECOND_HALF" | "FIRST_THIRD" | "SECOND_THIRD" | "THIRD_THIRD" | "FIRST_COL" | "SECOND_COL" | "THIRD_COL"',
+          '<roulette-number> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 36',
+        ],
         examples: ['RED', 'BLACK', '17', '0', '00', 'RED,BLACK', 'FIRST_THIRD', 'ODD'],
       },
     },
@@ -215,6 +239,10 @@ export const GAME_REGISTRY = [
         max: 4,
         default: 2,
         description: 'Risk level - higher = more volatile multipliers',
+        bnf: [
+          '<mode> ::= <integer>',
+          '; semantic constraint: 0 <= value <= 4',
+        ],
         options: [
           { value: 0, label: 'Safe', desc: 'Tight multiplier range, consistent returns' },
           { value: 1, label: 'Low', desc: 'Slightly wider range, small upside' },
@@ -228,6 +256,10 @@ export const GAME_REGISTRY = [
         max: 100,
         default: 50,
         description: 'Number of balls to drop. Wager is split across all balls. More balls = smoother variance.',
+        bnf: [
+          '<balls> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 100',
+        ],
       },
     },
     /**
@@ -260,6 +292,10 @@ export const GAME_REGISTRY = [
         max: 15,
         default: 10,
         description: 'Number of spins per bet. Wager is split across all spins. More spins = smoother variance.',
+        bnf: [
+          '<spins> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 15',
+        ],
       },
     },
     vrf: {
@@ -284,6 +320,10 @@ export const GAME_REGISTRY = [
         max: 15,
         default: 10,
         description: 'Number of spins per bet. Wager is split across all spins. More spins = smoother variance.',
+        bnf: [
+          '<spins> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 15',
+        ],
       },
     },
     vrf: {
@@ -308,9 +348,18 @@ export const GAME_REGISTRY = [
         max: 5,
         default: 3,
         description: 'How many numbers to pick (1-5). More picks = higher risk/reward.',
+        bnf: [
+          '<picks> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 5',
+        ],
       },
       numbers: {
         description: 'Which numbers to bet on (1-20). If not specified, random picks are used.',
+        bnf: [
+          '<numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*',
+          '<speed-keno-number> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 20',
+        ],
         examples: ['1,7,13', '5,10,15,18,20', 'random'],
       },
       games: {
@@ -318,6 +367,10 @@ export const GAME_REGISTRY = [
         max: 20,
         default: 5,
         description: 'Number of games to batch (1-20). Wager is split across all games.',
+        bnf: [
+          '<games> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 20',
+        ],
       },
     },
     // Perfect match multipliers
@@ -358,6 +411,10 @@ export const GAME_REGISTRY = [
         max: 2,
         default: 1,
         description: 'Risk level. 1=Low Risk (6 monkeys, easier matches), 2=Normal Risk (7 monkeys, better mid payouts).',
+        bnf: [
+          '<mode> ::= <integer>',
+          '; semantic constraint: value ∈ {1, 2}',
+        ],
         options: [
           { value: 1, label: 'Low Risk', desc: '6 monkey types — easier to match' },
           { value: 2, label: 'Normal Risk', desc: '7 monkey types — better mid-tier payouts' },
@@ -386,6 +443,10 @@ export const GAME_REGISTRY = [
         max: 4,
         default: 0,
         description: 'Difficulty level. Higher = more losing numbers. Stick to 0 for auto-play!',
+        bnf: [
+          '<difficulty> ::= <integer>',
+          '; semantic constraint: 0 <= value <= 4',
+        ],
         options: [
           { value: 0, label: 'Easy', desc: 'Lose on 7 — safest mode' },
           { value: 1, label: 'Normal', desc: 'Lose on 6,7,8 — risky' },
@@ -399,6 +460,11 @@ export const GAME_REGISTRY = [
         max: 5,
         default: 1,
         description: 'Number of dice rolls (1-5). More rolls = higher payout but more chances to lose.',
+        bnf: [
+          '<rolls> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 5',
+          '; additional contract constraint: if difficulty >= 3 then rolls <= 3',
+        ],
       },
     },
     /**

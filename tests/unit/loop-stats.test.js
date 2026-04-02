@@ -19,6 +19,7 @@ describe('Loop Stats', () => {
       currentBalanceApe: 173.4,
       startingBalanceApe: 150,
       stats,
+      rtpGame: 'ape-strong',
       nextDelayLabel: '6s',
     });
 
@@ -27,7 +28,7 @@ describe('Loop Stats', () => {
     assert.deepStrictEqual(lines, [
       '⚖️  Balance: 173.40 APE (+23.40)',
       '✌️  Win rate: 50.00% (1/2)',
-      '🎲 RTP: 95.56% (payout 129.00  wagered 135.00  loss 6.00)',
+      '🎲 RTP (expected/reported/current): 97.50% 👌 / 98.53% / 95.56% (payout 129.00 APE  wagered 135.00 APE  loss 6.00 APE)',
       '🧮 Points: 1350 (225.0 GB/APE)',
       '⏳ Next game in 6s',
     ]);
@@ -43,6 +44,7 @@ describe('Loop Stats', () => {
       currentBalanceApe: 173.4,
       startingBalanceApe: 150,
       stats,
+      rtpGame: 'ape-strong',
       nextDelayLabel: '6s',
     });
 
@@ -51,7 +53,7 @@ describe('Loop Stats', () => {
     assert.deepStrictEqual(lines, [
       '⚖️  Balance: 173.40 APE (+23.40)',
       '✌️  Win rate: 50.00% (1/2)',
-      '🎲 RTP: 131.48% (payout 177.50  wagered 135.00  win 42.50)',
+      '🎲 RTP (expected/reported/current): 97.50% 👌 / 98.53% / 131.48% (payout 177.50 APE  wagered 135.00 APE  win 42.50 APE)',
       '🧮 Points: 1350 (+1350 GB, +42.50 APE)',
       '⏳ Next game in 6s',
     ]);
@@ -66,6 +68,7 @@ describe('Loop Stats', () => {
       currentBalanceApe: 150,
       startingBalanceApe: 150,
       stats,
+      rtpGame: 'ape-strong',
       nextDelayLabel: '6s',
     });
 
@@ -74,7 +77,7 @@ describe('Loop Stats', () => {
     assert.deepStrictEqual(lines, [
       '⚖️  Balance: 150.00 APE (+0.00)',
       '✌️  Win rate: 0.00% (0/1)',
-      '🎲 RTP: 100.00% (payout 25.00  wagered 25.00  even 0.00)',
+      '🎲 RTP (expected/reported/current): 97.50% 👌 / 98.53% / 100.00% (payout 25.00 APE  wagered 25.00 APE  even 0.00 APE)',
       '🧮 Points: 250 (+250 GB)',
       '⏳ Next game in 6s',
     ]);
@@ -89,12 +92,13 @@ describe('Loop Stats', () => {
       currentBalanceApe: 200,
       startingBalanceApe: 150,
       stats,
+      rtpGame: 'ape-strong',
     });
 
     assert.deepStrictEqual(output.split('\n'), [
       '⚖️  Balance: 200.00 APE (+50.00)',
       '✌️  Win rate: 100.00% (1/1)',
-      '🎲 RTP: 150.00% (payout 150.00  wagered 100.00  win 50.00)',
+      '🎲 RTP (expected/reported/current): 97.50% 👌 / 98.53% / 150.00% (payout 150.00 APE  wagered 100.00 APE  win 50.00 APE)',
       '🧮 Points: 1000 (+1000 GB, +50.00 APE)',
     ]);
   });
@@ -110,6 +114,7 @@ describe('Loop Stats', () => {
       startingBalanceApe: 150,
       endingBalanceApe: 188,
       stats,
+      rtpGame: 'ape-strong',
     });
 
     const lines = output.split('\n');
@@ -120,7 +125,7 @@ describe('Loop Stats', () => {
       '   💸 Fees paid: 2.0000 APE',
       '   🎉 Net result: +38.00 APE (⚖️  end 188.00 > start 150.00)',
       '   ✌️  Win rate: 50.00% (1/2)',
-      '   🎲 RTP: 129.63% (payout 175.00  wagered 135.00  win 40.00)',
+      '   🎲 RTP (expected/reported/current): 97.50% 👌 / 98.53% / 129.63% (payout 175.00 APE  wagered 135.00 APE  win 40.00 APE)',
       '   🧮 Points: 1350 (+1350 GB, +40.00 APE)',
     ]);
   });
@@ -138,5 +143,34 @@ describe('Loop Stats', () => {
     });
 
     assert.match(output, /🤝 Net result: \+0\.00 APE \(⚖️  end 150\.00 = start 150\.00\)/);
+  });
+
+  it('scopes current RTP to the active variant bucket when config is provided', () => {
+    const stats = createLoopStats();
+
+    recordLoopGame(stats, {
+      won: false,
+      wageredApe: 10,
+      payoutApe: 9,
+      rtpGame: 'keno',
+      rtpConfig: { picks: 4 },
+    });
+    recordLoopGame(stats, {
+      won: true,
+      wageredApe: 10,
+      payoutApe: 12,
+      rtpGame: 'keno',
+      rtpConfig: { picks: 5 },
+    });
+
+    const output = formatLoopProgress({
+      currentBalanceApe: 101,
+      startingBalanceApe: 100,
+      stats,
+      rtpGame: 'keno',
+      rtpConfig: { picks: 4 },
+    });
+
+    assert.match(output, /93\.39% 👌 \/ 86\.35% \/ 90\.00%/);
   });
 });

@@ -38,8 +38,7 @@
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ TRANSFERS & STAKING                                                     │
  * ├──────────────────────────────────────────────────────────────────────────┤
- * │ send <to> <amt>  Send APE to another address                            │
- * │ send gp <to>     Send GP (Gimbo Points) tokens                          │
+ * │ send <asset> <amt> <to>  Send APE or GP to another address              │
  * │ house <action>   The House: deposit/withdraw/status (be the house)      │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ CONTESTS                                                                │
@@ -89,6 +88,7 @@ import {
   CONTEST_END_DATE,
   REGISTER_AGENT_ABI,
   USER_INFO_ABI,
+  WAPE_TOKEN_CONTRACT,
   GP_TOKEN_CONTRACT,
   GP_TOKEN_ABI,
   GP_DECIMALS,
@@ -183,6 +183,16 @@ import {
   formatAddress,
   formatHistoryLine,
 } from '../lib/theme.js';
+import { fitAnsiText, getVisibleWidth } from '../lib/ansi.js';
+import {
+  getGameCalculatedVariantReference,
+  getConfiguredGameMaxPayoutReference,
+  getGameMaxPayoutVariantReference,
+  formatMaxPayoutReference,
+  formatRtpDetails,
+  formatRtpTripletCells,
+  formatRtpTripletLine,
+} from '../lib/rtp.js';
 
 // --- CLI Setup ---
 const program = new Command();
@@ -190,9 +200,55 @@ const PACKAGE_VERSION = pkg.version || '0.0.0';
 
 program.name(BINARY_NAME).version(PACKAGE_VERSION, '-v, --version', 'output the current version');
 const GAME_LIST = listGames().join(' | ');
+const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
+  '<ape> ::= <number>                                 ; decimal APE amount; value > 0',
+  '<mode> ::= <integer>                               ; 0 <= value <= 4',
+  '<balls> ::= <integer>                              ; 1 <= value <= 100',
+  '<spins> ::= <integer>                              ; 1 <= value <= 15',
+  '<range> ::= <integer>                              ; 5 <= value <= 95',
+  '<picks> ::= <integer>                              ; 1 <= value <= 10 for Keno, 1 <= value <= 5 for Speed Keno',
+  '<games> ::= <integer>                              ; 1 <= value <= 20',
+  '<difficulty> ::= <integer>                         ; 0 <= value <= 4',
+  '<rolls> ::= <integer>                              ; 1 <= value <= 5, and <= 3 when difficulty >= 3',
+  '<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*',
+  '<keno-number> ::= <integer>                        ; 1 <= value <= 40',
+  '<speed-keno-numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*',
+  '<speed-keno-number> ::= <integer>                  ; 1 <= value <= 20',
+  '<roulette-bets> ::= <roulette-bet> ( "," <roulette-bet> )*',
+  '<roulette-bet> ::= "0" | "00" | <roulette-number> | "RED" | "BLACK" | "ODD" | "EVEN" | "FIRST_HALF" | "SECOND_HALF" | "FIRST_THIRD" | "SECOND_THIRD" | "THIRD_THIRD" | "FIRST_COL" | "SECOND_COL" | "THIRD_COL"',
+  '<roulette-number> ::= <integer>                    ; 1 <= value <= 36',
+  '<baccarat-bet> ::= "PLAYER" | "BANKER" | "TIE" | <combo-baccarat-bet>',
+  '<combo-baccarat-bet> ::= <ape> <baccarat-side> <ape> "TIE"',
+  '<baccarat-side> ::= "PLAYER" | "BANKER"',
+]);
 
 function printInvocationVersion() {
   console.error(`${BINARY_NAME} v${PACKAGE_VERSION}`);
+}
+
+function formatHelpBnfSection(lines = []) {
+  return `
+Grammar (BNF):
+  ${lines.join('\n  ')}
+
+Notes:
+  - Pass \`--numbers\` as a single CLI token, for example \`--numbers 1,7,13,25,40\`.
+  - Run \`${BINARY_NAME} game <name>\` for per-game grammar and constraints.
+`;
+}
+
+function printConfigBnf(cfg = {}) {
+  const lines = Array.isArray(cfg?.bnf)
+    ? cfg.bnf
+    : (typeof cfg?.bnf === 'string' && cfg.bnf.trim() ? [cfg.bnf] : []);
+  if (lines.length === 0) {
+    return;
+  }
+
+  console.log('      BNF:');
+  for (const line of lines) {
+    console.log(`        ${line}`);
+  }
 }
 
 // --- Helper: Interactive prompt ---
@@ -275,22 +331,12 @@ function formatNullableValue(value, formatter) {
   return formatter ? formatter(value) : String(value);
 }
 
-function formatHistoryOutcomeLabel(apeAmount, decimals = 2) {
-  const value = Number.parseFloat(apeAmount || 0);
-  const absoluteValue = Number.isFinite(value) ? Math.abs(value) : 0;
-  const formattedAmount = formatPlainApe(absoluteValue.toString(), decimals);
-
-  if (value > 0) {
-    return `win ${formattedAmount}`;
-  }
-  if (value < 0) {
-    return `loss ${formattedAmount}`;
-  }
-  return `even ${formattedAmount}`;
-}
-
 function formatHistoryRtpDetails(stats) {
-  return theme.dim(`(payout ${formatPlainApe(stats.total_payout_ape, 2)}  wagered ${formatPlainApe(stats.total_wagered_ape, 2)}  ${formatHistoryOutcomeLabel(stats.win_loss_ape)})`);
+  return formatRtpDetails({
+    totalPayoutApe: stats.total_payout_ape,
+    totalWageredApe: stats.total_wagered_ape,
+    netResultApe: stats.win_loss_ape,
+  });
 }
 
 function formatHistoryStatsReport(stats) {
@@ -304,7 +350,7 @@ function formatHistoryStatsReport(stats) {
     `   ⛽️ Gas paid: ${formatPlainApe(stats.gas_paid_ape, 4)}`,
     `   ${netResultIcon} Net result: ${formatPnL(stats.net_result_ape, 2)} ${theme.dim(`(gross ${formatPlainApe(stats.gross_result_ape)})`)}`,
     `   ✌️  Win rate: ${stats.win_rate.toFixed(2)}% (${stats.wins}/${stats.games})`,
-    `   🎲 RTP: ${stats.rtp.toFixed(2)}% ${formatHistoryRtpDetails(stats)}`,
+    `   ${formatRtpTripletLine({ currentRtp: stats.rtp })} ${formatHistoryRtpDetails(stats)}`,
     `   🎟️  APE Wagered (wAPE): ${formatNullableValue(stats.current_wape_balance_ape, (value) => formatPlainTokenAmount(value, 2))}/${formatPlainTokenAmount(stats.total_wape_received_ape, 2)}`,
     `   🧮 Gimbo Points (GP): ${formatNullableValue(stats.current_gp_balance_display)}/${stats.total_gp_received_display}`,
     `   🪜 Level rate: Every ${GP_PER_LEVEL.toLocaleString('en-US')} GP = 1 Level`,
@@ -337,7 +383,12 @@ function formatHistoryBreakdownReport(gameStats) {
     lines.push(`      ⛽️ Gas paid: ${formatPlainApe(stats.gas_paid_ape, 4)}`);
     lines.push(`      ${netResultIcon} Net result: ${formatPnL(stats.net_result_ape, 2)} ${theme.dim(`(gross ${formatPlainApe(stats.gross_result_ape)})`)}`);
     lines.push(`      ✌️  Win rate: ${stats.win_rate.toFixed(2)}% (${stats.wins}/${stats.games})`);
-    lines.push(`      🎲 RTP: ${stats.rtp.toFixed(2)}% ${formatHistoryRtpDetails(stats)}`);
+    lines.push(`      ${formatRtpTripletLine({
+      game: stats.rtp_game || stats.game_key || stats.game,
+      config: stats.rtp_config || null,
+      currentRtp: stats.rtp,
+    })} ${formatHistoryRtpDetails(stats)}`);
+    lines.push(`      🎯 Max hit: ${formatObservedMultiplier(stats.max_hit_x)}`);
     lines.push(`      🎟️  APE Wagered (wAPE) received: ${formatPlainTokenAmount(stats.total_wape_received_ape, 2)}`);
     lines.push(`      🧮 Gimbo Points (GP) received: ${stats.total_gp_received_display}`);
     lines.push(`      🪜 Level rate: Every ${GP_PER_LEVEL.toLocaleString('en-US')} GP = 1 Level`);
@@ -354,26 +405,137 @@ function formatHistoryBreakdownReport(gameStats) {
 
 function formatNullablePercent(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
-    return theme.dim('n.a.');
+    return theme.warning('…');
   }
 
   return theme.value(`${Number(value).toFixed(2)}%`);
 }
 
-function formatGameStatusLine(game) {
-  const parts = [
-    `   ${theme.gameName(game.game)}`,
-    `${theme.dim('played')} ${theme.value(String(game.games_played))}`,
-    `${theme.dim('net')} ${game.net_profit_ape === null ? theme.dim('unavailable') : formatPnL(game.net_profit_ape, 4)}`,
-    `${theme.dim('win rate')} ${formatNullablePercent(game.win_rate)}`,
-    `${theme.dim('RTP')} ${formatNullablePercent(game.rtp)}`,
-  ];
+function padAnsiStart(text, width) {
+  const source = String(text ?? '');
+  return `${' '.repeat(Math.max(0, width - getVisibleWidth(source)))}${source}`;
+}
 
-  if ((game.unfinished_games || 0) > 0) {
-    parts.push(`${theme.dim('unfinished')} ${theme.value(String(game.unfinished_games))}`);
+function formatGameStatsCell(text, width, align = 'left') {
+  return align === 'right'
+    ? padAnsiStart(text, width)
+    : fitAnsiText(text, width);
+}
+
+function splitGameStatsDisplay(game) {
+  const variantLabel = String(game?.variant_label || '').trim();
+  const displayGame = String(game?.game || 'Unknown').trim() || 'Unknown';
+  if (!variantLabel) {
+    return {
+      gameName: displayGame,
+      modeLabel: theme.warning('…'),
+    };
   }
 
-  return parts.join('  ');
+  const suffix = ` (${variantLabel})`;
+  return {
+    gameName: displayGame.endsWith(suffix)
+      ? displayGame.slice(0, -suffix.length).trim()
+      : displayGame,
+    modeLabel: theme.value(variantLabel),
+  };
+}
+
+function formatObservedMultiplier(value) {
+  if (value === null || value === undefined || value === '') {
+    return theme.warning('…');
+  }
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return theme.warning('…');
+  }
+
+  const display = numeric
+    .toFixed(3)
+    .replace(/\.?0+$/, '')
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  return theme.value(`${display}x`);
+}
+
+function formatGameStatsTable(games = []) {
+  const columns = [
+    { key: 'game', header: 'game', align: 'left' },
+    { key: 'mode', header: 'mode', align: 'left' },
+    { key: 'plays', header: 'plays', align: 'right' },
+    { key: 'net_profit', header: 'net profit', align: 'right' },
+    { key: 'win_rate', header: 'win rate', align: 'right' },
+    { key: 'expected_rtp', header: 'expected RTP', align: 'right' },
+    { key: 'reported_rtp', header: 'reported RTP', align: 'right' },
+    { key: 'current_rtp', header: 'current RTP', align: 'right' },
+    { key: 'max_payout', header: 'max payout (x)', align: 'right' },
+    { key: 'max_hit', header: 'max hit (x)', align: 'right' },
+  ];
+
+  const rows = games.map((game) => {
+    const { gameName, modeLabel } = splitGameStatsDisplay(game);
+    const variantExpectedReference = game.group_key === 'blackjack:mixed'
+      ? null
+      : getGameCalculatedVariantReference(game.group_key)?.calculated;
+    const variantMaxPayoutReference = game.group_key === 'blackjack:mixed'
+      ? null
+      : getGameMaxPayoutVariantReference(game.group_key);
+    const rtpCells = formatRtpTripletCells({
+      game: game.rtp_game || game.base_game_key || game.game,
+      config: game.rtp_config || null,
+      expectedReference: variantExpectedReference,
+      currentRtp: game.rtp,
+    });
+    const maxPayoutReference = game.group_key === 'blackjack:mixed' && !game.rtp_config
+      ? null
+      : ((game.rtp_config
+      ? getConfiguredGameMaxPayoutReference({
+          game: game.rtp_game || game.base_game_key || game.game,
+          config: game.rtp_config || null,
+        })
+      : null)
+      || variantMaxPayoutReference
+      || getConfiguredGameMaxPayoutReference({
+          game: game.rtp_game || game.base_game_key || game.game,
+          config: game.rtp_config || null,
+        }));
+
+    return {
+      game: theme.gameName(gameName),
+      mode: modeLabel,
+      plays: theme.value(String(game.games_played)),
+      net_profit: game.net_profit_ape === null ? theme.warning('…') : formatPnL(game.net_profit_ape, 4),
+      win_rate: formatNullablePercent(game.win_rate),
+      expected_rtp: rtpCells.expected,
+      reported_rtp: rtpCells.reported,
+      current_rtp: rtpCells.current,
+      max_payout: formatMaxPayoutReference(maxPayoutReference),
+      max_hit: formatObservedMultiplier(game.max_hit_x),
+    };
+  });
+
+  const widths = Object.fromEntries(columns.map(({ key, header }) => [
+    key,
+    Math.max(
+      header.length,
+      ...rows.map((row) => getVisibleWidth(row[key]))
+    ),
+  ]));
+
+  const renderRow = (row) => `   | ${columns
+    .map(({ key, align }) => formatGameStatsCell(row[key], widths[key], align))
+    .join(' | ')} |`;
+
+  const headerRow = renderRow(Object.fromEntries(columns.map(({ key, header }) => [key, header])));
+  const separatorRow = `   |-${columns.map(({ key }) => '-'.repeat(widths[key])).join('-|-')}-|`;
+
+  return [
+    headerRow,
+    separatorRow,
+    ...rows.map(renderRow),
+    `   ${theme.dim('Legend:')} ${theme.value('📄 documented')}  ${theme.value('👌 exact formula')}  ${theme.value('🔮 statistical')}  ${theme.warning('… unavailable')}`,
+  ].join('\n');
 }
 
 function formatWalletDownloadReport(downloadResult) {
@@ -1166,16 +1328,14 @@ program
       console.log(formatField('Can Play', formatYesNo(response.can_play)));
       console.log('');
 
-      console.log(`${formatHeader('Game Status', '🎮')}\n`);
+      console.log(`${formatHeader('Game Stats', '🎮')}\n`);
       if (failedHistoryFetches > 0) {
         console.log(`   ${theme.warning(`Per-game stats are unavailable for ${failedHistoryFetches} saved game(s) while on-chain history was loading.`)}`);
       }
       if (gameStats.length === 0) {
         console.log(`   ${theme.dim('No completed or unfinished games tracked yet.')}`);
       } else {
-        for (const game of gameStats) {
-          console.log(formatGameStatusLine(game));
-        }
+        console.log(formatGameStatsTable(gameStats));
       }
       console.log('');
 
@@ -1304,14 +1464,15 @@ program
   .command('bet')
   .requiredOption('--game <type>', GAME_LIST)
   .requiredOption('--amount <ape>', 'Wager amount')
-  .option('--mode <0-4>', 'Plinko mode', '0')
-  .option('--balls <1-100>', 'Plinko balls', '50')
-  .option('--spins <1-15>', 'Slots spins', '10')
+  .option('--mode <mode>', 'Plinko mode', '0')
+  .option('--balls <balls>', 'Plinko balls', '50')
+  .option('--spins <spins>', 'Slots spins', '10')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
-  .option('--range <5-95>', 'ApeStrong range', '50')
-  .option('--picks <1-10>', 'Keno pick count', '5')
-  .option('--numbers <nums>', 'Keno numbers (e.g., 1,7,13,25,40)')
+  .option('--range <range>', 'ApeStrong range', '50')
+  .option('--picks <picks>', 'Keno pick count', '5')
+  .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--timeout <ms>', 'Max wait for result (0 = no wait)', '0')
+  .addHelpText('after', formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES))
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: true, gameplay: true, forceGameplayPrompt: true });
     const { publicClient } = createClients();
@@ -1374,16 +1535,16 @@ program
   .description('Play a game (random or specified)')
   .option('--game <name>', 'Game to play')
   .option('--amount <ape>', 'Amount to wager')
-  .option('--mode <0-4>', 'Plinko mode')
-  .option('--balls <1-100>', 'Plinko balls')
-  .option('--spins <1-15>', 'Slots spins')
+  .option('--mode <mode>', 'Plinko mode')
+  .option('--balls <balls>', 'Plinko balls')
+  .option('--spins <spins>', 'Slots spins')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
-  .option('--range <5-95>', 'ApeStrong range')
-  .option('--picks <1-10>', 'Keno pick count')
-  .option('--numbers <nums>', 'Keno numbers (e.g., 1,7,13,25,40)')
-  .option('--games <1-20>', 'Speed Keno game count (batching)')
-  .option('--difficulty <0-4>', 'Bear-A-Dice difficulty (0=Easy, 4=Master)')
-  .option('--rolls <1-5>', 'Bear-A-Dice roll count')
+  .option('--range <range>', 'ApeStrong range')
+  .option('--picks <picks>', 'Keno pick count')
+  .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
+  .option('--games <games>', 'Speed Keno game count (batching)')
+  .option('--difficulty <difficulty>', 'Bear-A-Dice difficulty (0=Easy, 4=Master)')
+  .option('--rolls <rolls>', 'Bear-A-Dice roll count')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
   .option('--delay <seconds>', 'Delay between games in loop', '3')
@@ -1394,6 +1555,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--json', 'JSON output only')
+  .addHelpText('after', formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES))
   .action(async (gameArg, amountArg, configArgs, opts) => {
     const account = await getWalletWithPrompt({ json: opts.json, gameplay: true });
     const loopMode = Boolean(opts.loop);
@@ -1949,6 +2111,8 @@ program
             won: result.gameResult.won,
             wageredApe: result.gameResult.bet,
             payoutApe: result.gameResult.payout,
+            rtpGame: fixedGame?.key || null,
+            rtpConfig: gameConfig || null,
           });
           consecutiveErrors = 0; // Reset on success
         }
@@ -1987,6 +2151,8 @@ program
             currentBalanceApe: currentApe,
             startingBalanceApe: startingBalance,
             stats: loopStats,
+            rtpGame: fixedGame?.key || null,
+            rtpConfig: gameConfig || null,
             nextDelayLabel: terminalConditionReached ? null : `${delaySeconds}s`,
           }));
           if (terminalConditionReached) continue;
@@ -2374,10 +2540,8 @@ program
       console.log(formatHistoryStatsReport(stats));
       if (!opts.stats && gameStatus.length > 0) {
         console.log('');
-        console.log(`${formatHeader('Game Status', '🎮')}\n`);
-        for (const game of gameStatus) {
-          console.log(formatGameStatusLine(game));
-        }
+        console.log(`${formatHeader('Game Stats', '🎮')}\n`);
+        console.log(formatGameStatsTable(gameStatus));
       }
       if (opts.breakdown) {
         console.log('');
@@ -2392,8 +2556,21 @@ program
 // ============================================================================
 program
   .command('games')
+  .option('--stats', 'Append the full Game Stats catalog, using local history when available')
   .option('--json', 'JSON output')
   .action((opts) => {
+    const localWalletAddress = getWalletAddress();
+    const history = loadHistory(localWalletAddress || undefined);
+    const historyBreakdown = summarizeHistoryGamesByGame(history);
+    const includeActiveGames = Boolean(localWalletAddress);
+    const gameStats = opts.stats
+      ? buildHistoryGameStatusSummary({
+          historyBreakdown,
+          activeGames: includeActiveGames ? loadActiveGames() : {},
+          includeCatalog: true,
+        })
+      : [];
+
     if (opts.json) {
       const games = GAME_REGISTRY.map(g => ({
         key: g.key,
@@ -2404,13 +2581,22 @@ program
         contract: g.contract,
         config: g.config,
       }));
-      console.log(JSON.stringify({ games }));
+      console.log(JSON.stringify({
+        games,
+        ...(opts.stats ? { game_stats: gameStats } : {}),
+      }));
     } else {
       console.log(`\n${formatHeader('Available Games', '🎰')}\n`);
       for (const game of GAME_REGISTRY) {
         console.log(`   ${theme.gameName(game.name)} ${theme.dim(`(${game.key})`)}`);
         console.log(`      ${theme.value(game.description)}`);
         if (game.aliases?.length) console.log(`      ${theme.label('Aliases:')} ${theme.dim(game.aliases.join(', '))}`);
+        console.log('');
+      }
+
+      if (opts.stats) {
+        console.log(`${formatHeader('Game Stats', '🎮')}\n`);
+        console.log(formatGameStatsTable(gameStats));
         console.log('');
       }
     }
@@ -2466,6 +2652,15 @@ ${'─'.repeat(60)}
   --loop          Keep playing until balance runs out
   --target <ape>  Stop when balance reaches this amount
   --stop-loss <ape>  Stop when balance drops to this amount
+
+${'─'.repeat(60)}
+  GRAMMAR (BNF)
+${'─'.repeat(60)}
+
+  <amount> ::= <ape>
+  <ape> ::= <number>            ; decimal APE amount; value > 0
+  <side> ::= <number>           ; decimal APE amount; value >= 0
+  <auto-mode> ::= "simple" | "best"
 
 ${'─'.repeat(60)}
   ACTIONS (during game)
@@ -2541,6 +2736,13 @@ ${'─'.repeat(60)}
   --stop-loss <ape>  Stop when balance drops to this amount
 
 ${'─'.repeat(60)}
+  GRAMMAR (BNF)
+${'─'.repeat(60)}
+
+  <amount> ::= "1" | "5" | "10" | "25" | "50" | "100"
+  <auto-mode> ::= "simple" | "best"
+
+${'─'.repeat(60)}
   PAYOUTS (multiplier x bet)
 ${'─'.repeat(60)}
 
@@ -2599,6 +2801,7 @@ ${'═'.repeat(60)}
           if (cfg.min !== undefined) console.log(`      Range:   ${cfg.min} - ${cfg.max}`);
           if (cfg.default !== undefined) console.log(`      Default: ${cfg.default}`);
           if (cfg.description) console.log(`      ${cfg.description}`);
+          printConfigBnf(cfg);
           if (cfg.examples) {
             console.log('      Examples:');
             for (const ex of cfg.examples) {
@@ -2720,6 +2923,10 @@ ASSETS
   APE    Native currency (18 decimals)
          - Used for betting, gas fees, and transfers
          - Check balance: ${BINARY_NAME} status
+
+  wAPE   APE Wagered tracker (reporting only)
+         - Current on-chain balance is shown in history reporting
+         - Not transferable via this CLI
 
   GP     Gimbo Points (0 decimals, whole numbers only)
          - Earned as cashback from playing games
@@ -3191,6 +3398,10 @@ ${'─'.repeat(70)}
 
   The local wallet address is used automatically if you omit [address].
 
+  Games options:
+    --stats                    Append the full Game Stats catalog after the game summary
+    --json                     Emit the game registry as JSON
+
 ${'─'.repeat(70)}
   COMMON COMMANDS
 ${'─'.repeat(70)}
@@ -3430,6 +3641,20 @@ program
     }
 
     const assetUpper = asset.toUpperCase();
+    if (assetUpper === 'WAPE') {
+      const error = { error: `wAPE: contract ${WAPE_TOKEN_CONTRACT} does not support a transfer() function` };
+      if (opts.json) console.log(JSON.stringify(error));
+      else console.error(`\n❌ ${error.error}\n`);
+      process.exit(1);
+    }
+
+    if (!['APE', 'GP'].includes(assetUpper)) {
+      const error = { error: `Unsupported asset: ${asset}. Supported: APE, GP` };
+      if (opts.json) console.log(JSON.stringify(error));
+      else console.error(`\n❌ Unsupported asset: ${asset}. Supported: APE, GP\n`);
+      process.exit(1);
+    }
+
     const account = await getWalletWithPrompt({ json: opts.json });
     const { publicClient, walletClient } = createClients(account);
 
@@ -3624,11 +3849,6 @@ program
         console.log(`❌ Transaction failed\n   TX: ${txHash}\n`);
       }
 
-    } else {
-      const error = { error: `Unsupported asset: ${asset}. Supported: APE, GP` };
-      if (opts.json) console.log(JSON.stringify(error));
-      else console.error(`\n❌ Unsupported asset: ${asset}. Supported: APE, GP\n`);
-      process.exit(1);
     }
   });
 

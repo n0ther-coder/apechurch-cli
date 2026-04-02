@@ -18,7 +18,7 @@ Everything else lives under `docs/` or next to the code it explains.
 | File | Audience | Usefulness | Keep? | Notes |
 |------|----------|------------|-------|-------|
 | `docs/ADDING_GAMES.md` | Maintainers | High | Yes | Source of truth for extending the game registry and CLI handlers. |
-| `docs/GAMES_REFERENCE.md` | Users / maintainers | High | Yes | Quick syntax cookbook plus transparency-derived RTP, payout, paytable, comparison, and GP-farming notes for supported games, with a compact appendix for public-but-unsupported titles. |
+| `docs/GAMES_REFERENCE.md` | Users / maintainers | High | Yes | Quick syntax cookbook plus BNF argument grammar, transparency-derived RTP, payout, paytable, comparison, and GP-farming notes for supported games, with a compact appendix for public-but-unsupported titles. |
 | `docs/PUBLISHING.md` | Maintainers | High | Yes | Release and packaging checklist. |
 | `docs/FEATURES.md` | Marketing / product | Medium | Maybe | Useful as a product snapshot, but some sections overlap with `README.md`. |
 | `docs/THESIS.md` | Marketing / narrative | Low | Maybe | Positioning document, not operational documentation. |

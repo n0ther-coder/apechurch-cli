@@ -71,33 +71,12 @@ describe('Status Helpers', () => {
 
       assert.deepStrictEqual(summary, [
         {
-          game: 'Video Poker',
-          games_played: 1,
-          net_profit_ape: '5.0000',
-          net_profit_complete: true,
-          wins: 1,
-          pushes: 0,
-          losses: 0,
-          win_rate: 100,
-          rtp: 150,
-          unfinished_games: 2,
-          unfinished_game_ids: ['88', '99'],
-        },
-        {
-          game: 'Blackjack',
-          games_played: 0,
-          net_profit_ape: '0.0000',
-          net_profit_complete: true,
-          wins: 0,
-          pushes: 0,
-          losses: 0,
-          win_rate: null,
-          rtp: null,
-          unfinished_games: 1,
-          unfinished_game_ids: ['77'],
-        },
-        {
           game: 'ApeStrong',
+          group_key: 'ape-strong',
+          base_game_key: 'ape-strong',
+          variant_label: null,
+          rtp_game: 'ape-strong',
+          rtp_config: null,
           games_played: 2,
           net_profit_ape: '1.0000',
           net_profit_complete: true,
@@ -106,8 +85,47 @@ describe('Status Helpers', () => {
           losses: 1,
           win_rate: 50,
           rtp: 150,
+          max_hit_x: 2.5,
           unfinished_games: 0,
           unfinished_game_ids: [],
+        },
+        {
+          game: 'Blackjack',
+          group_key: 'blackjack',
+          base_game_key: 'blackjack',
+          variant_label: null,
+          rtp_game: 'blackjack',
+          rtp_config: null,
+          games_played: 0,
+          net_profit_ape: '0.0000',
+          net_profit_complete: true,
+          wins: 0,
+          pushes: 0,
+          losses: 0,
+          win_rate: null,
+          rtp: null,
+          max_hit_x: null,
+          unfinished_games: 1,
+          unfinished_game_ids: ['77'],
+        },
+        {
+          game: 'Video Poker',
+          group_key: 'video-poker',
+          base_game_key: 'video-poker',
+          variant_label: null,
+          rtp_game: 'video-poker',
+          rtp_config: null,
+          games_played: 1,
+          net_profit_ape: '5.0000',
+          net_profit_complete: true,
+          wins: 1,
+          pushes: 0,
+          losses: 0,
+          win_rate: 100,
+          rtp: 150,
+          max_hit_x: 1.5,
+          unfinished_games: 2,
+          unfinished_game_ids: ['88', '99'],
         },
       ]);
     });
@@ -127,6 +145,11 @@ describe('Status Helpers', () => {
       assert.deepStrictEqual(summary, [
         {
           game: 'ApeStrong',
+          group_key: 'ape-strong',
+          base_game_key: 'ape-strong',
+          variant_label: null,
+          rtp_game: 'ape-strong',
+          rtp_config: null,
           games_played: 2,
           net_profit_ape: null,
           net_profit_complete: false,
@@ -135,6 +158,7 @@ describe('Status Helpers', () => {
           losses: null,
           win_rate: null,
           rtp: null,
+          max_hit_x: null,
           unfinished_games: 0,
           unfinished_game_ids: [],
         },
@@ -154,6 +178,7 @@ describe('Status Helpers', () => {
             total_wagered_ape: '12',
             total_payout_ape: '15',
             net_result_ape: '3',
+            max_hit_x: 2,
             unsynced_games: 0,
           },
           {
@@ -166,6 +191,7 @@ describe('Status Helpers', () => {
             total_wagered_ape: '0',
             total_payout_ape: '0',
             net_result_ape: '0',
+            max_hit_x: null,
             unsynced_games: 1,
           },
         ],
@@ -176,20 +202,12 @@ describe('Status Helpers', () => {
 
       assert.deepStrictEqual(summary, [
         {
-          game: 'Blackjack',
-          games_played: 1,
-          net_profit_ape: null,
-          net_profit_complete: false,
-          wins: null,
-          pushes: null,
-          losses: null,
-          win_rate: null,
-          rtp: null,
-          unfinished_games: 1,
-          unfinished_game_ids: ['7'],
-        },
-        {
           game: 'Bear-A-Dice',
+          group_key: 'bear-dice',
+          base_game_key: 'bear-dice',
+          variant_label: null,
+          rtp_game: 'bear-dice',
+          rtp_config: null,
           games_played: 3,
           net_profit_ape: '3.0000',
           net_profit_complete: true,
@@ -198,10 +216,110 @@ describe('Status Helpers', () => {
           losses: 1,
           win_rate: 66.67,
           rtp: 125,
+          max_hit_x: 2,
           unfinished_games: 0,
           unfinished_game_ids: [],
         },
+        {
+          game: 'Blackjack',
+          group_key: 'blackjack',
+          base_game_key: 'blackjack',
+          variant_label: null,
+          rtp_game: 'blackjack',
+          rtp_config: null,
+          games_played: 1,
+          net_profit_ape: null,
+          net_profit_complete: false,
+          wins: null,
+          pushes: null,
+          losses: null,
+          win_rate: null,
+          rtp: null,
+          max_hit_x: null,
+          unfinished_games: 1,
+          unfinished_game_ids: ['7'],
+        },
       ]);
+    });
+
+    it('splits history rows by recognized mode config', () => {
+      const summary = buildGameStatusSummary({
+        historyGames: [
+          { contract: APE_STRONG_CONTRACT, gameId: '1', game: 'Keno', game_key: 'keno', config: { picks: 4 }, variant_key: 'keno:picks:4', variant_label: 'Picks 4', rtp_game: 'keno', rtp_config: { picks: 4 } },
+          { contract: APE_STRONG_CONTRACT, gameId: '2', game: 'Keno', game_key: 'keno', config: { picks: 5 }, variant_key: 'keno:picks:5', variant_label: 'Picks 5', rtp_game: 'keno', rtp_config: { picks: 5 } },
+          { contract: APE_STRONG_CONTRACT, gameId: '3', game: 'Keno', game_key: 'keno', config: { picks: 10 }, variant_key: 'keno:picks:10', variant_label: 'Picks 10', rtp_game: 'keno', rtp_config: { picks: 10 } },
+        ],
+        historyEntries: [
+          { contract: APE_STRONG_CONTRACT, game: 'Keno', game_key: 'keno', config: { picks: 4 }, variant_key: 'keno:picks:4', variant_label: 'Picks 4', rtp_game: 'keno', rtp_config: { picks: 4 }, pnl_ape: '-1.0000', wager_ape: '10', payout_ape: '9', won: false, push: false, settled: true },
+          { contract: APE_STRONG_CONTRACT, game: 'Keno', game_key: 'keno', config: { picks: 5 }, variant_key: 'keno:picks:5', variant_label: 'Picks 5', rtp_game: 'keno', rtp_config: { picks: 5 }, pnl_ape: '2.0000', wager_ape: '10', payout_ape: '12', won: true, push: false, settled: true },
+          { contract: APE_STRONG_CONTRACT, game: 'Keno', game_key: 'keno', config: { picks: 10 }, variant_key: 'keno:picks:10', variant_label: 'Picks 10', rtp_game: 'keno', rtp_config: { picks: 10 }, pnl_ape: '5.0000', wager_ape: '10', payout_ape: '15', won: true, push: false, settled: true },
+        ],
+      });
+
+      assert.deepStrictEqual(summary.map((entry) => ({
+        game: entry.game,
+        group_key: entry.group_key,
+        rtp_game: entry.rtp_game,
+        rtp_config: entry.rtp_config,
+      })), [
+        {
+          game: 'Keno (Picks 4)',
+          group_key: 'keno:picks:4',
+          rtp_game: 'keno',
+          rtp_config: { picks: 4 },
+        },
+        {
+          game: 'Keno (Picks 5)',
+          group_key: 'keno:picks:5',
+          rtp_game: 'keno',
+          rtp_config: { picks: 5 },
+        },
+        {
+          game: 'Keno (Picks 10)',
+          group_key: 'keno:picks:10',
+          rtp_game: 'keno',
+          rtp_config: { picks: 10 },
+        },
+      ]);
+    });
+
+    it('can include catalog rows for unplayed games and modes', () => {
+      const summary = buildHistoryGameStatusSummary({
+        historyBreakdown: [
+          {
+            game: 'Keno (Picks 5)',
+            game_key: 'keno',
+            variant_key: 'keno:picks:5',
+            variant_label: 'Picks 5',
+            rtp_game: 'keno',
+            rtp_config: { picks: 5 },
+            total_saved_games: 1,
+            games: 1,
+            wins: 1,
+            pushes: 0,
+            losses: 0,
+            total_wagered_ape: '10',
+            total_payout_ape: '20',
+            net_result_ape: '10',
+            unsynced_games: 0,
+          },
+        ],
+        includeCatalog: true,
+      });
+
+      const byGame = new Map(summary.map((entry) => [entry.game, entry]));
+
+      assert.ok(byGame.has('ApeStrong'));
+      assert.ok(byGame.has('Keno (Picks 1)'));
+      assert.ok(byGame.has('Keno (Picks 5)'));
+      assert.ok(byGame.has('Primes (Extreme)'));
+      assert.ok(byGame.has('Video Poker (Bet 1/5/10/25/50 APE)'));
+      assert.ok(byGame.has('Video Poker (Bet 100 APE)'));
+
+      assert.strictEqual(byGame.get('ApeStrong').games_played, 0);
+      assert.strictEqual(byGame.get('Keno (Picks 1)').games_played, 0);
+      assert.strictEqual(byGame.get('Keno (Picks 5)').games_played, 1);
+      assert.strictEqual(byGame.get('Primes (Extreme)').games_played, 0);
     });
   });
 });

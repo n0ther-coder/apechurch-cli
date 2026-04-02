@@ -23,6 +23,27 @@ Where useful, this file also folds in payout tables and live Transparency-sectio
 | Monkey Match | `play monkey-match <amt>` | `--game monkey-match --amount X --mode Y` |
 | Bear-A-Dice | `play bear-dice <amt>` | `--game bear-dice --amount X --difficulty Y --rolls Z` |
 
+## Grammar Conventions
+
+This reference uses compact BNF with semantic constraints in comments:
+
+```bnf
+<ape> ::= <number>                 ; decimal APE amount; value > 0
+<integer> ::= ...                  ; base-10 integer token parsed by the CLI
+```
+
+For list-like arguments such as `--numbers`, the entire value must be one CLI token:
+
+```bash
+apechurch-cli play keno 10 --numbers 1,7,13,25,40
+```
+
+Not:
+
+```bash
+apechurch-cli play keno 10 --numbers 1 7 13 25 40
+```
+
 ---
 
 ## Accepted Wagers
@@ -65,6 +86,13 @@ apechurch-cli play ape-strong <amount> <range>
 apechurch-cli play --game ape-strong --amount <APE> --range <5-95>
 ```
 
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<range> ::= <integer>              ; 5 <= value <= 95
+```
+
 ### Parameters
 
 | Parameter | Range | Default | Description |
@@ -90,6 +118,14 @@ apechurch-cli play --game ape-strong --amount <APE> --range <5-95>
 - Total Wagered: `6,164,641 APE`
 - Total Games Played: `137,076`
 - Public transparency currently exposes aggregate metrics only for Ape Strong; the CLI pay formula above remains the useful source of truth for actual play here.
+
+### Exact Calculated RTP
+
+The repo payout rule `97.5 / range` keeps EV invariant across the entire supported range surface.
+
+| Mode | Exact RTP | Basis |
+|------|-----------|-------|
+| Any supported `range` (`5-95`) | `97.50%` | Exact EV from the repo payout formula |
 
 ### Examples
 
@@ -131,6 +167,15 @@ apechurch-cli play roulette <amount> <bet>
 apechurch-cli play --game roulette --amount <APE> --bet <BETS>
 ```
 
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<bet-list> ::= <roulette-bet> ( "," <roulette-bet> )*
+<roulette-bet> ::= "0" | "00" | <roulette-number> | "RED" | "BLACK" | "ODD" | "EVEN" | "FIRST_HALF" | "SECOND_HALF" | "FIRST_THIRD" | "SECOND_THIRD" | "THIRD_THIRD" | "FIRST_COL" | "SECOND_COL" | "THIRD_COL"
+<roulette-number> ::= <integer>    ; 1 <= value <= 36
+```
+
 ### Bet Types
 
 | Type | Options | Payout | Probability | Example |
@@ -157,6 +202,18 @@ The public transparency table also lists split and corner payouts, but this refe
 - Running RTP: `97.05%`
 - Total Wagered: `6,529,689 APE`
 - Total Games Played: `90,386`
+
+### Exact Calculated RTP by Public Bet Class
+
+| Public bet class | Exact RTP | Basis |
+|------------------|-----------|-------|
+| Single Number | `97.11%` | Exact weighted sum on the 38-pocket wheel |
+| Split | `97.11%` | Exact weighted sum on the 38-pocket wheel |
+| Corner | `97.11%` | Exact weighted sum on the 38-pocket wheel |
+| Red / Black | `97.11%` | Exact weighted sum on the 38-pocket wheel |
+| Even / Odd | `97.11%` | Exact weighted sum on the 38-pocket wheel |
+| Dozen | `97.11%` | Exact weighted sum on the 38-pocket wheel |
+| Half | `97.11%` | Exact weighted sum on the 38-pocket wheel |
 
 ### Examples
 
@@ -202,6 +259,15 @@ apechurch-cli play baccarat <amount> <bet>
 
 # Combined bet (explicit amounts)
 apechurch-cli play baccarat <total> <amt1> <bet1> <amt2> <bet2>
+```
+
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<bet> ::= "PLAYER" | "BANKER" | "TIE" | <combo-bet>
+<combo-bet> ::= <ape> <side-bet> <ape> "TIE"
+<side-bet> ::= "PLAYER" | "BANKER"
 ```
 
 ### Bet Types
@@ -262,6 +328,14 @@ apechurch-cli play jungle-plinko <amount> <mode> <balls>
 
 # Flags
 apechurch-cli play --game jungle-plinko --amount <APE> --mode <0-4> --balls <1-100>
+```
+
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<mode> ::= <integer>               ; 0 <= value <= 4
+<balls> ::= <integer>              ; 1 <= value <= 100
 ```
 
 ### Parameters
@@ -327,6 +401,15 @@ apechurch-cli play keno <amount> [--picks <1-10>]
 apechurch-cli play keno <amount> --picks <N> --numbers <comma-separated>
 ```
 
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<picks> ::= <integer>              ; 1 <= value <= 10
+<numbers> ::= "random" | <keno-number> ( "," <keno-number> )*
+<keno-number> ::= <integer>        ; 1 <= value <= 40
+```
+
 ### Parameters
 
 | Parameter | Range | Default | Description |
@@ -356,6 +439,21 @@ apechurch-cli play keno <amount> --picks <N> --numbers <comma-separated>
 | 8 | 2x | 0x | 0.5x | 1.1x | 2x | 10x | 50x | 500x | 10,000x | - | - |
 | 9 | 3x | 0x | 0x | 0.25x | 1.5x | 10x | 50x | 500x | 5,000x | 500,000x | - |
 | 10 | 4x | 0x | 0x | 0.25x | 1.2x | 4x | 25x | 250x | 2,000x | 50,000x | 1,000,000x |
+
+### Exact Calculated RTP by Picks
+
+| Picks | Exact RTP |
+|-------|-----------|
+| 1 | `93.75%` |
+| 2 | `93.75%` |
+| 3 | `93.67%` |
+| 4 | `93.39%` |
+| 5 | `94.68%` |
+| 6 | `93.90%` |
+| 7 | `94.29%` |
+| 8 | `94.19%` |
+| 9 | `93.32%` |
+| 10 | `93.83%` |
 
 ### Examples
 
@@ -393,6 +491,16 @@ Fast keno with batched games. Pick 1-5 numbers from 1-20. Play up to 20 games at
 apechurch-cli play speed-keno <amount> [--picks <1-5>] [--games <1-20>]
 ```
 
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<picks> ::= <integer>              ; 1 <= value <= 5
+<games> ::= <integer>              ; 1 <= value <= 20
+<numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*
+<speed-keno-number> ::= <integer>  ; 1 <= value <= 20
+```
+
 ### Parameters
 
 | Parameter | Range | Default | Description |
@@ -417,6 +525,16 @@ apechurch-cli play speed-keno <amount> [--picks <1-5>] [--games <1-20>]
 | 3 | 0.5x | 0.5x | 2.5x | 25x | - | - |
 | 4 | 0.5x | 0.5x | 1.5x | 5.5x | 100x | - |
 | 5 | 1.25x | 0.2x | 0.5x | 3x | 35x | 2,000x |
+
+### Exact Calculated RTP by Picks
+
+| Picks | Exact RTP |
+|-------|-----------|
+| 1 | `97.50%` |
+| 2 | `97.37%` |
+| 3 | `97.81%` |
+| 4 | `97.42%` |
+| 5 | `97.84%` |
 
 ### Examples
 
@@ -449,6 +567,13 @@ Dinosaur-themed slot machine. Spin for matching symbols and multipliers.
 
 ```bash
 apechurch-cli play dino-dough <amount> <spins>
+```
+
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<spins> ::= <integer>              ; 1 <= value <= 15
 ```
 
 ### Parameters
@@ -516,6 +641,13 @@ Candy-themed slot machine. Identical mechanics to Dino Dough.
 apechurch-cli play bubblegum-heist <amount> <spins>
 ```
 
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<spins> ::= <integer>              ; 1 <= value <= 15
+```
+
 ### Parameters
 
 | Parameter | Range | Default | Description |
@@ -571,6 +703,13 @@ apechurch-cli play bubblegum-heist 20 15 --loop
 apechurch-cli play monkey-match <amount> [--mode <1-2>]
 ```
 
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<mode> ::= <integer>               ; value ∈ {1, 2}
+```
+
 ### Modes
 
 | Mode | Name | Description |
@@ -596,6 +735,13 @@ apechurch-cli play monkey-match <amount> [--mode <1-2>]
 | Two Pair | 1.25x | 23.15% | 2x | 18.74% |
 | One Pair | 0.2x | 46.30% | 0.1x | 49.98% |
 | No Match | 0x | 9.26% | 0x | 14.99% |
+
+### Exact Calculated RTP by Mode
+
+| Mode | Exact RTP |
+|------|-----------|
+| Mode 1 / Low Risk | `98.15%` |
+| Mode 2 / Normal | `98.20%` |
 
 ### Examples
 
@@ -625,6 +771,14 @@ Roll 2 dice up to 5 times. Avoid unlucky numbers! Higher difficulty = more losin
 
 ```bash
 apechurch-cli play bear-dice <amount> [--difficulty <0-4>] [--rolls <1-5>]
+```
+
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<difficulty> ::= <integer>         ; 0 <= value <= 4
+<rolls> ::= <integer>              ; 1 <= value <= 5, and <= 3 when difficulty >= 3
 ```
 
 ### Difficulty Levels
@@ -677,10 +831,19 @@ apechurch-cli play bear-dice 10 --difficulty 0 --loop --max-games 20
 
 Stateful blackjack with interactive actions and auto-play support. See [SKILL.md](../SKILL.md#blackjack) for the full command flow, action handling, and solver notes.
 
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<side> ::= <number>                ; decimal APE amount; value >= 0
+<auto-mode> ::= "simple" | "best"
+```
+
 ### Accepted Bets
 
 - Main bet: any positive APE amount
 - Optional player side bet: `--side <ape>` accepts any non-negative APE amount
+- The decoded on-chain state also carries a separate dealer-side lane, even though the current CLI does not expose a dedicated flag for it yet
 - Derived follow-up wagers:
   - `double` adds another stake equal to the initial bet
   - `split` adds another stake equal to the initial bet
@@ -713,6 +876,15 @@ Stateful blackjack with interactive actions and auto-play support. See [SKILL.md
 
 The transparency side-bet probabilities assume independent card draws for that published mode; do not silently swap them with finite-deck odds when reasoning about this table.
 
+### RTP Cases Used by `Game Stats`
+
+| Case | Expected RTP | Basis |
+|------|--------------|-------|
+| Main Only | `100.05%` | Statistical main-game model from the repo simulator |
+| Side Only | `79.88%` | Exact EV from the published player-side table |
+| Dealer Side Only | `82.02%` | Exact EV from the published dealer-side conditions under the same with-replacement model |
+| Mixed | weighted by configured amounts | Combines main / player side / dealer side exposures using the configured bet sizes |
+
 ### Examples
 
 ```bash
@@ -741,6 +913,13 @@ apechurch-cli blackjack 10 --auto --loop --delay 5 --human
 
 Stateful Jacks or Better video poker with one redraw, interactive play, `--auto` modes, and a best-EV solver view. See [SKILL.md](../SKILL.md#video-poker) for the full flow and operational details.
 
+### Grammar (BNF)
+
+```bnf
+<amount> ::= "1" | "5" | "10" | "25" | "50" | "100"
+<auto-mode> ::= "simple" | "best"
+```
+
 ### Accepted Bets
 
 - Fixed denominations only: `1`, `5`, `10`, `25`, `50`, `100 APE`
@@ -768,6 +947,13 @@ Stateful Jacks or Better video poker with one redraw, interactive play, `--auto`
 - Total Wagered: `282,230 APE`
 - Total Games Played: `12,866`
 - Transparency publishes the visible base paytable above; the CLI also preserves the separate progressive-jackpot rule for a Royal Flush at max bet.
+
+### Exact Calculated RTP
+
+| Mode | Exact RTP | Basis |
+|------|-----------|-------|
+| Base paytable at any fixed bet (`1/5/10/25/50/100 APE`) | `98.16%` | Exact weighted sum over the published final-hand odds |
+| `100 APE` bet with a known jackpot | `98.16% + jackpot_ape / 40,000` | Exact base RTP plus the max-bet Royal Flush jackpot uplift |
 
 ### Examples
 
@@ -821,42 +1007,51 @@ Note: `play` defaults to `--delay 3`, while `blackjack` and `video-poker` defaul
 
 ## RTP Comparison
 
-This section keeps theoretical or reconstructed RTP separate from public `Running RTP` snapshots. Use it as a sanity check, not as proof of current edge. Positive deltas mean the live snapshot is running above the published or reconstructed reference at that moment.
+This section keeps exact or formula-derived RTP separate from public `Running RTP` snapshots. Use it as a sanity check, not as proof of edge. Values are rounded to `2` decimals in this document even where the underlying constants keep more precision in code.
 
-### Direct Comparison
+### Exact Calculated RTP by Game and Mode
 
-These entries are the cleanest comparison points because the theoretical RTP is published or inferred at roughly the same scope as the visible running snapshot.
+| Game | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
+|------|------|-------------|-----------|--------|--------------------|
+| ApeStrong | Any supported `range` (`5-95`) | Yes | `97.50%` | Exact EV from repo payout formula | `98.53%` |
+| Roulette | All published bet classes | Yes | `97.11%` | Exact weighted sum on 38 pockets | `97.05%` |
+| Keno | Picks 1 | Yes | `93.75%` | Exact hypergeometric EV | `86.35%` |
+| Keno | Picks 2 | Yes | `93.75%` | Exact hypergeometric EV | `86.35%` |
+| Keno | Picks 3 | Yes | `93.67%` | Exact hypergeometric EV | `86.35%` |
+| Keno | Picks 4 | Yes | `93.39%` | Exact hypergeometric EV | `86.35%` |
+| Keno | Picks 5 | Yes | `94.68%` | Exact hypergeometric EV | `86.35%` |
+| Keno | Picks 6 | Yes | `93.90%` | Exact hypergeometric EV | `86.35%` |
+| Keno | Picks 7 | Yes | `94.29%` | Exact hypergeometric EV | `86.35%` |
+| Keno | Picks 8 | Yes | `94.19%` | Exact hypergeometric EV | `86.35%` |
+| Keno | Picks 9 | Yes | `93.32%` | Exact hypergeometric EV | `86.35%` |
+| Keno | Picks 10 | Yes | `93.83%` | Exact hypergeometric EV | `86.35%` |
+| Speed Keno | Picks 1 | Yes | `97.50%` | Exact hypergeometric EV | `93.36%` |
+| Speed Keno | Picks 2 | Yes | `97.37%` | Exact hypergeometric EV | `93.36%` |
+| Speed Keno | Picks 3 | Yes | `97.81%` | Exact hypergeometric EV | `93.36%` |
+| Speed Keno | Picks 4 | Yes | `97.42%` | Exact hypergeometric EV | `93.36%` |
+| Speed Keno | Picks 5 | Yes | `97.84%` | Exact hypergeometric EV | `93.36%` |
+| Monkey Match | Mode 1 / Low Risk | Yes | `98.15%` | Exact weighted sum over the public mode table | `97.34%` |
+| Monkey Match | Mode 2 / Normal | Yes | `98.20%` | Exact weighted sum over the public mode table | `97.34%` |
+| Blackjack | Main Only | Yes | `100.05%` | Statistical main-game model from the repo simulator | `96.84%` |
+| Blackjack | Side Only | Yes | `79.88%` | Exact EV from the published player-side table | `96.84%` |
+| Blackjack | Dealer Side Only | Yes | `82.02%` | Exact EV from the published dealer-side conditions | `96.84%` |
+| Video Poker / Gimboz Poker | Base paytable at any fixed bet | Yes | `98.16%` | Exact weighted sum over final-hand odds | `89.53%` |
+| Video Poker / Gimboz Poker | `100 APE` bet with known jackpot | Yes | `98.16% + jackpot_ape / 40,000` | Exact parametric jackpot uplift | `89.53%` |
+| Cosmic Plinko | Low | No | `97.64%` | Exact weighted sum over public bucket table | `97.32%` |
+| Cosmic Plinko | Moderate | No | `98.30%` | Exact weighted sum over public bucket table | `97.32%` |
+| Cosmic Plinko | High | No | `99.29%` | Exact weighted sum over public bucket table | `97.32%` |
+| Blocks | Easy | No | `98.41%` | Exact weighted sum over cluster table | `93.92%` |
+| Blocks | Hard | No | `98.55%` | Exact weighted sum over cluster table | `93.92%` |
+| Primes | Easy | No | `98.00%` | Exact weighted sum over prime/zero table | `105.64%` |
+| Primes | Medium | No | `98.00%` | Exact weighted sum over prime/zero table | `105.64%` |
+| Primes | Hard | No | `98.00%` | Exact weighted sum over prime/zero table | `105.64%` |
+| Primes | Extreme | No | `98.04%` | Exact weighted sum over prime/zero table | `105.64%` |
 
-| Game | CLI Support | Theoretical RTP | Running RTP | Delta | Basis / Confidence |
-|------|-------------|-----------------|-------------|-------|--------------------|
-| Roulette | Yes | 97.10% | 97.05% | -0.05 pp | Explicit transparency header |
-| Hi-Lo Nebula | No | 97.50% | 97.84% | +0.34 pp | Explicit transparency header |
-| Bubblegum Heist | Yes | 97.80% | 97.26% | -0.54 pp | Explicit transparency header |
-| Geez Diggerz | No | 97.80% | 97.25% | -0.55 pp | Explicit transparency header |
-| Dino Dough | Yes | 97.80% | 97.80% | +0.00 pp | Lower-confidence inference from the same public slot-layout treatment |
-| Sushi Showdown | No | 97.80% | 95.99% | -1.81 pp | Lower-confidence inference from the same public slot-layout treatment |
+### Still Not Exactly Calculable from Local Sources
 
-### Mode-Specific vs Aggregate Snapshot
+The local source set is still insufficient for a defensible closed-form RTP on `Baccarat`, `Jungle Plinko`, `Dino Dough`, `Bubblegum Heist`, `Bear-A-Dice`, `Cash Dash`, `Gimboz Smash`, `Hi-Lo Nebula`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, `Sushi Showdown`, `Geez Diggerz`, and `Rico's Revenge`.
 
-These are still useful, but the comparison is less clean because the theoretical RTP is mode-specific while the visible `Running RTP` is a single aggregate snapshot across all public play.
-
-| Game / Mode | CLI Support | Mode RTP | Running RTP | Delta vs Snapshot | Caveat |
-|-------------|-------------|----------|-------------|-------------------|--------|
-| Cosmic Plinko - Low | No | ~97.64% | 97.32% | -0.32 pp | Mode RTP vs aggregate public snapshot |
-| Cosmic Plinko - Moderate | No | ~98.30% | 97.32% | -0.98 pp | Mode RTP vs aggregate public snapshot |
-| Cosmic Plinko - High | No | ~99.29% | 97.32% | -1.97 pp | Mode RTP vs aggregate public snapshot |
-| Blocks - Easy | No | ~98.41% | 93.92% | -4.49 pp | Mode RTP vs aggregate public snapshot |
-| Blocks - Hard | No | ~98.55% | 93.92% | -4.63 pp | Mode RTP vs aggregate public snapshot |
-| Monkey Match - Mode 1 / Low Risk | Yes | ~98.15% | 97.34% | -0.81 pp | Mode RTP vs aggregate public snapshot |
-| Monkey Match - Mode 2 / Normal | Yes | ~98.20% | 97.34% | -0.86 pp | Mode RTP vs aggregate public snapshot |
-| Primes - Easy | No | 98.00% | 105.64% | +7.64 pp | Snapshot currently running well above reconstructed RTP |
-| Primes - Medium | No | 98.00% | 105.64% | +7.64 pp | Snapshot currently running well above reconstructed RTP |
-| Primes - Hard | No | ~98.00% | 105.64% | +7.64 pp | Snapshot currently running well above reconstructed RTP |
-| Primes - Extreme | No | ~98.04% | 105.64% | +7.60 pp | Snapshot currently running well above reconstructed RTP |
-
-### Missing Comparison Cases
-
-The public material archived in `docs/archive/TRANSPARENCY_REFERENCE.md` is still not enough to give a defensible theoretical-vs-running comparison for `ApeStrong`, `Baccarat`, `Jungle Plinko`, `Keno`, `Speed Keno`, `Bear-A-Dice`, `Blackjack`, and `Video Poker / Gimboz Poker`.
+For `Blackjack`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables.
 
 ---
 
@@ -995,3 +1190,29 @@ These titles appear in Ape Church public docs or the Transparency section, but t
 | Primes | Difficulty changes digit count and win odds. Total win chance drops from `50%` on Easy to `12.3%` on Extreme, while the zero jackpot rises from `2.2x` to `500x`. |
 | Sushi Showdown | The visible public slot patterns top out at `500x` for `A A A`, with mixed patterns like `A A B`, `A B A`, and `B A A` all paying `100x`. |
 | Geez Diggerz | The visible public slot patterns top out at `50x` for `A A A`; mixed visible patterns mostly cluster around `8x` to `10x`. |
+
+### Exact Calculated RTP by Unsupported Game
+
+#### Cosmic Plinko
+
+| Mode | Exact RTP |
+|------|-----------|
+| Low | `97.64%` |
+| Moderate | `98.30%` |
+| High | `99.29%` |
+
+#### Blocks
+
+| Mode | Exact RTP |
+|------|-----------|
+| Easy | `98.41%` |
+| Hard | `98.55%` |
+
+#### Primes
+
+| Mode | Exact RTP |
+|------|-----------|
+| Easy | `98.00%` |
+| Medium | `98.00%` |
+| Hard | `98.00%` |
+| Extreme | `98.04%` |

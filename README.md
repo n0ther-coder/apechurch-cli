@@ -142,6 +142,13 @@ Text output includes:
 | `--chunk-size <n>` | Block span per log query for `--refresh` |
 | `--json` | Emit the machine-readable cached report |
 
+`games` options:
+
+| Option | Description |
+|--------|-------------|
+| `--stats` | Append the full `Game Stats` catalog after the game summary, using local history when available |
+| `--json` | Emit the game registry as JSON |
+
 Coverage and limits:
 
 - Downloaded histories live under `~/.apechurch-cli/history/church_<wallet>.json`.
@@ -166,6 +173,25 @@ Coverage and limits:
 | Bear-A-Dice | `play bear-dice 10` | Avoid unlucky numbers |
 | Blackjack | `blackjack 25 --side 1 --auto` | Card game with auto-play and optional player side bet |
 | Video Poker / Gimboz Poker | `video-poker 10 --auto` | Jacks or Better with auto-play and solver tools |
+
+## Argument Grammar (BNF)
+
+The CLI help now exposes formal argument grammar in `apechurch-cli play --help`, `apechurch-cli bet --help`, and `apechurch-cli game <name>`.
+
+```bnf
+<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*
+<keno-number> ::= <integer>                  ; 1 <= value <= 40
+<speed-keno-numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*
+<speed-keno-number> ::= <integer>            ; 1 <= value <= 20
+<roulette-bets> ::= <roulette-bet> ( "," <roulette-bet> )*
+<baccarat-bet> ::= "PLAYER" | "BANKER" | "TIE" | <combo-baccarat-bet>
+<combo-baccarat-bet> ::= <ape> <baccarat-side> <ape> "TIE"
+<baccarat-side> ::= "PLAYER" | "BANKER"
+```
+
+`--numbers` must be passed as one CLI token, for example `--numbers 1,7,13,25,40`.
+
+The full per-game grammar lives in [docs/GAMES_REFERENCE.md](/Users/fluoro/Downloads/Clones/n0ther-coder/apechurch-cli/docs/GAMES_REFERENCE.md).
 
 ## Loop Mode
 

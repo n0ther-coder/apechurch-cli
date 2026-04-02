@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_PATH = path.join(__dirname, '../../bin/cli.js');
+const NO_WALLET_HOME = path.join(__dirname, '../tmp-no-wallet-home');
 
 function stripVersionBanner(output) {
   return String(output || '').replace(/^apechurch-cli v[^\n]*\n+/, '');
@@ -51,9 +52,21 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Commands'), 'Should list commands');
     });
 
+    it('play --help includes BNF grammar for structured arguments', () => {
+      const { stdout } = cli('play --help');
+      assert.ok(stdout.includes('Grammar (BNF)'), 'Should show a BNF appendix');
+      assert.ok(stdout.includes('<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*'), 'Should document Keno numbers grammar');
+      assert.ok(stdout.includes('--numbers 1,7,13,25,40'), 'Should document the single-token numbers form');
+    });
+
     it('commands shows full reference', () => {
       const { stdout } = cli('commands');
       assert.ok(stdout.includes('play') || stdout.includes('PLAY'), 'Should mention play command');
+    });
+
+    it('commands does not advertise wAPE transfers', () => {
+      const { stdout } = cli('commands');
+      assert.ok(!stdout.includes('send wAPE') && !stdout.includes('send WAPE'), 'Should not list wAPE as transferable');
     });
 
     it('blackjack --help keeps --human hidden and documents generic auto-play', () => {
@@ -127,6 +140,23 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Plinko') || stdout.includes('plinko'), 'Should list Plinko');
     });
 
+    it('--stats appends the full Game Stats catalog', () => {
+      const { stdout } = cli('games --stats');
+      assert.ok(stdout.includes('Available Games'), 'Should keep the game summary');
+      assert.ok(stdout.includes('Game Stats'), 'Should append the Game Stats section');
+      assert.ok(stdout.includes('| game'), 'Should render a stats table header');
+      assert.ok(stdout.includes('max payout (x)'), 'Should render the max payout column');
+      assert.ok(stdout.includes('max hit (x)'), 'Should render the max hit column');
+      assert.ok(stdout.includes('Keno'), 'Should include supported games in the stats table');
+      assert.ok(stdout.includes('Picks 1'), 'Should include unplayed exact modes in the catalog');
+      assert.ok(stdout.includes('1,000,000x'), 'Should include known top payouts for exact modes');
+      assert.ok(stdout.includes('Bet 1/5/10/25/50 APE'), 'Should group non-jackpot video poker bet tiers');
+      assert.ok(stdout.includes('250x + 💰'), 'Should mark jackpot-aware max payouts');
+      assert.ok(stdout.includes('Legend:'), 'Should explain the RTP badges');
+      assert.ok(stdout.includes('📄 documented'), 'Should explain documented RTP values');
+      assert.ok(stdout.includes('👌 exact formula'), 'Should explain exact-formula RTP values');
+    });
+
     it('--json returns array of games', () => {
       const { stdout } = cli('games --json');
       const data = JSON.parse(stdout);
@@ -141,12 +171,26 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok('name' in game, 'Game should have name');
       assert.ok('type' in game, 'Game should have type');
     });
+
+    it('--json --stats includes the Game Stats catalog', () => {
+      const { stdout } = cli('games --json --stats');
+      const data = JSON.parse(stdout);
+
+      assert.ok(Array.isArray(data.game_stats), 'Should include game_stats when requested');
+      assert.ok(data.game_stats.length > 0, 'Game stats catalog should not be empty');
+    });
   });
 
   describe('game <name> command', () => {
     it('shows details for valid game', () => {
       const { stdout } = cli('game ape-strong');
       assert.ok(stdout.includes('ApeStrong') || stdout.includes('ape-strong'), 'Should show game name');
+    });
+
+    it('shows per-parameter BNF in game helpers', () => {
+      const { stdout } = cli('game keno');
+      assert.ok(stdout.includes('BNF:'), 'Should show BNF in the parameter section');
+      assert.ok(stdout.includes('<numbers> ::= "random" | <keno-number> ( "," <keno-number> )*'), 'Should show numbers grammar');
     });
 
     it('shows error for invalid game', () => {
@@ -200,6 +244,35 @@ describe('CLI Commands Integration Tests', () => {
     it('--help documents --all', () => {
       const { stdout } = cli('history --help');
       assert.ok(stdout.includes('--all'), 'Should expose --all in help');
+    });
+  });
+
+  describe('send command', () => {
+    const validAddress = '0x1111111111111111111111111111111111111111';
+
+    it('rejects unsupported assets before wallet lookup', () => {
+      const { stdout, stderr, code } = cli(`send BTC 1 ${validAddress}`, {
+        env: { ...process.env, HOME: NO_WALLET_HOME },
+      });
+      const output = stdout + stderr;
+
+      assert.ok(code !== 0, 'Should fail for unsupported assets');
+      assert.ok(output.includes('Unsupported asset'), 'Should reject unknown assets');
+      assert.ok(!output.includes('No wallet found'), 'Should validate asset before requiring a wallet');
+    });
+
+    it('returns a contract-specific error for wAPE before wallet lookup', () => {
+      const { stdout, stderr, code } = cli(`send wAPE 1 ${validAddress}`, {
+        env: { ...process.env, HOME: NO_WALLET_HOME },
+      });
+      const output = stdout + stderr;
+
+      assert.ok(code !== 0, 'Should fail for non-transferable wAPE');
+      assert.ok(
+        output.includes('wAPE: contract 0x6EA76F01Aa615112AB7de1409EFBD80a13BfCC84 does not support a transfer() function'),
+        'Should explain that the wAPE contract does not support transfer()'
+      );
+      assert.ok(!output.includes('No wallet found'), 'Should reject wAPE before requiring a wallet');
     });
   });
 
