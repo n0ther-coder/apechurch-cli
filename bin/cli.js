@@ -214,7 +214,8 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<range> ::= <integer>                              ; 5 <= value <= 95',
   '<picks> ::= <integer>                              ; 1 <= value <= 10 for Keno, 1 <= value <= 5 for Speed Keno',
   '<games> ::= <integer>                              ; 1 <= value <= 20',
-  '<difficulty> ::= <integer>                         ; 0 <= value <= 4',
+  '<difficulty> ::= <integer>                         ; 0 <= value <= 4 for Bear-A-Dice, 0 <= value <= 3 for Primes',
+  '<runs> ::= <integer>                               ; 1 <= value <= 20',
   '<rolls> ::= <integer>                              ; 1 <= value <= 5, and <= 3 when difficulty >= 3',
   '<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*',
   '<keno-number> ::= <integer>                        ; 1 <= value <= 40',
@@ -1549,7 +1550,8 @@ program
   .option('--picks <picks>', 'Keno pick count')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--games <games>', 'Speed Keno game count (batching)')
-  .option('--difficulty <difficulty>', 'Bear-A-Dice difficulty (0=Easy, 4=Master)')
+  .option('--difficulty <difficulty>', 'Bear-A-Dice / Primes difficulty')
+  .option('--runs <runs>', 'Primes run count (batching)')
   .option('--rolls <rolls>', 'Bear-A-Dice roll count')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
@@ -1676,6 +1678,10 @@ program
         // For bear dice: configArgs can be [difficulty] or [difficulty, rolls]
         if (configArgs[0]) positionalConfig.difficulty = parseInt(configArgs[0]);
         if (configArgs[1]) positionalConfig.rolls = parseInt(configArgs[1]);
+      } else if (fixedGame.type === 'primes') {
+        // For primes: configArgs can be [difficulty] or [difficulty, runs]
+        if (configArgs[0]) positionalConfig.difficulty = parseInt(configArgs[0]);
+        if (configArgs[1]) positionalConfig.runs = parseInt(configArgs[1]);
       } else if (fixedGame.type === 'monkeymatch') {
         // For monkey match: configArgs can be [mode] (1=Low Risk, 2=Normal Risk)
         if (configArgs[0]) positionalConfig.mode = parseInt(configArgs[0]);
@@ -1773,7 +1779,15 @@ program
       } else {
         const selection = selectGameAndConfig(strategyConfig);
         gameEntry = resolveGame(selection.game);
-        gameConfig = { mode: selection.mode, balls: selection.balls, spins: selection.spins, bet: selection.bet, range: selection.range };
+        gameConfig = {
+          mode: selection.mode,
+          balls: selection.balls,
+          spins: selection.spins,
+          bet: selection.bet,
+          range: selection.range,
+          difficulty: selection.difficulty,
+          runs: selection.runs,
+        };
       }
 
       // Apply CLI opts/positional/strategy defaults
@@ -1900,6 +1914,30 @@ program
         // Clamp to valid range
         if (gameConfig.mode < 1) gameConfig.mode = 1;
         if (gameConfig.mode > 2) gameConfig.mode = 2;
+      } else if (gameEntry.type === 'primes') {
+        if (opts.difficulty !== undefined) gameConfig.difficulty = parseInt(opts.difficulty);
+        else if (positionalConfig.difficulty !== undefined) gameConfig.difficulty = positionalConfig.difficulty;
+        else if (gameConfig.difficulty === undefined) {
+          const [min, max] = clampRange(
+            strategyConfig.primes?.difficulty?.[0] ?? gameEntry.config.difficulty.default,
+            strategyConfig.primes?.difficulty?.[1] ?? gameEntry.config.difficulty.default,
+            gameEntry.config.difficulty.min,
+            gameEntry.config.difficulty.max
+          );
+          gameConfig.difficulty = randomIntInclusive(min, max);
+        }
+
+        if (opts.runs !== undefined) gameConfig.runs = parseInt(opts.runs);
+        else if (positionalConfig.runs !== undefined) gameConfig.runs = positionalConfig.runs;
+        else if (gameConfig.runs === undefined) {
+          const [min, max] = clampRange(
+            strategyConfig.primes?.runs?.[0] ?? gameEntry.config.runs.default,
+            strategyConfig.primes?.runs?.[1] ?? gameEntry.config.runs.default,
+            gameEntry.config.runs.min,
+            gameEntry.config.runs.max
+          );
+          gameConfig.runs = randomIntInclusive(min, max);
+        }
       }
 
       const wagerApeString = formatApeAmount(wagerApe);
@@ -1924,6 +1962,9 @@ program
       } else if (gameEntry.type === 'monkeymatch') {
         const modeNames = { 1: 'Low Risk', 2: 'Normal Risk' };
         gameDesc += ` (${modeNames[gameConfig.mode] || 'Low Risk'})`;
+      } else if (gameEntry.type === 'primes') {
+        const difficultyNames = ['Easy', 'Medium', 'Hard', 'Extreme'];
+        gameDesc += ` (${difficultyNames[gameConfig.difficulty] || 'Easy'}, ${gameConfig.runs} runs)`;
       }
 
       // Human-friendly output: show what we're playing
@@ -1946,6 +1987,7 @@ program
           numbers: gameConfig.numbers,
           games: gameConfig.games,
           difficulty: gameConfig.difficulty,
+          runs: gameConfig.runs,
           rolls: gameConfig.rolls,
           timeoutMs: 30000, // Wait up to 30s for result (usually 1-2s)
           referral: freshProfile.referral,
@@ -2952,6 +2994,7 @@ BETTING STRATEGIES
 EXAMPLES
   ${BINARY_NAME} play jungle 10 2 50
   ${BINARY_NAME} play cosmic 10 1 10
+  ${BINARY_NAME} play primes 10 0 20
   ${BINARY_NAME} play roulette 50 RED
   ${BINARY_NAME} play ape-strong 10 50
 

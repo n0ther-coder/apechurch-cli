@@ -27,6 +27,7 @@ import {
   JUNGLE_PLINKO_CONTRACT,
   KENO_CONTRACT,
   MONKEY_MATCH_CONTRACT,
+  PRIMES_CONTRACT,
   ROULETTE_CONTRACT,
   SPEED_KENO_CONTRACT,
   VIDEO_POKER_CONTRACT,
@@ -525,6 +526,53 @@ export const GAME_REGISTRY = [
       type: 'beardice',
       baseGas: 500000,
       perUnitGas: 100000,
+    },
+  },
+
+  // ===========================================================================
+  // PRIMES - Prime-or-zero number game
+  // ===========================================================================
+  {
+    key: 'primes',
+    name: 'Primes',
+    slug: 'primes',
+    type: 'primes',
+    description: 'Roll 1-4 digits with leading zeros. Prime numbers pay the base multiplier; zero is the fixed top-payout case.',
+    contract: PRIMES_CONTRACT,
+    abiVerified: true,
+    aliases: ['prime'],
+    config: {
+      difficulty: {
+        min: 0,
+        max: 3,
+        default: 0,
+        description: 'Difficulty level. Higher modes expand the number space, lower the hit rate, and raise the fixed zero payout.',
+        bnf: [
+          '<difficulty> ::= <integer>',
+          '; semantic constraint: 0 <= value <= 3',
+        ],
+        options: [
+          { value: 0, label: 'Easy', desc: '1 digit, 50% total hit rate, zero pays 2.2x' },
+          { value: 1, label: 'Medium', desc: '2 digits, 26% total hit rate, zero pays 10.5x' },
+          { value: 2, label: 'Hard', desc: '3 digits, 16.9% total hit rate, zero pays 56x' },
+          { value: 3, label: 'Extreme', desc: '4 digits, 12.3% total hit rate, zero pays 500x' },
+        ],
+      },
+      runs: {
+        min: 1,
+        max: 20,
+        default: 10,
+        description: 'Number of runs to batch. The wager is split evenly across all runs.',
+        bnf: [
+          '<runs> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 20',
+        ],
+      },
+    },
+    vrf: {
+      type: 'primes',
+      baseGas: 520000,
+      perUnitGas: 80000,
     },
   },
 ];

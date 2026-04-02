@@ -386,14 +386,14 @@ describe('Status Helpers', () => {
       assert.ok(byGame.has('ApeStrong'));
       assert.ok(byGame.has('Keno (Picks 1)'));
       assert.ok(byGame.has('Keno (Picks 5)'));
-      assert.ok(byGame.has('Primes (Extreme)'));
+      assert.ok(byGame.has('Primes ✔︎ (Extreme)'));
       assert.ok(byGame.has('Video Poker ✔︎ (Bet 1/5/10/25/50 APE)'));
       assert.ok(byGame.has('Video Poker ✔︎ (Bet 100 APE)'));
 
       assert.strictEqual(byGame.get('ApeStrong').games_played, 0);
       assert.strictEqual(byGame.get('Keno (Picks 1)').games_played, 0);
       assert.strictEqual(byGame.get('Keno (Picks 5)').games_played, 1);
-      assert.strictEqual(byGame.get('Primes (Extreme)').games_played, 0);
+      assert.strictEqual(byGame.get('Primes ✔︎ (Extreme)').games_played, 0);
     });
   });
 });

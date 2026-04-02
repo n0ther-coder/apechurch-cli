@@ -23,6 +23,7 @@ Where useful, this file also folds in payout tables and live Transparency-sectio
 | Bubblegum | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` |
 | Monkey Match | `play monkey-match <amt>` | `--game monkey-match --amount X --mode Y` |
 | Bear-A-Dice | `play bear-dice <amt>` | `--game bear-dice --amount X --difficulty Y --rolls Z` |
+| Primes ✔︎ | `play primes <amt> <difficulty> <runs>` | `--game primes --amount X --difficulty Y --runs Z` |
 
 ## Grammar Conventions
 
@@ -64,6 +65,7 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 | Bubblegum Heist | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
 | Monkey Match | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Bear-A-Dice | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager; volatility comes from difficulty and rolls |
+| Primes ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` runs |
 | Blackjack | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
 | Video Poker ✔︎ / Gimboz Poker | Fixed denominations only | Fixed list: `1`, `5`, `10`, `25`, `50`, `100 APE` | Fixed max `100 APE` | Loop mode rounds to the closest affordable valid denomination; jackpot eligibility requires `100 APE` |
 
@@ -941,6 +943,108 @@ apechurch-cli play bear-dice 10 --difficulty 0 --loop --max-games 20
 
 ---
 
+## Primes ✔︎
+
+**Type:** Number / VRF  
+**Contract:** `0xC1aCd12aA34dC33979871EF95c540D46A6566B4b`  
+**Aliases:** `prime`
+
+### How It Works
+Pick a difficulty and a run count. Each run draws one uniform integer with leading zeros preserved in display terms:
+
+- Easy: `0-9`
+- Medium: `00-99`
+- Hard: `000-999`
+- Extreme: `0000-9999`
+
+Zero is the fixed top-payout case, not a live progressive jackpot. Any prime result wins the base multiplier. Non-prime, non-zero results pay `0`.
+
+On-chain, the contract batches `numRuns` draws and computes:
+
+```text
+betPerRun = floor(totalBetAmount / numRuns)
+Payout = Σ_run outcomeMultiplier(run) * betPerRun
+```
+
+So the per-run RTP depends only on difficulty. The only run-count adjustment is Solidity floor division when `totalBetAmount` is not evenly divisible by `numRuns`.
+
+### Syntax
+
+```bash
+# Positional
+apechurch-cli play primes <amount> <difficulty> <runs>
+
+# Flags
+apechurch-cli play --game primes --amount <APE> --difficulty <0-3> --runs <1-20>
+```
+
+### Grammar (BNF)
+
+```bnf
+<amount> ::= <ape>
+<difficulty> ::= <integer>         ; 0 <= value <= 3
+<runs> ::= <integer>               ; 1 <= value <= 20
+```
+
+### Difficulty Table
+
+| Difficulty | Label | Draw Space | Prime Hits | Prime Payout | Zero Payout | Total Win Chance | Exact RTP |
+|------------|-------|------------|------------|--------------|-------------|------------------|-----------|
+| 0 | Easy | `0-9` | `4 / 10` | `1.9x` | `2.2x` | `50.0%` | `98.00%` |
+| 1 | Medium | `00-99` | `25 / 100` | `3.5x` | `10.5x` | `26.0%` | `98.00%` |
+| 2 | Hard | `000-999` | `168 / 1000` | `5.5x` | `56x` | `16.9%` | `98.00%` |
+| 3 | Extreme | `0000-9999` | `1229 / 10000` | `7.57x` | `500x` | `12.3%` | `98.04%` |
+
+The verified contract stores these as `gameModes[difficulty] = { maxRange, primeMultiplier, zeroMultiplier }` and uses the on-chain `isPrime` mapping during settlement.
+
+### Verified Runtime Constants
+
+- `MAX_RUNS = 20`
+- `BASE_GAS = 520000`
+- `GAS_PER_RUN = 80000`
+- `platformFee = 200` (`2%` of the buy-in is routed as platform fee; payouts are still computed from the full `betAmount`)
+
+### Exact RTP Formula
+
+For difficulty `d`:
+
+```text
+RTP_run(d) = ((primeCount(d) * primeMultiplier(d)) + zeroMultiplier(d))
+             / maxRange(d) / 100
+
+RTP_game(d, B, N) = RTP_run(d) * floor(B / N) * N / B
+```
+
+Where multipliers are expressed in the contract's `0.0001x` precision, `B` is the buy-in after VRF fee, and `N` is `numRuns`.
+
+### Transparency Snapshot
+
+- House Profit: `-12,401 APE`
+- Running RTP: `105.64%`
+- Total Wagered: `219,787 APE`
+- Total Games Played: `6,484`
+
+### Examples
+
+```bash
+# Easy, many runs for smoother variance
+apechurch-cli play primes 10 0 20
+
+# Medium difficulty via flags
+apechurch-cli play primes 10 --difficulty 1 --runs 12
+
+# Hard, fewer runs
+apechurch-cli play primes 10 --difficulty 2 --runs 5
+
+# Extreme mode
+apechurch-cli play primes 10 --difficulty 3 --runs 1
+
+# Loop with capped risk
+apechurch-cli play primes 10 --difficulty 0 --runs 20 --loop --max-games 25
+```
+
+---
+
 ## Blackjack
 
 **Type:** Cards<br>
@@ -1173,10 +1277,10 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 | Video Poker ✔︎ / Gimboz Poker | `100 APE` bet with known jackpot pool | Yes | `98.16% + jackpot_ape / 40,000` | Exact parametric jackpot uplift from `jackpotTotal` | `89.53%` |
 | Blocks | Easy | No | `98.41%` | Exact weighted sum over cluster table | `93.92%` |
 | Blocks | Hard | No | `98.55%` | Exact weighted sum over cluster table | `93.92%` |
-| Primes | Easy | No | `98.00%` | Exact weighted sum over prime/zero table | `105.64%` |
-| Primes | Medium | No | `98.00%` | Exact weighted sum over prime/zero table | `105.64%` |
-| Primes | Hard | No | `98.00%` | Exact weighted sum over prime/zero table | `105.64%` |
-| Primes | Extreme | No | `98.04%` | Exact weighted sum over prime/zero table | `105.64%` |
+| Primes ✔︎ | Easy | Yes | `98.00%` | Exact weighted sum over verified on-chain `gameModes` and prime mapping | `105.64%` |
+| Primes ✔︎ | Medium | Yes | `98.00%` | Exact weighted sum over verified on-chain `gameModes` and prime mapping | `105.64%` |
+| Primes ✔︎ | Hard | Yes | `98.00%` | Exact weighted sum over verified on-chain `gameModes` and prime mapping | `105.64%` |
+| Primes ✔︎ | Extreme | Yes | `98.04%` | Exact weighted sum over verified on-chain `gameModes` and prime mapping | `105.64%` |
 
 ### Still Not Exactly Calculable from Local Sources
 
@@ -1304,7 +1408,6 @@ These titles appear in Ape Church public docs or the Transparency section, but t
 | Cult Quest | gem / trap grid cash-out game | 96.67% | aggregate only | Docs + transparency; fewer safe spots means higher risk |
 | Blocks | 3x3 cluster-matching tile game | 93.92% | paytable | Docs + transparency; payout depends on largest color cluster |
 | Glyde or Crash | crash / cash-out multiplier game | 105.59% | aggregate only | Docs + transparency; official docs also use the spelling `Glyder or Crash` |
-| Primes | prime-or-zero number game | 105.64% | paytable | Docs + transparency; zero is the jackpot case |
 | Reel Pirates | undocumented in current official source set | 99.81% | aggregate only | Transparency only in the material archived here |
 | Sushi Showdown | slot-style icon game | 95.99% | partial paytable | Transparency only in the material archived here |
 | Geez Diggerz | slot-style icon game | 97.25% | partial paytable | Transparency only in the material archived here; header shows `97.8%` calculated RTP |
@@ -1316,7 +1419,6 @@ These titles appear in Ape Church public docs or the Transparency section, but t
 |------|----------------------|
 | Hi-Lo Nebula | Multiplier depends on the current card. Edge cards only allow one direction at `1.0600x`, while `8` is symmetric at `2.0833x` for either `Higher` or `Lower`. |
 | Blocks | Largest color cluster determines payout. Easy mode starts paying at `3 blocks = 1.01x`; hard mode sacrifices that floor but pushes the top end to `5000x` for `9 blocks`. |
-| Primes | Difficulty changes digit count and win odds. Total win chance drops from `50%` on Easy to `12.3%` on Extreme, while the zero jackpot rises from `2.2x` to `500x`. |
 | Sushi Showdown | The visible public slot patterns top out at `500x` for `A A A`, with mixed patterns like `A A B`, `A B A`, and `B A A` all paying `100x`. |
 | Geez Diggerz | The visible public slot patterns top out at `50x` for `A A A`; mixed visible patterns mostly cluster around `8x` to `10x`. |
 
@@ -1328,12 +1430,3 @@ These titles appear in Ape Church public docs or the Transparency section, but t
 |------|-----------|
 | Easy | `98.41%` |
 | Hard | `98.55%` |
-
-#### Primes
-
-| Mode | Exact RTP |
-|------|-----------|
-| Easy | `98.00%` |
-| Medium | `98.00%` |
-| Hard | `98.00%` |
-| Extreme | `98.04%` |

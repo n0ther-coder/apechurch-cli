@@ -112,6 +112,21 @@ describe('RTP Helpers', () => {
     });
   });
 
+  it('canonicalizes Primes variants to difficulty only, ignoring runs', () => {
+    const primes = resolveConfiguredGameVariant({
+      game: 'primes',
+      config: { difficulty: 3, runs: 20 },
+    });
+
+    assert.deepStrictEqual(primes, {
+      gameKey: 'primes',
+      variantKey: 'primes:mode:extreme',
+      variantLabel: 'Extreme',
+      rtpGame: 'primes',
+      rtpConfig: { difficulty: 3 },
+    });
+  });
+
   it('exposes calculated RTP constants for each exact mode of a game', () => {
     const variants = getGameCalculatedVariantReferences('primes');
 

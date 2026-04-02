@@ -204,6 +204,7 @@ Sync and cache behavior:
 | Bubblegum Heist | `play bubblegum-heist 10 10` | Slots | `--spins 1-15` |
 | Monkey Match | `play monkey-match 10` | Match | `--mode 1-2` |
 | Bear-A-Dice | `play bear-dice 10` | Dice | `--difficulty 0-4` `--rolls 1-5` |
+| Primes ✔︎ | `play primes 10 0 20` | Number | `--difficulty 0-3` `--runs 1-20` |
 | Blackjack | `blackjack 10 --auto` | Cards | Interactive or `--auto` |
 | Video Poker / Gimboz Poker | `video-poker 10 --auto` | Cards | Interactive or `--auto` |
 

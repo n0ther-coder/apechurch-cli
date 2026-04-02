@@ -56,6 +56,7 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout } = cli('play --help');
       assert.ok(stdout.includes('Grammar (BNF)'), 'Should show a BNF appendix');
       assert.ok(stdout.includes('<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*'), 'Should document Keno numbers grammar');
+      assert.ok(stdout.includes('<runs> ::= <integer>'), 'Should document Primes run grammar');
       assert.ok(stdout.includes('--numbers 1,7,13,25,40'), 'Should document the single-token numbers form');
     });
 
@@ -139,6 +140,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Roulette') || stdout.includes('roulette'), 'Should list Roulette');
       assert.ok(stdout.includes('Jungle Plinko ✔︎'), 'Should list verified Jungle Plinko');
       assert.ok(stdout.includes('Cosmic Plinko ✔︎'), 'Should list verified Cosmic Plinko');
+      assert.ok(stdout.includes('Primes ✔︎'), 'Should list verified Primes');
     });
 
     it('--stats appends the full Game Stats catalog', () => {
@@ -202,6 +204,14 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Cosmic Plinko ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified Primes', () => {
+      const { stdout } = cli('game primes --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Primes ✔︎');
     });
 
     it('exposes ABI verification metadata for verified stateful video poker', () => {

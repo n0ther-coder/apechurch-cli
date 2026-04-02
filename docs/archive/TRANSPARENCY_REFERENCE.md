@@ -691,8 +691,8 @@ The Transparency section header shows **97.5% Calculated RTP**.
 ### Official gameplay summary
 
 - Random-number game.
-- Not implemented in this repo. The official docs say the player wins if the result is a **prime number** or **zero**.
-- Prime results use the standard win multiplier; zero is a jackpot case.
+- Now implemented and ABI-verified in this repo. The official docs say the player wins if the result is a **prime number** or **zero**.
+- Prime results use the standard win multiplier; zero is a fixed top-payout case.
 - Difficulty changes win probability and payout structure.
 
 ### Transparency live metrics
@@ -709,7 +709,7 @@ The Transparency section explicitly says:
 - digits are rolled **with leading zeros**;
 - example: `0011 = 11`;
 - prime numbers win;
-- zero has a jackpot payout.
+- zero has a fixed top payout.
 
 | Mode | Roll Space | Prime Win | Probability | Zero Jackpot | Probability | Total Win Chance |
 | --- | --- | --- | --- | --- | --- | --- |
