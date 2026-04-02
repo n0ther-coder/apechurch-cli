@@ -273,8 +273,8 @@ describe('Wallet History Analysis', () => {
         last_download_on: '2026-03-29T12:00:00.000Z',
         games: [
           {
-            contract: BLACKJACK_CONTRACT,
-            game: 'Video Poker',
+            contract: VIDEO_POKER_CONTRACT,
+            game: 'Video Poker ✔︎',
             game_key: 'video-poker',
             variant_key: 'video-poker:bet:25',
             variant_label: 'Bet 25 APE',
@@ -293,8 +293,8 @@ describe('Wallet History Analysis', () => {
             push: false,
           },
           {
-            contract: BLACKJACK_CONTRACT,
-            game: 'Video Poker',
+            contract: VIDEO_POKER_CONTRACT,
+            game: 'Video Poker ✔︎',
             game_key: 'video-poker',
             variant_key: 'video-poker:bet:100:jackpot',
             variant_label: 'Bet 100 + jackpot',
@@ -321,12 +321,12 @@ describe('Wallet History Analysis', () => {
         rtp_config: entry.rtp_config,
       })), [
         {
-          game: 'Video Poker (Bet 1/5/10/25/50 APE)',
+          game: 'Video Poker ✔︎ (Bet 1/5/10/25/50 APE)',
           variant_key: 'video-poker:bet:base',
           rtp_config: { betAmountApe: 25 },
         },
         {
-          game: 'Video Poker (Bet 100 APE)',
+          game: 'Video Poker ✔︎ (Bet 100 APE)',
           variant_key: 'video-poker:bet:100',
           rtp_config: { betAmountApe: 100, jackpotApe: 25000 },
         },

@@ -50,7 +50,7 @@ describe('Video Poker Display', () => {
       suggestionLine: 'Hold 2,4,5 (EV 1.537x)',
     });
 
-    assert.match(output, /╔═+ VIDEO POKER ═+╗/);
+    assert.match(output, /╔═+ VIDEO POKER ✔︎ ═+╗/);
     assert.match(output, /║ GAME #45\/123\s+║/);
     assert.match(output, /║ ┌────┬────┬────┬────┬────┐/);
     assert.match(output, /║ → High Card \(no payout\)\s+║/);

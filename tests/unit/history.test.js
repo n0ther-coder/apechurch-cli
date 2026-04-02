@@ -31,7 +31,7 @@ describe('History Helpers', () => {
 
   describe('resolveHistoryGameName', () => {
     it('resolves stateful video poker contract names', () => {
-      assert.strictEqual(resolveHistoryGameName(VIDEO_POKER_CONTRACT), 'Video Poker');
+      assert.strictEqual(resolveHistoryGameName(VIDEO_POKER_CONTRACT), 'Video Poker ✔︎');
     });
 
     it('falls back to registered standard game names', () => {
@@ -99,7 +99,7 @@ describe('History Helpers', () => {
       assert.strictEqual(calls[0].functionName, 'getGameInfo');
       assert.strictEqual(failedFetches, 0);
       assert.strictEqual(entries.length, 1);
-      assert.strictEqual(entries[0].game, 'Video Poker');
+      assert.strictEqual(entries[0].game, 'Video Poker ✔︎');
       assert.strictEqual(entries[0].wager_ape, '25');
       assert.strictEqual(entries[0].payout_ape, '45');
       assert.strictEqual(entries[0].pnl_ape, '20');
@@ -142,7 +142,7 @@ describe('History Helpers', () => {
       assert.strictEqual(calls.length, 2);
       assert.strictEqual(failedFetches, 0);
       assert.strictEqual(entries.length, 2);
-      assert.strictEqual(entries[0].game, 'Video Poker');
+      assert.strictEqual(entries[0].game, 'Video Poker ✔︎');
       assert.strictEqual(entries[1].game, 'ApeStrong');
       assert.ok(entries[0].timestamp > entries[1].timestamp, 'Combined results should be sorted by saved timestamp');
     });

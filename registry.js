@@ -20,6 +20,7 @@ import {
   APESTRONG_CONTRACT,
   BACCARAT_CONTRACT,
   BEAR_DICE_CONTRACT,
+  BLACKJACK_CONTRACT,
   BUBBLEGUM_HEIST_CONTRACT,
   COSMIC_PLINKO_CONTRACT,
   DINO_DOUGH_CONTRACT,
@@ -28,6 +29,7 @@ import {
   MONKEY_MATCH_CONTRACT,
   ROULETTE_CONTRACT,
   SPEED_KENO_CONTRACT,
+  VIDEO_POKER_CONTRACT,
 } from './lib/constants.js';
 
 // ============================================================================
@@ -533,6 +535,23 @@ export const GAME_REGISTRY = [
 
 export const ABI_VERIFIED_SYMBOL = '✔︎';
 
+const SUPPLEMENTAL_DISPLAY_GAMES = Object.freeze([
+  Object.freeze({
+    key: 'blackjack',
+    name: 'Blackjack',
+    contract: BLACKJACK_CONTRACT,
+    abiVerified: false,
+    aliases: ['bj'],
+  }),
+  Object.freeze({
+    key: 'video-poker',
+    name: 'Video Poker',
+    contract: VIDEO_POKER_CONTRACT,
+    abiVerified: true,
+    aliases: ['vp', 'gimboz-poker', 'gimboz poker', 'Video Poker', 'Gimboz Poker'],
+  }),
+]);
+
 function normalizeGameLookupInput(input) {
   return String(input || '')
     .replace(/\s*✔︎$/, '')
@@ -569,6 +588,8 @@ export function getGameDisplayName(game) {
  */
 const GAME_INDEX = new Map();
 const GAME_BY_CONTRACT = new Map();
+const SUPPLEMENTAL_DISPLAY_GAME_INDEX = new Map();
+const SUPPLEMENTAL_DISPLAY_GAME_BY_CONTRACT = new Map();
 
 // Build index from registry
 for (const game of GAME_REGISTRY) {
@@ -584,6 +605,18 @@ for (const game of GAME_REGISTRY) {
   if (Array.isArray(game.aliases)) {
     for (const alias of game.aliases) {
       GAME_INDEX.set(normalizeGameLookupInput(alias), game);
+    }
+  }
+}
+
+for (const game of SUPPLEMENTAL_DISPLAY_GAMES) {
+  SUPPLEMENTAL_DISPLAY_GAME_INDEX.set(normalizeGameLookupInput(game.key), game);
+  SUPPLEMENTAL_DISPLAY_GAME_INDEX.set(normalizeGameLookupInput(game.name), game);
+  SUPPLEMENTAL_DISPLAY_GAME_BY_CONTRACT.set(String(game.contract).toLowerCase(), game);
+
+  if (Array.isArray(game.aliases)) {
+    for (const alias of game.aliases) {
+      SUPPLEMENTAL_DISPLAY_GAME_INDEX.set(normalizeGameLookupInput(alias), game);
     }
   }
 }
@@ -622,6 +655,13 @@ export function resolveGameDisplayName({ gameKey = null, contract = null, fallba
   const gameEntry = resolveGame(gameKey) || resolveGameByContract(contract);
   if (gameEntry) {
     return getGameDisplayName(gameEntry);
+  }
+
+  const supplementalGame = SUPPLEMENTAL_DISPLAY_GAME_BY_CONTRACT.get(String(contract || '').toLowerCase())
+    || SUPPLEMENTAL_DISPLAY_GAME_INDEX.get(normalizeGameLookupInput(gameKey))
+    || SUPPLEMENTAL_DISPLAY_GAME_INDEX.get(normalizeGameLookupInput(fallbackName));
+  if (supplementalGame) {
+    return formatGameDisplayName(supplementalGame.name, Boolean(supplementalGame.abiVerified));
   }
 
   const normalizedFallback = String(fallbackName || '').trim();

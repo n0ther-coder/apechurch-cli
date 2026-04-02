@@ -18,7 +18,7 @@ describe('Status Helpers', () => {
   describe('resolveActiveGameName', () => {
     it('maps known stateful games to their display names', () => {
       assert.strictEqual(resolveActiveGameName('blackjack'), 'Blackjack');
-      assert.strictEqual(resolveActiveGameName('video-poker'), 'Video Poker');
+      assert.strictEqual(resolveActiveGameName('video-poker'), 'Video Poker ✔︎');
     });
 
     it('title-cases unknown dashed game types', () => {
@@ -37,7 +37,7 @@ describe('Status Helpers', () => {
       assert.deepStrictEqual(summaries, [
         {
           key: 'video-poker',
-          game: 'Video Poker',
+          game: 'Video Poker ✔︎',
           unfinished_games: 2,
           game_ids: ['11', '12'],
         },
@@ -62,7 +62,7 @@ describe('Status Helpers', () => {
         historyEntries: [
           { contract: APE_STRONG_CONTRACT, game: 'ApeStrong', pnl_ape: '1.5000', wager_ape: '1', payout_ape: '2.5', won: true, push: false, settled: true },
           { contract: APE_STRONG_CONTRACT, game: 'ApeStrong', pnl_ape: '-0.5000', wager_ape: '1', payout_ape: '0.5', won: false, push: false, settled: true },
-          { contract: VIDEO_POKER_CONTRACT, game: 'Video Poker', pnl_ape: '5.0000', wager_ape: '10', payout_ape: '15', won: true, push: false, settled: true },
+          { contract: VIDEO_POKER_CONTRACT, game: 'Video Poker ✔︎', pnl_ape: '5.0000', wager_ape: '10', payout_ape: '15', won: true, push: false, settled: true },
         ],
         activeGames: {
           blackjack: ['77'],
@@ -110,7 +110,7 @@ describe('Status Helpers', () => {
           unfinished_game_ids: ['77'],
         },
         {
-          game: 'Video Poker',
+          game: 'Video Poker ✔︎',
           group_key: 'video-poker',
           base_game_key: 'video-poker',
           variant_label: null,
@@ -387,8 +387,8 @@ describe('Status Helpers', () => {
       assert.ok(byGame.has('Keno (Picks 1)'));
       assert.ok(byGame.has('Keno (Picks 5)'));
       assert.ok(byGame.has('Primes (Extreme)'));
-      assert.ok(byGame.has('Video Poker (Bet 1/5/10/25/50 APE)'));
-      assert.ok(byGame.has('Video Poker (Bet 100 APE)'));
+      assert.ok(byGame.has('Video Poker ✔︎ (Bet 1/5/10/25/50 APE)'));
+      assert.ok(byGame.has('Video Poker ✔︎ (Bet 100 APE)'));
 
       assert.strictEqual(byGame.get('ApeStrong').games_played, 0);
       assert.strictEqual(byGame.get('Keno (Picks 1)').games_played, 0);

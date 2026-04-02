@@ -204,6 +204,14 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(data.displayName, 'Cosmic Plinko ✔︎');
     });
 
+    it('exposes ABI verification metadata for verified stateful video poker', () => {
+      const { stdout } = cli('game video-poker --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Video Poker ✔︎');
+    });
+
     it('shows per-parameter BNF in game helpers', () => {
       const { stdout } = cli('game keno');
       assert.ok(stdout.includes('BNF:'), 'Should show BNF in the parameter section');

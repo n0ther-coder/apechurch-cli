@@ -2729,22 +2729,27 @@ ${'═'.repeat(60)}
     
     // Handle video-poker specially (stateful game)
     if (name.toLowerCase() === 'video-poker' || name.toLowerCase() === 'vp' || name.toLowerCase() === 'gimboz-poker') {
+      const videoPokerDisplayName = resolveGameDisplayName({
+        gameKey: 'video-poker',
+        contract: VIDEO_POKER_CONTRACT,
+        fallbackName: 'Video Poker',
+      });
       if (opts.json) {
         console.log(JSON.stringify({
           name: 'Video Poker',
-          displayName: 'Video Poker',
+          displayName: videoPokerDisplayName,
           type: 'stateful',
           key: 'video-poker',
-          abiVerified: false,
+          abiVerified: true,
           aliases: ['vp', 'gimboz-poker'],
           contract: VIDEO_POKER_CONTRACT,
-          description: 'Jacks or Better video poker with simple and best-EV auto-play',
+          description: 'Jacks or Better video poker with verified on-chain paytable, simple auto-play, and exact best-EV auto-play',
         }));
         return;
       }
       console.log(`
 ${'═'.repeat(60)}
-  VIDEO POKER (GIMBOZ POKER)
+  ${videoPokerDisplayName.toUpperCase()} (GIMBOZ POKER)
 ${'═'.repeat(60)}
 
   Jacks or Better video poker. Get dealt 5 cards, choose which
@@ -2753,6 +2758,7 @@ ${'═'.repeat(60)}
 
   Type:     stateful
   Key:      video-poker
+  ABI verified: true
   Aliases:  vp, gimboz-poker
   Contract: ${VIDEO_POKER_CONTRACT}
 
@@ -4273,7 +4279,7 @@ program
   .command('video-poker [action] [amount]')
   .alias('vp')
   .alias('gimboz-poker')
-  .description('Play Video Poker (Gimboz Poker) - Jacks or Better')
+  .description('Play Video Poker ✔︎ (Gimboz Poker) - Jacks or Better')
   .option('--game <id>', 'Specify game ID (for resume)')
   .option('--display <mode>', 'Display mode: full, simple, json')
   .option('--json', 'JSON output only')

@@ -65,7 +65,7 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 | Monkey Match | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Bear-A-Dice | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager; volatility comes from difficulty and rolls |
 | Blackjack | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
-| Video Poker / Gimboz Poker | Fixed denominations only | Fixed list: `1`, `5`, `10`, `25`, `50`, `100 APE` | Fixed max `100 APE` | Loop mode rounds to the closest affordable valid denomination; jackpot eligibility requires `100 APE` |
+| Video Poker ✔︎ / Gimboz Poker | Fixed denominations only | Fixed list: `1`, `5`, `10`, `25`, `50`, `100 APE` | Fixed max `100 APE` | Loop mode rounds to the closest affordable valid denomination; jackpot eligibility requires `100 APE` |
 
 ---
 
@@ -1021,15 +1021,16 @@ apechurch-cli blackjack 10 --auto --loop --delay 5 --human
 
 ---
 
-## Video Poker / Gimboz Poker
+## Video Poker ✔︎ / Gimboz Poker
 
 **Type:** Cards<br>
 **Contract:** `0x4f7D016704bC9A1d373E512e10CF86A0E7015D1D`<br>
+**ABI verified:** `true`<br>
 **Aliases:** `vp`, `gimboz-poker`
 
 `video-poker` is the CLI command for Ape Church's `Gimboz Poker`.
 
-Stateful Jacks or Better video poker with one redraw, interactive play, `--auto` modes, and a best-EV solver view. See [SKILL.md](../SKILL.md#video-poker) for the full flow and operational details.
+Stateful Jacks or Better video poker with one redraw, interactive play, `--auto` modes, and a best-EV solver view. The live verified contract exposes `getGameInfo`, `getBetAmounts`, `vrfFeeInitial`, `vrfFeeRedraw`, `determinePayout`, `determinePayoutFromRawNumbers`, and the progressive pool getter `jackpotTotal`. See [SKILL.md](../SKILL.md#video-poker) for the full flow and operational details.
 
 ### Grammar (BNF)
 
@@ -1040,9 +1041,16 @@ Stateful Jacks or Better video poker with one redraw, interactive play, `--auto`
 
 ### Accepted Bets
 
-- Fixed denominations only: `1`, `5`, `10`, `25`, `50`, `100 APE`
+- Verified on-chain via `getBetAmounts()`: `1`, `5`, `10`, `25`, `50`, `100 APE`
 - In loop mode, strategy output is rounded to the closest affordable valid denomination
 - `100 APE` is the maximum fixed bet and the only jackpot-eligible denomination
+
+### Verified Contract Behavior
+
+- The payout function is standard Jacks or Better: `1x`, `2x`, `3x`, `4x`, `6x`, `9x`, `25x`, `50x`, `250x`
+- The contract stores the progressive pool in `jackpotTotal`, not `jackpot`
+- A Royal Flush always pays the visible `250x` base paytable, and at max bet (`100 APE`) it also wins the full current `jackpotTotal` pool
+- `--auto best` in this fork is an exact EV solver: it enumerates all `32` hold patterns and every redraw completion from the remaining `47` cards, and includes the live jackpot pool only when the bet is `100 APE`
 
 ### Final Hand Paytable
 
@@ -1070,8 +1078,8 @@ Stateful Jacks or Better video poker with one redraw, interactive play, `--auto`
 
 | Mode | Exact RTP | Basis |
 |------|-----------|-------|
-| Base paytable at any fixed bet (`1/5/10/25/50/100 APE`) | `98.16%` | Exact weighted sum over the published final-hand odds |
-| `100 APE` bet with a known jackpot | `98.16% + jackpot_ape / 40,000` | Exact base RTP plus the max-bet Royal Flush jackpot uplift |
+| Base paytable at any fixed bet (`1/5/10/25/50/100 APE`) | `98.1649%` | Exact weighted sum over the verified on-chain paytable and the final-hand odds |
+| `100 APE` bet with a known jackpot pool | `98.1649% + jackpot_ape / 40,000` | Exact base RTP plus the max-bet Royal Flush jackpot uplift from `jackpotTotal` |
 
 ### Examples
 
@@ -1161,8 +1169,8 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 | Blackjack | Main Only | Yes | `100.05%` | Statistical main-game model from the repo simulator | `96.84%` |
 | Blackjack | Side Only | Yes | `79.88%` | Exact EV from the published player-side table | `96.84%` |
 | Blackjack | Dealer Side Only | Yes | `82.02%` | Exact EV from the published dealer-side conditions | `96.84%` |
-| Video Poker / Gimboz Poker | Base paytable at any fixed bet | Yes | `98.16%` | Exact weighted sum over final-hand odds | `89.53%` |
-| Video Poker / Gimboz Poker | `100 APE` bet with known jackpot | Yes | `98.16% + jackpot_ape / 40,000` | Exact parametric jackpot uplift | `89.53%` |
+| Video Poker ✔︎ / Gimboz Poker | Base paytable at any fixed bet | Yes | `98.16%` | Exact weighted sum over verified on-chain paytable and final-hand odds | `89.53%` |
+| Video Poker ✔︎ / Gimboz Poker | `100 APE` bet with known jackpot pool | Yes | `98.16% + jackpot_ape / 40,000` | Exact parametric jackpot uplift from `jackpotTotal` | `89.53%` |
 | Blocks | Easy | No | `98.41%` | Exact weighted sum over cluster table | `93.92%` |
 | Blocks | Hard | No | `98.55%` | Exact weighted sum over cluster table | `93.92%` |
 | Primes | Easy | No | `98.00%` | Exact weighted sum over prime/zero table | `105.64%` |
