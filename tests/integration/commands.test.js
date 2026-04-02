@@ -6,6 +6,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import fs from 'node:fs';
 import { execSync, spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -13,6 +14,90 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_PATH = path.join(__dirname, '../../bin/cli.js');
 const NO_WALLET_HOME = path.join(__dirname, '../tmp-no-wallet-home');
+const HISTORY_FIXTURE_HOME = path.join(__dirname, '../tmp-history-home');
+const HISTORY_FIXTURE_WALLET = '0x1111111111111111111111111111111111111111';
+
+function setupHistoryFixtureHome() {
+  const apechurchDir = path.join(HISTORY_FIXTURE_HOME, '.apechurch-cli');
+  const historyDir = path.join(apechurchDir, 'history');
+  fs.rmSync(HISTORY_FIXTURE_HOME, { recursive: true, force: true });
+  fs.mkdirSync(historyDir, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(apechurchDir, 'wallet.json'),
+    JSON.stringify({ address: HISTORY_FIXTURE_WALLET }, null, 2)
+  );
+  fs.writeFileSync(
+    path.join(apechurchDir, 'active_games.json'),
+    JSON.stringify({ 'video-poker': ['11', '12'] }, null, 2)
+  );
+  fs.writeFileSync(
+    path.join(historyDir, `church_${HISTORY_FIXTURE_WALLET.toLowerCase()}.json`),
+    JSON.stringify({
+      version: 1,
+      wallet: HISTORY_FIXTURE_WALLET.toLowerCase(),
+      chain_id: 33139,
+      last_synced_block: 1,
+      last_download_on: '2026-04-02T00:00:00.000Z',
+      games: [
+        {
+          contract: '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600',
+          gameId: '1',
+          timestamp: 1710000000,
+          game: 'ApeStrong',
+          game_key: 'ape-strong',
+          wager_wei: '5000000000000000000',
+          wager_ape: '5',
+          payout_wei: '0',
+          payout_ape: '0',
+          contract_fee_wei: '100000000000000000',
+          contract_fee_ape: '0.10',
+          gas_fee_wei: '10000000000000000',
+          gas_fee_ape: '0.01',
+          pnl_ape: '-5',
+          net_result_wei: '-5110000000000000000',
+          net_result_ape: '-5.11',
+          won: false,
+          push: false,
+          settled: true,
+          gp_received_raw: '5',
+          gp_received_display: '5',
+          wape_received_wei: '5000000000000000000',
+          wape_received_ape: '5',
+          last_sync_on: '2026-04-02T00:00:00.000Z',
+          chain_timestamp: 1710000000,
+        },
+        {
+          contract: '0x1f48A104C1808eb4107f3999999D36aeafEC56d5',
+          gameId: '2',
+          timestamp: 1710000100,
+          game: 'Roulette',
+          game_key: 'roulette',
+          wager_wei: '2000000000000000000',
+          wager_ape: '2',
+          payout_wei: '4000000000000000000',
+          payout_ape: '4',
+          contract_fee_wei: '0',
+          contract_fee_ape: '0',
+          gas_fee_wei: '10000000000000000',
+          gas_fee_ape: '0.01',
+          pnl_ape: '2',
+          net_result_wei: '1990000000000000000',
+          net_result_ape: '1.99',
+          won: true,
+          push: false,
+          settled: true,
+          gp_received_raw: '2',
+          gp_received_display: '2',
+          wape_received_wei: '2000000000000000000',
+          wape_received_ape: '2',
+          last_sync_on: '2026-04-02T00:00:00.000Z',
+          chain_timestamp: 1710000100,
+        },
+      ],
+    }, null, 2)
+  );
+}
 
 function stripVersionBanner(output) {
   return String(output || '').replace(/^apechurch-cli v[^\n]*\n+/, '');
@@ -284,9 +369,46 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(Array.isArray(data.games), 'Games should be array');
     });
 
+    it('--json --breakdown <game> filters the breakdown to one game family', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history --json --breakdown ape-strong', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+      const data = JSON.parse(stdout);
+
+      assert.ok(Array.isArray(data.breakdown), 'Should include a breakdown array');
+      assert.strictEqual(data.breakdown.length, 1, 'Should keep only one breakdown row');
+      assert.strictEqual(data.breakdown[0].game_key, 'ape-strong');
+      assert.strictEqual(data.breakdown_filter.game_key, 'ape-strong');
+    });
+
+    it('shows unfinished games after recent games with resume and clear hints', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+
+      const recentIndex = stdout.indexOf('Recent Games');
+      const unfinishedIndex = stdout.indexOf('Unfinished Games');
+      const statsIndex = stdout.indexOf('History Stats');
+
+      assert.ok(recentIndex >= 0, 'Should render the Recent Games section');
+      assert.ok(unfinishedIndex > recentIndex, 'Should render Unfinished Games after Recent Games');
+      assert.ok(statsIndex > unfinishedIndex, 'Should render History Stats after Unfinished Games');
+      assert.ok(
+        stdout.includes('To resume queue: $ apechurch-cli video-poker resume [--game <id>][--auto [best] | --solver]'),
+        'Should show the BNF-style video poker resume hint'
+      );
+      assert.ok(
+        stdout.includes('To clear queue: $ apechurch-cli video-poker clear'),
+        'Should show the clear-queue hint'
+      );
+    });
+
     it('--help documents --all', () => {
       const { stdout } = cli('history --help');
       assert.ok(stdout.includes('--all'), 'Should expose --all in help');
+      assert.ok(stdout.includes('--breakdown [game]'), 'Should expose the optional breakdown game filter in help');
     });
   });
 

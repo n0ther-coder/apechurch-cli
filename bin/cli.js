@@ -161,6 +161,7 @@ import {
   listGames,
   getGameDisplayName,
   resolveGameDisplayName,
+  stripAbiVerifiedSymbol,
 } from '../registry.js';
 import { getStrategy, listStrategies, getStrategyNames, calculateNextBet } from '../lib/strategies/index.js';
 import { fetchSavedHistoryEntries, resolveHistoryGameName, selectHistoryGames } from '../lib/history.js';
@@ -408,6 +409,120 @@ function formatHistoryBreakdownReport(gameStats) {
   }
 
   return lines.join('\n').trimEnd();
+}
+
+const HISTORY_BREAKDOWN_FILTER_ALIASES = new Map([
+  ['blackjack', 'blackjack'],
+  ['bj', 'blackjack'],
+  ['video-poker', 'video-poker'],
+  ['video poker', 'video-poker'],
+  ['vp', 'video-poker'],
+  ['gimboz-poker', 'video-poker'],
+  ['gimboz poker', 'video-poker'],
+]);
+
+function normalizeHistoryBreakdownLookupInput(input) {
+  return stripAbiVerifiedSymbol(String(input || '').trim()).toLowerCase();
+}
+
+function getHistoryBreakdownBaseName(entry) {
+  const gameName = String(entry?.game || '').trim();
+  const variantLabel = String(entry?.variant_label || '').trim();
+  if (!variantLabel) {
+    return stripAbiVerifiedSymbol(gameName);
+  }
+
+  const suffix = ` (${variantLabel})`;
+  const baseName = gameName.endsWith(suffix)
+    ? gameName.slice(0, -suffix.length).trim()
+    : gameName;
+  return stripAbiVerifiedSymbol(baseName);
+}
+
+function resolveHistoryBreakdownSelection(rawValue, historyBreakdown = []) {
+  if (typeof rawValue !== 'string' || !rawValue.trim()) {
+    return null;
+  }
+
+  const requested = rawValue.trim();
+  const normalized = normalizeHistoryBreakdownLookupInput(requested);
+  const resolvedGame = resolveGame(requested);
+  if (resolvedGame) {
+    return {
+      requested,
+      gameKey: resolvedGame.key,
+      displayName: getGameDisplayName(resolvedGame),
+    };
+  }
+
+  if (HISTORY_BREAKDOWN_FILTER_ALIASES.has(normalized)) {
+    const gameKey = HISTORY_BREAKDOWN_FILTER_ALIASES.get(normalized);
+    return {
+      requested,
+      gameKey,
+      displayName: resolveGameDisplayName({
+        gameKey,
+        fallbackName: requested,
+      }),
+    };
+  }
+
+  const matchedEntry = historyBreakdown.find((entry) => (
+    normalizeHistoryBreakdownLookupInput(entry?.game_key || '') === normalized
+    || normalizeHistoryBreakdownLookupInput(getHistoryBreakdownBaseName(entry)) === normalized
+    || normalizeHistoryBreakdownLookupInput(entry?.game || '') === normalized
+  ));
+
+  if (!matchedEntry) {
+    return null;
+  }
+
+  return {
+    requested,
+    gameKey: String(matchedEntry.game_key || '').trim().toLowerCase() || null,
+    displayName: getHistoryBreakdownBaseName(matchedEntry) || stripAbiVerifiedSymbol(matchedEntry.game) || requested,
+  };
+}
+
+function filterHistoryBreakdown(gameStats, selection) {
+  if (!Array.isArray(gameStats) || !selection) {
+    return Array.isArray(gameStats) ? gameStats : [];
+  }
+
+  const selectedKey = normalizeHistoryBreakdownLookupInput(selection.gameKey || '');
+  const selectedName = normalizeHistoryBreakdownLookupInput(selection.displayName || selection.requested || '');
+
+  return gameStats.filter((entry) => {
+    const entryKey = normalizeHistoryBreakdownLookupInput(entry?.game_key || '');
+    const entryBaseName = normalizeHistoryBreakdownLookupInput(getHistoryBreakdownBaseName(entry));
+    return (selectedKey && entryKey === selectedKey) || (selectedName && entryBaseName === selectedName);
+  });
+}
+
+function formatUnfinishedGamesSection(unfinishedGames = []) {
+  const lines = [
+    formatHeader('Unfinished Games', '🧩'),
+    '',
+  ];
+
+  if (!Array.isArray(unfinishedGames) || unfinishedGames.length === 0) {
+    lines.push(`   ${theme.dim('No unfinished games.')}`);
+    return lines.join('\n');
+  }
+
+  unfinishedGames.forEach((unfinished, index) => {
+    lines.push(`   ${theme.gameName(unfinished.game)} ${theme.dim(`(${unfinished.unfinished_games})`)}`);
+    for (const gameId of unfinished.game_ids) {
+      lines.push(`     ${theme.dim('-')} ${theme.value(gameId)}`);
+    }
+    lines.push(`     ${theme.dim('To resume queue:')} ${theme.command(`$ ${unfinished.resume_command}`)}`);
+    lines.push(`     ${theme.dim('To clear queue:')} ${theme.command(`$ ${unfinished.clear_command}`)}`);
+    if (index < unfinishedGames.length - 1) {
+      lines.push('');
+    }
+  });
+
+  return lines.join('\n');
 }
 
 function formatNullablePercent(value) {
@@ -1346,18 +1461,7 @@ program
       }
       console.log('');
 
-      console.log(`${formatHeader('Unfinished Games', '🧩')}\n`);
-      if (unfinishedGames.length === 0) {
-        console.log(`   ${theme.dim('No unfinished games.')}`);
-      } else {
-        for (const unfinished of unfinishedGames) {
-          console.log(`   ${theme.gameName(unfinished.game)} ${theme.dim(`(${unfinished.unfinished_games})`)}`);
-          for (const gameId of unfinished.game_ids) {
-            console.log(`     ${theme.dim('-')} ${theme.value(gameId)}`);
-          }
-          console.log(`     ${theme.dim('To clear queue:')} ${theme.command(`$ ${BINARY_NAME} ${unfinished.key} clear`)}`);
-        }
-      }
+      console.log(formatUnfinishedGamesSection(unfinishedGames));
       console.log('');
     }
   });
@@ -2498,7 +2602,7 @@ program
   .option('--all', 'Show all cached games instead of the recent slice')
   .option('--ids', 'Show game IDs at the end of each history line')
   .option('--stats', 'Show only history stats')
-  .option('--breakdown', 'Show history stats split by game')
+  .option('--breakdown [game]', 'Show history stats split by game, optionally filtered to one game')
   .option('--refresh', 'Refresh local history from chain before showing it')
   .option('--from-block <n>', 'Start block for --refresh sync or backfill')
   .option('--to-block <n>', 'End block for --refresh sync (default latest)')
@@ -2559,13 +2663,26 @@ program
 
     const stats = summarizeHistoryGames(history, currentBalances);
     const historyBreakdown = summarizeHistoryGamesByGame(history);
-    const breakdown = opts.breakdown ? historyBreakdown : [];
+    const breakdownSelection = typeof opts.breakdown === 'string'
+      ? resolveHistoryBreakdownSelection(opts.breakdown, historyBreakdown)
+      : null;
+    if (typeof opts.breakdown === 'string' && !breakdownSelection) {
+      const message = `Unknown game for --breakdown: ${opts.breakdown}`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.error(`\n❌ ${message}\n`);
+      process.exit(1);
+    }
+    const breakdown = opts.breakdown
+      ? filterHistoryBreakdown(historyBreakdown, breakdownSelection)
+      : [];
     const localWalletAddress = getWalletAddress();
     const includeActiveGames = Boolean(localWalletAddress)
       && localWalletAddress.toLowerCase() === targetAddress.toLowerCase();
+    const activeGames = includeActiveGames ? loadActiveGames() : {};
+    const unfinishedGames = includeActiveGames ? summarizeUnfinishedGames(activeGames) : [];
     const gameStatus = buildHistoryGameStatusSummary({
       historyBreakdown,
-      activeGames: includeActiveGames ? loadActiveGames() : {},
+      activeGames,
     });
     const limit = parseInt(opts.limit) || 10;
     const recentGames = selectHistoryGames(history.games, {
@@ -2595,6 +2712,12 @@ program
           last_download_on: history.last_download_on,
         },
         stats,
+        breakdown_filter: breakdownSelection ? {
+          requested: breakdownSelection.requested,
+          game_key: breakdownSelection.gameKey,
+          game: breakdownSelection.displayName,
+        } : null,
+        unfinished_games: unfinishedGames,
         game_stats: gameStatus,
         breakdown,
         sync: refreshResult?.sync || null,
@@ -2611,6 +2734,10 @@ program
           }
           console.log('');
         }
+        if (includeActiveGames) {
+          console.log(formatUnfinishedGamesSection(unfinishedGames));
+          console.log('');
+        }
       }
       console.log(formatHistoryStatsReport(stats));
       if (!opts.stats && gameStatus.length > 0) {
@@ -2620,7 +2747,13 @@ program
       }
       if (opts.breakdown) {
         console.log('');
-        console.log(formatHistoryBreakdownReport(breakdown));
+        if (breakdown.length === 0 && breakdownSelection) {
+          console.log(formatHeader('Breakdown', '🎮'));
+          console.log('');
+          console.log(`   ${theme.dim(`No saved games for ${breakdownSelection.displayName}.`)}`);
+        } else {
+          console.log(formatHistoryBreakdownReport(breakdown));
+        }
       }
       console.log('');
     }
@@ -3377,6 +3510,7 @@ ${'─'.repeat(70)}
     ${BINARY_NAME} history [address] --all
     ${BINARY_NAME} history [address] --stats
     ${BINARY_NAME} history [address] --breakdown
+    ${BINARY_NAME} history [address] --breakdown video-poker
     ${BINARY_NAME} history [address] --refresh
     ${BINARY_NAME} history [address] --refresh --from-block 0
 
@@ -3395,7 +3529,7 @@ ${'─'.repeat(70)}
     --limit <n>                Show N recent cached games (default 10)
     --all                      Show all cached games in the local file
     --stats                    Show only aggregate history stats
-    --breakdown                Show the same stats split by game
+    --breakdown [game]         Show the same stats split by game, optionally filtered
     --refresh                  Run wallet download first, then render
     --from-block <n>           Start block for --refresh
     --to-block <n>             End block for --refresh
@@ -3406,9 +3540,9 @@ ${'─'.repeat(70)}
     • Economic totals only include games whose wager, payout, fees, gas, GP,
       and wAPE can be reconstructed exactly from on-chain data
     • Enumerates the games in the local registry that emit indexed GameEnded(user, ...)
-    • Blackjack and Video Poker cannot be generically enumerated yet from raw RPC
-    • Locally-known Blackjack and Video Poker entries remain minimal until a
-      reliable on-chain fetch path is implemented
+    • Blackjack and Video Poker cannot be discovered from zero via raw RPC alone
+    • Locally-saved Blackjack and Video Poker game IDs can still be rehydrated
+      during refresh via getGameInfo
     • Sponsored transactions contribute zero contract fee and zero gas for the
       analyzed wallet
 
@@ -3424,6 +3558,9 @@ ${'─'.repeat(70)}
 
   3. ${BINARY_NAME} history [address] --breakdown
      Adds a per-game split of the same economic stats.
+
+  4. ${BINARY_NAME} history [address] --breakdown video-poker
+     Restricts that split to one game family.
 
 ${'─'.repeat(70)}
   INSTALL / REINSTALL
@@ -3509,6 +3646,7 @@ ${'─'.repeat(70)}
   ${BINARY_NAME} history --all
   ${BINARY_NAME} history --stats
   ${BINARY_NAME} history --breakdown
+  ${BINARY_NAME} history --breakdown jungle
   ${BINARY_NAME} history --refresh
 
 ${'─'.repeat(70)}
@@ -3531,6 +3669,7 @@ ${'─'.repeat(70)}
 
   --breakdown:
     • Per-game split of the same stats
+    • If you pass [game], only rows for that game are shown
 
   --refresh:
     • Runs wallet download first, then reads the updated local file

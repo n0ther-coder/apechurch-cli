@@ -1163,7 +1163,7 @@ The transparency side-bet probabilities assume independent card draws for that p
 ```bash
 # Auto-play
 apechurch-cli blackjack 10 --auto
-apechurch-cli blackjack 10 --auto best   # Falls back to simple for now
+apechurch-cli blackjack 10 --auto best
 apechurch-cli bj 10 --auto --loop        # Using alias
 
 # Interactive
@@ -1279,7 +1279,7 @@ Note: `play` defaults to `--delay 3`, while `blackjack` and `video-poker` defaul
 - All amounts are in APE
 - Manual `play` for simple games accepts any positive APE amount; built-in strategy presets usually floor auto-sized bets at `1 APE`
 - VRF fees are automatically calculated and added
-- Stateful games use `--auto simple` by default; video poker also supports `--auto best`
+- Stateful games use `--auto simple` by default; `blackjack` and `video-poker` also support `--auto best`
 - `video-poker --solver` shows a best-EV hold suggestion in interactive mode
 - `video-poker --display full` uses the boxed ASCII table renderer; `simple` stays compact
 - Use `apechurch-cli game <name>` for detailed in-CLI help

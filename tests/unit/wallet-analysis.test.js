@@ -9,6 +9,7 @@ import {
   analyzeWalletHistory,
   diagnoseUnsyncedSupportedGames,
   mergeDownloadedHistoryGames,
+  syncSavedStatefulHistoryGames,
   summarizeHistoryGames,
   summarizeHistoryGamesByGame,
 } from '../../lib/wallet-analysis.js';
@@ -506,6 +507,99 @@ describe('Wallet History Analysis', () => {
 
       assert.strictEqual(merged[0].last_sync_on, '2026-03-29T18:00:00.000Z');
       assert.strictEqual(merged[0].last_sync_msg, 'execution reverted');
+    });
+  });
+
+  describe('syncSavedStatefulHistoryGames', () => {
+    it('rebuilds completed video poker history entries from getGameInfo', async () => {
+      const syncTimestamp = '2026-04-02T12:00:00.000Z';
+      const result = await syncSavedStatefulHistoryGames({
+        async readContract(params) {
+          assert.strictEqual(params.functionName, 'getGameInfo');
+          assert.strictEqual(params.address, VIDEO_POKER_CONTRACT);
+          return {
+            player: WALLET,
+            betAmount: parseEther('25'),
+            totalPayout: parseEther('50'),
+            initialCards: [],
+            finalCards: [],
+            gameState: 3,
+            handStatus: 2,
+            awaitingRNG: false,
+            timestamp: 1_777_777_777n,
+          };
+        },
+      }, [
+        {
+          contract: VIDEO_POKER_CONTRACT,
+          gameId: '77',
+          timestamp: 0,
+        },
+      ], WALLET, syncTimestamp);
+
+      assert.strictEqual(result.games.length, 1);
+      assert.strictEqual(result.diagnosticsByGameKey.size, 0);
+      assert.strictEqual(result.games[0].game_key, 'video-poker');
+      assert.strictEqual(result.games[0].variant_key, 'video-poker:bet:base');
+      assert.deepStrictEqual(result.games[0].rtp_config, { betAmountApe: 25 });
+      assert.strictEqual(result.games[0].wager_wei, parseEther('25').toString());
+      assert.strictEqual(result.games[0].payout_wei, parseEther('50').toString());
+      assert.strictEqual(result.games[0].net_result_ape, '25');
+      assert.strictEqual(result.games[0].max_hit_x, undefined);
+      assert.strictEqual(result.games[0].last_sync_on, syncTimestamp);
+      assert.strictEqual(result.games[0].last_sync_msg, 'ok');
+      assert.strictEqual(result.games[0].settled, true);
+      assert.strictEqual(result.games[0].timestamp, 1_777_777_777_000);
+    });
+
+    it('rebuilds completed blackjack history entries from getGameInfo', async () => {
+      const syncTimestamp = '2026-04-02T12:00:00.000Z';
+      const result = await syncSavedStatefulHistoryGames({
+        async readContract(params) {
+          assert.strictEqual(params.functionName, 'getGameInfo');
+          assert.strictEqual(params.address, BLACKJACK_CONTRACT);
+          return {
+            user: WALLET,
+            gameState: 5,
+            activeHandIndex: 0,
+            playerHands: [
+              { cards: [], handValue: 20, isSoft: false, status: 1, bet: parseEther('10') },
+              { cards: [], handValue: 0, isSoft: false, status: 1, bet: 0n },
+            ],
+            dealerHand: { cards: [], handValue: 18, isSoft: false, status: 1, bet: 0n },
+            sideBets: [
+              { bet: 0n, amountForHouse: 0n, payout: 0n },
+              { bet: 0n, amountForHouse: 0n, payout: 0n },
+            ],
+            insuranceBet: { bet: 0n, amountForHouse: 0n, payout: 0n },
+            awaitingRandomNumber: false,
+            initialBet: parseEther('10'),
+            totalBet: parseEther('10'),
+            totalPayout: parseEther('20'),
+            surrendered: false,
+            timestamp: 1_888_888_888n,
+          };
+        },
+      }, [
+        {
+          contract: BLACKJACK_CONTRACT,
+          gameId: '88',
+          timestamp: 0,
+        },
+      ], WALLET, syncTimestamp);
+
+      assert.strictEqual(result.games.length, 1);
+      assert.strictEqual(result.diagnosticsByGameKey.size, 0);
+      assert.strictEqual(result.games[0].game_key, 'blackjack');
+      assert.strictEqual(result.games[0].variant_key, 'blackjack:main-only');
+      assert.deepStrictEqual(result.games[0].rtp_config, { mainBetApe: 10, playerSideApe: 0, dealerSideApe: 0 });
+      assert.strictEqual(result.games[0].wager_wei, parseEther('10').toString());
+      assert.strictEqual(result.games[0].payout_wei, parseEther('20').toString());
+      assert.strictEqual(result.games[0].net_result_ape, '10');
+      assert.strictEqual(result.games[0].last_sync_on, syncTimestamp);
+      assert.strictEqual(result.games[0].last_sync_msg, 'ok');
+      assert.strictEqual(result.games[0].settled, true);
+      assert.strictEqual(result.games[0].timestamp, 1_888_888_888_000);
     });
   });
 

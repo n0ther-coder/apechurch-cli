@@ -9,6 +9,7 @@ import {
   buildGameStatusSummary,
   buildHistoryGameStatusSummary,
   resolveActiveGameName,
+  resolveActiveGameResumeCommand,
   summarizeUnfinishedGames,
 } from '../../lib/status.js';
 
@@ -40,14 +41,29 @@ describe('Status Helpers', () => {
           game: 'Video Poker ✔︎',
           unfinished_games: 2,
           game_ids: ['11', '12'],
+          resume_command: 'apechurch-cli video-poker resume [--game <id>][--auto [best] | --solver]',
+          clear_command: 'apechurch-cli video-poker clear',
         },
         {
           key: 'blackjack',
           game: 'Blackjack',
           unfinished_games: 1,
           game_ids: ['7'],
+          resume_command: 'apechurch-cli blackjack resume [--game <id>][--auto [best]]',
+          clear_command: 'apechurch-cli blackjack clear',
         },
       ]);
+    });
+
+    it('uses BNF-style resume hints for known stateful games', () => {
+      assert.strictEqual(
+        resolveActiveGameResumeCommand('video-poker'),
+        'apechurch-cli video-poker resume [--game <id>][--auto [best] | --solver]'
+      );
+      assert.strictEqual(
+        resolveActiveGameResumeCommand('blackjack'),
+        'apechurch-cli blackjack resume [--game <id>][--auto [best]]'
+      );
     });
   });
 
