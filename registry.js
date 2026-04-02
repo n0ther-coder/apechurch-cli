@@ -452,22 +452,23 @@ export const GAME_REGISTRY = [
     name: 'Monkey Match',
     slug: 'monkey-match',
     type: 'monkeymatch',
-    description: 'Monkeys pop from 5 barrels — form poker hands! Five of a Kind = 50x. Low Risk has 6 monkeys, Normal has 7.',
+    description: 'Five monkeys are drawn from 5 independent VRF words. Form poker hands; Low Risk uses 6 monkey types, Normal Risk uses 7 and has the higher exact RTP.',
     contract: MONKEY_MATCH_CONTRACT,
+    abiVerified: true,
     aliases: ['monkey', 'mm'],
     config: {
       mode: {
         min: 1,
         max: 2,
         default: 1,
-        description: 'Risk level. 1=Low Risk (6 monkeys, easier matches), 2=Normal Risk (7 monkeys, better mid payouts).',
+        description: 'Risk level. 1=Low Risk (6 monkeys, easier matches, lower variance), 2=Normal Risk (7 monkeys, higher exact RTP and better mid payouts).',
         bnf: [
           '<mode> ::= <integer>',
           '; semantic constraint: value ∈ {1, 2}',
         ],
         options: [
-          { value: 1, label: 'Low Risk', desc: '6 monkey types — easier to match' },
-          { value: 2, label: 'Normal Risk', desc: '7 monkey types — better mid-tier payouts' },
+          { value: 1, label: 'Low Risk', desc: '6 monkey types, easier matches, lower variance, 97.99% exact RTP' },
+          { value: 2, label: 'Normal Risk', desc: '7 monkey types, harder matches, higher exact RTP at 98.29%' },
         ],
       },
     },

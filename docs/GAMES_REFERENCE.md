@@ -21,7 +21,7 @@ Where useful, this file also folds in payout tables and live Transparency-sectio
 | Speed Keno | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` |
 | Dino Dough | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` |
 | Bubblegum | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` |
-| Monkey Match | `play monkey-match <amt>` | `--game monkey-match --amount X --mode Y` |
+| Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --mode Y` |
 | Bear-A-Dice | `play bear-dice <amt>` | `--game bear-dice --amount X --difficulty Y --rolls Z` |
 | Primes ✔︎ | `play primes <amt> <difficulty> <runs>` | `--game primes --amount X --difficulty Y --runs Z` |
 
@@ -63,7 +63,7 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 | Speed Keno | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` batched games |
 | Dino Dough | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
 | Bubblegum Heist | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
-| Monkey Match | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
+| Monkey Match ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Bear-A-Dice | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager; volatility comes from difficulty and rolls |
 | Primes ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` runs |
 | Blackjack | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
@@ -808,14 +808,31 @@ apechurch-cli play bubblegum-heist 20 15 --loop
 
 ---
 
-## Monkey Match
+## Monkey Match ✔︎
 
 **Type:** Matching  
 **Contract:** `0x59EBd3406b76DCc74102AFa2cA5284E9AAB6bA28`  
+**ABI verified:** `true`  
 **Aliases:** `monkey`, `mm`
 
 ### How It Works
-5 monkeys pop from barrels. Form poker hands! Five of a Kind = 50x.
+The contract requests `5` VRF words per round and resolves each monkey independently:
+
+```text
+monkey_i = (randomWords[i] % totalMonkeys(mode)) + 1
+```
+
+The final 5-monkey board is then scored as a multiplicity hand:
+
+- Five of a Kind
+- Four of a Kind
+- Full House
+- Three of a Kind
+- Two Pair
+- One Pair
+- No Match
+
+There is no redraw phase and no post-deal action tree. For Monkey Match, "best play" is only a mode choice: `mode 2 / Normal Risk` has the higher exact RTP, while `mode 1 / Low Risk` is the lower-variance option.
 
 ### Syntax
 
@@ -834,8 +851,61 @@ apechurch-cli play monkey-match <amount> [--mode <1-2>]
 
 | Mode | Name | Description |
 |------|------|-------------|
-| 1 | Low Risk | 6 monkey types, easier matches |
-| 2 | Normal | 7 monkey types, better mid payouts |
+| 1 | Low Risk | 6 monkey types, easier matches, lower variance |
+| 2 | Normal Risk | 7 monkey types, harder matches, higher exact RTP |
+
+### Verified Runtime Behavior
+
+- `play(player, gameData)` decodes `(uint8 gameMode, uint256 gameId, address ref, bytes32 userRandomWord)`
+- The contract requests exactly `5` random words per round
+- `getVRFFee()` is a static view call; the VRF fee does not depend on mode
+- Live reads on **April 2, 2026**:
+  - `platformFee = 200` (`2%`)
+  - `partnerFeeCut = 0`
+  - `getTotalMonkeys(1) = 6`
+  - `getTotalMonkeys(2) = 7`
+  - payout denominator `PAYOUT_DENOM = 1000`
+
+### Verified Paytable
+
+| Outcome | Low Risk (6 monkeys) | Exact Probability | Normal Risk (7 monkeys) | Exact Probability |
+|---------|------------------------|-------------|--------------------------|-------------|
+| Five of a Kind | 50x | 0.07716% | 50x | 0.04165% |
+| Four of a Kind | 5x | 1.92901% | 5x | 1.24948% |
+| Full House | 4x | 3.85802% | 4x | 2.49896% |
+| Three of a Kind | 2x | 15.43210% | 3x | 12.49479% |
+| Two Pair | 1.25x | 23.14815% | 2x | 18.74219% |
+| One Pair | 0.2x | 46.29630% | 0.1x | 49.97918% |
+| No Match | 0x | 9.25926% | 0x | 14.99375% |
+
+The transparency page publishes rounded percentages for the same hand classes. The verified contract path above is the source of truth.
+
+### Exact Calculated RTP by Mode
+
+Let `M = totalMonkeys(mode)`. Because the contract draws `5` independent monkeys, the exact hand counts are:
+
+- `five = M`
+- `four = 5 * M * (M - 1)`
+- `fullHouse = 10 * M * (M - 1)`
+- `three = 10 * M * (M - 1) * (M - 2)`
+- `twoPair = 15 * M * (M - 1) * (M - 2)`
+- `onePair = 10 * M * (M - 1) * (M - 2) * (M - 3)`
+- `noMatch = M * (M - 1) * (M - 2) * (M - 3) * (M - 4)`
+
+with total outcomes `M^5`.
+
+So:
+
+```text
+RTP(mode) = sum_hand(count(hand, M) / M^5 * payoutMultiplier(hand, mode))
+```
+
+At displayed precision this is exact; the only omitted effect is the negligible modulo bias from `uint256 % 6` / `uint256 % 7`.
+
+| Mode | Exact RTP | Top Multiplier |
+|------|-----------|
+| Low Risk | `97.99%` | `50x` |
+| Normal Risk | `98.29%` | `50x` |
 
 ### Transparency Snapshot
 
@@ -844,32 +914,13 @@ apechurch-cli play monkey-match <amount> [--mode <1-2>]
 - Total Wagered: `345,257 APE`
 - Total Games Played: `12,405`
 
-### Transparency Paytable
-
-| Outcome | Easy Mode (6 monkeys) | Probability | Normal Mode (7 monkeys) | Probability |
-|---------|------------------------|-------------|--------------------------|-------------|
-| All Match | 50x | 0.08% | 50x | 0.04% |
-| Four of a Kind | 5x | 1.93% | 5x | 1.25% |
-| Full House | 4x | 3.86% | 4x | 2.50% |
-| Three of a Kind | 2x | 15.43% | 3x | 12.49% |
-| Two Pair | 1.25x | 23.15% | 2x | 18.74% |
-| One Pair | 0.2x | 46.30% | 0.1x | 49.98% |
-| No Match | 0x | 9.26% | 0x | 14.99% |
-
-### Exact Calculated RTP by Mode
-
-| Mode | Exact RTP |
-|------|-----------|
-| Mode 1 / Low Risk | `98.15%` |
-| Mode 2 / Normal | `98.20%` |
-
 ### Examples
 
 ```bash
 # Low risk (default)
 apechurch-cli play monkey-match 10
 
-# Normal risk
+# Normal risk / best EV
 apechurch-cli play monkey-match 10 --mode 2
 
 # Loop
@@ -1268,8 +1319,8 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 | Speed Keno | Picks 3 | Yes | `97.81%` | Exact hypergeometric EV | `93.36%` |
 | Speed Keno | Picks 4 | Yes | `97.42%` | Exact hypergeometric EV | `93.36%` |
 | Speed Keno | Picks 5 | Yes | `97.84%` | Exact hypergeometric EV | `93.36%` |
-| Monkey Match | Mode 1 / Low Risk | Yes | `98.15%` | Exact weighted sum over the public mode table | `97.34%` |
-| Monkey Match | Mode 2 / Normal | Yes | `98.20%` | Exact weighted sum over the public mode table | `97.34%` |
+| Monkey Match ✔︎ | Low Risk | Yes | `97.99%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
+| Monkey Match ✔︎ | Normal Risk | Yes | `98.29%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
 | Blackjack | Main Only | Yes | `100.05%` | Statistical main-game model from the repo simulator | `96.84%` |
 | Blackjack | Side Only | Yes | `79.88%` | Exact EV from the published player-side table | `96.84%` |
 | Blackjack | Dealer Side Only | Yes | `82.02%` | Exact EV from the published dealer-side conditions | `96.84%` |

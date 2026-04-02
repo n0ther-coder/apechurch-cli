@@ -537,6 +537,7 @@ The Transparency section header shows **97.5% Calculated RTP**.
 - Symbol-combination game.
 - Each round reveals a set of symbols and the payout depends on the final combination.
 - They explicitly mention high-value outcomes such as **All Match**, **Four of a Kind**, and **Full House**.
+- Now ABI-verified in this repo against the live contract. The contract draws 5 independent symbols and scores only the final multiplicity pattern.
 
 ### Transparency live metrics
 
@@ -550,6 +551,7 @@ The Transparency section header shows **97.5% Calculated RTP**.
 - 5 monkeys are revealed each round.
 - Easy mode uses **6 monkey types**.
 - Hard mode uses **7 monkey types**.
+- Live contract reads on **April 2, 2026** showed `platformFee = 200 (2%)` and `partnerFeeCut = 0`.
 
 | Outcome | Easy Mode (6 monkeys) | Probability | Hard Mode (7 monkeys) | Probability |
 | --- | --- | --- | --- | --- |
@@ -904,8 +906,8 @@ The table below contains either direct Transparency-section theoretical RTP labe
 | Cosmic Plinko — High | ~99.29% | sum of payout × probability | derived |
 | Blocks — Easy | ~98.41% | sum of payout × probability | derived |
 | Blocks — Hard | ~98.55% | sum of payout × probability | derived |
-| Monkey Match — Easy | ~98.15% | sum of payout × probability | derived |
-| Monkey Match — Hard | ~98.20% | sum of payout × probability | derived |
+| Monkey Match — Easy | ~97.99% | exact combinatorial EV over 5 independent symbol draws | derived |
+| Monkey Match — Hard | ~98.29% | exact combinatorial EV over 5 independent symbol draws | derived |
 | Primes — Easy | 98.00% | sum of payout × probability | derived |
 | Primes — Medium | 98.00% | sum of payout × probability | derived |
 | Primes — Hard | ~98.00% | sum of payout × probability | derived |

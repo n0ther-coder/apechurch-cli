@@ -202,7 +202,7 @@ Sync and cache behavior:
 | Speed Keno | `play speed-keno 10` | Keno | `--picks 1-5` `--games 1-20` |
 | Dino Dough | `play dino-dough 10 10` | Slots | `--spins 1-15` |
 | Bubblegum Heist | `play bubblegum-heist 10 10` | Slots | `--spins 1-15` |
-| Monkey Match | `play monkey-match 10` | Match | `--mode 1-2` |
+| Monkey Match ✔︎ | `play monkey-match 10` | Match | `--mode 1-2` |
 | Bear-A-Dice | `play bear-dice 10` | Dice | `--difficulty 0-4` `--rolls 1-5` |
 | Primes ✔︎ | `play primes 10 0 20` | Number | `--difficulty 0-3` `--runs 1-20` |
 | Blackjack | `blackjack 10 --auto` | Cards | Interactive or `--auto` |
@@ -386,14 +386,14 @@ apechurch-cli play bubblegum-heist 10 15 # 10 APE, 15 spins
 
 ---
 
-### Monkey Match
+### Monkey Match ✔︎
 
 Monkeys pop from barrels — form poker hands!
 
 ```bash
 apechurch-cli play monkey-match <amount> [--mode N]
 apechurch-cli play monkey-match 10           # Low risk (default)
-apechurch-cli play monkey-match 10 --mode 2  # Normal risk
+apechurch-cli play monkey-match 10 --mode 2  # Normal risk / best EV
 ```
 
 | Mode | Description |
@@ -402,6 +402,10 @@ apechurch-cli play monkey-match 10 --mode 2  # Normal risk
 | 2 | Normal Risk — 7 monkey types, better mid payouts |
 
 **Max payout:** Five of a Kind = 50x
+
+**Exact RTP:** `97.99%` in Low Risk, `98.29%` in Normal Risk
+
+**Best-play note:** there is no redraw or post-deal decision tree; the only strategic choice is mode selection, and mode `2` has the higher exact RTP
 
 **Aliases:** `monkey`, `mm`
 

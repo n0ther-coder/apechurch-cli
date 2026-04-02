@@ -22,7 +22,7 @@ describe('Status Helpers', () => {
     });
 
     it('title-cases unknown dashed game types', () => {
-      assert.strictEqual(resolveActiveGameName('monkey-match'), 'Monkey Match');
+      assert.strictEqual(resolveActiveGameName('monkey-match'), 'Monkey Match ✔︎');
     });
   });
 

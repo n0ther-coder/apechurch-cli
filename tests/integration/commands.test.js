@@ -214,6 +214,14 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(data.displayName, 'Primes ✔︎');
     });
 
+    it('exposes ABI verification metadata for verified Monkey Match', () => {
+      const { stdout } = cli('game monkey-match --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Monkey Match ✔︎');
+    });
+
     it('exposes ABI verification metadata for verified stateful video poker', () => {
       const { stdout } = cli('game video-poker --json');
       const data = JSON.parse(stdout);

@@ -45,12 +45,25 @@ describe('RTP Helpers', () => {
   it('keeps the configured expected RTP for games with mode-specific values', () => {
     const expected = getConfiguredGameExpectedRtpReference({ game: 'monkey-match', config: { mode: 2 } });
 
-    assert.strictEqual(expected.display, '98.20%');
-    assert.strictEqual(expected.min, 98.198);
-    assert.strictEqual(expected.max, 98.198);
-    assert.strictEqual(expected.value, 98.198);
+    assert.strictEqual(expected.display, '98.29%');
+    assert.strictEqual(expected.min, 98.29237817576009);
+    assert.strictEqual(expected.max, 98.29237817576009);
+    assert.strictEqual(expected.value, 98.29237817576009);
     assert.strictEqual(expected.referenceType, 'calculated');
     assert.strictEqual(expected.calculationKind, 'exact');
+  });
+
+  it('exposes exact calculated RTP constants for each verified Monkey Match mode', () => {
+    const variants = getGameCalculatedVariantReferences('monkey-match');
+
+    assert.deepStrictEqual(variants.map((variant) => ({
+      variantLabel: variant.variantLabel,
+      display: variant.calculated.display,
+      maxPayout: variant.maxPayout.display,
+    })), [
+      { variantLabel: 'Low Risk', display: '97.99%', maxPayout: '50x' },
+      { variantLabel: 'Normal Risk', display: '98.29%', maxPayout: '50x' },
+    ]);
   });
 
   it('uses the on-chain Jungle Plinko mode table even when balls are specified', () => {

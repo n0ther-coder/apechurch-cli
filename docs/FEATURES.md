@@ -34,7 +34,7 @@
 - **Table:** Roulette, Baccarat
 - **Keno:** Standard Keno, Speed Keno (batched games)
 - **Dice:** ApeStrong, Bear-A-Dice
-- **Other:** Monkey Match
+- **Other:** Monkey Match ✔︎
 - Full game customization (difficulty, risk, picks, rolls, bets)
 - Single plays or continuous loop mode
 - Strategy presets: Conservative → Degen
