@@ -52,6 +52,22 @@ describe('RTP Helpers', () => {
     assert.strictEqual(expected.calculationKind, 'exact');
   });
 
+  it('uses the on-chain Jungle Plinko mode table even when balls are specified', () => {
+    const expected = getConfiguredGameExpectedRtpReference({
+      game: 'jungle-plinko',
+      config: { mode: 4, balls: 50 },
+    });
+    const maxPayout = getConfiguredGameMaxPayoutReference({
+      game: 'jungle-plinko',
+      config: { mode: 4, balls: 50 },
+    });
+
+    assert.strictEqual(expected.display, '97.99%');
+    assert.strictEqual(expected.referenceType, 'calculated');
+    assert.strictEqual(expected.calculationKind, 'exact');
+    assert.strictEqual(maxPayout.display, '1,000x');
+  });
+
   it('exposes calculated RTP constants for each exact mode of a game', () => {
     const variants = getGameCalculatedVariantReferences('primes');
 
@@ -63,6 +79,22 @@ describe('RTP Helpers', () => {
       { variantLabel: 'Medium', display: '98.00%' },
       { variantLabel: 'Hard', display: '98.00%' },
       { variantLabel: 'Extreme', display: '98.04%' },
+    ]);
+  });
+
+  it('exposes exact calculated RTP constants for every Jungle Plinko mode', () => {
+    const variants = getGameCalculatedVariantReferences('jungle-plinko');
+
+    assert.deepStrictEqual(variants.map((variant) => ({
+      variantLabel: variant.variantLabel,
+      display: variant.calculated.display,
+      maxPayout: variant.maxPayout.display,
+    })), [
+      { variantLabel: 'Mode 0 / Safe', display: '98.00%', maxPayout: '2.2x' },
+      { variantLabel: 'Mode 1 / Low', display: '97.97%', maxPayout: '5x' },
+      { variantLabel: 'Mode 2 / Medium', display: '97.97%', maxPayout: '15x' },
+      { variantLabel: 'Mode 3 / High', display: '97.94%', maxPayout: '100x' },
+      { variantLabel: 'Mode 4 / Extreme', display: '97.99%', maxPayout: '1,000x' },
     ]);
   });
 

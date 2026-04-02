@@ -318,7 +318,9 @@ apechurch-cli play baccarat 25 BANKER --loop --max-games 50
 **Aliases:** `plinko`
 
 ### How It Works
-Drop balls through pegs. Each ball lands in a multiplier bucket. Higher modes = more volatile multipliers.
+Drop balls through pegs. Higher modes = more volatile multipliers.
+
+On-chain, Jungle Plinko is resolved as a weighted bucket draw, not a peg-by-peg left/right simulation. For each ball the contract samples one uniform integer `r` in `[0, totalWeight(mode) - 1]` and maps it into a bucket via the mode's cumulative weight table.
 
 ### Syntax
 
@@ -356,13 +358,36 @@ apechurch-cli play --game jungle-plinko --amount <APE> --mode <0-4> --balls <1-1
 | 3 | High | Wide swings |
 | 4 | Extreme | Maximum volatility |
 
+### Exact Calculated RTP
+
+Let `B` be the total wager in wei after subtracting the VRF fee, `N` the ball count, and `betPerBall = floor(B / N)`.
+
+- `deltaWeight_i(mode) = cumulativeWeight_i - cumulativeWeight_(i-1)`
+- `P(bucket_i | mode) = deltaWeight_i(mode) / totalWeight(mode)`
+- `multiplier_i(mode) = payout_i(mode) / 10,000`
+- `RTP_ball(mode) = sum_i(P(bucket_i | mode) * multiplier_i(mode))`
+- `RTP_game(mode, B, N) = RTP_ball(mode) * floor(B / N) * N / B`
+
+Implications:
+
+- If `B % N == 0`, exact RTP is independent of `N`.
+- If `B % N != 0`, exact RTP is reduced only by Solidity floor division dust; the mode table itself is unchanged.
+
+| Mode | Exact RTP | Top Multiplier |
+|------|-----------|----------------|
+| 0 / Safe | `98.00%` | `2.2x` |
+| 1 / Low | `97.97%` | `5x` |
+| 2 / Medium | `97.97%` | `15x` |
+| 3 / High | `97.94%` | `100x` |
+| 4 / Extreme | `97.99%` | `1000x` |
+
 ### Transparency Snapshot
 
 - House Profit: `31,743 APE`
 - Running RTP: `98.42%`
 - Total Wagered: `2,008,923 APE`
 - Total Games Played: `41,638`
-- Public transparency currently exposes aggregate metrics only for Jungle Plinko, not a bucket-by-bucket payout table.
+- Public transparency currently exposes aggregate metrics only, but the verified contract exposes bucket weights and payouts via `getBucketWeights(mode)` and `getPayouts(mode)`.
 
 ### Examples
 
@@ -1015,6 +1040,11 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 |------|------|-------------|-----------|--------|--------------------|
 | ApeStrong | Any supported `range` (`5-95`) | Yes | `97.50%` | Exact EV from repo payout formula | `98.53%` |
 | Roulette | All published bet classes | Yes | `97.11%` | Exact weighted sum on 38 pockets | `97.05%` |
+| Jungle Plinko | Mode 0 / Safe | Yes | `98.00%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Jungle Plinko | Mode 1 / Low | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Jungle Plinko | Mode 2 / Medium | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Jungle Plinko | Mode 3 / High | Yes | `97.94%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Jungle Plinko | Mode 4 / Extreme | Yes | `97.99%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
 | Keno | Picks 1 | Yes | `93.75%` | Exact hypergeometric EV | `86.35%` |
 | Keno | Picks 2 | Yes | `93.75%` | Exact hypergeometric EV | `86.35%` |
 | Keno | Picks 3 | Yes | `93.67%` | Exact hypergeometric EV | `86.35%` |
@@ -1049,7 +1079,7 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 
 ### Still Not Exactly Calculable from Local Sources
 
-The local source set is still insufficient for a defensible closed-form RTP on `Baccarat`, `Jungle Plinko`, `Dino Dough`, `Bubblegum Heist`, `Bear-A-Dice`, `Cash Dash`, `Gimboz Smash`, `Hi-Lo Nebula`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, `Sushi Showdown`, `Geez Diggerz`, and `Rico's Revenge`.
+The local source set is still insufficient for a defensible closed-form RTP on `Baccarat`, `Dino Dough`, `Bubblegum Heist`, `Bear-A-Dice`, `Cash Dash`, `Gimboz Smash`, `Hi-Lo Nebula`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, `Sushi Showdown`, `Geez Diggerz`, and `Rico's Revenge`.
 
 For `Blackjack`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables.
 
