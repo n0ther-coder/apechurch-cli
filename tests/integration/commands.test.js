@@ -226,6 +226,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Jungle Plinko ✔︎'), 'Should list verified Jungle Plinko');
       assert.ok(stdout.includes('Cosmic Plinko ✔︎'), 'Should list verified Cosmic Plinko');
       assert.ok(stdout.includes('Keno ✔︎'), 'Should list verified Keno');
+      assert.ok(stdout.includes('Speed Keno ✔︎'), 'Should list verified Speed Keno');
       assert.ok(stdout.includes('Primes ✔︎'), 'Should list verified Primes');
     });
 
@@ -314,6 +315,14 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Keno ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified Speed Keno', () => {
+      const { stdout } = cli('game speed-keno --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Speed Keno ✔︎');
     });
 
     it('exposes ABI verification metadata for verified stateful video poker', () => {

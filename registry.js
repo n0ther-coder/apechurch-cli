@@ -390,9 +390,10 @@ export const GAME_REGISTRY = [
     name: 'Speed Keno',
     slug: 'speed-keno',
     type: 'speedkeno',
-    description: 'Fast keno with batching! Pick 1-5 numbers from 1-20. Batch up to 20 games. Hit 5/5 for 2000x!',
+    description: 'Fast batched Keno on a 20-number board. The contract draws 5 winners without replacement per game; 5 picks has the best exact RTP, while batching up to 20 games mainly changes variance and fee overhead.',
     contract: SPEED_KENO_CONTRACT,
     aliases: ['sk', 'speedk'],
+    abiVerified: true,
     config: {
       picks: {
         min: 1,

@@ -82,6 +82,22 @@ describe('RTP Helpers', () => {
     assert.strictEqual(bestVariant.calculated.value, 94.6801);
   });
 
+  it('exposes exact calculated RTP constants for each verified Speed Keno pick count and the best EV at 5 picks', () => {
+    const variants = getGameCalculatedVariantReferences('speed-keno');
+    const byLabel = new Map(variants.map((variant) => [variant.variantLabel, variant]));
+
+    assert.strictEqual(byLabel.get('Picks 1').calculated.display, '97.50%');
+    assert.strictEqual(byLabel.get('Picks 5').calculated.display, '97.84%');
+    assert.strictEqual(byLabel.get('Picks 5').maxPayout.display, '2,000x');
+
+    const bestVariant = variants.reduce((best, candidate) => (
+      candidate.calculated.value > best.calculated.value ? candidate : best
+    ));
+
+    assert.strictEqual(bestVariant.variantLabel, 'Picks 5');
+    assert.strictEqual(bestVariant.calculated.value, 97.8377);
+  });
+
   it('uses the on-chain Jungle Plinko mode table even when balls are specified', () => {
     const expected = getConfiguredGameExpectedRtpReference({
       game: 'jungle-plinko',

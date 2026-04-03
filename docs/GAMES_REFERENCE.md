@@ -18,7 +18,7 @@ Where useful, this file also folds in payout tables and live Transparency-sectio
 | Jungle Plinko ✔︎ | `play jungle <amt> <mode> <balls>` | `--game jungle --amount X --mode Y --balls Z` |
 | Cosmic Plinko ✔︎ | `play cosmic <amt> <mode> <balls>` | `--game cosmic --amount X --mode Y --balls Z` |
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` |
-| Speed Keno | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` |
+| Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` |
 | Dino Dough | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` |
 | Bubblegum | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` |
 | Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --mode Y` |
@@ -60,7 +60,7 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 | Jungle Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-100` balls |
 | Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-30` balls |
 | Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
-| Speed Keno | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` batched games |
+| Speed Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` batched games |
 | Dino Dough | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
 | Bubblegum Heist | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
 | Monkey Match ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
@@ -619,14 +619,23 @@ apechurch-cli play keno 5 --picks 5 --loop --max-games 50
 
 ---
 
-## Speed Keno
+## Speed Keno ✔︎
 
 **Type:** Keno (Batched)  
 **Contract:** `0x40EE3295035901e5Fd80703774E5A9FE7CE2B90C`  
+**ABI verified:** `true`  
 **Aliases:** `sk`, `speedk`
 
 ### How It Works
-Fast keno with batched games. Pick 1-5 numbers from 1-20. Play up to 20 games at once.
+The verified contract decodes `(uint8 numGames, uint8[] gameNumbers, uint256 gameId, address ref, bytes32 userRandomWord)`, validates `1-5` unique picks in `1..20`, and batches `1-20` independent mini-games into one tx. Each mini-game requests `5` winning numbers without replacement, and the contract uses `Pyth V2 RNG` with a custom gas limit:
+
+```text
+gasCost(numGames) = BASE_GAS + GAS_PER_GAME * numGames
+```
+
+Because each draw is symmetric, the actual chosen numbers do not change RTP; only the pick count does. `numGames` mainly affects variance, fee overhead, and the Solidity floor-division split of the wager across the batch.
+
+There is no redraw phase and no post-bet action tree. For Speed Keno, "best play" reduces to pick-count selection only: `5 picks` has the highest exact RTP.
 
 ### Syntax
 
@@ -659,7 +668,17 @@ apechurch-cli play speed-keno <amount> [--picks <1-5>] [--games <1-20>]
 - Total Wagered: `227,058 APE`
 - Total Games Played: `6,938`
 
-### Transparency Payout Matrix
+### Verified Runtime Behavior
+
+- `MAX_GUESSES = 5`, `MIN_GUESSES = 1`, `KENO_BOARD_SIZE = 20`, `MAX_GAMES = 20`
+- `BASE_GAS = 325_000`, `GAS_PER_GAME = 55_000`
+- `getVRFFee(customGasLimit)` delegates to `IRNGPythV2.getFeeV2(customGasLimit)`
+- The contract requests exactly `5 * numGames` random words per tx
+- Each batched game resolves `5` winning numbers without replacement by partial Fisher-Yates on `[1..20]`
+- Payout per mini-game is `betAmountPerGame * payouts[picks][hits] / 10_000`
+- `betAmountPerGame = floor(totalBetAmount / numGames)`, so uneven batch splits reduce effective session RTP slightly
+
+### Verified On-Chain Payout Matrix
 
 | Picks | 0 matches | 1 match | 2 matches | 3 matches | 4 matches | 5 matches |
 |-------|-----------|---------|-----------|-----------|-----------|-----------|
@@ -678,6 +697,19 @@ apechurch-cli play speed-keno <amount> [--picks <1-5>] [--games <1-20>]
 | 3 | `97.81%` |
 | 4 | `97.42%` |
 | 5 | `97.84%` |
+
+Formula:
+
+```text
+H ~ Hypergeometric(N = 20, K = 5, n = picks)
+RTP_per_game(picks) = Σ_h P(H = h) * payout(picks, h)
+RTP_session(picks, totalBetAmount, numGames) = RTP_per_game(picks) * floor(totalBetAmount / numGames) * numGames / totalBetAmount
+```
+
+Best-EV pick count:
+
+- `5 picks`: `97.8376547988%`
+- No intra-game solver exists because there are no post-bet decisions to optimize
 
 ### Examples
 
@@ -1337,11 +1369,11 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 | Keno ✔︎ | Picks 8 | Yes | `94.19%` | Exact hypergeometric EV | `86.35%` |
 | Keno ✔︎ | Picks 9 | Yes | `93.32%` | Exact hypergeometric EV | `86.35%` |
 | Keno ✔︎ | Picks 10 | Yes | `93.83%` | Exact hypergeometric EV | `86.35%` |
-| Speed Keno | Picks 1 | Yes | `97.50%` | Exact hypergeometric EV | `93.36%` |
-| Speed Keno | Picks 2 | Yes | `97.37%` | Exact hypergeometric EV | `93.36%` |
-| Speed Keno | Picks 3 | Yes | `97.81%` | Exact hypergeometric EV | `93.36%` |
-| Speed Keno | Picks 4 | Yes | `97.42%` | Exact hypergeometric EV | `93.36%` |
-| Speed Keno | Picks 5 | Yes | `97.84%` | Exact hypergeometric EV | `93.36%` |
+| Speed Keno ✔︎ | Picks 1 | Yes | `97.50%` | Exact hypergeometric EV | `93.36%` |
+| Speed Keno ✔︎ | Picks 2 | Yes | `97.37%` | Exact hypergeometric EV | `93.36%` |
+| Speed Keno ✔︎ | Picks 3 | Yes | `97.81%` | Exact hypergeometric EV | `93.36%` |
+| Speed Keno ✔︎ | Picks 4 | Yes | `97.42%` | Exact hypergeometric EV | `93.36%` |
+| Speed Keno ✔︎ | Picks 5 | Yes | `97.84%` | Exact hypergeometric EV | `93.36%` |
 | Monkey Match ✔︎ | Low Risk | Yes | `97.99%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
 | Monkey Match ✔︎ | Normal Risk | Yes | `98.29%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
 | Blackjack | Main Only | Yes | `100.05%` | Statistical main-game model from the repo simulator | `96.84%` |

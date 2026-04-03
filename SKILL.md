@@ -199,7 +199,7 @@ Sync and cache behavior:
 | Jungle Plinko ✔︎ | `play jungle 10 2 50` | Plinko | `--mode 0-4` `--balls 1-100` |
 | Cosmic Plinko ✔︎ | `play cosmic 10 1 10` | Plinko | `--mode 0-2` `--balls 1-30` |
 | Keno ✔︎ | `play keno 10` | Keno | `--picks 1-10` `--numbers 1-40` |
-| Speed Keno | `play speed-keno 10` | Keno | `--picks 1-5` `--games 1-20` |
+| Speed Keno ✔︎ | `play speed-keno 10` | Keno | `--picks 1-5` `--games 1-20` |
 | Dino Dough | `play dino-dough 10 10` | Slots | `--spins 1-15` |
 | Bubblegum Heist | `play bubblegum-heist 10 10` | Slots | `--spins 1-15` |
 | Monkey Match ✔︎ | `play monkey-match 10` | Match | `--mode 1-2` |
@@ -349,9 +349,11 @@ apechurch-cli play keno 10 --picks 5 --numbers 1,7,13,25,40
 
 ---
 
-### Speed Keno
+### Speed Keno ✔︎
 
 Fast keno with batched games.
+
+**ABI verified:** `true`
 
 ```bash
 apechurch-cli play speed-keno <amount> [--picks N] [--games N]
