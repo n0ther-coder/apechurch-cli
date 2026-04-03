@@ -66,6 +66,22 @@ describe('RTP Helpers', () => {
     ]);
   });
 
+  it('exposes exact calculated RTP constants for each verified Keno pick count and the best EV at 5 picks', () => {
+    const variants = getGameCalculatedVariantReferences('keno');
+    const byLabel = new Map(variants.map((variant) => [variant.variantLabel, variant]));
+
+    assert.strictEqual(byLabel.get('Picks 1').calculated.display, '93.75%');
+    assert.strictEqual(byLabel.get('Picks 5').calculated.display, '94.68%');
+    assert.strictEqual(byLabel.get('Picks 10').maxPayout.display, '1,000,000x');
+
+    const bestVariant = variants.reduce((best, candidate) => (
+      candidate.calculated.value > best.calculated.value ? candidate : best
+    ));
+
+    assert.strictEqual(bestVariant.variantLabel, 'Picks 5');
+    assert.strictEqual(bestVariant.calculated.value, 94.6801);
+  });
+
   it('uses the on-chain Jungle Plinko mode table even when balls are specified', () => {
     const expected = getConfiguredGameExpectedRtpReference({
       game: 'jungle-plinko',

@@ -64,9 +64,10 @@ export const GAME_REGISTRY = [
     name: 'Keno',
     slug: 'keno',
     type: 'keno',
-    description: 'Pick 1-10 numbers from 1-40. More picks = riskier but bigger payouts. Hit 10/10 for up to 1,000,000x!',
+    description: 'Pick 1-10 unique numbers from 1-40. The contract draws 10 winning numbers without replacement; 5 picks has the best exact RTP, while 10/10 still reaches 1,000,000x.',
     contract: KENO_CONTRACT,
     aliases: ['k'],
+    abiVerified: true,
     config: {
       picks: {
         min: 1,

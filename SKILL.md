@@ -198,7 +198,7 @@ Sync and cache behavior:
 | Baccarat | `play baccarat 10 BANKER` | Table | `--bet PLAYER,BANKER,TIE` |
 | Jungle Plinko ✔︎ | `play jungle 10 2 50` | Plinko | `--mode 0-4` `--balls 1-100` |
 | Cosmic Plinko ✔︎ | `play cosmic 10 1 10` | Plinko | `--mode 0-2` `--balls 1-30` |
-| Keno | `play keno 10` | Keno | `--picks 1-10` `--numbers 1-40` |
+| Keno ✔︎ | `play keno 10` | Keno | `--picks 1-10` `--numbers 1-40` |
 | Speed Keno | `play speed-keno 10` | Keno | `--picks 1-5` `--games 1-20` |
 | Dino Dough | `play dino-dough 10 10` | Slots | `--spins 1-15` |
 | Bubblegum Heist | `play bubblegum-heist 10 10` | Slots | `--spins 1-15` |
@@ -325,9 +325,11 @@ apechurch-cli play cosmic 25 2 30           # High risk, max balls
 
 ---
 
-### Keno
+### Keno ✔︎
 
 Pick numbers, hope they hit.
+
+**ABI verified:** `true`
 
 ```bash
 apechurch-cli play keno <amount> [--picks N] [--numbers X,Y,Z]

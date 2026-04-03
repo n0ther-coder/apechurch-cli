@@ -205,7 +205,7 @@ describe('Wallet History Analysis', () => {
         games: [
           {
             contract: APESTRONG,
-            game: 'Keno',
+            game: 'Keno ✔︎',
             game_key: 'keno',
             variant_key: 'keno:picks:4',
             variant_label: 'Picks 4',
@@ -225,7 +225,7 @@ describe('Wallet History Analysis', () => {
           },
           {
             contract: APESTRONG,
-            game: 'Keno',
+            game: 'Keno ✔︎',
             game_key: 'keno',
             variant_key: 'keno:picks:5',
             variant_label: 'Picks 5',
@@ -253,13 +253,13 @@ describe('Wallet History Analysis', () => {
         max_hit_x: entry.max_hit_x,
       })), [
         {
-          game: 'Keno (Picks 4)',
+          game: 'Keno ✔︎ (Picks 4)',
           variant_key: 'keno:picks:4',
           rtp_config: { picks: 4 },
           max_hit_x: 0.9,
         },
         {
-          game: 'Keno (Picks 5)',
+          game: 'Keno ✔︎ (Picks 5)',
           variant_key: 'keno:picks:5',
           rtp_config: { picks: 5 },
           max_hit_x: 1.2,

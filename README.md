@@ -10,7 +10,7 @@ Private keys stay local, are stored on disk only in encrypted form in this harde
 
 ### Supported Games
 
-- **14 supported games:** `ApeStrong`, `Roulette`, `Baccarat`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno`, `Speed Keno`, `Dino Dough`, `Bubblegum Heist`, `Monkey Match ✔︎`, `Bear-A-Dice`, `Primes ✔︎`, `Blackjack`, and `Video Poker ✔︎ / Gimboz Poker`
+- **14 supported games:** `ApeStrong`, `Roulette`, `Baccarat`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno`, `Dino Dough`, `Bubblegum Heist`, `Monkey Match ✔︎`, `Bear-A-Dice`, `Primes ✔︎`, `Blackjack`, and `Video Poker ✔︎ / Gimboz Poker`
 - **Fully AI agents playable:** browserless CLI flows, local signing, JSON output, formal command grammar, and self-describing game metadata make it straightforward for coding agents and automations to use directly
 - **Improved auto gameplay:** `Blackjack` and `Video Poker ✔︎ / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
 - **Fully on-chain settlement:** every wager is placed on ApeChain and resolved by the live contracts with Chainlink VRF
@@ -21,7 +21,7 @@ Private keys stay local, are stored on disk only in encrypted form in this harde
 - **AI-agent-first operator UX:** fully AI agents playable command surface with structured outputs, stable aliases, local history caches, and no browser dependency
 - **Better stateful automation:** stronger blackjack and video-poker auto gameplay, side-bet support, unfinished-game recovery, and EV / Monte Carlo helpers for loop planning
 - **Expanded Ape Church coverage:** explicit support for both `jungle` and `cosmic` Plinko instead of a single generic Plinko entry, plus supported `Primes ✔︎` gameplay and a broader maintained game registry
-- **ABI-verified game metadata:** verified contracts are marked with `✔︎` in CLI output, help, JSON payloads, and docs; Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Monkey Match ✔︎, Primes ✔︎, and Video Poker ✔︎ use verified on-chain contract data
+- **ABI-verified game metadata:** verified contracts are marked with `✔︎` in CLI output, help, JSON payloads, and docs; Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Monkey Match ✔︎, Primes ✔︎, and Video Poker ✔︎ use verified on-chain contract data
 - **RTP and payout modeling overhaul:** expected RTP, reported RTP, current RTP, and max-payout references across the game catalog, with exact/formula/statistical provenance markers where available
 - **Exact Plinko modeling:** Jungle and Cosmic Plinko mode RTP and top payouts are derived from the live on-chain bucket tables, and Plinko stats are grouped by risk level rather than by ball count
 - **Per-wallet history cache:** `wallet download` reconstructs supported on-chain history into a local cache, with incremental backfills and offline `history` reads
@@ -180,7 +180,7 @@ Coverage and limits:
 | Baccarat | `play baccarat 10 BANKER` | Classic baccarat |
 | Jungle Plinko ✔︎ | `play jungle 10 2 50` | Drop balls for multipliers |
 | Cosmic Plinko ✔︎ | `play cosmic 10 1 10` | Asymmetric plinko with higher top-end payouts |
-| Keno | `play keno 10` | Pick numbers 1-40 |
+| Keno ✔︎ | `play keno 10` | Pick numbers 1-40 |
 | Speed Keno | `play speed-keno 10` | Fast batched keno |
 | Dino Dough | `play dino-dough 10 10` | Slot machine |
 | Bubblegum Heist | `play bubblegum-heist 10 10` | Slot machine |
