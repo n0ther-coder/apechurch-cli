@@ -26,6 +26,7 @@ This is the source of truth for all games. Each game entry contains:
   description: 'Description for help text',
   contract: '0x...',         // Contract address on ApeChain
   aliases: ['alias1'],       // Alternative names for CLI
+  abiVerified: false,        // Only set true after docs/ABI_VERIFICATION.md is complete
   config: { ... },           // Game-specific parameters (shown in help)
   vrf: { ... },              // VRF fee configuration
   // Game-specific extras (e.g., betTypes for roulette)
@@ -57,6 +58,7 @@ Add a new entry to `GAME_REGISTRY`:
   description: 'Description here',
   contract: '0x...',
   aliases: ['ng', 'newgame'],
+  abiVerified: false, // Promote only after completing the ABI verification checklist
   config: {
     // Parameters shown in CLI help
     param1: {
@@ -79,6 +81,8 @@ Add a new entry to `GAME_REGISTRY`:
   },
 }
 ```
+
+Do not mark a new or changed game as ABI verified during the first implementation pass unless you also complete the full promotion checklist in [docs/ABI_VERIFICATION.md](./ABI_VERIFICATION.md).
 
 ### 2. Add Strategy Config (`bin/cli.js`)
 
@@ -247,6 +251,7 @@ vrfFee = await publicClient.readContract({
 ## Checklist
 
 - [ ] Added game to `GAME_REGISTRY` in `registry.js`
+- [ ] Left `abiVerified` unset/false unless the verification guide is complete
 - [ ] Added strategy config in `getStrategyConfig()`
 - [ ] Added game selection in `selectGameAndConfig()`
 - [ ] Added encoding logic in `playGame()`
@@ -259,6 +264,7 @@ vrfFee = await publicClient.readContract({
 - [ ] Updated help text and examples
 - [ ] Tested with `apechurch-cli games` and `apechurch-cli game <name>`
 - [ ] Tested actual gameplay
+- [ ] If promoting to `ABI verified`, completed [docs/ABI_VERIFICATION.md](./ABI_VERIFICATION.md)
 
 ---
 
@@ -295,3 +301,14 @@ All Ape Church games must:
 4. Have `getEssentialGameInfo(uint256[] gameIds)` for history lookup
 
 These are defined in the `GameMasterClass` base contract.
+
+---
+
+## ABI Verification
+
+Shipping support for a game and promoting it to `ABI verified` are separate steps.
+
+- Support means the CLI can encode, submit, and read the game successfully.
+- `ABI verified` means the local ABI, config limits, read/write paths, and payout or solver logic have been checked against verified on-chain contract data.
+
+Before adding the `✔︎` marker or setting `abiVerified: true`, complete the checklist in [docs/ABI_VERIFICATION.md](./ABI_VERIFICATION.md).

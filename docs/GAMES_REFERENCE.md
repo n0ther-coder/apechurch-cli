@@ -6,6 +6,8 @@ Complete syntax and examples for all Ape Church CLI games.
 
 Where useful, this file also folds in payout tables and live Transparency-section snapshots for the games that are actually supported by this repo. Treat published RTP values as observed snapshots, not guaranteed long-run returns.
 
+The `✔︎` marker means this repo has locally verified the game's ABI-facing behavior against verified on-chain contract data. Supported games without the symbol are still playable in the CLI, but they have not yet been promoted to `ABI verified`; see [ABI_VERIFICATION.md](./ABI_VERIFICATION.md) for the maintainer checklist.
+
 ---
 
 ## Quick Reference
