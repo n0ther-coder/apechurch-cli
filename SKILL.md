@@ -179,7 +179,7 @@ Sync and cache behavior:
 
 ### Coverage Limits
 
-- Downloaded histories live under `~/.apechurch-cli/history/church_<wallet>.json`.
+- Downloaded histories live under `~/.apechurch-cli/history/<wallet>_history.json`.
 - Economic totals only include games whose wager, payout, fees, gas, GP, and wAPE can be reconstructed exactly from on-chain data.
 - Enumerates the supported single-transaction games in the local registry via indexed `GameEnded(user, ...)` logs.
 - `Blackjack` and `Video Poker` cannot yet be generically enumerated from raw RPC, so locally-known entries remain minimal until a reliable fetch path is implemented.
@@ -682,8 +682,9 @@ apechurch-cli video-poker payouts  # Show payout table
 | Command | Description |
 |---------|-------------|
 | `apechurch-cli wallet status` | Check encrypted wallet status |
+| `apechurch-cli wallet new` | Create and select a new wallet |
+| `apechurch-cli wallet select [address]` | Switch to a stored wallet |
 | `apechurch-cli wallet download [address]` | Download supported on-chain history into local cache |
-| `apechurch-cli wallet encrypt` | Migrate a legacy plaintext wallet to encrypted-only storage |
 | `apechurch-cli wallet new-password` | Re-encrypt the local wallet with a new password |
 | `apechurch-cli send APE <amount> <address>` | Send APE |
 | `apechurch-cli send GP <amount> <address>` | Send Gimbo Points |
@@ -811,7 +812,7 @@ All commands support `--json` for machine-readable output. Samples below are abr
   },
   "sync": {
     "wallet": "0x1234...abcd",
-    "file_path": "/Users/me/.apechurch-cli/history/church_0x1234...abcd.json",
+    "file_path": "/Users/me/.apechurch-cli/history/0x1234...abcd_history.json",
     "from_block": "35000000",
     "to_block": "35300000",
     "latest_block": "35300000",
@@ -829,7 +830,7 @@ All commands support `--json` for machine-readable output. Samples below are abr
 ```json
 {
   "wallet": "0x1234...abcd",
-  "history_file": "/Users/me/.apechurch-cli/history/church_0x1234...abcd.json",
+  "history_file": "/Users/me/.apechurch-cli/history/0x1234...abcd_history.json",
   "meta": {
     "version": 1,
     "chain_id": 33139,

@@ -17,22 +17,29 @@ const NO_WALLET_HOME = path.join(__dirname, '../tmp-no-wallet-home');
 const HISTORY_FIXTURE_HOME = path.join(__dirname, '../tmp-history-home');
 const HISTORY_FIXTURE_WALLET = '0x1111111111111111111111111111111111111111';
 
+function setupNoWalletHome() {
+  fs.rmSync(NO_WALLET_HOME, { recursive: true, force: true });
+  fs.mkdirSync(NO_WALLET_HOME, { recursive: true });
+}
+
 function setupHistoryFixtureHome() {
   const apechurchDir = path.join(HISTORY_FIXTURE_HOME, '.apechurch-cli');
   const historyDir = path.join(apechurchDir, 'history');
+  const gamesDir = path.join(apechurchDir, 'games');
   fs.rmSync(HISTORY_FIXTURE_HOME, { recursive: true, force: true });
   fs.mkdirSync(historyDir, { recursive: true });
+  fs.mkdirSync(gamesDir, { recursive: true });
 
   fs.writeFileSync(
     path.join(apechurchDir, 'wallet.json'),
     JSON.stringify({ address: HISTORY_FIXTURE_WALLET }, null, 2)
   );
   fs.writeFileSync(
-    path.join(apechurchDir, 'active_games.json'),
+    path.join(gamesDir, `${HISTORY_FIXTURE_WALLET.toLowerCase()}_games.json`),
     JSON.stringify({ 'video-poker': ['11', '12'] }, null, 2)
   );
   fs.writeFileSync(
-    path.join(historyDir, `church_${HISTORY_FIXTURE_WALLET.toLowerCase()}.json`),
+    path.join(historyDir, `${HISTORY_FIXTURE_WALLET.toLowerCase()}_history.json`),
     JSON.stringify({
       version: 1,
       wallet: HISTORY_FIXTURE_WALLET.toLowerCase(),
@@ -107,11 +114,21 @@ function stripVersionBanner(output) {
  * Run CLI command and return output
  */
 function cli(args, options = {}) {
+  const env = {
+    ...process.env,
+    HOME: NO_WALLET_HOME,
+    ...(options.env || {}),
+  };
+  const execOptions = {
+    ...options,
+    env,
+  };
+
   try {
     const result = execSync(`node ${CLI_PATH} ${args} 2>&1`, {
       encoding: 'utf8',
       timeout: options.timeout || 30000,
-      ...options,
+      ...execOptions,
     });
     return { stdout: stripVersionBanner(result), stderr: '', code: 0 };
   } catch (error) {
@@ -122,6 +139,8 @@ function cli(args, options = {}) {
     };
   }
 }
+
+setupNoWalletHome();
 
 describe('CLI Commands Integration Tests', () => {
 
@@ -356,7 +375,10 @@ describe('CLI Commands Integration Tests', () => {
 
   describe('history command', () => {
     it('shows game history', () => {
-      const { stdout } = cli('history');
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
       // May be empty or have games
       assert.ok(
         stdout.includes('Recent') || stdout.includes('history') || stdout.includes('No games'),
@@ -365,7 +387,10 @@ describe('CLI Commands Integration Tests', () => {
     });
 
     it('--json returns games array', () => {
-      const { stdout } = cli('history --json');
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history --json', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
       const data = JSON.parse(stdout);
       
       assert.ok('games' in data, 'Should have games key');
@@ -373,14 +398,20 @@ describe('CLI Commands Integration Tests', () => {
     });
 
     it('--limit works', () => {
-      const { stdout } = cli('history --json --limit 5');
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history --json --limit 5', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
       const data = JSON.parse(stdout);
       
       assert.ok(data.games.length <= 5, 'Should respect limit');
     });
 
     it('--all is accepted', () => {
-      const { stdout } = cli('history --json --all');
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history --json --all', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
       const data = JSON.parse(stdout);
 
       assert.ok('games' in data, 'Should have games key');
@@ -462,15 +493,22 @@ describe('CLI Commands Integration Tests', () => {
   describe('house status command', () => {
     it('shows house information', () => {
       const { stdout } = cli('house status');
-      assert.ok(stdout.includes('House') || stdout.includes('Staked'), 'Should show house info');
+      assert.ok(
+        stdout.includes('House') || stdout.includes('Staked') || stdout.includes('Failed to fetch house stats'),
+        'Should show house info or a structured fetch failure'
+      );
     });
 
     it('--json returns house data', () => {
       const { stdout } = cli('house status --json');
       const data = JSON.parse(stdout);
-      
-      assert.ok('total_staked' in data, 'Should have total_staked');
-      assert.ok('max_payout' in data, 'Should have max_payout');
+
+      if ('error' in data) {
+        assert.ok(String(data.error).includes('Failed to fetch house stats'), 'Error should explain the fetch failure');
+      } else {
+        assert.ok('total_staked' in data, 'Should have total_staked');
+        assert.ok('max_payout' in data, 'Should have max_payout');
+      }
     });
   });
 

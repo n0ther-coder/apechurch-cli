@@ -366,7 +366,7 @@ canSplit =
 
 ### Phase 4: Start Game
 - [ ] Encode gameData
-- [ ] Track in active_games.json
+- [ ] Track in games/<wallet>_games.json
 - [ ] Poll for initial deal
 
 ### Phase 5: Actions

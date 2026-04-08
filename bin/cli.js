@@ -48,11 +48,12 @@
  * └──────────────────────────────────────────────────────────────────────────┘
  *
  * Data Storage:
- * - wallet.json       - Encrypted private key + public metadata
- * - profile.json      - Username, persona, preferences
- * - state.json        - Local stats, betting strategy state
+ * - wallet.json        - Currently selected encrypted wallet
+ * - wallets/          - Archived/selectable wallet copies
+ * - profiles/         - Per-wallet usernames, persona, preferences
+ * - states/           - Per-wallet local stats and betting state
  * - history/          - Per-wallet cached game histories and sync state
- * - active_games.json - Unfinished stateful games
+ * - games/            - Per-wallet unfinished stateful games
  *
  * @module bin/cli
  * @see {@link https://ape.church} - Ape Church website
@@ -123,7 +124,6 @@ import {
   createClients,
   loadWalletData,
   isWalletEncrypted,
-  encryptWallet,
   getWalletHints,
   setWalletHints,
   createEncryptedWalletFromPrivateKey,
@@ -131,6 +131,10 @@ import {
   getConfiguredPrivateKey,
   getWalletAddress,
   getWalletPublicMetadata,
+  archiveCurrentWallet,
+  findStoredWallet,
+  listStoredWallets,
+  selectStoredWallet,
   promptSecret,
 } from '../lib/wallet.js';
 import {
@@ -147,6 +151,7 @@ import {
   getActiveGames,
   saveActiveGames,
   loadActiveGames,
+  ensureWalletScopedData,
 } from '../lib/profile.js';
 import {
   getStrategyConfig,
@@ -271,6 +276,155 @@ function prompt(question) {
       resolve(answer);
     });
   });
+}
+
+async function collectPasswordForWalletFile({ commandLabel = `${BINARY_NAME} install` } = {}) {
+  const envPassword = process.env[PASS_ENV_VAR];
+  if (envPassword) return envPassword;
+
+  if (!process.stdin.isTTY || !process.stderr.isTTY) {
+    console.error(`
+❌ Secure password entry requires an interactive terminal.
+   Fallback: set ${PASS_ENV_VAR} only if you must run ${commandLabel} non-interactively.
+`);
+    process.exit(1);
+  }
+
+  const password = await promptSecret('Set wallet password (input hidden): ');
+  if (!password || password.length < 8) {
+    console.error('\n❌ Password must be at least 8 characters\n');
+    process.exit(1);
+  }
+
+  const confirm = await promptSecret('Confirm wallet password (input hidden): ');
+  if (password !== confirm) {
+    console.error('\n❌ Passwords do not match\n');
+    process.exit(1);
+  }
+
+  return password;
+}
+
+async function collectHintsIfInteractive({
+  interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY),
+  intro = '\nOptional password hints (stored locally, max 3, never the password itself):',
+} = {}) {
+  if (!interactive) {
+    return [];
+  }
+
+  console.log(intro);
+  const hints = [];
+  for (let i = 1; i <= 3; i++) {
+    const hint = await prompt(`Hint ${i}: `);
+    if (hint.trim()) hints.push(hint.trim());
+  }
+  return hints;
+}
+
+async function collectPrivateKeyForWalletImport({ commandLabel = `${BINARY_NAME} install` } = {}) {
+  const envPrivateKey = getConfiguredPrivateKey();
+  if (envPrivateKey) return envPrivateKey;
+
+  if (!process.stdin.isTTY || !process.stderr.isTTY) {
+    console.error(`
+❌ Secure private key entry requires an interactive terminal.
+   Fallback: set ${PRIVATE_KEY_ENV_VAR} only if you must run ${commandLabel} non-interactively.
+`);
+    process.exit(1);
+  }
+
+  let privateKeyInput;
+  try {
+    privateKeyInput = await promptSecret('Enter private key (input hidden): ');
+  } catch (error) {
+    console.error(`
+❌ ${sanitizeError(error)}
+`);
+    process.exit(1);
+  }
+
+  const privateKey = privateKeyInput.trim();
+  if (!privateKey) {
+    console.error('\n❌ Private key is required.\n');
+    process.exit(1);
+  }
+
+  return privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
+}
+
+function getCurrentUnfinishedGames(walletAddress = getWalletAddress()) {
+  if (!walletAddress) {
+    return [];
+  }
+
+  const activeGames = loadActiveGames(walletAddress);
+  return summarizeUnfinishedGames(activeGames);
+}
+
+function prepareCurrentWalletForSwitch({ json = false } = {}) {
+  const currentAddress = getWalletAddress();
+  if (!currentAddress) {
+    return null;
+  }
+
+  ensureWalletScopedData(currentAddress);
+  const unfinishedGames = getCurrentUnfinishedGames(currentAddress);
+  if (unfinishedGames.length > 0) {
+    const message = 'Cannot switch wallets while unfinished games are still open for the current wallet. Resume or clear them first.';
+    if (json) {
+      console.log(JSON.stringify({ error: message, unfinished_games: unfinishedGames }));
+    } else {
+      console.error(`\n❌ ${message}\n`);
+      console.error(`${formatUnfinishedGamesSection(unfinishedGames)}\n`);
+    }
+    process.exit(1);
+  }
+
+  try {
+    archiveCurrentWallet();
+  } catch (error) {
+    const message = `Current wallet could not be archived safely: ${sanitizeError(error)}`;
+    if (json) {
+      console.log(JSON.stringify({ error: message }));
+    } else {
+      console.error(`\n❌ ${message}\n`);
+    }
+    process.exit(1);
+  }
+
+  return currentAddress;
+}
+
+function printSelectableWallets(wallets) {
+  console.log('\nAvailable wallets:\n');
+  wallets.forEach((wallet, index) => {
+    const currentLabel = wallet.isCurrent ? ' (current)' : '';
+    console.log(`   ${index + 1}. ${wallet.address}${currentLabel}`);
+  });
+  console.log('');
+}
+
+async function promptForWalletSelection(wallets) {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error('wallet select without <address> requires an interactive terminal.');
+  }
+
+  printSelectableWallets(wallets);
+
+  while (true) {
+    const answer = (await prompt('Select wallet number [1]: ')).trim();
+    if (!answer) {
+      return wallets[0];
+    }
+
+    const selectedIndex = Number.parseInt(answer, 10);
+    if (Number.isInteger(selectedIndex) && selectedIndex >= 1 && selectedIndex <= wallets.length) {
+      return wallets[selectedIndex - 1];
+    }
+
+    console.log(`\nChoose a number between 1 and ${wallets.length}.\n`);
+  }
 }
 
 async function confirmGameplayPasswordPromptBehavior({ json = false, forcePrompt = false } = {}) {
@@ -682,6 +836,24 @@ function formatWalletDownloadReport(downloadResult) {
   return lines.join('\n');
 }
 
+function formatShortHash(hash, start = 10, end = 8) {
+  const value = String(hash || '').trim();
+  if (!value) {
+    return 'n/a';
+  }
+  if (value.length <= start + end + 1) {
+    return value;
+  }
+  return `${value.slice(0, start)}…${value.slice(-end)}`;
+}
+
+function formatWalletDownloadProgressLine(progress) {
+  const status = progress.lastSyncMsg && progress.lastSyncMsg !== 'ok'
+    ? ` ${theme.warning(`[${progress.lastSyncMsg}]`)}`
+    : '';
+  return `   ${theme.dim(`(${progress.index}/${progress.total})`)} ${theme.gameName(progress.game || progress.gameKey || 'Unknown')} ${theme.txHash(formatShortHash(progress.txHash || progress.settlementTxHash))}${status}`;
+}
+
 function resolveHistoryTargetAddress(address) {
   const targetAddress = address || getWalletAddress();
   return targetAddress || null;
@@ -718,6 +890,11 @@ async function downloadHistoryForCli(targetAddress, opts = {}) {
     fromBlock,
     toBlock,
     chunkSize,
+    onTransactionProcessed: opts.json
+      ? null
+      : (progress) => {
+          console.log(formatWalletDownloadProgressLine(progress));
+        },
   });
 }
 
@@ -733,15 +910,6 @@ async function getWalletWithPrompt(opts = {}) {
   }
 
   const meta = getWalletPublicMetadata();
-  if (meta?.legacyPlaintext) {
-    const message = `Legacy plaintext wallet detected. Run: ${BINARY_NAME} install to migrate it.`;
-    if (opts.json) console.error(JSON.stringify({ error: message }));
-    else console.error(`
-❌ ${message}
-`);
-    process.exit(1);
-  }
-
   if (opts.gameplay) {
     const shouldContinue = await confirmGameplayPasswordPromptBehavior({
       json: opts.json,
@@ -789,102 +957,31 @@ Environment:
 
     const existingWallet = loadWalletData();
     let address;
-    let createdOrMigratedWallet = false;
-
-    async function collectPasswordForWalletFile() {
-      const envPassword = process.env[PASS_ENV_VAR];
-      if (envPassword) return envPassword;
-
-      if (!process.stdin.isTTY || !process.stderr.isTTY) {
-        console.error(`
-❌ Secure password entry requires an interactive terminal.
-   Fallback: set ${PASS_ENV_VAR} only if you must run ${BINARY_NAME} install non-interactively.
-`);
-        process.exit(1);
-      }
-
-      const password = await promptSecret('Set wallet password (input hidden): ');
-      if (!password || password.length < 8) {
-        console.error('\n❌ Password must be at least 8 characters\n');
-        process.exit(1);
-      }
-      const confirm = await promptSecret('Confirm wallet password (input hidden): ');
-      if (password !== confirm) {
-        console.error('\n❌ Passwords do not match\n');
-        process.exit(1);
-      }
-      return password;
-    }
-
-    async function collectHintsIfInteractive() {
-      if (!isInteractive) return [];
-      console.log('\nOptional password hints (stored locally, max 3, never the password itself):');
-      const hints = [];
-      for (let i = 1; i <= 3; i++) {
-        const hint = await prompt(`Hint ${i}: `);
-        if (hint.trim()) hints.push(hint.trim());
-      }
-      return hints;
-    }
-
-    async function collectPrivateKeyForWalletImport() {
-      const envPrivateKey = getConfiguredPrivateKey();
-      if (envPrivateKey) return envPrivateKey;
-
-      if (!process.stdin.isTTY || !process.stderr.isTTY) {
-        console.error(`
-❌ Fresh install/reinstall requires an interactive terminal for secure private key entry.
-   Fallback: set ${PRIVATE_KEY_ENV_VAR} only if you must run ${BINARY_NAME} install non-interactively.
-`);
-        process.exit(1);
-      }
-
-      let privateKeyInput;
-      try {
-        privateKeyInput = await promptSecret('Enter private key (input hidden): ');
-      } catch (error) {
-        console.error(`
-❌ ${sanitizeError(error)}
-`);
-        process.exit(1);
-      }
-
-      const privateKey = privateKeyInput.trim();
-      if (!privateKey) {
-        console.error('\n❌ Private key is required for a fresh install/reinstall.\n');
-        process.exit(1);
-      }
-
-      return privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
-    }
+    let createdWallet = false;
 
     if (existingWallet && isWalletEncrypted()) {
       address = getWalletAddress();
+      ensureWalletScopedData(address);
+      archiveCurrentWallet();
       console.log(`
 ✅ Using existing encrypted wallet: ${address}`);
     } else if (existingWallet) {
-      console.log('\n⚠️  Legacy plaintext wallet detected. Migrating it to encrypted-only storage.');
-      const password = await collectPasswordForWalletFile();
-      const hints = await collectHintsIfInteractive();
-      const result = encryptWallet(password, hints);
-      if (result.error) {
-        console.error(`
-❌ ${result.error}
+      console.error(`
+❌ Existing wallet.json is not in a supported encrypted format.
+   See LEGACY.md for the manual migration procedure.
 `);
-        process.exit(1);
-      }
-      address = result.address;
-      createdOrMigratedWallet = true;
-      console.log(`✅ Wallet migrated to encrypted-only storage: ${address}`);
+      process.exit(1);
     } else {
       const privateKey = await collectPrivateKeyForWalletImport();
       const password = await collectPasswordForWalletFile();
-      const hints = await collectHintsIfInteractive();
+      const hints = await collectHintsIfInteractive({ interactive: isInteractive });
 
       try {
         const result = createEncryptedWalletFromPrivateKey(privateKey, password, hints);
         address = result.address;
-        createdOrMigratedWallet = true;
+        createdWallet = true;
+        ensureWalletScopedData(address);
+        archiveCurrentWallet();
         console.log(`
 ✅ Imported wallet into encrypted-only storage: ${address}`);
       } catch (error) {
@@ -996,7 +1093,7 @@ Registering \"${username}\"...`);
       console.log('═══════════════════════════════════════════════════════════════════');
     }
 
-    if (createdOrMigratedWallet && !process.env[PASS_ENV_VAR]) {
+    if (createdWallet && !process.env[PASS_ENV_VAR]) {
       console.log('');
       console.log('  🔐 PASSWORD PROMPTS');
       console.log('     Because no password env var is set, each signature will ask for the password locally.');
@@ -1021,8 +1118,7 @@ program
     if (!opts.yes) {
       console.log('\n⚠️  This will delete:');
       console.log(`   - Wallet at ${WALLET_FILE}`);
-      console.log(`   - Profile at ${APECHURCH_DIR}/profile.json`);
-      console.log(`   - All local state and history`);
+      console.log(`   - Archived wallets, profiles, state, history, and unfinished games under ${APECHURCH_DIR}`);
       console.log('\n   Make sure you still control the original private key outside this local installation.');
       console.log(`   Reinstall will prompt for the private key on this local machine.`);
       console.log(`   Fallback for non-interactive reinstall only: ${PRIVATE_KEY_ENV_VAR}.\n`);
@@ -1047,7 +1143,7 @@ program
 // ============================================================================
 program
   .command('wallet <action> [address]')
-  .description('Wallet management (status, download, encrypt legacy wallet, rotate password, hints, reset)')
+  .description('Wallet management (status, new, select, download, rotate password, hints, reset)')
   .option('-y, --yes', 'Skip confirmation')
   .option('--json', 'JSON output')
   .option('--from-block <n>', 'Start block for wallet history download or backfill')
@@ -1102,54 +1198,133 @@ program
       return;
     }
 
-    if (action === 'encrypt') {
-      if (!walletExists()) {
-        console.error(`
-❌ No wallet found. Run: ${BINARY_NAME} install
-`);
-        process.exit(1);
+    if (action === 'new') {
+      const previousAddress = getWalletAddress();
+      if (previousAddress) {
+        prepareCurrentWalletForSwitch({ json: opts.json });
       }
-      if (isWalletEncrypted()) {
-        console.error('\n❌ Wallet is already encrypted\n');
+
+      const privateKey = await collectPrivateKeyForWalletImport({ commandLabel: `${BINARY_NAME} wallet new` });
+      const password = await collectPasswordForWalletFile({ commandLabel: `${BINARY_NAME} wallet new` });
+      const hints = await collectHintsIfInteractive();
+
+      try {
+        const result = createEncryptedWalletFromPrivateKey(privateKey, password, hints);
+        ensureWalletScopedData(result.address);
+        const archived = archiveCurrentWallet();
+
+        if (opts.json) {
+          console.log(JSON.stringify({
+            success: true,
+            action: 'new',
+            address: result.address,
+            previous_address: previousAddress || null,
+            archive_file: archived?.filePath || null,
+          }));
+        } else {
+          console.log('\n✅ Wallet created and selected.');
+          if (previousAddress) {
+            console.log(`   Previous wallet saved: ${previousAddress}`);
+          }
+          console.log(`   Current wallet:        ${result.address}`);
+          if (archived?.filePath) {
+            console.log(`   Archive file:          ${archived.filePath}`);
+          }
+          console.log('');
+        }
+      } catch (error) {
+        const message = `Failed to create wallet: ${sanitizeError(error)}`;
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(`\n❌ ${message}\n`);
         process.exit(1);
       }
 
-      console.log('\n🔐 Encrypt Legacy Wallet\n');
-      console.log('   This migrates a legacy plaintext wallet to encrypted-only storage.');
-      console.log('   The plaintext key will be replaced on disk by encrypted wallet material only.');
-      console.log('   Forgot password = loss of signing access from this local setup.\n');
+      return;
+    }
 
-      const password = process.env[PASS_ENV_VAR] || await promptSecret('Set wallet password: ');
-      if (!password || password.length < 8) {
-        console.error('\n❌ Password must be at least 8 characters\n');
+    if (action === 'select') {
+      const wallets = listStoredWallets();
+      if (wallets.length === 0) {
+        const message = `No wallets are available. Run: ${BINARY_NAME} install or ${BINARY_NAME} wallet new`;
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(`\n❌ ${message}\n`);
         process.exit(1);
       }
-      if (!process.env[PASS_ENV_VAR]) {
-        const confirm = await promptSecret('Confirm wallet password: ');
-        if (password !== confirm) {
-          console.error('\n❌ Passwords do not match\n');
+
+      let targetWallet = null;
+      if (address) {
+        targetWallet = findStoredWallet(address);
+        if (!targetWallet) {
+          const message = `Wallet not found: ${address}`;
+          if (opts.json) {
+            console.log(JSON.stringify({
+              error: message,
+              wallets: wallets.map(wallet => wallet.address),
+            }));
+          } else {
+            console.error(`\n❌ ${message}\n`);
+            printSelectableWallets(wallets);
+          }
+          process.exit(1);
+        }
+      } else {
+        if (opts.json) {
+          console.log(JSON.stringify({
+            error: 'wallet select without <address> requires an interactive terminal.',
+            wallets: wallets.map(wallet => wallet.address),
+          }));
+          process.exit(1);
+        }
+
+        try {
+          targetWallet = await promptForWalletSelection(wallets);
+        } catch (error) {
+          const message = sanitizeError(error);
+          console.error(`\n❌ ${message}\n`);
           process.exit(1);
         }
       }
 
-      console.log('\n   Set up to 3 password hints (optional, press Enter to skip):\n');
-      const hints = [];
-      for (let i = 1; i <= 3; i++) {
-        const hint = await prompt(`   Hint ${i}: `);
-        if (hint.trim()) hints.push(hint.trim());
+      if (targetWallet.isCurrent) {
+        if (opts.json) {
+          console.log(JSON.stringify({
+            success: true,
+            action: 'select',
+            changed: false,
+            address: targetWallet.address,
+          }));
+        } else {
+          console.log(`\nCurrent wallet remains ${targetWallet.address}\n`);
+        }
+        return;
       }
 
-      const result = encryptWallet(password, hints);
+      const previousAddress = prepareCurrentWalletForSwitch({ json: opts.json });
+      const result = selectStoredWallet(targetWallet.address);
       if (result.error) {
-        console.error(`
-❌ ${result.error}
-`);
+        if (opts.json) console.log(JSON.stringify({ error: result.error }));
+        else console.error(`\n❌ ${result.error}\n`);
         process.exit(1);
       }
 
-      console.log('\n✅ Wallet migrated to encrypted-only storage successfully!');
-      console.log(`   Address: ${result.address}`);
-      console.log(`   Wallet file: ${WALLET_FILE}\n`);
+      ensureWalletScopedData(result.address);
+
+      if (opts.json) {
+        console.log(JSON.stringify({
+          success: true,
+          action: 'select',
+          changed: true,
+          address: result.address,
+          previous_address: previousAddress || null,
+        }));
+      } else {
+        console.log('\n✅ Wallet switched.');
+        if (previousAddress) {
+          console.log(`   Previous wallet: ${previousAddress}`);
+        }
+        console.log(`   Current wallet:  ${result.address}\n`);
+      }
+
       return;
     }
 
@@ -1161,7 +1336,7 @@ program
         process.exit(1);
       }
       if (!isWalletEncrypted()) {
-        const message = `Wallet is not encrypted. Run: ${BINARY_NAME} wallet encrypt`;
+        const message = `Wallet file is invalid or not encrypted.`;
         if (opts.json) console.log(JSON.stringify({ error: message }));
         else console.error(`\n❌ ${message}\n`);
         process.exit(1);
@@ -1199,6 +1374,8 @@ program
           else console.error(`\n❌ ${result.error}\n`);
           process.exit(1);
         }
+
+        archiveCurrentWallet();
 
         if (opts.json) {
           console.log(JSON.stringify({
@@ -1255,6 +1432,7 @@ program
 
       try {
         setWalletHints(newHints);
+        archiveCurrentWallet();
       } catch (error) {
         console.error(`
 ❌ ${sanitizeError(error)}
@@ -1271,9 +1449,9 @@ program
       const payload = {
         exists: walletExists(),
         encrypted: Boolean(meta?.encrypted),
-        legacy_plaintext_wallet_detected: Boolean(meta?.legacyPlaintext),
         address: meta?.address || null,
         hints_count: meta?.hints?.length || 0,
+        stored_wallets: listStoredWallets().length,
         session_caching: false,
         local_only_signing: true,
         password_env_var: PASS_ENV_VAR,
@@ -1286,9 +1464,9 @@ program
         console.log('\n🔐 Wallet Security Status\n');
         console.log(`   Exists:                 ${payload.exists ? 'Yes' : 'No'}`);
         console.log(`   Encrypted:              ${payload.encrypted ? 'Yes' : 'No'}`);
-        console.log(`   Legacy plaintext file:  ${payload.legacy_plaintext_wallet_detected ? 'Yes (migrate immediately)' : 'No'}`);
         console.log(`   Address:                ${payload.address || 'N/A'}`);
         console.log(`   Password hints:         ${payload.hints_count}`);
+        console.log(`   Stored wallets:         ${payload.stored_wallets}`);
         console.log('   Session cache:          Disabled');
         console.log('   Signing:                Local only, decrypt-on-sign');
         console.log(`   Password env var:       ${payload.password_env_var}`);
@@ -1338,7 +1516,7 @@ program
     }
 
     console.log(`Unknown wallet action: ${action}`);
-    console.log('Available: status, download, encrypt, new-password, hints, reset');
+    console.log('Available: status, new, select, download, new-password, hints, reset');
   });
 
 // ============================================================================
@@ -1349,9 +1527,9 @@ program
   .option('--json', 'Output JSON only')
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: opts.json });
-    const profile = loadProfile();
+    const profile = loadProfile(account.address);
     const history = loadHistory(account.address);
-    const activeGames = loadActiveGames();
+    const activeGames = loadActiveGames(account.address);
     const { publicClient } = createClients();
 
     let balance;
@@ -2678,7 +2856,7 @@ program
     const localWalletAddress = getWalletAddress();
     const includeActiveGames = Boolean(localWalletAddress)
       && localWalletAddress.toLowerCase() === targetAddress.toLowerCase();
-    const activeGames = includeActiveGames ? loadActiveGames() : {};
+    const activeGames = includeActiveGames ? loadActiveGames(localWalletAddress) : {};
     const unfinishedGames = includeActiveGames ? summarizeUnfinishedGames(activeGames) : [];
     const gameStatus = buildHistoryGameStatusSummary({
       historyBreakdown,
@@ -2774,7 +2952,7 @@ program
     const gameStats = opts.stats
       ? buildHistoryGameStatusSummary({
           historyBreakdown,
-          activeGames: includeActiveGames ? loadActiveGames() : {},
+          activeGames: includeActiveGames ? loadActiveGames(localWalletAddress) : {},
           includeCatalog: true,
         })
       : [];
@@ -3064,12 +3242,14 @@ SETUP
   ${BINARY_NAME} uninstall            Remove local data
 
 WALLET
-  ${BINARY_NAME} wallet status        Check wallet encryption status
+  ${BINARY_NAME} wallet status        Check wallet status
+  ${BINARY_NAME} wallet new           Create and select a new wallet
+  ${BINARY_NAME} wallet select [address]
+                                   Select a stored wallet
   ${BINARY_NAME} wallet download [address]  Download on-chain history into the local per-wallet cache
-  ${BINARY_NAME} wallet encrypt       Migrate legacy plaintext wallet to encrypted-only storage
   ${BINARY_NAME} wallet new-password  Re-encrypt local wallet with a new password
   ${BINARY_NAME} wallet hints         View or update password hints (up to 3)
-  ${BINARY_NAME} wallet reset         Delete local wallet/profile/state files (requires reinstall)
+  ${BINARY_NAME} wallet reset         Delete local wallet data files (requires reinstall)
   ${BINARY_NAME} send APE <amt> <to>  Send APE (native currency) to an address
   ${BINARY_NAME} send GP <amt> <to>   Send GP (Gimbo Points, 0 decimals) to an address
 
@@ -3474,13 +3654,15 @@ ${'─'.repeat(70)}
   SUPPORTED COMMANDS
 ${'─'.repeat(70)}
 
-  ${BINARY_NAME} wallet status        Check encrypted wallet status
+  ${BINARY_NAME} wallet status        Check wallet status
+  ${BINARY_NAME} wallet new           Create and select a new wallet
+  ${BINARY_NAME} wallet select [address]
+                                   Select a stored wallet
   ${BINARY_NAME} wallet download [address]
                                    Download supported on-chain history into the local cache
-  ${BINARY_NAME} wallet encrypt       Migrate a legacy plaintext wallet in place
   ${BINARY_NAME} wallet new-password  Re-encrypt the local wallet with a new password
   ${BINARY_NAME} wallet hints         View/update password hints
-  ${BINARY_NAME} wallet reset         Delete local wallet/profile/state files
+  ${BINARY_NAME} wallet reset         Delete local wallet data files
 
   Download examples:
     ${BINARY_NAME} wallet download
@@ -3502,7 +3684,7 @@ ${'─'.repeat(70)}
     --json             Emit the machine-readable download report
 
   Download writes:
-    ~/.apechurch-cli/history/church_<wallet>.json
+    ~/.apechurch-cli/history/<wallet>_history.json
 
   History commands:
     ${BINARY_NAME} history [address]
@@ -3605,7 +3787,7 @@ ${'─'.repeat(70)}
 
   • Forgetting the wallet password prevents local decryption/signing.
   • If you also lose the original private key, control of funds may be lost permanently.
-  • ${BINARY_NAME} wallet reset irreversibly deletes local wallet/profile/state files.
+  • ${BINARY_NAME} wallet reset irreversibly deletes local wallet data files.
 
 ${'═'.repeat(70)}
 `,
@@ -3626,7 +3808,7 @@ ${'─'.repeat(70)}
 ${'─'.repeat(70)}
 
   Per-wallet history files are stored at:
-    ~/.apechurch-cli/history/church_<wallet>.json
+    ~/.apechurch-cli/history/<wallet>_history.json
 
   The local wallet address is used automatically if you omit [address].
 

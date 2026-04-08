@@ -165,7 +165,7 @@ Text output includes:
 
 Coverage and limits:
 
-- Downloaded histories live under `~/.apechurch-cli/history/church_<wallet>.json`.
+- Downloaded histories live under `~/.apechurch-cli/history/<wallet>_history.json`.
 - Economic totals only include games whose wager, payout, fees, gas, GP, and wAPE can be reconstructed exactly from on-chain data.
 - The downloader enumerates supported single-transaction games in the local registry via indexed `GameEnded(user, ...)` logs.
 - `Blackjack` and `Video Poker` (`Gimboz Poker` in Ape Church naming) cannot yet be generically enumerated from raw RPC, so locally-known entries remain minimal until a reliable fetch path is implemented.

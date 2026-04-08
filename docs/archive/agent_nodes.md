@@ -35,7 +35,7 @@ SUMMARY OF WORK COMPLETED
   - Enforces gas reserve (1 APE) and minimum wager target (10 APE).
   - Dynamic cooldown based on streaks.
   - Chooses one game + config per run.
-  - Tracks streaks and totalPnL in ~/.apechurch-cli/state.json.
+  - Tracks streaks and totalPnL in ~/.apechurch-cli/states/<wallet>_state.json.
 
 2) Game Support (implemented in CLI)
 - Jungle Plinko:
@@ -106,7 +106,7 @@ HIGH PRIORITY
 
 MEDIUM PRIORITY (POST-LAUNCH)
 - GP / cashback contract integration (deferred to v2).
-- Add profile schema docs and example profile.json. (DONE - profile.example.json + docs)
+- Add profile schema docs and example per-wallet profile file. (DONE - profile.example.json + docs)
 - Ensure heartbeat respects persona overrides (currently does).
 - Confirm replay URL slugs for new games if added later.
 

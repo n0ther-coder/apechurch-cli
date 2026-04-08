@@ -123,7 +123,7 @@ Notes:
 ---
 
 ## Profile Overrides (Optional)
-Profiles live at `~/.apechurch-cli/profile.json` and can override strategy defaults.
+Profiles live at `~/.apechurch-cli/profiles/<wallet>_profile.json` and can override strategy defaults.
 See `profile.example.json` for a full example.
 
 Related env vars:
