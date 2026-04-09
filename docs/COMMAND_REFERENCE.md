@@ -192,12 +192,13 @@ The alias `dice` is currently registered on both `ape-strong` and `bear-dice`. T
 | `--username <name>` | New username |
 | `--persona <name>` | New persona |
 
-### `profile <action>`
+### `profile [action]`
 
 ```bnf
-<profile-command> ::= "profile" <profile-action> <profile-option>*
+<profile-command> ::= "profile" [ <profile-action> ] <profile-option>*
 <profile-action> ::= "show" | "set"
-<profile-option> ::= "--persona" <persona>
+<profile-option> ::= "--username" <username>
+                   | "--persona" <persona>
                    | "--referral" <address>
                    | "--card-display" <card-display>
                    | "--gp-ape" <points>
@@ -207,20 +208,28 @@ The alias `dice` is currently registered on both `ape-strong` and `bear-dice`. T
 
 | Option | Meaning | Applies To |
 |--------|---------|------------|
+| `--username <name>` | Register or change the username for the selected wallet | `set` |
 | `--persona <name>` | Update the local persona | `set` |
-| `--referral <address>` | Update the local referral address | `set` |
+| `--referral <address>` | Update the local referral address used on future game transactions | `set` |
 | `--card-display <mode>` | Set card display mode | `set` |
 | `--gp-ape <points>` | Persist a wallet-specific current GP/APE override | `set` |
 | `--no-gp-ape` | Remove the wallet-specific current GP/APE override | `set` |
-| `--json` | Emit JSON output | `show`, `set` |
+| `--json` | Emit JSON output | `show`, `set`, omitted action |
 
 Examples:
 
+- `apechurch-cli profile`
 - `apechurch-cli profile show`
+- `apechurch-cli profile set --username smith`
 - `apechurch-cli profile set --persona aggressive`
 - `apechurch-cli profile set --card-display simple --referral 0x1234...abcd`
 - `apechurch-cli profile set --gp-ape 7.5`
 - `apechurch-cli profile set --no-gp-ape`
+
+Notes:
+
+- Mutating flags require the explicit `profile set` action.
+- `--referral` is local-only. It is attached to future game transactions, not to SIWE username registration, and it does not affect past plays.
 
 ## Simple-Game Gameplay
 

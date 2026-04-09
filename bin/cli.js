@@ -1756,40 +1756,72 @@ program
 // COMMAND: PROFILE
 // ============================================================================
 program
-  .command('profile <action>')
+  .command('profile [action]')
   .description('Profile management (show, set)')
   .addHelpText('after', `
 Actions:
+  ${BINARY_NAME} profile
+                                   Show the effective local profile for the selected wallet
   ${BINARY_NAME} profile show
                                    Show the effective local profile for the selected wallet
   ${BINARY_NAME} profile set [options]
-                                   Update one or more local profile fields
+                                   Update one or more profile fields
+
+Notes:
+  Omit the action to default to show.
+  Mutating flags like --username, --persona, --referral, --card-display, --gp-ape, and --no-gp-ape
+  require the explicit ${BINARY_NAME} profile set action.
+  --referral is local-only: it is attached to future game transactions, not to SIWE username registration,
+  and it does not affect past plays.
 
 Values:
+  --username <name>                Register or change username (same as ${BINARY_NAME} register --username)
   --persona <name>                conservative | balanced | aggressive | degen
   --card-display <mode>           full | simple | json
-  --referral <address>            0x-prefixed wallet address
+  --referral <address>            0x-prefixed wallet address for future game transactions
   --gp-ape <points>               Wallet-specific current GP/APE override (positive number)
   --no-gp-ape                     Clear the wallet-specific current GP/APE override
 
 Examples:
+  ${BINARY_NAME} profile
   ${BINARY_NAME} profile show
+  ${BINARY_NAME} profile set --username smith
   ${BINARY_NAME} profile set --persona aggressive
   ${BINARY_NAME} profile set --card-display simple --referral 0x1234...abcd
   ${BINARY_NAME} profile set --gp-ape 7.5
   ${BINARY_NAME} profile set --no-gp-ape
 `)
+  .option('--username <name>', `Register or change username (same as ${BINARY_NAME} register --username)`)
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
-  .option('--referral <address>', 'Referral wallet address (who referred you)')
+  .option('--referral <address>', 'Referral wallet address for future game transactions')
   .option('--card-display <mode>', 'Card display mode: full | simple | json')
   .option('--gp-ape <points>', 'Wallet-specific current GP per APE override')
   .option('--no-gp-ape', 'Clear the wallet-specific current GP per APE override')
   .option('--json', 'Output JSON')
-  .action((action, opts) => {
-    const profile = loadProfile();
+  .action(async (action, opts) => {
+    let profile = loadProfile();
+    const rawArgs = process.argv.slice(2);
+    const hasGpApeOverride = rawArgs.includes('--gp-ape');
+    const hasNoGpApe = rawArgs.includes('--no-gp-ape');
+    const hasMutatingOptions = Boolean(
+      opts.username
+      || opts.persona
+      || opts.referral
+      || opts.cardDisplay
+      || hasGpApeOverride
+      || hasNoGpApe
+    );
+    const resolvedAction = action || 'show';
     const effectiveGpPerApe = resolveGpPerApe({ profile });
 
-    if (action === 'show') {
+    if (resolvedAction === 'show') {
+      if (hasMutatingOptions) {
+        console.error(JSON.stringify({
+          error: `Mutating flags require "${BINARY_NAME} profile set ...".`,
+        }));
+        process.exit(1);
+      }
+
       if (opts.json) {
         console.log(JSON.stringify({
           ...profile,
@@ -1805,19 +1837,32 @@ Examples:
         console.log(`   Base GP Rate: ${GP_PER_APE} GP/APE`);
         console.log(`   Current GP Rate: ${profile.currentGpPerApe ?? '(not set)'}`);
         console.log(`   Effective GP Rate: ${effectiveGpPerApe} GP/APE`);
-        console.log(`   Referral:     ${profile.referral || '(none)'}\n`);
+        console.log(`   Referral:     ${profile.referral || '(none)'}`);
+        console.log('                 (used on future game transactions only)\n');
       }
-    } else if (action === 'set') {
-      const rawArgs = process.argv.slice(2);
-      const hasGpApeOverride = rawArgs.includes('--gp-ape');
-      const hasNoGpApe = rawArgs.includes('--no-gp-ape');
+    } else if (resolvedAction === 'set') {
       if (hasGpApeOverride && hasNoGpApe) {
         console.error(JSON.stringify({ error: 'Use either --gp-ape or --no-gp-ape, not both.' }));
         process.exit(1);
       }
 
+      const requestedPersona = opts.persona ? normalizeStrategy(opts.persona) : null;
+      if (opts.username) {
+        const account = await getWalletWithPrompt({ json: true });
+        const username = normalizeUsername(opts.username);
+        const persona = requestedPersona || profile.persona;
+
+        try {
+          const result = await registerUsername({ account, username, persona });
+          profile = result.profile;
+        } catch (error) {
+          console.error(JSON.stringify({ error: sanitizeError(error) }));
+          process.exit(1);
+        }
+      }
+
       const updates = {};
-      if (opts.persona) updates.persona = normalizeStrategy(opts.persona);
+      if (requestedPersona && !opts.username) updates.persona = requestedPersona;
       if (opts.cardDisplay) {
         const mode = opts.cardDisplay.toLowerCase();
         if (!['full', 'simple', 'json'].includes(mode)) {
@@ -1845,11 +1890,16 @@ Examples:
       } else if (opts.gpApe === false) {
         updates.currentGpPerApe = null;
       }
-      
-      const updated = saveProfile({ ...profile, ...updates });
-      console.log(JSON.stringify({ status: 'updated', profile: updated }));
+
+      const updated = Object.keys(updates).length > 0
+        ? saveProfile({ ...profile, ...updates })
+        : profile;
+      console.log(JSON.stringify({
+        status: opts.username ? 'registered' : 'updated',
+        profile: updated,
+      }));
     } else {
-      console.log(`Unknown action: ${action}. Use: show, set`);
+      console.log(`Unknown action: ${resolvedAction}. Use: show, set`);
     }
   });
 
@@ -3460,9 +3510,12 @@ THE HOUSE (Staking)
   ${BINARY_NAME} house withdraw <amt> Withdraw APE
 
 STATUS
+  ${BINARY_NAME} profile              Show profile
   ${BINARY_NAME} status               Check balance and state
   ${BINARY_NAME} profile show         Show profile
   ${BINARY_NAME} profile set          Update profile preferences
+  ${BINARY_NAME} profile set --username <name>
+                                   Register or change username from profile
   ${BINARY_NAME} profile set --gp-ape <points>
                                    Persist current GP/APE override for this wallet
   ${BINARY_NAME} profile set --no-gp-ape

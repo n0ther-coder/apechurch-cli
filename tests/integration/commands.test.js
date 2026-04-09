@@ -152,11 +152,27 @@ describe('CLI Commands Integration Tests', () => {
 
     it('profile help documents set values and GP rate flags clearly', () => {
       const { stdout } = cli('profile --help');
+      assert.ok(stdout.includes('profile'), 'Should still document the profile command');
       assert.ok(stdout.includes('profile set [options]'), 'Should document the set action');
+      assert.ok(stdout.includes('--username <name>'), 'Should document username changes');
       assert.ok(stdout.includes('--persona <name>'), 'Should document persona values');
       assert.ok(stdout.includes('--card-display <mode>'), 'Should document card display values');
       assert.ok(stdout.includes('--gp-ape <points>'), 'Should document the wallet GP override');
       assert.ok(stdout.includes('--no-gp-ape'), 'Should document resetting to the base default');
+    });
+
+    it('profile without set rejects mutating flags', () => {
+      const { stdout, code } = cli('profile --username smith');
+      assert.notStrictEqual(code, 0, 'Should reject mutating flags without set');
+      assert.ok(stdout.includes('profile set'), 'Should direct the user to the set action');
+    });
+
+    it('bare profile defaults to show', () => {
+      const { stdout } = cli('profile');
+      assert.ok(
+        stdout.includes('Profile') || stdout.includes('Persona') || stdout.includes('Username'),
+        'Should show the profile when no action is provided'
+      );
     });
 
     it('commands points to the canonical reference and GP rate controls', () => {

@@ -79,11 +79,15 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 
 ## Profile
 
-`profile show` prints the local profile for the selected wallet. `profile set` updates one or more local fields in place.
+`profile` defaults to `show`. Mutating flags require `profile set`. `profile set --username <name>` registers or changes the username via the same SIWE flow as `register`.
 
 ```bash
 # Show the selected wallet profile
+apechurch-cli profile
 apechurch-cli profile show
+
+# Register or change the username from profile
+apechurch-cli profile set --username smith
 
 # Set persona and card rendering
 apechurch-cli profile set --persona aggressive --card-display simple
@@ -93,13 +97,16 @@ apechurch-cli profile set --gp-ape 7.5
 apechurch-cli profile set --no-gp-ape
 ```
 
-`profile set` values:
+Profile flags:
 
+- `--username <name>`: register or change the username for the selected wallet
 - `--persona <name>`: `conservative | balanced | aggressive | degen`
 - `--card-display <mode>`: `full | simple | json`
-- `--referral <address>`: `0x`-prefixed wallet address
+- `--referral <address>`: local-only `0x`-prefixed wallet address used on future game transactions
 - `--gp-ape <points>`: positive decimal GP/APE override for the selected wallet
 - `--no-gp-ape`: clear the wallet-specific GP/APE override and fall back to the base default
+
+`--referral` does not change the SIWE username registration payload and does not retroactively affect old plays.
 
 ## History Download & Reporting
 
