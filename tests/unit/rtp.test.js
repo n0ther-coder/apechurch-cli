@@ -53,6 +53,38 @@ describe('RTP Helpers', () => {
     assert.strictEqual(expected.calculationKind, 'exact');
   });
 
+  it('uses verified exact RTP references for baccarat single bets and weighted combo bets', () => {
+    const banker = getConfiguredGameExpectedRtpReference({ game: 'baccarat', config: { bet: 'BANKER' } });
+    const combo = getConfiguredGameExpectedRtpReference({
+      game: 'baccarat',
+      config: { betType: 'BANKER,TIE', playerBankerBet: '9', tieBet: '1' },
+    });
+
+    assert.strictEqual(banker.display, '98.94%');
+    assert.strictEqual(banker.referenceType, 'calculated');
+    assert.strictEqual(banker.calculationKind, 'exact');
+    assert.ok(Math.abs(banker.value - 98.93600098947358) < 1e-12);
+
+    assert.strictEqual(combo.display, '97.63%');
+    assert.strictEqual(combo.referenceType, 'calculated');
+    assert.strictEqual(combo.calculationKind, 'exact');
+    assert.ok(Math.abs(combo.value - 97.63070218854734) < 1e-12);
+  });
+
+  it('exposes exact calculated RTP constants for each verified Baccarat bet class', () => {
+    const variants = getGameCalculatedVariantReferences('baccarat');
+
+    assert.deepStrictEqual(variants.map((variant) => ({
+      variantLabel: variant.variantLabel,
+      display: variant.calculated.display,
+      maxPayout: variant.maxPayout.display,
+    })), [
+      { variantLabel: 'PLAYER', display: '98.77%', maxPayout: '2x' },
+      { variantLabel: 'BANKER', display: '98.94%', maxPayout: '1.95x' },
+      { variantLabel: 'TIE', display: '85.88%', maxPayout: '9x' },
+    ]);
+  });
+
   it('exposes exact calculated RTP constants for each verified Monkey Match mode', () => {
     const variants = getGameCalculatedVariantReferences('monkey-match');
 

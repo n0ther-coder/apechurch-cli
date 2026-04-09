@@ -195,7 +195,7 @@ Sync and cache behavior:
 |------|---------|------|----------------|
 | ApeStrong | `play ape-strong 10 50` | Dice | `--range 5-95` |
 | Roulette | `play roulette 10 RED` | Table | `--bet RED,BLACK,0-36,00` |
-| Baccarat | `play baccarat 10 BANKER` | Table | `--bet PLAYER,BANKER,TIE` |
+| Baccarat ✔︎ | `play baccarat 10 BANKER` | Table | `--bet PLAYER,BANKER,TIE` |
 | Jungle Plinko ✔︎ | `play jungle 10 2 50` | Plinko | `--mode 0-4` `--balls 1-100` |
 | Cosmic Plinko ✔︎ | `play cosmic 10 1 10` | Plinko | `--mode 0-2` `--balls 1-30` |
 | Keno ✔︎ | `play keno 10` | Keno | `--picks 1-10` `--numbers 1-40` |
@@ -262,7 +262,7 @@ apechurch-cli play roulette 10 00         # Double zero (36.9x)
 
 ---
 
-### Baccarat
+### Baccarat ✔︎
 
 Classic baccarat. Bet on Player, Banker, or Tie.
 
@@ -282,6 +282,7 @@ apechurch-cli play baccarat 150 140 BANKER 10 TIE  # Combined: 140 on Banker, 10
 **Combined bets:** Specify explicit amounts (must sum to total wager).
 
 **Alias:** `bacc`
+**ABI verified:** `true`
 
 ---
 

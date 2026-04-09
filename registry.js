@@ -140,6 +140,7 @@ export const GAME_REGISTRY = [
     description: 'Classic baccarat. Bet on Player (2x), Banker (1.95x), or Tie (9x).',
     contract: BACCARAT_CONTRACT,
     aliases: ['bacc'],
+    abiVerified: true,
     config: {
       bet: {
         description: 'What to bet on: PLAYER, BANKER, TIE. For combined bets, specify amounts explicitly.',

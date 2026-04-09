@@ -239,6 +239,7 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout } = cli('games');
       assert.ok(stdout.includes('ApeStrong') || stdout.includes('ape-strong'), 'Should list ApeStrong');
       assert.ok(stdout.includes('Roulette ✔︎'), 'Should list verified Roulette');
+      assert.ok(stdout.includes('Baccarat ✔︎'), 'Should list verified Baccarat');
       assert.ok(stdout.includes('Jungle Plinko ✔︎'), 'Should list verified Jungle Plinko');
       assert.ok(stdout.includes('Cosmic Plinko ✔︎'), 'Should list verified Cosmic Plinko');
       assert.ok(stdout.includes('Keno ✔︎'), 'Should list verified Keno');
@@ -355,6 +356,14 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Roulette ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified Baccarat', () => {
+      const { stdout } = cli('game baccarat --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Baccarat ✔︎');
     });
 
     it('shows per-parameter BNF in game helpers', () => {

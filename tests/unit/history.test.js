@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { parseEther } from 'viem';
 import {
+  BACCARAT_CONTRACT,
   COSMIC_PLINKO_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   ROULETTE_CONTRACT,
@@ -42,7 +43,8 @@ describe('History Helpers', () => {
       );
     });
 
-    it('adds the ABI verified badge for verified Plinko and Roulette contracts', () => {
+    it('adds the ABI verified badge for verified Plinko, Roulette, and Baccarat contracts', () => {
+      assert.strictEqual(resolveHistoryGameName(BACCARAT_CONTRACT), 'Baccarat ✔︎');
       assert.strictEqual(resolveHistoryGameName(JUNGLE_PLINKO_CONTRACT), 'Jungle Plinko ✔︎');
       assert.strictEqual(resolveHistoryGameName(COSMIC_PLINKO_CONTRACT), 'Cosmic Plinko ✔︎');
       assert.strictEqual(resolveHistoryGameName(ROULETTE_CONTRACT), 'Roulette ✔︎');

@@ -16,7 +16,7 @@ The `✔︎` marker means this repo has locally verified the game's ABI-facing b
 |------|------------------|-------------|
 | ApeStrong | `play ape-strong <amt> <range>` | `--game ape-strong --amount X --range Y` |
 | Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` |
-| Baccarat | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` |
+| Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` |
 | Jungle Plinko ✔︎ | `play jungle <amt> <mode> <balls>` | `--game jungle --amount X --mode Y --balls Z` |
 | Cosmic Plinko ✔︎ | `play cosmic <amt> <mode> <balls>` | `--game cosmic --amount X --mode Y --balls Z` |
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` |
@@ -58,7 +58,7 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 |------|-------------------|-------------|-----------|-------|
 | ApeStrong | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Roulette ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split evenly across comma-separated bets |
-| Baccarat | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | In combined bets, explicit sub-amounts must sum to the total wager |
+| Baccarat ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | In combined bets, explicit sub-amounts must sum to the total wager |
 | Jungle Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-100` balls |
 | Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-30` balls |
 | Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
@@ -271,14 +271,19 @@ apechurch-cli play roulette 10 RED --loop --target 150 --stop-loss 50
 
 ---
 
-## Baccarat
+## Baccarat ✔︎
 
 **Type:** Table  
 **Contract:** `0xB08C669dc0419151bA4e4920E80128802dB5497b`  
+**ABI verified:** `true`  
 **Aliases:** `bacc`
 
 ### How It Works
 Classic baccarat. Bet on Player, Banker, or Tie.
+
+The verified contract decodes `(uint256 gameId, uint256 playerBankerBet, uint256 tieBet, bool isBanker, address ref, bytes32 userRandomWord)`, checks that `msg.value - getVRFFee()` exactly equals `playerBankerBet + tieBet`, and stores the side choice as `betOnBanker`.
+
+Combined bets are not a UI-layer convention: the verified contract really supports one `PLAYER` or `BANKER` leg plus an optional `TIE` leg in the same wager. It does **not** support betting both `PLAYER` and `BANKER` together. Settlement uses 6 VRF words mapped to rank values `1..13`, then applies the on-chain third-card rules in `determineWinner(...)`.
 
 ### Syntax
 
@@ -308,6 +313,36 @@ apechurch-cli play baccarat <total> <amt1> <bet1> <amt2> <bet2>
 | TIE | 9.0x |
 
 Combined bets can pair `PLAYER` or `BANKER` with `TIE`, but not `PLAYER` and `BANKER` together in the same wager.
+
+### Verified Runtime Behavior
+
+- `getVRFFee()` is the live RNG fee read from `IRNG(manager.RNG()).getFee()`
+- `play(...)` requires `msg.value >= getVRFFee()` and validates `msg.value - getVRFFee() == playerBankerBet + tieBet`
+- Platform fees are contract-side constants: `playerBankerFee = 100` (`1.00%`) and `tieFee = 300` (`3.00%`) with denominator `10_000`
+- `fulfillRandomWords(...)` requests exactly `6` VRF words and maps each to a rank in `1..13` via `(randomWord % 13) + 1`
+- `getGameInfo(gameId)` returns `playerBankerBet`, `tieBet`, `payout`, `user`, `betOnBanker`, `playerCards`, `bankerCards`, `hasEnded`, and `timestamp`
+
+### Verified On-Chain Payout Constants
+
+| Bet class | Multiplier | Verified constant |
+|-----------|------------|-------------------|
+| PLAYER | 2.0x | `PLAYER_PAYOUT = 200 / 100` |
+| BANKER | 1.95x | `BANKER_PAYOUT = 195 / 100` |
+| TIE | 9.0x | `TIE_PAYOUT = 900 / 100` |
+
+On a tie, the verified contract also refunds any `PLAYER` or `BANKER` leg in full. That refund is why the exact RTP of `PLAYER` and `BANKER` is higher than the raw win probability multiplied by the headline payout.
+
+### Exact Calculated RTP by Verified Bet Class
+
+The exact probabilities below come from exhaustively enumerating all `13^6 = 4,826,809` equally likely rank tuples implied by the verified VRF mapping and running the on-chain `determineWinner(...)` logic over each tuple.
+
+| Verified bet class | Exact RTP | Basis |
+|--------------------|-----------|-------|
+| PLAYER | `98.77%` | Exact weighted sum over the verified draw tree, including push-on-tie refunds |
+| BANKER | `98.94%` | Exact weighted sum over the verified draw tree, including push-on-tie refunds |
+| TIE | `85.88%` | Exact weighted sum over the verified draw tree |
+
+For combined bets, exact RTP is the wager-weighted average of the chosen main-side RTP and the `TIE` RTP. Example: a `140 BANKER 10 TIE` split has exact RTP `(140 x 98.9360009895% + 10 x 85.8830129802%) / 150 = 98.07%`.
 
 ### Transparency Snapshot
 
@@ -1376,6 +1411,9 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 |------|------|-------------|-----------|--------|--------------------|
 | ApeStrong | Any supported `range` (`5-95`) | Yes | `97.50%` | Exact EV from repo payout formula | `98.53%` |
 | Roulette ✔︎ | All verified bet classes | Yes | `97.11%` | Exact weighted sum on 38 pockets | `97.05%` |
+| Baccarat ✔︎ | PLAYER | Yes | `98.77%` | Exact weighted sum on the verified 6-rank draw tree | `98.12%` |
+| Baccarat ✔︎ | BANKER | Yes | `98.94%` | Exact weighted sum on the verified 6-rank draw tree | `98.12%` |
+| Baccarat ✔︎ | TIE | Yes | `85.88%` | Exact weighted sum on the verified 6-rank draw tree | `98.12%` |
 | Jungle Plinko ✔︎ | Mode 0 / Safe | Yes | `98.00%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
 | Jungle Plinko ✔︎ | Mode 1 / Low | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
 | Jungle Plinko ✔︎ | Mode 2 / Medium | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
@@ -1415,7 +1453,7 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 
 ### Still Not Exactly Calculable from Local Sources
 
-The local source set is still insufficient for a defensible closed-form RTP on `Baccarat`, `Dino Dough`, `Bubblegum Heist`, `Bear-A-Dice`, `Cash Dash`, `Gimboz Smash`, `Hi-Lo Nebula`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, `Sushi Showdown`, `Geez Diggerz`, and `Rico's Revenge`.
+The local source set is still insufficient for a defensible closed-form RTP on `Dino Dough`, `Bubblegum Heist`, `Bear-A-Dice`, `Cash Dash`, `Gimboz Smash`, `Hi-Lo Nebula`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, `Sushi Showdown`, `Geez Diggerz`, and `Rico's Revenge`.
 
 For `Blackjack`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables.
 
