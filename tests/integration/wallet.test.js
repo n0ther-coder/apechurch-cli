@@ -126,7 +126,7 @@ describe('Wallet Integration Tests', () => {
     cli('wallet new --json', {
       env: multiWalletEnv({ APECHURCH_CLI_PK: PRIVATE_KEY_ONE }),
     });
-    cli('profile set --persona aggressive --json', {
+    cli('profile set --persona aggressive --gp-ape 7.5 --json', {
       env: multiWalletEnv(),
     });
 
@@ -140,6 +140,8 @@ describe('Wallet Integration Tests', () => {
       env: multiWalletEnv(),
     }).stdout);
     assert.strictEqual(currentProfile.persona, 'balanced', 'New wallet should start from a fresh profile');
+    assert.strictEqual(currentProfile.currentGpPerApe, null, 'New wallet should not inherit the previous wallet rate');
+    assert.strictEqual(currentProfile.effectiveGpPerApe, 5, 'New wallet should fall back to the base rate');
 
     const selected = JSON.parse(cli(`wallet select ${ADDRESS_ONE} --json`, {
       env: multiWalletEnv(),
@@ -152,6 +154,8 @@ describe('Wallet Integration Tests', () => {
       env: multiWalletEnv(),
     }).stdout);
     assert.strictEqual(restoredProfile.persona, 'aggressive', 'Selecting the original wallet should restore its profile');
+    assert.strictEqual(restoredProfile.currentGpPerApe, 7.5, 'Selecting the original wallet should restore its current GP rate');
+    assert.strictEqual(restoredProfile.effectiveGpPerApe, 7.5, 'Wallet-specific GP rate should override the base rate');
 
     const currentWallet = readJson(MULTI_WALLET_HOME, '.apechurch-cli/wallet.json');
     assert.strictEqual(currentWallet.address, ADDRESS_ONE, 'wallet.json should now point to the selected wallet');
@@ -185,5 +189,25 @@ describe('Wallet Integration Tests', () => {
 
     const currentWallet = readJson(MULTI_WALLET_HOME, '.apechurch-cli/wallet.json');
     assert.strictEqual(currentWallet.address, ADDRESS_TWO, 'wallet.json should remain unchanged after a blocked switch');
+  });
+
+  it('wallet --list shows all locally available wallet addresses', () => {
+    resetMultiWalletHome();
+
+    cli('wallet new --json', {
+      env: multiWalletEnv({ APECHURCH_CLI_PK: PRIVATE_KEY_ONE }),
+    });
+    cli('wallet new --json', {
+      env: multiWalletEnv({ APECHURCH_CLI_PK: PRIVATE_KEY_TWO }),
+    });
+
+    const listed = JSON.parse(cli('wallet --list --json', {
+      env: multiWalletEnv(),
+    }).stdout);
+
+    assert.ok(Array.isArray(listed.wallets), 'wallet --list should return a wallets array');
+    assert.ok(listed.wallets.some((wallet) => wallet.address === ADDRESS_ONE), 'Should include the first wallet');
+    assert.ok(listed.wallets.some((wallet) => wallet.address === ADDRESS_TWO), 'Should include the second wallet');
+    assert.ok(listed.wallets.some((wallet) => wallet.address === ADDRESS_TWO && wallet.current), 'Should mark the current wallet');
   });
 });

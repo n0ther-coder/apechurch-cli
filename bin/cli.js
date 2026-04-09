@@ -16,17 +16,16 @@
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ install          Setup the Ape Church Agent (wallet + profile)          │
  * │ uninstall        Remove all Ape Church data from this machine           │
- * │ wallet <action>  Wallet management + per-wallet history download       │
+ * │ wallet [action]  Wallet management + per-wallet history download       │
  * │ profile <action> Profile management (show, set username/persona)        │
  * │ register         Register username on-chain via SIWE                    │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ GAMEPLAY                                                                │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ play [game] [amt] Play games (auto or manual, supports --loop)          │
- * │ bet <game> <amt>  Quick manual bet on specific game                     │
+ * │ bet              Quick manual bet on a specific simple game             │
  * │ blackjack <amt>   Interactive blackjack (stateful, multi-step)          │
  * │ video-poker <amt> Interactive video poker (stateful, multi-step)        │
- * │ heartbeat         Check cooldown and play if ready (for cron/agents)    │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ INFORMATION                                                             │
  * ├──────────────────────────────────────────────────────────────────────────┤
@@ -94,6 +93,7 @@ import {
   GP_TOKEN_ABI,
   GP_DECIMALS,
   GP_PER_LEVEL,
+  GP_PER_APE,
   HOUSE_CONTRACT,
   HOUSE_ABI,
   HOUSE_LOCK_TIME,
@@ -148,6 +148,12 @@ import {
   generateUsername,
   normalizeUsername,
   normalizeStrategy,
+  normalizeGpPerApe,
+  resolveGpPerApe,
+  resolveGpPerApeInfo,
+  formatGpPerApeValue,
+  formatGpPerApeNotice,
+  listHistoryWalletAddresses,
   getActiveGames,
   saveActiveGames,
   loadActiveGames,
@@ -214,6 +220,7 @@ program.name(BINARY_NAME).version(PACKAGE_VERSION, '-v, --version', 'output the 
 const GAME_LIST = listGames().join(' | ');
 const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<ape> ::= <number>                                 ; decimal APE amount; value > 0',
+  '<points> ::= <number>                              ; decimal GP per APE rate; value > 0',
   '<mode> ::= <integer>                               ; 0 <= value <= 4',
   '<balls> ::= <integer>                              ; 1 <= value <= 100',
   '<spins> ::= <integer>                              ; 1 <= value <= 15',
@@ -401,6 +408,22 @@ function printSelectableWallets(wallets) {
   wallets.forEach((wallet, index) => {
     const currentLabel = wallet.isCurrent ? ' (current)' : '';
     console.log(`   ${index + 1}. ${wallet.address}${currentLabel}`);
+  });
+  console.log('');
+}
+
+function printAddressList(title, addresses, { currentAddress = null } = {}) {
+  console.log(`\n${title}\n`);
+  if (addresses.length === 0) {
+    console.log('   (none)\n');
+    return;
+  }
+
+  addresses.forEach((address, index) => {
+    const currentLabel = currentAddress && currentAddress.toLowerCase() === String(address).toLowerCase()
+      ? ' (current)'
+      : '';
+    console.log(`   ${index + 1}. ${address}${currentLabel}`);
   });
   console.log('');
 }
@@ -1142,14 +1165,34 @@ program
 // COMMAND: WALLET
 // ============================================================================
 program
-  .command('wallet <action> [address]')
+  .command('wallet [action] [address]')
   .description('Wallet management (status, new, select, download, rotate password, hints, reset)')
   .option('-y, --yes', 'Skip confirmation')
+  .option('--list', 'List locally available wallet addresses')
   .option('--json', 'JSON output')
   .option('--from-block <n>', 'Start block for wallet history download or backfill')
   .option('--to-block <n>', 'End block for wallet history download (default latest)')
   .option('--chunk-size <n>', 'Block range per log query for wallet history download', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .action(async (action, address, opts) => {
+    if (opts.list) {
+      const wallets = listStoredWallets();
+      const payload = {
+        wallets: wallets.map(wallet => ({
+          address: wallet.address,
+          current: Boolean(wallet.isCurrent),
+        })),
+      };
+
+      if (opts.json) {
+        console.log(JSON.stringify(payload));
+      } else {
+        printAddressList('Stored Wallets', wallets.map(wallet => wallet.address), {
+          currentAddress: wallets.find(wallet => wallet.isCurrent)?.address || null,
+        });
+      }
+      return;
+    }
+
     const unsupportedActions = new Set(['export', 'decrypt', 'unlock', 'lock']);
     if (unsupportedActions.has(action)) {
       const message = `${action} is disabled in this hardened build. Plaintext key export/storage and cached unlock sessions are not allowed.`;
@@ -1515,6 +1558,12 @@ program
       return;
     }
 
+    if (!action) {
+      console.log(`Missing wallet action. Use: ${BINARY_NAME} wallet --list`);
+      console.log('Available: status, new, select, download, new-password, hints, reset');
+      return;
+    }
+
     console.log(`Unknown wallet action: ${action}`);
     console.log('Available: status, new, select, download, new-password, hints, reset');
   });
@@ -1575,6 +1624,7 @@ program
     const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
     const canPlay = availableApe >= 1 && !profile.paused;
     const unfinishedGames = summarizeUnfinishedGames(activeGames);
+    const gpPerApeInfo = resolveGpPerApeInfo({ profile });
 
     let historyEntries = [];
     let failedHistoryFetches = 0;
@@ -1602,6 +1652,13 @@ program
       paused: profile.paused,
       persona: profile.persona,
       username: profile.username,
+      gp_rate: {
+        base_gp_per_ape: gpPerApeInfo.baseGpPerApe,
+        current_gp_per_ape: gpPerApeInfo.currentGpPerApe,
+        effective_gp_per_ape: gpPerApeInfo.gpPerApe,
+        source: gpPerApeInfo.source,
+        source_label: gpPerApeInfo.sourceLabel,
+      },
       can_play: canPlay,
       unfinished_games: unfinishedGames,
       game_stats: gameStats,
@@ -1618,6 +1675,7 @@ program
       console.log(formatField('Address', formatAddress(response.address)));
       console.log(formatField('Balance', formatBalance(response.balance)));
       console.log(formatField('GP', theme.yellow(`${response.gp_balance} GP`)));
+      console.log(formatField('Current GP Rate', `${theme.yellow(`${formatGpPerApeValue(gpPerApeInfo.gpPerApe)} GP/APE`)} ${theme.dim(`(${gpPerApeInfo.sourceLabel})`)}`));
       if (houseBalanceApe > 0) {
         console.log(formatField('House', theme.staked(`${response.house_balance} APE`) + theme.dim(' (staked)')));
       }
@@ -1700,25 +1758,64 @@ program
 program
   .command('profile <action>')
   .description('Profile management (show, set)')
+  .addHelpText('after', `
+Actions:
+  ${BINARY_NAME} profile show
+                                   Show the effective local profile for the selected wallet
+  ${BINARY_NAME} profile set [options]
+                                   Update one or more local profile fields
+
+Values:
+  --persona <name>                conservative | balanced | aggressive | degen
+  --card-display <mode>           full | simple | json
+  --referral <address>            0x-prefixed wallet address
+  --gp-ape <points>               Wallet-specific current GP/APE override (positive number)
+  --no-gp-ape                     Clear the wallet-specific current GP/APE override
+
+Examples:
+  ${BINARY_NAME} profile show
+  ${BINARY_NAME} profile set --persona aggressive
+  ${BINARY_NAME} profile set --card-display simple --referral 0x1234...abcd
+  ${BINARY_NAME} profile set --gp-ape 7.5
+  ${BINARY_NAME} profile set --no-gp-ape
+`)
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
   .option('--referral <address>', 'Referral wallet address (who referred you)')
   .option('--card-display <mode>', 'Card display mode: full | simple | json')
+  .option('--gp-ape <points>', 'Wallet-specific current GP per APE override')
+  .option('--no-gp-ape', 'Clear the wallet-specific current GP per APE override')
   .option('--json', 'Output JSON')
   .action((action, opts) => {
     const profile = loadProfile();
+    const effectiveGpPerApe = resolveGpPerApe({ profile });
 
     if (action === 'show') {
       if (opts.json) {
-        console.log(JSON.stringify(profile));
+        console.log(JSON.stringify({
+          ...profile,
+          baseGpPerApe: GP_PER_APE,
+          effectiveGpPerApe,
+        }));
       } else {
         console.log('\n📋 Profile\n');
         console.log(`   Username:     ${profile.username || '(not set)'}`);
         console.log(`   Persona:      ${profile.persona}`);
         console.log(`   Card Display: ${profile.cardDisplay || 'full'}`);
         console.log(`   Paused:       ${profile.paused ? 'Yes' : 'No'}`);
+        console.log(`   Base GP Rate: ${GP_PER_APE} GP/APE`);
+        console.log(`   Current GP Rate: ${profile.currentGpPerApe ?? '(not set)'}`);
+        console.log(`   Effective GP Rate: ${effectiveGpPerApe} GP/APE`);
         console.log(`   Referral:     ${profile.referral || '(none)'}\n`);
       }
     } else if (action === 'set') {
+      const rawArgs = process.argv.slice(2);
+      const hasGpApeOverride = rawArgs.includes('--gp-ape');
+      const hasNoGpApe = rawArgs.includes('--no-gp-ape');
+      if (hasGpApeOverride && hasNoGpApe) {
+        console.error(JSON.stringify({ error: 'Use either --gp-ape or --no-gp-ape, not both.' }));
+        process.exit(1);
+      }
+
       const updates = {};
       if (opts.persona) updates.persona = normalizeStrategy(opts.persona);
       if (opts.cardDisplay) {
@@ -1737,6 +1834,16 @@ program
           process.exit(1);
         }
         updates.referral = ref;
+      }
+      if (opts.gpApe !== undefined && opts.gpApe !== false) {
+        try {
+          updates.currentGpPerApe = normalizeGpPerApe(opts.gpApe);
+        } catch (error) {
+          console.error(JSON.stringify({ error: sanitizeError(error) }));
+          process.exit(1);
+        }
+      } else if (opts.gpApe === false) {
+        updates.currentGpPerApe = null;
       }
       
       const updated = saveProfile({ ...profile, ...updates });
@@ -1761,6 +1868,7 @@ program
   .option('--picks <picks>', 'Keno pick count', '5')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--timeout <ms>', 'Max wait for result (0 = no wait)', '0')
+  .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .addHelpText('after', formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES))
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: true, gameplay: true, forceGameplayPrompt: true });
@@ -1789,6 +1897,14 @@ program
     
     const timeoutMs = parseNonNegativeInt(opts.timeout, 'timeout');
     const profile = loadProfile();
+    let gpPerApe;
+
+    try {
+      gpPerApe = resolveGpPerApe({ cliGpPerApe: opts.gpApe, profile });
+    } catch (error) {
+      console.error(JSON.stringify({ error: sanitizeError(error) }));
+      process.exit(1);
+    }
     
     try {
       const response = await playGame({
@@ -1805,6 +1921,7 @@ program
         games: opts.games,
         timeoutMs,
         referral: profile.referral,
+        gpPerApe,
       });
       console.log(JSON.stringify(response));
     } catch (error) {
@@ -1822,6 +1939,7 @@ program
   .argument('[amount]', 'Amount to wager (optional)')
   .argument('[config...]', 'Game-specific config (optional)')
   .description('Play a game (random or specified)')
+  .option('--auto', 'Opt into automatic random game/config selection when not specifying a game')
   .option('--game <name>', 'Game to play')
   .option('--amount <ape>', 'Amount to wager')
   .option('--mode <mode>', 'Plinko mode')
@@ -1843,21 +1961,63 @@ program
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
+  .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--json', 'JSON output only')
   .addHelpText('after', formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES))
   .action(async (gameArg, amountArg, configArgs, opts) => {
-    const account = await getWalletWithPrompt({ json: opts.json, gameplay: true });
     const loopMode = Boolean(opts.loop);
     const delaySeconds = Math.max(parseFloat(opts.delay) || 3, 1);
     const delayMs = delaySeconds * 1000;
+    const playCommand = program.commands.find((command) => command.name() === 'play');
+    const hasPositionalInput = Boolean(gameArg || amountArg || (configArgs && configArgs.length > 0));
+    const explicitPlayFlags = new Set([
+      '--auto',
+      '--game',
+      '--amount',
+      '--mode',
+      '--balls',
+      '--spins',
+      '--bet',
+      '--range',
+      '--picks',
+      '--numbers',
+      '--games',
+      '--difficulty',
+      '--runs',
+      '--rolls',
+      '--strategy',
+      '--loop',
+      '--delay',
+      '--max-games',
+      '--target',
+      '--stop-loss',
+      '--bet-strategy',
+      '--max-bet',
+      '--gp-ape',
+    ]);
+    const hasExplicitAutoSelectionInput = process.argv.slice(2).some((arg) => explicitPlayFlags.has(arg));
+
+    if (!hasPositionalInput && !hasExplicitAutoSelectionInput) {
+      if (opts.json) {
+        console.log(JSON.stringify({
+          error: `No game selection provided. Use ${BINARY_NAME} play --auto for automatic random play, or pass an explicit game/amount.`,
+        }));
+      } else if (playCommand) {
+        console.log(playCommand.helpInformation());
+      }
+      return;
+    }
+
+    const account = await getWalletWithPrompt({ json: opts.json, gameplay: true });
     
     // Parse and validate loop parameters
     const targetBalance = opts.target ? parseFloat(opts.target) : null;
     const stopLoss = opts.stopLoss ? parseFloat(opts.stopLoss) : null;
     const maxGames = opts.maxGames ? parseInt(opts.maxGames, 10) : null;
     const maxBet = opts.maxBet ? parseFloat(opts.maxBet) : null;
-    
+    let cliGpPerApe = null;
+
     // Validate numeric parameters
     if (opts.target !== undefined && (isNaN(targetBalance) || targetBalance <= 0)) {
       console.error(JSON.stringify({ error: `Invalid --target value: "${opts.target}". Must be a positive number (e.g., --target 200)` }));
@@ -1874,6 +2034,14 @@ program
     if (opts.maxBet !== undefined && (isNaN(maxBet) || maxBet <= 0)) {
       console.error(JSON.stringify({ error: `Invalid --max-bet value: "${opts.maxBet}". Must be a positive number (e.g., --max-bet 100)` }));
       process.exit(1);
+    }
+    if (opts.gpApe !== undefined) {
+      try {
+        cliGpPerApe = normalizeGpPerApe(opts.gpApe);
+      } catch (error) {
+        console.error(JSON.stringify({ error: sanitizeError(error) }));
+        process.exit(1);
+      }
     }
     
     // Validate logical constraints
@@ -1894,6 +2062,12 @@ program
     let gamesPlayed = 0;
     let lastGameResult = null; // Track for betting strategy
     const loopStats = createLoopStats();
+    const profile = loadProfile(account.address);
+    const gpPerApeInfo = resolveGpPerApeInfo({
+      cliGpPerApe,
+      profile,
+    });
+    const gpPerApe = gpPerApeInfo.gpPerApe;
 
     const gameInput = gameArg || opts.game;
     const amountInput = amountArg || opts.amount;
@@ -1970,7 +2144,6 @@ program
       }
     }
 
-    const profile = loadProfile();
     if (profile.paused) {
       const response = { action: 'play', status: 'skipped', reason: 'paused' };
       if (opts.json) console.log(JSON.stringify(response));
@@ -1979,6 +2152,7 @@ program
     }
 
     if (loopMode && !opts.json) {
+      console.log(`${formatGpPerApeNotice({ info: gpPerApeInfo })}\n`);
       const gameInfo = fixedGame ? getGameDisplayName(fixedGame) : 'random games';
       const strategyInfo = betStrategyName !== 'flat' ? ` | Strategy: ${betStrategyName}` : '';
       const maxBetInfo = maxBet ? ` | Max bet: ${maxBet} APE` : '';
@@ -2251,6 +2425,9 @@ program
 
       // Human-friendly output: show what we're playing
       if (!opts.json) {
+        if (!loopMode) {
+          console.log(`${formatGpPerApeNotice({ info: gpPerApeInfo })}\n`);
+        }
         console.log(`\n🎰 ${gameDesc}`);
         console.log(`   Betting ${parseFloat(wagerApeString).toFixed(2)} APE\n`);
       }
@@ -2273,6 +2450,7 @@ program
           rolls: gameConfig.rolls,
           timeoutMs: 30000, // Wait up to 30s for result (usually 1-2s)
           referral: freshProfile.referral,
+          gpPerApe,
         });
 
         // Update state based on result
@@ -2506,6 +2684,7 @@ program
             stats: loopStats,
             rtpGame: lastPlayedGameKey,
             rtpConfig: lastPlayedConfig,
+            gpPerApe,
             nextDelayLabel: terminalConditionReached ? null : `${delaySeconds}s`,
           }));
           if (terminalConditionReached) continue;
@@ -2776,6 +2955,7 @@ program
 program
   .command('history [address]')
   .description('Read cached per-wallet history, recent games, and history stats')
+  .option('--list', 'List wallet addresses with local cached history files')
   .option('--limit <n>', 'Number of recent cached games to show', '10')
   .option('--all', 'Show all cached games instead of the recent slice')
   .option('--ids', 'Show game IDs at the end of each history line')
@@ -2787,6 +2967,20 @@ program
   .option('--chunk-size <n>', 'Block range per log query for --refresh sync', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .option('--json', 'JSON output')
   .action(async (address, opts) => {
+    if (opts.list) {
+      const addresses = listHistoryWalletAddresses();
+      const currentAddress = getWalletAddress();
+      if (opts.json) {
+        console.log(JSON.stringify({
+          wallets: addresses,
+          current_wallet: currentAddress || null,
+        }));
+      } else {
+        printAddressList('Cached History Wallets', addresses, { currentAddress });
+      }
+      return;
+    }
+
     const targetAddress = resolveHistoryTargetAddress(address);
     if (!targetAddress) {
       const message = `No wallet address provided and no local wallet found. Use: ${BINARY_NAME} history <address>`;
@@ -3232,10 +3426,16 @@ ${'═'.repeat(60)}
 // ============================================================================
 program
   .command('commands')
-  .description('Show all commands')
+  .description('Show the compact command index')
   .action(() => {
     console.log(`
-🦍 APE CHURCH CLI - COMMAND REFERENCE
+🦍 APE CHURCH CLI - COMMAND INDEX
+
+CANONICAL REFERENCE
+  Full command, option, alias, and shared BNF reference:
+  README.md
+  docs/COMMAND_REFERENCE.md
+  docs/GAMES_REFERENCE.md
 
 SETUP
   ${BINARY_NAME} install              Setup encrypted wallet and register
@@ -3243,6 +3443,7 @@ SETUP
 
 WALLET
   ${BINARY_NAME} wallet status        Check wallet status
+  ${BINARY_NAME} wallet --list        List locally available wallet addresses
   ${BINARY_NAME} wallet new           Create and select a new wallet
   ${BINARY_NAME} wallet select [address]
                                    Select a stored wallet
@@ -3261,13 +3462,19 @@ THE HOUSE (Staking)
 STATUS
   ${BINARY_NAME} status               Check balance and state
   ${BINARY_NAME} profile show         Show profile
-  ${BINARY_NAME} profile set          Update profile (--persona, --referral)
+  ${BINARY_NAME} profile set          Update profile preferences
+  ${BINARY_NAME} profile set --gp-ape <points>
+                                   Persist current GP/APE override for this wallet
+  ${BINARY_NAME} profile set --no-gp-ape
+                                   Clear the wallet-specific current GP/APE override
 
 PLAY
-  ${BINARY_NAME} play                 Play random game
+  ${BINARY_NAME} play --auto          Play a random game/config automatically
   ${BINARY_NAME} play <game> <amt>    Play specific game
   ${BINARY_NAME} play --loop          Continuous play
   ${BINARY_NAME} bet --game X --amount Y   Manual bet
+  ${BINARY_NAME} blackjack <amt>      Interactive blackjack (alias: bj)
+  ${BINARY_NAME} video-poker <amt>    Interactive video poker (aliases: vp, gimboz-poker)
 
 CONTROL
   ${BINARY_NAME} pause                Stop autonomous play
@@ -3277,6 +3484,7 @@ CONTROL
 INFO
   ${BINARY_NAME} games                List all games
   ${BINARY_NAME} game <name>          Game details
+  ${BINARY_NAME} history --list       List wallets with local cached history
   ${BINARY_NAME} history [address]    Read cached history, recent games, and history stats
   ${BINARY_NAME} commands             This help
 
@@ -3296,6 +3504,7 @@ LOOP OPTIONS
   --max-games <count>     Stop after N games
   --bet-strategy <name>   Betting strategy (flat, martingale, etc.)
   --max-bet <ape>         Maximum bet cap (for progressive strategies)
+  --gp-ape <points>       Override local GP estimation for this run
 
 BETTING STRATEGIES
   flat                    Same bet every time (default)
@@ -3380,6 +3589,10 @@ ${'─'.repeat(70)}
                        
   --max-games <n>      Stop after exactly N games
                        Example: --max-games 100 (play 100 games then stop)
+
+  --gp-ape <points>    Override the loop points conversion for this run
+                       Default base rate is 5 GP/APE unless a wallet-specific
+                       current rate is set in profile
 
   These can be combined:
     ${BINARY_NAME} play --loop --target 200 --stop-loss 50 --max-games 500
@@ -3665,6 +3878,7 @@ ${'─'.repeat(70)}
   ${BINARY_NAME} wallet reset         Delete local wallet data files
 
   Download examples:
+    ${BINARY_NAME} wallet --list
     ${BINARY_NAME} wallet download
     ${BINARY_NAME} wallet download 0x1234...abcd --json
     ${BINARY_NAME} wallet download 0x1234...abcd --from-block 35000000 --to-block 35300000
@@ -3687,6 +3901,7 @@ ${'─'.repeat(70)}
     ~/.apechurch-cli/history/<wallet>_history.json
 
   History commands:
+    ${BINARY_NAME} history --list
     ${BINARY_NAME} history [address]
     ${BINARY_NAME} history [address] --limit 25
     ${BINARY_NAME} history [address] --all
@@ -3708,6 +3923,7 @@ ${'─'.repeat(70)}
     🪜 Level rate               Every 10,000 GP = 1 Level
 
   History options:
+    --list                     Show wallet addresses with local cached history files
     --limit <n>                Show N recent cached games (default 10)
     --all                      Show all cached games in the local file
     --stats                    Show only aggregate history stats
@@ -4577,6 +4793,7 @@ program
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
+  .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .action(async (action, amount, opts) => {
     // Dynamic import to avoid loading stateful game code when not needed
     const blackjack = await import('../lib/stateful/blackjack/index.js');
@@ -4658,6 +4875,7 @@ program
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
+  .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .action(async (action, amount, opts) => {
     const videoPoker = await import('../lib/stateful/video-poker/index.js');
     

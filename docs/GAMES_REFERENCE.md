@@ -15,7 +15,7 @@ The `✔︎` marker means this repo has locally verified the game's ABI-facing b
 | Game | Positional Syntax | Flag Syntax |
 |------|------------------|-------------|
 | ApeStrong | `play ape-strong <amt> <range>` | `--game ape-strong --amount X --range Y` |
-| Roulette | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` |
+| Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` |
 | Baccarat | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` |
 | Jungle Plinko ✔︎ | `play jungle <amt> <mode> <balls>` | `--game jungle --amount X --mode Y --balls Z` |
 | Cosmic Plinko ✔︎ | `play cosmic <amt> <mode> <balls>` | `--game cosmic --amount X --mode Y --balls Z` |
@@ -57,7 +57,7 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 | Game | Accepted Main Bet | Min / Floor | Max / Cap | Notes |
 |------|-------------------|-------------|-----------|-------|
 | ApeStrong | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
-| Roulette | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split evenly across comma-separated bets |
+| Roulette ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split evenly across comma-separated bets |
 | Baccarat | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | In combined bets, explicit sub-amounts must sum to the total wager |
 | Jungle Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-100` balls |
 | Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-30` balls |
@@ -154,14 +154,17 @@ apechurch-cli play ape-strong 10 50 --json
 
 ---
 
-## Roulette
+## Roulette ✔︎
 
 **Type:** Table  
 **Contract:** `0x1f48A104C1808eb4107f3999999D36aeafEC56d5`  
+**ABI verified:** `true`  
 **Aliases:** `rl`
 
 ### How It Works
-American roulette with 0, 00, and 1-36. Bet on numbers, colors, sections, or combinations.
+American roulette with 0, 00, and 1-36. The verified contract decodes `(uint8[] gameNumbers, uint256[] amounts, uint256 gameId, address ref, bytes32 userRandomWord)`, validates up to `25` distinct bet entries, and settles against a 38-pocket wheel where `0` and `00` are green.
+
+The CLI-supported outside bets are thirds/dozens, columns, halves, parity, and colors. For comma-separated bets the total wager is still split evenly, but a single-leg wager is reduced by `1 wei` before encoding because the contract requires each `amounts[i]` to stay strictly below the post-fee total bet amount.
 
 ### Syntax
 
@@ -199,7 +202,7 @@ Comma-separate bets to split wager evenly:
 apechurch-cli play roulette 100 RED,BLACK   # 50 on each (hedge bet)
 ```
 
-The public transparency table also lists split and corner payouts, but this reference sticks to the bet classes the CLI already documents directly.
+Ape Church transparency copy sometimes describes broader roulette labels, but the verified contract at this address exposes the bet surface below through codes `1..50`, which is the exact surface this CLI supports.
 
 ### Transparency Snapshot
 
@@ -209,17 +212,37 @@ The public transparency table also lists split and corner payouts, but this refe
 - Total Wagered: `6,529,689 APE`
 - Total Games Played: `90,386`
 
-### Exact Calculated RTP by Public Bet Class
+### Verified Runtime Behavior
 
-| Public bet class | Exact RTP | Basis |
+- `getVRFFee()` forwards the current RNG fee from `IRNG(manager.RNG()).getFee()`
+- Number encoding is `0 -> 1`, `1..36 -> 2..37`, and `00 -> 38`
+- Outside-bet encoding is `FIRST_THIRD=39`, `SECOND_THIRD=40`, `THIRD_THIRD=41`, `FIRST_COL=42`, `SECOND_COL=43`, `THIRD_COL=44`, `FIRST_HALF=45`, `SECOND_HALF=46`, `EVEN=47`, `ODD=48`, `BLACK=49`, `RED=50`
+- `MAX_GUESSES = 25`; `gameNumbers.length` must equal `amounts.length`; duplicates revert
+- Each leg amount must be `> 0` and `< totalBetAmount`, which is why the CLI subtracts `1 wei` on one-leg plays
+- `getGameInfo(gameId)` returns `player`, `betAmount`, `totalPayout`, `hasEnded`, `chosenNumber`, `gameNumbers`, `betsPerNumbers`, and `timestamp`
+- `0` and `00` are green pockets, so outside bets pay only on `1..36`
+
+### Verified On-Chain Payout Constants
+
+| Bet class | Multiplier | Verified constant |
+|-----------|------------|-------------------|
+| Single Number | 36.9x | `number_payout = 369_000 / 10_000` |
+| Red / Black | 2.05x | `color_payout = 20_500 / 10_000` |
+| Even / Odd | 2.05x | `even_odd_payout = 20_500 / 10_000` |
+| Halves | 2.05x | `half_payout = 20_500 / 10_000` |
+| Thirds / Dozens | 3.075x | `third_payout = 30_750 / 10_000` |
+| Columns | 3.075x | `third_payout = 30_750 / 10_000` |
+
+### Exact Calculated RTP by Verified Bet Class
+
+| Verified bet class | Exact RTP | Basis |
 |------------------|-----------|-------|
 | Single Number | `97.11%` | Exact weighted sum on the 38-pocket wheel |
-| Split | `97.11%` | Exact weighted sum on the 38-pocket wheel |
-| Corner | `97.11%` | Exact weighted sum on the 38-pocket wheel |
 | Red / Black | `97.11%` | Exact weighted sum on the 38-pocket wheel |
 | Even / Odd | `97.11%` | Exact weighted sum on the 38-pocket wheel |
-| Dozen | `97.11%` | Exact weighted sum on the 38-pocket wheel |
-| Half | `97.11%` | Exact weighted sum on the 38-pocket wheel |
+| Halves | `97.11%` | Exact weighted sum on the 38-pocket wheel |
+| Thirds / Dozens | `97.11%` | Exact weighted sum on the 38-pocket wheel |
+| Columns | `97.11%` | Exact weighted sum on the 38-pocket wheel |
 
 ### Examples
 
@@ -1352,7 +1375,7 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 | Game | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|------|-------------|-----------|--------|--------------------|
 | ApeStrong | Any supported `range` (`5-95`) | Yes | `97.50%` | Exact EV from repo payout formula | `98.53%` |
-| Roulette | All published bet classes | Yes | `97.11%` | Exact weighted sum on 38 pockets | `97.05%` |
+| Roulette ✔︎ | All verified bet classes | Yes | `97.11%` | Exact weighted sum on 38 pockets | `97.05%` |
 | Jungle Plinko ✔︎ | Mode 0 / Safe | Yes | `98.00%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
 | Jungle Plinko ✔︎ | Mode 1 / Low | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
 | Jungle Plinko ✔︎ | Mode 2 / Medium | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
@@ -1402,8 +1425,8 @@ For `Blackjack`, the main hand still remains a statistical model rather than a c
 
 From a more academic perspective, GP farming is a volume-optimization problem under negative expected value. If `V` is eligible wager volume in APE, `m` is the weekly GP multiplier (`0.5` on half weeks, `1.0` on standard weeks, `2.0` on double weeks), and `B(V)` is the cumulative-wager bonus at that milestone, then:
 
-- `GP_total(V, m) = 10mV + B(V)`
-- `effective GP/APE ratio = 10m + B(V) / V`
+- `GP_total(V, m) = 5mV + B(V)`
+- `effective GP/APE ratio = 5m + B(V) / V`
 - `level equivalent = GP_total(V, m) / 10,000`
 - `expected loss (best case) = V x (1 - RTP_best)` when a defensible theoretical RTP exists
 - `expected loss (worst case) = 0.05V` under a flat 5% house edge assumption over long samples
@@ -1418,7 +1441,7 @@ Every `10,000 GP` equals `1 Level`, so GP optimization is also level-progression
 - The examples assume the selected games are eligible for the current GP campaign.
 - Best-case RTP inputs used below are:
   - `ApeStrong`: `97.5%` from the repo formula in `lib/games/apestrong.js`
-  - `Roulette` hedge (`RED,BLACK`): `97.1%` from the public transparency header
+  - `Roulette ✔︎` hedge (`RED,BLACK`): `97.1%` from the public transparency header
   - `Bubblegum Heist`: `97.8%` from the public transparency header
 - The commands below omit `--stop-loss` so the wager-volume math stays exact. In real play, bankroll limits should still be imposed.
 
@@ -1426,15 +1449,15 @@ Every `10,000 GP` equals `1 Level`, so GP optimization is also level-progression
 
 | Wager Volume | Cumulative Bonus GP | Bonus Levels | Standard-Week Total GP | Standard-Week Levels | Standard GP/APE |
 |-------------|---------------------|--------------|------------------------|----------------------|-----------------|
-| `1,000 APE` | `1,000 GP` | `0.1` | `11,000 GP` | `1.1` | `11.00` |
-| `10,000 APE` | `15,000 GP` | `1.5` | `115,000 GP` | `11.5` | `11.50` |
-| `50,000 APE` | `80,000 GP` | `8.0` | `580,000 GP` | `58.0` | `11.60` |
-| `100,000 APE` | `180,000 GP` | `18.0` | `1,180,000 GP` | `118.0` | `11.80` |
-| `250,000 APE` | `475,000 GP` | `47.5` | `2,975,000 GP` | `297.5` | `11.90` |
-| `500,000 APE` | `1,000,000 GP` | `100.0` | `6,000,000 GP` | `600.0` | `12.00` |
-| `1,000,000 APE` | `2,250,000 GP` | `225.0` | `12,250,000 GP` | `1,225.0` | `12.25` |
+| `1,000 APE` | `1,000 GP` | `0.1` | `6,000 GP` | `0.6` | `6.00` |
+| `10,000 APE` | `15,000 GP` | `1.5` | `65,000 GP` | `6.5` | `6.50` |
+| `50,000 APE` | `80,000 GP` | `8.0` | `330,000 GP` | `33.0` | `6.60` |
+| `100,000 APE` | `180,000 GP` | `18.0` | `680,000 GP` | `68.0` | `6.80` |
+| `250,000 APE` | `475,000 GP` | `47.5` | `1,725,000 GP` | `172.5` | `6.90` |
+| `500,000 APE` | `1,000,000 GP` | `100.0` | `3,500,000 GP` | `350.0` | `7.00` |
+| `1,000,000 APE` | `2,250,000 GP` | `225.0` | `7,250,000 GP` | `725.0` | `7.25` |
 
-The ladder matters because the bonus GP is not small relative to the early levels. Crossing the `10,000 APE` threshold on a standard week already yields `115,000 GP`, which is `11.5 Levels`, while the `1,000,000 APE` threshold lifts the standard-week effective ratio to `12.25 GP/APE`.
+The ladder matters because the bonus GP is not small relative to the early levels. Crossing the `10,000 APE` threshold on a standard week already yields `65,000 GP`, which is `6.5 Levels`, while the `1,000,000 APE` threshold lifts the standard-week effective ratio to `7.25 GP/APE`.
 
 ### Worked Examples
 
@@ -1442,63 +1465,63 @@ The ladder matters because the bonus GP is not small relative to the early level
    Command: `apechurch-cli play ape-strong 10 75 --loop --bet-strategy flat --delay 3 --max-games 100`
    Volume: `1,000 APE`
    Expected Loss (`Best ~ Worst`): `25 ~ 50 APE`
-   GP Obtained (`Half / Std / Double`): `6,000 / 11,000 / 21,000 GP`
-   Levels Gained (`Half / Std / Double`): `0.6 / 1.1 / 2.1`
-   GP/APE Ratio (`Half / Std / Double`): `6.0 / 11.0 / 21.0`
+   GP Obtained (`Half / Std / Double`): `3,500 / 6,000 / 11,000 GP`
+   Levels Gained (`Half / Std / Double`): `0.35 / 0.6 / 1.1`
+   GP/APE Ratio (`Half / Std / Double`): `3.5 / 6.0 / 11.0`
 
 2. **Reach Level 5 conservatively**
    Command: `apechurch-cli play roulette 50 RED,BLACK --loop --bet-strategy flat --delay 3 --max-games 100`
    Volume: `5,000 APE`
    Expected Loss (`Best ~ Worst`): `145 ~ 250 APE`
-   GP Obtained (`Half / Std / Double`): `26,000 / 51,000 / 101,000 GP`
-   Levels Gained (`Half / Std / Double`): `2.6 / 5.1 / 10.1`
-   GP/APE Ratio (`Half / Std / Double`): `5.2 / 10.2 / 20.2`
+   GP Obtained (`Half / Std / Double`): `13,500 / 26,000 / 51,000 GP`
+   Levels Gained (`Half / Std / Double`): `1.35 / 2.6 / 5.1`
+   GP/APE Ratio (`Half / Std / Double`): `2.7 / 5.2 / 10.2`
 
 3. **Clear Level 10 with better RTP**
    Command: `apechurch-cli play bubblegum-heist 100 10 --loop --bet-strategy flat --delay 3 --max-games 100`
    Volume: `10,000 APE`
    Expected Loss (`Best ~ Worst`): `220 ~ 500 APE`
-   GP Obtained (`Half / Std / Double`): `65,000 / 115,000 / 215,000 GP`
-   Levels Gained (`Half / Std / Double`): `6.5 / 11.5 / 21.5`
-   GP/APE Ratio (`Half / Std / Double`): `6.5 / 11.5 / 21.5`
+   GP Obtained (`Half / Std / Double`): `40,000 / 65,000 / 115,000 GP`
+   Levels Gained (`Half / Std / Double`): `4.0 / 6.5 / 11.5`
+   GP/APE Ratio (`Half / Std / Double`): `4.0 / 6.5 / 11.5`
 
 4. **Clear Level 15**
    Command: `apechurch-cli play ape-strong 75 75 --loop --bet-strategy flat --delay 3 --max-games 200`
    Volume: `15,000 APE`
    Expected Loss (`Best ~ Worst`): `375 ~ 750 APE`
-   GP Obtained (`Half / Std / Double`): `90,000 / 165,000 / 315,000 GP`
-   Levels Gained (`Half / Std / Double`): `9.0 / 16.5 / 31.5`
-   GP/APE Ratio (`Half / Std / Double`): `6.0 / 11.0 / 21.0`
+   GP Obtained (`Half / Std / Double`): `52,500 / 90,000 / 165,000 GP`
+   Levels Gained (`Half / Std / Double`): `5.25 / 9.0 / 16.5`
+   GP/APE Ratio (`Half / Std / Double`): `3.5 / 6.0 / 11.0`
 
 5. **50k bonus tier baseline**
    Command: `apechurch-cli play ape-strong 50 75 --loop --bet-strategy flat --delay 3 --max-games 1000`
    Volume: `50,000 APE`
    Expected Loss (`Best ~ Worst`): `1,250 ~ 2,500 APE`
-   GP Obtained (`Half / Std / Double`): `330,000 / 580,000 / 1,080,000 GP`
-   Levels Gained (`Half / Std / Double`): `33.0 / 58.0 / 108.0`
-   GP/APE Ratio (`Half / Std / Double`): `6.6 / 11.6 / 21.6`
+   GP Obtained (`Half / Std / Double`): `205,000 / 330,000 / 580,000 GP`
+   Levels Gained (`Half / Std / Double`): `20.5 / 33.0 / 58.0`
+   GP/APE Ratio (`Half / Std / Double`): `4.1 / 6.6 / 11.6`
 
 6. **100k bonus tier RTP-leaning**
    Command: `apechurch-cli play bubblegum-heist 100 10 --loop --bet-strategy flat --delay 3 --max-games 1000`
    Volume: `100,000 APE`
    Expected Loss (`Best ~ Worst`): `2,200 ~ 5,000 APE`
-   GP Obtained (`Half / Std / Double`): `680,000 / 1,180,000 / 2,180,000 GP`
-   Levels Gained (`Half / Std / Double`): `68.0 / 118.0 / 218.0`
-   GP/APE Ratio (`Half / Std / Double`): `6.8 / 11.8 / 21.8`
+   GP Obtained (`Half / Std / Double`): `430,000 / 680,000 / 1,180,000 GP`
+   Levels Gained (`Half / Std / Double`): `43.0 / 68.0 / 118.0`
+   GP/APE Ratio (`Half / Std / Double`): `4.3 / 6.8 / 11.8`
 
 7. **250k marathon tier**
    Command: `apechurch-cli play ape-strong 100 75 --loop --bet-strategy flat --delay 3 --max-games 2500`
    Volume: `250,000 APE`
    Expected Loss (`Best ~ Worst`): `6,250 ~ 12,500 APE`
-   GP Obtained (`Half / Std / Double`): `1,725,000 / 2,975,000 / 5,475,000 GP`
-   Levels Gained (`Half / Std / Double`): `172.5 / 297.5 / 547.5`
-   GP/APE Ratio (`Half / Std / Double`): `6.9 / 11.9 / 21.9`
+   GP Obtained (`Half / Std / Double`): `1,100,000 / 1,725,000 / 2,975,000 GP`
+   Levels Gained (`Half / Std / Double`): `110.0 / 172.5 / 297.5`
+   GP/APE Ratio (`Half / Std / Double`): `4.4 / 6.9 / 11.9`
 
 ### Interpretation
 
-These examples suggest a fairly stable conclusion. If the objective is **GP per unit of expected loss**, then high-RTP eligible games dominate, but the margin between a `97.5%` baseline and a `97.8%` baseline is smaller than many players intuit. By contrast, volatility and bankroll path-dependence can differ substantially, which is why `ApeStrong` at a relatively wide range or `Roulette` with `RED,BLACK` remain attractive operational baselines even when a slot-like game has a slightly better published RTP.
+These examples suggest a fairly stable conclusion. If the objective is **GP per unit of expected loss**, then high-RTP eligible games dominate, but the margin between a `97.5%` baseline and a `97.8%` baseline is smaller than many players intuit. By contrast, volatility and bankroll path-dependence can differ substantially, which is why `ApeStrong` at a relatively wide range or `Roulette ✔︎` with `RED,BLACK` remain attractive operational baselines even when a slot-like game has a slightly better published RTP.
 
-Equally important, the cumulative bonus system means the relevant metric is not just raw RTP but **expected loss per effective GP** and, by extension, **expected loss per level**. Under the standard ratio, the bonus ladder shifts the effective return from `11.0 GP/APE` at `1,000 APE` volume to `12.25 GP/APE` at `1,000,000 APE` volume. On double weeks the same ladder becomes markedly more favorable, while on half weeks the economics deteriorate enough that conservative flat-volume loops become more important than promotional optimism.
+Equally important, the cumulative bonus system means the relevant metric is not just raw RTP but **expected loss per effective GP** and, by extension, **expected loss per level**. Under the standard ratio, the bonus ladder shifts the effective return from `6.0 GP/APE` at `1,000 APE` volume to `7.25 GP/APE` at `1,000,000 APE` volume. On double weeks the same ladder becomes markedly more favorable, while on half weeks the economics deteriorate enough that conservative flat-volume loops become more important than promotional optimism.
 
 ---
 

@@ -173,6 +173,7 @@ export const GAME_REGISTRY = [
     description: 'Classic roulette with American layout (0, 00, 1-36). Bet on numbers, colors, or sections.',
     contract: ROULETTE_CONTRACT,
     aliases: ['rl'],
+    abiVerified: true,
     config: {
       bet: {
         description: 'What to bet on. Numbers (0-36, 00), colors (RED, BLACK), parity (ODD, EVEN), sections, etc.',

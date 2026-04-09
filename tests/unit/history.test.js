@@ -7,6 +7,7 @@ import { parseEther } from 'viem';
 import {
   COSMIC_PLINKO_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
+  ROULETTE_CONTRACT,
 } from '../../lib/constants.js';
 import {
   fetchSavedHistoryEntries,
@@ -41,9 +42,10 @@ describe('History Helpers', () => {
       );
     });
 
-    it('adds the ABI verified badge for verified Plinko contracts', () => {
+    it('adds the ABI verified badge for verified Plinko and Roulette contracts', () => {
       assert.strictEqual(resolveHistoryGameName(JUNGLE_PLINKO_CONTRACT), 'Jungle Plinko ✔︎');
       assert.strictEqual(resolveHistoryGameName(COSMIC_PLINKO_CONTRACT), 'Cosmic Plinko ✔︎');
+      assert.strictEqual(resolveHistoryGameName(ROULETTE_CONTRACT), 'Roulette ✔︎');
     });
   });
 
@@ -135,7 +137,7 @@ describe('History Helpers', () => {
       };
 
       const { entries, failedFetches } = await fetchSavedHistoryEntries(publicClient, [
-        { contract: '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600', gameId: '42', timestamp: 1000 },
+        { contract: '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600', gameId: '42', timestamp: 1000, gp_received_raw: '5' },
         { contract: VIDEO_POKER_CONTRACT, gameId: '99', timestamp: 2000 },
       ]);
 
@@ -143,7 +145,9 @@ describe('History Helpers', () => {
       assert.strictEqual(failedFetches, 0);
       assert.strictEqual(entries.length, 2);
       assert.strictEqual(entries[0].game, 'Video Poker ✔︎');
+      assert.strictEqual(entries[0].gp_received_display, null);
       assert.strictEqual(entries[1].game, 'ApeStrong');
+      assert.strictEqual(entries[1].gp_received_display, '5');
       assert.ok(entries[0].timestamp > entries[1].timestamp, 'Combined results should be sorted by saved timestamp');
     });
   });

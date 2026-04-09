@@ -80,8 +80,8 @@ apechurch-cli wallet download
 # Read cached history stats
 apechurch-cli history --stats
 
-# Play one game
-apechurch-cli play
+# Play one random game/config automatically
+apechurch-cli play --auto
 
 # Play continuously
 apechurch-cli play --loop
@@ -682,6 +682,7 @@ apechurch-cli video-poker payouts  # Show payout table
 | Command | Description |
 |---------|-------------|
 | `apechurch-cli wallet status` | Check encrypted wallet status |
+| `apechurch-cli wallet --list` | List locally available wallet addresses |
 | `apechurch-cli wallet new` | Create and select a new wallet |
 | `apechurch-cli wallet select [address]` | Switch to a stored wallet |
 | `apechurch-cli wallet download [address]` | Download supported on-chain history into local cache |
@@ -695,6 +696,8 @@ apechurch-cli video-poker payouts  # Show payout table
 |---------|-------------|
 | `apechurch-cli profile show` | View settings |
 | `apechurch-cli profile set --persona <type>` | Change play style |
+| `apechurch-cli profile set --gp-ape <points>` | Set the wallet-specific current GP/APE rate |
+| `apechurch-cli profile set --no-gp-ape` | Clear the wallet-specific current GP/APE rate |
 | `apechurch-cli register --username <name>` | Change username |
 
 ### Global Flags
@@ -704,6 +707,7 @@ apechurch-cli video-poker payouts  # Show payout table
 | `--json` | Machine-readable JSON output |
 | `--loop` | Continuous play mode |
 | `--delay <sec>` | Delay between games |
+| `--gp-ape <points>` | Override the current run's GP per APE rate |
 | `--solver` | Show the best-EV hold suggestion in interactive video poker |
 | `--target <ape>` | Stop at target balance |
 | `--stop-loss <ape>` | Stop at loss limit |

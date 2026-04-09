@@ -401,7 +401,7 @@ describe('Wallet History Analysis', () => {
   });
 
   describe('mergeDownloadedHistoryGames', () => {
-    it('keeps a richer play-tx record when an incremental sync only sees a sponsored settlement tx', () => {
+    it('prefers the synced on-chain settlement record when it conflicts with a richer local cache', () => {
       const merged = mergeDownloadedHistoryGames(
         [
           {
@@ -467,17 +467,17 @@ describe('Wallet History Analysis', () => {
       );
 
       assert.strictEqual(merged.length, 1);
-      assert.strictEqual(merged[0].tx, '0xplay');
+      assert.strictEqual(merged[0].tx, '0xsettle');
       assert.strictEqual(merged[0].settlement_tx, '0xsettle');
-      assert.strictEqual(merged[0].transaction_from, WALLET);
-      assert.strictEqual(merged[0].sponsored_transaction, false);
-      assert.strictEqual(merged[0].contract_fee_ape, '0.1');
-      assert.strictEqual(merged[0].gas_fee_ape, '0.02');
-      assert.strictEqual(merged[0].gp_received_display, '25');
-      assert.strictEqual(merged[0].wape_received_ape, '5');
-      assert.strictEqual(merged[0].chain_timestamp, 1774786033);
-      assert.strictEqual(merged[0].timestamp, 1774786033000);
-      assert.strictEqual(merged[0].net_result_ape, '0.88');
+      assert.strictEqual(merged[0].transaction_from, SPONSOR);
+      assert.strictEqual(merged[0].sponsored_transaction, true);
+      assert.strictEqual(merged[0].contract_fee_ape, '0');
+      assert.strictEqual(merged[0].gas_fee_ape, '0');
+      assert.strictEqual(merged[0].gp_received_display, '0');
+      assert.strictEqual(merged[0].wape_received_ape, '0');
+      assert.strictEqual(merged[0].chain_timestamp, 1774786034);
+      assert.strictEqual(merged[0].timestamp, 1774786034000);
+      assert.strictEqual(merged[0].net_result_ape, '1');
       assert.strictEqual(merged[0].last_sync_on, '2026-03-29T17:28:34.923Z');
     });
 
@@ -768,7 +768,7 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(analysis.stats.current_gp_balance_display, '12');
       assert.strictEqual(analysis.stats.current_wape_balance_ape, '3');
       assert.strictEqual(analysis.recent_games.length, 2);
-      assert.strictEqual(analysis.recent_games[0].game, 'Roulette');
+      assert.strictEqual(analysis.recent_games[0].game, 'Roulette ✔︎');
       assert.strictEqual(analysis.recent_games[0].contract_fee_ape, '0');
       assert.strictEqual(analysis.recent_games[0].gas_fee_ape, '0');
       assert.strictEqual(analysis.recent_games[0].sponsored_transaction, true);

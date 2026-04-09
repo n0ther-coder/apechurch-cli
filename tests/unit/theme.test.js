@@ -215,6 +215,7 @@ describe('Theme', () => {
         last_sync_on: '2026-03-29T12:00:00.000Z',
         wager_ape: '10',
         pnl_ape: '9.5',
+        gp_received_display: '50',
         won: true,
         settled: true,
       };
@@ -224,6 +225,7 @@ describe('Theme', () => {
       assert.ok(result.indexOf('ApeStrong') > result.indexOf('🎉'));
       assert.ok(result.includes('       9.50 APE'));
       assert.ok(result.includes('       10.00 wAPE'));
+      assert.ok(result.includes('🧮 50 GP'));
       assert.ok(result.includes('ApeStrong'));
       assert.ok(!result.includes('<123456789>'));
       assert.ok(result.includes('(verified on-chain, 2026-03-29 12:00:00 UTC)'));
@@ -302,12 +304,14 @@ describe('Theme', () => {
         gameId: '777',
         historyIndex: 5,
         timestamp: Date.UTC(2026, 2, 27, 14, 34, 0),
+        gp_received_display: '5',
         settled: false,
         last_sync_msg: 'unsupported game fetch',
       };
       const result = formatHistoryLine(game);
 
       assert.ok(result.includes('🚫'));
+      assert.ok(result.includes('🧮 5 GP'));
       assert.ok(result.includes('N/A'));
       assert.ok(result.indexOf('Blackjack') > result.indexOf('🚫'));
       assert.ok(result.includes('Blackjack'));

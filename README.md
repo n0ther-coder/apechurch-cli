@@ -10,7 +10,7 @@ Private keys stay local, are stored on disk only in encrypted form in this harde
 
 ### Supported Games
 
-- **14 supported games:** `ApeStrong`, `Roulette`, `Baccarat`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough`, `Bubblegum Heist`, `Monkey Match ✔︎`, `Bear-A-Dice`, `Primes ✔︎`, `Blackjack`, and `Video Poker ✔︎ / Gimboz Poker`
+- **14 supported games:** `ApeStrong`, `Roulette ✔︎`, `Baccarat`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough`, `Bubblegum Heist`, `Monkey Match ✔︎`, `Bear-A-Dice`, `Primes ✔︎`, `Blackjack`, and `Video Poker ✔︎ / Gimboz Poker`
 - **Fully AI agents playable:** browserless CLI flows, local signing, JSON output, formal command grammar, and self-describing game metadata make it straightforward for coding agents and automations to use directly
 - **Improved auto gameplay:** `Blackjack` and `Video Poker ✔︎ / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
 - **Fully on-chain settlement:** every wager is placed on ApeChain and resolved by the live contracts with their on-chain RNG integrations, including Chainlink VRF and Pyth V2 where applicable
@@ -21,7 +21,7 @@ Private keys stay local, are stored on disk only in encrypted form in this harde
 - **AI-agent-first operator UX:** fully AI agents playable command surface with structured outputs, stable aliases, local history caches, and no browser dependency
 - **Better stateful automation:** stronger blackjack and video-poker auto gameplay, side-bet support, unfinished-game recovery, and EV / Monte Carlo helpers for loop planning
 - **Expanded Ape Church coverage:** explicit support for both `jungle` and `cosmic` Plinko instead of a single generic Plinko entry, plus supported `Primes ✔︎` gameplay and a broader maintained game registry
-- **ABI-verified game metadata:** verified contracts are marked with `✔︎` in CLI output, help, JSON payloads, and docs; Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Monkey Match ✔︎, Primes ✔︎, and Video Poker ✔︎ use verified on-chain contract data
+- **ABI-verified game metadata:** verified contracts are marked with `✔︎` in CLI output, help, JSON payloads, and docs; Roulette ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Monkey Match ✔︎, Primes ✔︎, and Video Poker ✔︎ use verified on-chain contract data
 - **RTP and payout modeling overhaul:** expected RTP, reported RTP, current RTP, and max-payout references across the game catalog, with exact/formula/statistical provenance markers where available
 - **Exact Plinko modeling:** Jungle and Cosmic Plinko mode RTP and top payouts are derived from the live on-chain bucket tables, and Plinko stats are grouped by risk level rather than by ball count
 - **Per-wallet history cache:** `wallet download` reconstructs supported on-chain history into a local cache, with incremental backfills and offline `history` reads
@@ -57,8 +57,8 @@ apechurch-cli wallet download
 # Read cached history and stats
 apechurch-cli history --stats
 
-# Play one game
-apechurch-cli play
+# Play one random game/config automatically
+apechurch-cli play --auto
 
 # Play continuously
 apechurch-cli play --loop
@@ -72,6 +72,35 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 - `APECHURCH_CLI_PASS`: required for non-interactive install/signing; optional otherwise
 - `APECHURCH_CLI_PROFILE_URL`: optional override for the username/profile API endpoint
 
+## Reference Docs
+
+- Full CLI command, option, alias, and shared BNF reference: [docs/COMMAND_REFERENCE.md](./docs/COMMAND_REFERENCE.md)
+- Per-game syntax and game-specific grammar: [docs/GAMES_REFERENCE.md](./docs/GAMES_REFERENCE.md)
+
+## Profile
+
+`profile show` prints the local profile for the selected wallet. `profile set` updates one or more local fields in place.
+
+```bash
+# Show the selected wallet profile
+apechurch-cli profile show
+
+# Set persona and card rendering
+apechurch-cli profile set --persona aggressive --card-display simple
+
+# Set or clear the wallet-specific current GP/APE rate
+apechurch-cli profile set --gp-ape 7.5
+apechurch-cli profile set --no-gp-ape
+```
+
+`profile set` values:
+
+- `--persona <name>`: `conservative | balanced | aggressive | degen`
+- `--card-display <mode>`: `full | simple | json`
+- `--referral <address>`: `0x`-prefixed wallet address
+- `--gp-ape <points>`: positive decimal GP/APE override for the selected wallet
+- `--no-gp-ape`: clear the wallet-specific GP/APE override and fall back to the base default
+
 ## History Download & Reporting
 
 Use `wallet download` to reconstruct supported gaming history from ApeChain into a per-wallet local file, then read that cache with `history` without rebuilding the chain view every time.
@@ -81,6 +110,9 @@ If `[address]` is omitted, both commands use the local wallet address.
 ```bash
 # Download history for the local wallet address
 apechurch-cli wallet download
+
+# List wallets with local cached history files
+apechurch-cli history --list
 
 # Download history for any wallet
 apechurch-cli wallet download 0x1234...abcd
@@ -137,6 +169,7 @@ Text output includes:
 
 | Option | Description |
 |--------|-------------|
+| `--list` | List locally available wallet addresses |
 | `--from-block <n>` | Start block for the sync or explicit backfill |
 | `--to-block <n>` | End block for the sync (default: latest block) |
 | `--chunk-size <n>` | Block span per log query (default: `50000`) |
@@ -146,6 +179,7 @@ Text output includes:
 
 | Option | Description |
 |--------|-------------|
+| `--list` | Show wallet addresses with local cached history files |
 | `--limit <n>` | Number of recent cached games to show (default: `10`) |
 | `--all` | Show all cached games instead of the recent slice |
 | `--stats` | Show only history stats |
@@ -176,7 +210,7 @@ Coverage and limits:
 | Game | Command | Description |
 |------|---------|-------------|
 | ApeStrong | `play ape-strong 10 50` | Pick-your-odds dice |
-| Roulette | `play roulette 10 RED` | American roulette |
+| Roulette ✔︎ | `play roulette 10 RED` | American roulette |
 | Baccarat | `play baccarat 10 BANKER` | Classic baccarat |
 | Jungle Plinko ✔︎ | `play jungle 10 2 50` | Drop balls for multipliers |
 | Cosmic Plinko ✔︎ | `play cosmic 10 1 10` | Asymmetric plinko with higher top-end payouts |
@@ -195,6 +229,7 @@ Coverage and limits:
 The CLI help now exposes formal argument grammar in `apechurch-cli play --help`, `apechurch-cli bet --help`, and `apechurch-cli game <name>`.
 
 ```bnf
+<points> ::= <number>                        ; decimal GP per APE rate; value > 0
 <keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*
 <keno-number> ::= <integer>                  ; 1 <= value <= 40
 <speed-keno-numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*
@@ -207,7 +242,7 @@ The CLI help now exposes formal argument grammar in `apechurch-cli play --help`,
 
 `--numbers` must be passed as one CLI token, for example `--numbers 1,7,13,25,40`.
 
-The full per-game grammar lives in [docs/GAMES_REFERENCE.md](/Users/fluoro/Downloads/Clones/n0ther-coder/apechurch-cli/docs/GAMES_REFERENCE.md).
+The full command surface lives in [docs/COMMAND_REFERENCE.md](./docs/COMMAND_REFERENCE.md). The full per-game grammar lives in [docs/GAMES_REFERENCE.md](./docs/GAMES_REFERENCE.md).
 
 ## Loop Mode
 
@@ -230,6 +265,19 @@ apechurch-cli play ape-strong 10 50 --loop --target 150
 | `--stop-loss <ape>` | Stop when balance drops to limit |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
+| `--gp-ape <points>` | Override the loop points conversion for this run |
+
+Loop summaries now assume a base rate of `5 GP/APE`. Use `--gp-ape <points>` for a one-off override, or persist a wallet-specific current rate with `apechurch-cli profile set --gp-ape <points>`.
+
+## GP Rate Controls
+
+Local loop summaries and local-only GP estimates use a base rate of `5 GP/APE`.
+
+- One-off override for a single run: `--gp-ape <points>` on `bet`, `play`, `blackjack`, and `video-poker`
+- Wallet-specific current override: `apechurch-cli profile set --gp-ape <points>`
+- Clear the wallet-specific current override: `apechurch-cli profile set --no-gp-ape`
+
+When on-chain GP is available for a settled game, reporting uses that on-chain value instead of any local estimate.
 
 ## Betting Strategies
 
@@ -281,15 +329,18 @@ apechurch-cli blackjack 10
 ## Commands
 
 ```bash
-apechurch-cli play [game] [amount] [config...]  # Play games
+apechurch-cli play --auto                        # Auto-select random game/config
+apechurch-cli play [game] [amount] [config...]  # Play a specific simple game
 apechurch-cli blackjack|bj <amount> [--auto] [--side <ape>]  # Blackjack
 apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker
 apechurch-cli status                            # Check balance
+apechurch-cli wallet --list                     # List locally available wallet addresses
 apechurch-cli wallet download [address]         # Download supported on-chain history into local cache
 apechurch-cli games                             # List all games
 apechurch-cli game <name>                       # Game details
 apechurch-cli pause                             # Stop autonomous play
 apechurch-cli continue                          # Continue play
+apechurch-cli history --list                    # List wallets with local cached history files
 apechurch-cli history [address] [--stats] [--breakdown] [--refresh]  # Read cached history and reporting
 apechurch-cli commands                          # Full reference
 ```
@@ -300,7 +351,7 @@ All commands support `--json` for machine-readable output:
 
 ```bash
 apechurch-cli status --json
-apechurch-cli play --json
+apechurch-cli play --auto --json
 apechurch-cli play --loop --json
 apechurch-cli wallet download 0x1234...abcd --json
 apechurch-cli history 0x1234...abcd --breakdown --json

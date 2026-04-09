@@ -54,23 +54,12 @@ function setupHistoryFixtureHome() {
           game: 'ApeStrong',
           game_key: 'ape-strong',
           wager_wei: '5000000000000000000',
-          wager_ape: '5',
           payout_wei: '0',
-          payout_ape: '0',
           contract_fee_wei: '100000000000000000',
-          contract_fee_ape: '0.10',
           gas_fee_wei: '10000000000000000',
-          gas_fee_ape: '0.01',
-          pnl_ape: '-5',
-          net_result_wei: '-5110000000000000000',
-          net_result_ape: '-5.11',
-          won: false,
-          push: false,
           settled: true,
           gp_received_raw: '5',
-          gp_received_display: '5',
           wape_received_wei: '5000000000000000000',
-          wape_received_ape: '5',
           last_sync_on: '2026-04-02T00:00:00.000Z',
           chain_timestamp: 1710000000,
         },
@@ -81,23 +70,12 @@ function setupHistoryFixtureHome() {
           game: 'Roulette',
           game_key: 'roulette',
           wager_wei: '2000000000000000000',
-          wager_ape: '2',
           payout_wei: '4000000000000000000',
-          payout_ape: '4',
           contract_fee_wei: '0',
-          contract_fee_ape: '0',
           gas_fee_wei: '10000000000000000',
-          gas_fee_ape: '0.01',
-          pnl_ape: '2',
-          net_result_wei: '1990000000000000000',
-          net_result_ape: '1.99',
-          won: true,
-          push: false,
           settled: true,
           gp_received_raw: '2',
-          gp_received_display: '2',
           wape_received_wei: '2000000000000000000',
-          wape_received_ape: '2',
           last_sync_on: '2026-04-02T00:00:00.000Z',
           chain_timestamp: 1710000100,
         },
@@ -159,14 +137,33 @@ describe('CLI Commands Integration Tests', () => {
     it('play --help includes BNF grammar for structured arguments', () => {
       const { stdout } = cli('play --help');
       assert.ok(stdout.includes('Grammar (BNF)'), 'Should show a BNF appendix');
+      assert.ok(stdout.includes('<points> ::= <number>'), 'Should document GP rate grammar');
+      assert.ok(stdout.includes('--auto'), 'Should document explicit automatic random play');
       assert.ok(stdout.includes('<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*'), 'Should document Keno numbers grammar');
       assert.ok(stdout.includes('<runs> ::= <integer>'), 'Should document Primes run grammar');
       assert.ok(stdout.includes('--numbers 1,7,13,25,40'), 'Should document the single-token numbers form');
     });
 
-    it('commands shows full reference', () => {
+    it('bare play now shows help instead of auto-running', () => {
+      const { stdout } = cli('play');
+      assert.ok(stdout.includes('Usage: apechurch-cli play'), 'Should show command help');
+      assert.ok(stdout.includes('--auto'), 'Should point to the explicit auto option');
+    });
+
+    it('profile help documents set values and GP rate flags clearly', () => {
+      const { stdout } = cli('profile --help');
+      assert.ok(stdout.includes('profile set [options]'), 'Should document the set action');
+      assert.ok(stdout.includes('--persona <name>'), 'Should document persona values');
+      assert.ok(stdout.includes('--card-display <mode>'), 'Should document card display values');
+      assert.ok(stdout.includes('--gp-ape <points>'), 'Should document the wallet GP override');
+      assert.ok(stdout.includes('--no-gp-ape'), 'Should document resetting to the base default');
+    });
+
+    it('commands points to the canonical reference and GP rate controls', () => {
       const { stdout } = cli('commands');
       assert.ok(stdout.includes('play') || stdout.includes('PLAY'), 'Should mention play command');
+      assert.ok(stdout.includes('docs/COMMAND_REFERENCE.md'), 'Should point to the canonical command reference');
+      assert.ok(stdout.includes('--gp-ape <points>'), 'Should mention GP rate overrides');
     });
 
     it('commands does not advertise wAPE transfers', () => {
@@ -241,7 +238,7 @@ describe('CLI Commands Integration Tests', () => {
     it('lists available games', () => {
       const { stdout } = cli('games');
       assert.ok(stdout.includes('ApeStrong') || stdout.includes('ape-strong'), 'Should list ApeStrong');
-      assert.ok(stdout.includes('Roulette') || stdout.includes('roulette'), 'Should list Roulette');
+      assert.ok(stdout.includes('Roulette ✔︎'), 'Should list verified Roulette');
       assert.ok(stdout.includes('Jungle Plinko ✔︎'), 'Should list verified Jungle Plinko');
       assert.ok(stdout.includes('Cosmic Plinko ✔︎'), 'Should list verified Cosmic Plinko');
       assert.ok(stdout.includes('Keno ✔︎'), 'Should list verified Keno');
@@ -352,6 +349,14 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(data.displayName, 'Video Poker ✔︎');
     });
 
+    it('exposes ABI verification metadata for verified Roulette', () => {
+      const { stdout } = cli('game roulette --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Roulette ✔︎');
+    });
+
     it('shows per-parameter BNF in game helpers', () => {
       const { stdout } = cli('game keno');
       assert.ok(stdout.includes('BNF:'), 'Should show BNF in the parameter section');
@@ -395,6 +400,8 @@ describe('CLI Commands Integration Tests', () => {
       
       assert.ok('games' in data, 'Should have games key');
       assert.ok(Array.isArray(data.games), 'Games should be array');
+      assert.strictEqual(data.games[0].gp_received_display, '2');
+      assert.strictEqual(data.games[1].gp_received_display, '5');
     });
 
     it('--limit works', () => {
@@ -431,6 +438,16 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(data.breakdown_filter.game_key, 'ape-strong');
     });
 
+    it('shows GP earned in the human-readable history output', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+
+      assert.ok(stdout.includes('🧮 5 GP'));
+      assert.ok(stdout.includes('🧮 2 GP'));
+    });
+
     it('shows unfinished games after recent games with resume and clear hints', () => {
       setupHistoryFixtureHome();
       const { stdout } = cli('history', {
@@ -456,8 +473,17 @@ describe('CLI Commands Integration Tests', () => {
 
     it('--help documents --all', () => {
       const { stdout } = cli('history --help');
+      assert.ok(stdout.includes('--list'), 'Should expose --list in help');
       assert.ok(stdout.includes('--all'), 'Should expose --all in help');
       assert.ok(stdout.includes('--breakdown [game]'), 'Should expose the optional breakdown game filter in help');
+    });
+
+    it('history --list shows locally cached history addresses', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history --list', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+      assert.ok(stdout.includes(HISTORY_FIXTURE_WALLET.toLowerCase()), 'Should list cached history wallets');
     });
   });
 

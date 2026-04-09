@@ -13,6 +13,12 @@ import {
   normalizeUsername,
   generateUsername,
   normalizeStrategy,
+  normalizeGpPerApe,
+  resolveGpPerApe,
+  resolveGpPerApeInfo,
+  formatGpPerApeValue,
+  formatGpPerApeNotice,
+  estimateGpFromWagerApe,
 } from '../../lib/profile.js';
 
 describe('Profile', () => {
@@ -105,6 +111,130 @@ describe('Profile', () => {
     it('handles null/undefined with default', () => {
       const result = normalizeStrategy(null);
       assert.strictEqual(result, 'balanced');
+    });
+  });
+
+  describe('normalizeGpPerApe', () => {
+    it('accepts positive integers and decimals', () => {
+      assert.strictEqual(normalizeGpPerApe('5'), 5);
+      assert.strictEqual(normalizeGpPerApe('2.5'), 2.5);
+    });
+
+    it('allows null only when explicitly requested', () => {
+      assert.strictEqual(normalizeGpPerApe(null, { allowNull: true }), null);
+      assert.throws(() => normalizeGpPerApe(null), /positive number/i);
+    });
+
+    it('rejects zero and negative values', () => {
+      assert.throws(() => normalizeGpPerApe('0'), /positive number/i);
+      assert.throws(() => normalizeGpPerApe('-1'), /positive number/i);
+    });
+  });
+
+  describe('resolveGpPerApe', () => {
+    it('defaults to the new base rate when nothing else is configured', () => {
+      assert.strictEqual(resolveGpPerApe({ profile: {} }), 5);
+    });
+
+    it('uses the wallet current rate before the base rate', () => {
+      assert.strictEqual(
+        resolveGpPerApe({ profile: { currentGpPerApe: 7.5 } }),
+        7.5
+      );
+    });
+
+    it('gives CLI overrides priority over the wallet current rate', () => {
+      assert.strictEqual(
+        resolveGpPerApe({
+          cliGpPerApe: 9,
+          profile: { currentGpPerApe: 7.5 },
+        }),
+        9
+      );
+    });
+  });
+
+  describe('resolveGpPerApeInfo', () => {
+    it('describes the base default when nothing else is configured', () => {
+      assert.deepStrictEqual(
+        resolveGpPerApeInfo({ profile: {} }),
+        {
+          gpPerApe: 5,
+          baseGpPerApe: 5,
+          currentGpPerApe: null,
+          source: 'base',
+          sourceLabel: 'base default',
+        }
+      );
+    });
+
+    it('describes the wallet current rate when present', () => {
+      assert.deepStrictEqual(
+        resolveGpPerApeInfo({ profile: { currentGpPerApe: 7.5 } }),
+        {
+          gpPerApe: 7.5,
+          baseGpPerApe: 5,
+          currentGpPerApe: 7.5,
+          source: 'profile',
+          sourceLabel: 'wallet current',
+        }
+      );
+    });
+
+    it('describes CLI overrides with highest priority', () => {
+      assert.deepStrictEqual(
+        resolveGpPerApeInfo({
+          cliGpPerApe: 9,
+          profile: { currentGpPerApe: 7.5 },
+        }),
+        {
+          gpPerApe: 9,
+          baseGpPerApe: 5,
+          currentGpPerApe: 7.5,
+          source: 'cli',
+          sourceLabel: 'run override',
+        }
+      );
+    });
+  });
+
+  describe('formatGpPerApe helpers', () => {
+    it('formats GP rates without unnecessary padding', () => {
+      assert.strictEqual(formatGpPerApeValue(5), '5');
+      assert.strictEqual(formatGpPerApeValue(7.5), '7.5');
+    });
+
+    it('builds a startup notice with change and reset help', () => {
+      const output = formatGpPerApeNotice({
+        info: {
+          gpPerApe: 7.5,
+          baseGpPerApe: 5,
+          currentGpPerApe: 7.5,
+          source: 'profile',
+          sourceLabel: 'wallet current',
+        },
+      });
+
+      assert.ok(output.includes('Current GP Rate: 7.5 GP/APE (wallet current)'));
+      assert.ok(output.includes('--gp-ape <points>'));
+      assert.ok(output.includes('profile set --gp-ape <points>'));
+      assert.ok(output.includes('profile set --no-gp-ape'));
+    });
+  });
+
+  describe('estimateGpFromWagerApe', () => {
+    it('estimates whole GP for local history entries', () => {
+      assert.deepStrictEqual(
+        estimateGpFromWagerApe({ wagerApe: 2, gpPerApe: 5 }),
+        '10'
+      );
+    });
+
+    it('floors fractional estimates to whole GP', () => {
+      assert.deepStrictEqual(
+        estimateGpFromWagerApe({ wagerApe: 1, gpPerApe: 7.5 }),
+        '7'
+      );
     });
   });
 });

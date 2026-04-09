@@ -16,6 +16,9 @@ node_modules
 !/log/.keep
 !/tmp/.keep
 
+# Ignore test tmp directories.
+tests/tmp-*/
+
 # Ignore temporary craps
 *~
 
