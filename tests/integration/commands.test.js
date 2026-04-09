@@ -255,7 +255,7 @@ describe('CLI Commands Integration Tests', () => {
   describe('games command', () => {
     it('lists available games', () => {
       const { stdout } = cli('games');
-      assert.ok(stdout.includes('ApeStrong') || stdout.includes('ape-strong'), 'Should list ApeStrong');
+      assert.ok(stdout.includes('ApeStrong ✔︎'), 'Should list verified ApeStrong');
       assert.ok(stdout.includes('Roulette ✔︎'), 'Should list verified Roulette');
       assert.ok(stdout.includes('Baccarat ✔︎'), 'Should list verified Baccarat');
       assert.ok(stdout.includes('Blackjack ✔︎'), 'Should list verified Blackjack');
@@ -335,6 +335,14 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Cosmic Plinko ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified ApeStrong', () => {
+      const { stdout } = cli('game ape-strong --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'ApeStrong ✔︎');
     });
 
     it('exposes ABI verification metadata for verified Primes', () => {

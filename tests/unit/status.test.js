@@ -76,8 +76,8 @@ describe('Status Helpers', () => {
           { contract: VIDEO_POKER_CONTRACT, gameId: '3' },
         ],
         historyEntries: [
-          { contract: APE_STRONG_CONTRACT, game: 'ApeStrong', pnl_ape: '1.5000', wager_ape: '1', payout_ape: '2.5', won: true, push: false, settled: true },
-          { contract: APE_STRONG_CONTRACT, game: 'ApeStrong', pnl_ape: '-0.5000', wager_ape: '1', payout_ape: '0.5', won: false, push: false, settled: true },
+          { contract: APE_STRONG_CONTRACT, game: 'ApeStrong ✔︎', pnl_ape: '1.5000', wager_ape: '1', payout_ape: '2.5', won: true, push: false, settled: true },
+          { contract: APE_STRONG_CONTRACT, game: 'ApeStrong ✔︎', pnl_ape: '-0.5000', wager_ape: '1', payout_ape: '0.5', won: false, push: false, settled: true },
           { contract: VIDEO_POKER_CONTRACT, game: 'Video Poker ✔︎', pnl_ape: '5.0000', wager_ape: '10', payout_ape: '15', won: true, push: false, settled: true },
         ],
         activeGames: {
@@ -88,7 +88,7 @@ describe('Status Helpers', () => {
 
       assert.deepStrictEqual(summary, [
         {
-          game: 'ApeStrong',
+          game: 'ApeStrong ✔︎',
           group_key: 'ape-strong',
           base_game_key: 'ape-strong',
           variant_label: null,
@@ -154,14 +154,14 @@ describe('Status Helpers', () => {
           { contract: APE_STRONG_CONTRACT, gameId: '2' },
         ],
         historyEntries: [
-          { contract: APE_STRONG_CONTRACT, game: 'ApeStrong', pnl_ape: '1.5000', wager_ape: '1', payout_ape: '2.5', won: true, push: false, settled: true },
+          { contract: APE_STRONG_CONTRACT, game: 'ApeStrong ✔︎', pnl_ape: '1.5000', wager_ape: '1', payout_ape: '2.5', won: true, push: false, settled: true },
         ],
         activeGames: {},
       });
 
       assert.deepStrictEqual(summary, [
         {
-          game: 'ApeStrong',
+          game: 'ApeStrong ✔︎',
           group_key: 'ape-strong',
           base_game_key: 'ape-strong',
           variant_label: null,
@@ -399,14 +399,14 @@ describe('Status Helpers', () => {
 
       const byGame = new Map(summary.map((entry) => [entry.game, entry]));
 
-      assert.ok(byGame.has('ApeStrong'));
+      assert.ok(byGame.has('ApeStrong ✔︎'));
       assert.ok(byGame.has('Keno ✔︎ (Picks 1)'));
       assert.ok(byGame.has('Keno ✔︎ (Picks 5)'));
       assert.ok(byGame.has('Primes ✔︎ (Extreme)'));
       assert.ok(byGame.has('Video Poker ✔︎ (Bet 1/5/10/25/50 APE)'));
       assert.ok(byGame.has('Video Poker ✔︎ (Bet 100 APE)'));
 
-      assert.strictEqual(byGame.get('ApeStrong').games_played, 0);
+      assert.strictEqual(byGame.get('ApeStrong ✔︎').games_played, 0);
       assert.strictEqual(byGame.get('Keno ✔︎ (Picks 1)').games_played, 0);
       assert.strictEqual(byGame.get('Keno ✔︎ (Picks 5)').games_played, 1);
       assert.strictEqual(byGame.get('Primes ✔︎ (Extreme)').games_played, 0);

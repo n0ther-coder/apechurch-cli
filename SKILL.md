@@ -193,7 +193,7 @@ Sync and cache behavior:
 
 | Game | Command | Type | Key Parameters |
 |------|---------|------|----------------|
-| ApeStrong | `play ape-strong 10 50` | Dice | `--range 5-95` |
+| ApeStrong ✔︎ | `play ape-strong 10 50` | Dice | `--range 5-95` |
 | Roulette | `play roulette 10 RED` | Table | `--bet RED,BLACK,0-36,00` |
 | Baccarat ✔︎ | `play baccarat 10 BANKER` | Table | `--bet PLAYER,BANKER,TIE` |
 | Jungle Plinko ✔︎ | `play jungle 10 2 50` | Plinko | `--mode 0-4` `--balls 1-100` |
@@ -210,7 +210,7 @@ Sync and cache behavior:
 
 ---
 
-### ApeStrong (Dice)
+### ApeStrong ✔︎ (Dice)
 
 Pick your win probability. Roll under your number to win.
 
@@ -218,7 +218,7 @@ Pick your win probability. Roll under your number to win.
 apechurch-cli play ape-strong <amount> <range>
 apechurch-cli play ape-strong 10 50      # 50% chance, 1.95x payout
 apechurch-cli play ape-strong 10 25      # 25% chance, 3.9x payout
-apechurch-cli play ape-strong 10 75      # 75% chance, 1.3x payout
+apechurch-cli play ape-strong 10 75      # 75% chance, 1.2999x payout
 ```
 
 | Range | Win Chance | Payout |
@@ -226,10 +226,11 @@ apechurch-cli play ape-strong 10 75      # 75% chance, 1.3x payout
 | 5 | 5% | 19.5x |
 | 25 | 25% | 3.9x |
 | 50 | 50% | 1.95x |
-| 75 | 75% | 1.3x |
+| 75 | 75% | 1.2999x |
 | 95 | 95% | 1.025x |
 
 **Aliases:** `strong`, `dice`, `limbo`
+**ABI verified:** `true`
 
 ---
 

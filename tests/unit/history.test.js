@@ -40,7 +40,7 @@ describe('History Helpers', () => {
     it('falls back to registered standard game names', () => {
       assert.strictEqual(
         resolveHistoryGameName('0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600'),
-        'ApeStrong'
+        'ApeStrong ✔︎'
       );
     });
 
@@ -76,7 +76,7 @@ describe('History Helpers', () => {
       assert.strictEqual(calls[0].functionName, 'getEssentialGameInfo');
       assert.strictEqual(failedFetches, 0);
       assert.strictEqual(entries.length, 1);
-      assert.strictEqual(entries[0].game, 'ApeStrong');
+      assert.strictEqual(entries[0].game, 'ApeStrong ✔︎');
       assert.strictEqual(entries[0].wager_ape, '1');
       assert.strictEqual(entries[0].payout_ape, '2.5');
       assert.strictEqual(entries[0].pnl_ape, '1.5');
@@ -150,7 +150,7 @@ describe('History Helpers', () => {
       assert.strictEqual(entries.length, 2);
       assert.strictEqual(entries[0].game, 'Video Poker ✔︎');
       assert.strictEqual(entries[0].gp_received_display, null);
-      assert.strictEqual(entries[1].game, 'ApeStrong');
+      assert.strictEqual(entries[1].game, 'ApeStrong ✔︎');
       assert.strictEqual(entries[1].gp_received_display, '5');
       assert.ok(entries[0].timestamp > entries[1].timestamp, 'Combined results should be sorted by saved timestamp');
     });

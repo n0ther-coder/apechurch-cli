@@ -772,7 +772,7 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(analysis.recent_games[0].contract_fee_ape, '0');
       assert.strictEqual(analysis.recent_games[0].gas_fee_ape, '0');
       assert.strictEqual(analysis.recent_games[0].sponsored_transaction, true);
-      assert.strictEqual(analysis.recent_games[1].game, 'ApeStrong');
+      assert.strictEqual(analysis.recent_games[1].game, 'ApeStrong ✔︎');
       assert.strictEqual(analysis.recent_games[1].chain_timestamp, 1700000000);
       assert.strictEqual(analysis.recent_games[1].contract_fee_ape, '0.1');
       assert.strictEqual(analysis.recent_games[1].gas_fee_ape, '0.2');

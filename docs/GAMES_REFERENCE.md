@@ -14,7 +14,7 @@ The `✔︎` marker means this repo has locally verified the game's ABI-facing b
 
 | Game | Positional Syntax | Flag Syntax |
 |------|------------------|-------------|
-| ApeStrong | `play ape-strong <amt> <range>` | `--game ape-strong --amount X --range Y` |
+| ApeStrong ✔︎ | `play ape-strong <amt> <range>` | `--game ape-strong --amount X --range Y` |
 | Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` |
 | Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` |
 | Jungle Plinko ✔︎ | `play jungle <amt> <mode> <balls>` | `--game jungle --amount X --mode Y --balls Z` |
@@ -56,7 +56,7 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 
 | Game | Accepted Main Bet | Min / Floor | Max / Cap | Notes |
 |------|-------------------|-------------|-----------|-------|
-| ApeStrong | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
+| ApeStrong ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Roulette ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split evenly across comma-separated bets |
 | Baccarat ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | In combined bets, explicit sub-amounts must sum to the total wager |
 | Jungle Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-100` balls |
@@ -73,14 +73,22 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 
 ---
 
-## ApeStrong
+## ApeStrong ✔︎
 
 **Type:** Dice / Limbo  
 **Contract:** `0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600`  
+**ABI verified:** `true`  
+**Verification notes:** [APESTRONG_CONTRACT.md](./APESTRONG_CONTRACT.md)  
 **Aliases:** `strong`, `dice`, `limbo`
 
 ### How It Works
-Pick a win probability (5-95%). Roll under your number to win. Lower probability = higher payout.
+Pick a win probability (`5-95%`). The verified contract decodes `(uint8 edgeFlipRange, uint256 gameId, address ref, bytes32 userRandomWord)`, requests exactly one VRF word, resolves `winningNumber = uint8(randomWords[0] % 100)`, and pays only when `winningNumber < edgeFlipRange`.
+
+That means the win surface is exactly `range` winning outcomes out of `100` equally likely values (`0..99`), so `range = 50` really is a `50%` hit rate and `range = 95` wins on `0..94`.
+
+The payout rule is table-driven, not a pure on-chain formula: the contract settles with `edgeFlipRangeToPayout[range] * betAmount / 10_000`. A live getter snapshot on **2026-04-09** showed non-zero entries for every CLI-supported range `5..95`, `oddsLocked = false`, `platformFee = 220`, and `partnerFeeCut = 0`.
+
+As of **2026-04-09**, the public Ape Church docs page for Ape Strong still describes a hammer / target-score game rather than this verified range-based contract, so the verified contract and the note above are the source of truth for this CLI.
 
 ### Syntax
 
@@ -106,16 +114,20 @@ apechurch-cli play --game ape-strong --amount <APE> --range <5-95>
 | amount | 1+ | required | Wager in APE |
 | range | 5-95 | 50 | Win probability (%) |
 
-### Payouts
+### Verified Live Payout Samples
 
-| Range | Win Chance | Payout |
-|-------|------------|--------|
-| 5 | 5% | 19.5x |
-| 10 | 10% | 9.75x |
-| 25 | 25% | 3.9x |
-| 50 | 50% | 1.95x |
-| 75 | 75% | 1.3x |
-| 95 | 95% | 1.025x |
+Selected exact entries from the live `edgeFlipRangeToPayout(range)` table read on **2026-04-09**:
+
+| Range | Win Chance | Exact Multiplier | Exact RTP |
+|-------|------------|------------------|-----------|
+| 5 | 5% | `19.5x` | `97.50%` |
+| 10 | 10% | `9.75x` | `97.50%` |
+| 25 | 25% | `3.9x` | `97.50%` |
+| 50 | 50% | `1.95x` | `97.50%` |
+| 75 | 75% | `1.2999x` | `97.49%` |
+| 95 | 95% | `1.025x` | `97.38%` |
+
+For most supported ranges, the live table currently matches `floor(975000 / range)`; the current live exceptions are `75 -> 12999` and `95 -> 10250`.
 
 ### Transparency Snapshot
 
@@ -123,15 +135,15 @@ apechurch-cli play --game ape-strong --amount <APE> --range <5-95>
 - Running RTP: `98.53%`
 - Total Wagered: `6,164,641 APE`
 - Total Games Played: `137,076`
-- Public transparency currently exposes aggregate metrics only for Ape Strong; the CLI pay formula above remains the useful source of truth for actual play here.
+- Public transparency currently exposes aggregate metrics only for Ape Strong; the verified contract source and live getters are the useful source of truth for actual play here.
 
 ### Exact Calculated RTP
 
-The repo payout rule `97.5 / range` keeps EV invariant across the entire supported range surface.
-
 | Mode | Exact RTP | Basis |
 |------|-----------|-------|
-| Any supported `range` (`5-95`) | `97.50%` | Exact EV from the repo payout formula |
+| Any supported `range` (`5-95`) | `97.38% - 97.50%` | Exact EV from the verified contract source plus the live `edgeFlipRangeToPayout(range)` table read on `2026-04-09` |
+| Current worst supported range (`95`) | `97.38%` | Exact `95%` hit rate times live multiplier `1.025x` |
+| Current common coin-flip range (`50`) | `97.50%` | Exact `50%` hit rate times live multiplier `1.95x` |
 
 ### Examples
 
@@ -1516,7 +1528,7 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 
 | Game | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|------|-------------|-----------|--------|--------------------|
-| ApeStrong | Any supported `range` (`5-95`) | Yes | `97.50%` | Exact EV from repo payout formula | `98.53%` |
+| ApeStrong ✔︎ | Any supported `range` (`5-95`) | Yes | `97.38% - 97.50%` | Exact EV from verified contract source + live `edgeFlipRangeToPayout(range)` table read on `2026-04-09` | `98.53%` |
 | Roulette ✔︎ | All verified bet classes | Yes | `97.11%` | Exact weighted sum on 38 pockets | `97.05%` |
 | Baccarat ✔︎ | PLAYER | Yes | `98.77%` | Exact weighted sum on the verified 6-rank draw tree | `98.12%` |
 | Baccarat ✔︎ | BANKER | Yes | `98.94%` | Exact weighted sum on the verified 6-rank draw tree | `98.12%` |
@@ -1586,7 +1598,7 @@ Every `10,000 GP` equals `1 Level`, so GP optimization is also level-progression
 - For intermediate volumes between published thresholds, the examples conservatively carry forward the latest published cumulative bonus already unlocked.
 - The examples assume the selected games are eligible for the current GP campaign.
 - Best-case RTP inputs used below are:
-  - `ApeStrong`: `97.5%` from the repo formula in `lib/games/apestrong.js`
+  - `ApeStrong ✔︎` at `range 75`: `97.49%` from the verified live `edgeFlipRangeToPayout[75] = 12,999` table entry
   - `Roulette ✔︎` hedge (`RED,BLACK`): `97.1%` from the public transparency header
   - `Bubblegum Heist`: `97.8%` from the public transparency header
 - The commands below omit `--stop-loss` so the wager-volume math stays exact. In real play, bankroll limits should still be imposed.
@@ -1634,7 +1646,7 @@ The ladder matters because the bonus GP is not small relative to the early level
 4. **Clear Level 15**
    Command: `apechurch-cli play ape-strong 75 75 --loop --bet-strategy flat --delay 3 --max-games 200`
    Volume: `15,000 APE`
-   Expected Loss (`Best ~ Worst`): `375 ~ 750 APE`
+   Expected Loss (`Best ~ Worst`): `376 ~ 750 APE`
    GP Obtained (`Half / Std / Double`): `52,500 / 90,000 / 165,000 GP`
    Levels Gained (`Half / Std / Double`): `5.25 / 9.0 / 16.5`
    GP/APE Ratio (`Half / Std / Double`): `3.5 / 6.0 / 11.0`
@@ -1642,7 +1654,7 @@ The ladder matters because the bonus GP is not small relative to the early level
 5. **50k bonus tier baseline**
    Command: `apechurch-cli play ape-strong 50 75 --loop --bet-strategy flat --delay 3 --max-games 1000`
    Volume: `50,000 APE`
-   Expected Loss (`Best ~ Worst`): `1,250 ~ 2,500 APE`
+   Expected Loss (`Best ~ Worst`): `1,254 ~ 2,500 APE`
    GP Obtained (`Half / Std / Double`): `205,000 / 330,000 / 580,000 GP`
    Levels Gained (`Half / Std / Double`): `20.5 / 33.0 / 58.0`
    GP/APE Ratio (`Half / Std / Double`): `4.1 / 6.6 / 11.6`
@@ -1658,14 +1670,14 @@ The ladder matters because the bonus GP is not small relative to the early level
 7. **250k marathon tier**
    Command: `apechurch-cli play ape-strong 100 75 --loop --bet-strategy flat --delay 3 --max-games 2500`
    Volume: `250,000 APE`
-   Expected Loss (`Best ~ Worst`): `6,250 ~ 12,500 APE`
+   Expected Loss (`Best ~ Worst`): `6,269 ~ 12,500 APE`
    GP Obtained (`Half / Std / Double`): `1,100,000 / 1,725,000 / 2,975,000 GP`
    Levels Gained (`Half / Std / Double`): `110.0 / 172.5 / 297.5`
    GP/APE Ratio (`Half / Std / Double`): `4.4 / 6.9 / 11.9`
 
 ### Interpretation
 
-These examples suggest a fairly stable conclusion. If the objective is **GP per unit of expected loss**, then high-RTP eligible games dominate, but the margin between a `97.5%` baseline and a `97.8%` baseline is smaller than many players intuit. By contrast, volatility and bankroll path-dependence can differ substantially, which is why `ApeStrong` at a relatively wide range or `Roulette ✔︎` with `RED,BLACK` remain attractive operational baselines even when a slot-like game has a slightly better published RTP.
+These examples suggest a fairly stable conclusion. If the objective is **GP per unit of expected loss**, then high-RTP eligible games dominate, but the margin between a roughly `97.49%` ApeStrong baseline and a `97.8%` baseline is smaller than many players intuit. By contrast, volatility and bankroll path-dependence can differ substantially, which is why `ApeStrong ✔︎` at a relatively wide range or `Roulette ✔︎` with `RED,BLACK` remain attractive operational baselines even when a slot-like game has a slightly better published RTP.
 
 Equally important, the cumulative bonus system means the relevant metric is not just raw RTP but **expected loss per effective GP** and, by extension, **expected loss per level**. Under the standard ratio, the bonus ladder shifts the effective return from `6.0 GP/APE` at `1,000 APE` volume to `7.25 GP/APE` at `1,000,000 APE` volume. On double weeks the same ladder becomes markedly more favorable, while on half weeks the economics deteriorate enough that conservative flat-volume loops become more important than promotional optimism.
 

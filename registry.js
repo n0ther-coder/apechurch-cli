@@ -105,6 +105,7 @@ export const GAME_REGISTRY = [
     description: 'Pick your odds! Choose a range (5-95) — roll under to win. Higher range = more likely to win, lower payout.',
     contract: APESTRONG_CONTRACT,
     aliases: ['strong', 'dice', 'limbo'],
+    abiVerified: true,
     config: {
       range: {
         min: 5,
@@ -118,7 +119,7 @@ export const GAME_REGISTRY = [
         examples: [
           { value: 50, payout: '1.95x', winChance: '50%' },
           { value: 25, payout: '3.9x', winChance: '25%' },
-          { value: 75, payout: '1.3x', winChance: '75%' },
+          { value: 75, payout: '1.2999x', winChance: '75%' },
           { value: 5, payout: '19.5x', winChance: '5%' },
           { value: 95, payout: '1.025x', winChance: '95%' },
         ],

@@ -107,11 +107,12 @@ As of **2026-04-09**, these supported games are still not promoted to `ABI verif
 
 | Game | Current status | What is still missing before `✔︎` |
 |------|----------------|-----------------------------------|
-| ApeStrong | supported, unverified | Verified source or source-backed proof for the exact range payout rule, fee path, and promoted RTP wording |
 | Dino Dough | supported, unverified | Verified source or getters for the slot paytable and symbol-resolution logic |
 | Bubblegum Heist | supported, unverified | Verified source or getters for the slot paytable and symbol-resolution logic |
 
-Currently promoted games are Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Monkey Match ✔︎, Bear-A-Dice ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎.
+Currently promoted games are ApeStrong ✔︎, Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Monkey Match ✔︎, Bear-A-Dice ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎.
+
+ApeStrong was promoted on **2026-04-09** from the ApeScan exact-match verified Solidity source at `https://apescan.io/address/0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600#code` plus a live getter snapshot read on the same date. That check confirmed the CLI tuple decode `(uint8 edgeFlipRange, uint256 gameId, address ref, bytes32 userRandomWord)`, the static `getVRFFee()` path, the `winningNumber = uint8(randomWords[0] % 100)` and `winningNumber < edgeFlipRange` win rule, the `getGameInfo` / `getEssentialGameInfo` return surface, and the current live `edgeFlipRangeToPayout(range)` table. It also recorded that the current public Ape Church docs page still describes a different hammer / target-score game, so the verified contract rather than the public docs is the source of truth for the supported CLI mechanic.
 
 Bear-A-Dice was promoted on **2026-04-09** from the ApeScan verified Solidity source at `https://apescan.io/address/0x6a48A513A46955D8622C809Fce876d2f11142003#code`. That check confirmed `MAX_RUNS = 5`, verified the `payouts[difficulty][numRuns][diceSum]` table, removed a stale local `difficulty >= 3 => rolls <= 3` assumption that did not exist on-chain, and clarified that `getGameInfo` preallocates the dice arrays to `numRuns` while leaving any post-loss tail slots at `0`.
 

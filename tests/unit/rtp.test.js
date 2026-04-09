@@ -37,9 +37,10 @@ describe('RTP Helpers', () => {
 
     assert.strictEqual(effective, calculated);
     assert.notStrictEqual(calculated, theoretical);
-    assert.strictEqual(calculated.display, '97.50%');
+    assert.strictEqual(calculated.display, '97.38%');
     assert.strictEqual(calculated.referenceType, 'calculated');
     assert.strictEqual(calculated.calculationKind, 'exact');
+    assert.ok(Math.abs(calculated.value - 97.375) < 1e-12);
   });
 
   it('keeps the configured expected RTP for games with mode-specific values', () => {
@@ -312,6 +313,24 @@ describe('RTP Helpers', () => {
 
     assert.strictEqual(exact.display, '200x');
     assert.strictEqual(formula.display, '3.9x');
+  });
+
+  it('uses the verified ApeStrong live payout table for configured RTP and max payout', () => {
+    const rtp = getConfiguredGameExpectedRtpReference({
+      game: 'ape-strong',
+      config: { range: 75 },
+    });
+    const maxPayout = getConfiguredGameMaxPayoutReference({
+      game: 'ape-strong',
+      config: { range: 95 },
+    });
+
+    assert.strictEqual(rtp.display, '97.49%');
+    assert.strictEqual(rtp.referenceType, 'calculated');
+    assert.strictEqual(rtp.calculationKind, 'exact');
+    assert.ok(Math.abs(rtp.value - 97.4925) < 1e-12);
+    assert.strictEqual(maxPayout.display, '1.025x');
+    assert.ok(Math.abs(maxPayout.value - 1.025) < 1e-12);
   });
 
   it('computes config-aware max payout for combo-aware games', () => {

@@ -24,6 +24,7 @@ Everything else lives under `docs/` or next to the code it explains.
 | `docs/PUBLISHING.md` | Maintainers | High | Yes | Release and packaging checklist. |
 | `docs/FEATURES.md` | Marketing / product | Medium | Maybe | Useful as a product snapshot, but some sections overlap with `README.md`. |
 | `docs/THESIS.md` | Marketing / narrative | Low | Maybe | Positioning document, not operational documentation. |
+| `docs/APESTRONG_CONTRACT.md` | Maintainers | Medium | Maybe | Raw contract notes for the ApeStrong ABI verification and live payout-table snapshot. |
 | `docs/BEAR_DICE_CONTRACT.md` | Maintainers | Medium | Maybe | Raw contract notes for the Bear-A-Dice ABI verification and RTP promotion. |
 | `docs/BLACKJACK_CONTRACT.md` | Maintainers | Medium | Maybe | Raw contract notes for blackjack integration. |
 | `docs/BLACKJACK_NOTES.md` | Maintainers | Medium | Yes | Cleaner blackjack integration notes derived from the contract details. |

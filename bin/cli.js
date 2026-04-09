@@ -113,6 +113,7 @@ import {
   ensureDir,
   addBigIntStrings,
   clampRange,
+  ensureIntRange,
   randomIntInclusive,
   parseNonNegativeInt,
 } from '../lib/utils.js';
@@ -2140,8 +2141,6 @@ program
       return;
     }
 
-    const account = await getWalletWithPrompt({ json: opts.json, gameplay: true });
-    
     // Parse and validate loop parameters
     const targetBalance = opts.target ? parseFloat(opts.target) : null;
     const stopLoss = opts.stopLoss ? parseFloat(opts.stopLoss) : null;
@@ -2193,12 +2192,6 @@ program
     let gamesPlayed = 0;
     let lastGameResult = null; // Track for betting strategy
     const loopStats = createLoopStats();
-    const profile = loadProfile(account.address);
-    const gpPerApeInfo = resolveGpPerApeInfo({
-      cliGpPerApe,
-      profile,
-    });
-    const gpPerApe = gpPerApeInfo.gpPerApe;
 
     const gameInput = gameArg || opts.game;
     const amountInput = amountArg || opts.amount;
@@ -2274,6 +2267,32 @@ program
         if (configArgs[0]) positionalConfig.mode = parseInt(configArgs[0]);
       }
     }
+
+    if (fixedGame?.type === 'apestrong') {
+      const explicitRange = opts.range ?? positionalConfig.range;
+      if (explicitRange !== undefined) {
+        try {
+          const normalizedRange = ensureIntRange(
+            explicitRange,
+            'range',
+            fixedGame.config.range.min,
+            fixedGame.config.range.max
+          );
+          positionalConfig.range = normalizedRange;
+        } catch (error) {
+          console.error(JSON.stringify({ error: sanitizeError(error) }));
+          process.exit(1);
+        }
+      }
+    }
+
+    const account = await getWalletWithPrompt({ json: opts.json, gameplay: true });
+    const profile = loadProfile(account.address);
+    const gpPerApeInfo = resolveGpPerApeInfo({
+      cliGpPerApe,
+      profile,
+    });
+    const gpPerApe = gpPerApeInfo.gpPerApe;
 
     if (profile.paused) {
       const response = { action: 'play', status: 'skipped', reason: 'paused' };

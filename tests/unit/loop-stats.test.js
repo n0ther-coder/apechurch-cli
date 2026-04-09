@@ -28,7 +28,7 @@ describe('Loop Stats', () => {
     assert.deepStrictEqual(lines, [
       '⚖️  Balance: 173.40 APE (+23.40)',
       '✌️  Win rate: 50.00% (1/2)',
-      '🎲 RTP (expected/reported/current): 97.50% 👌 / 98.53% / 95.56% (payout 129.00 APE  wagered 135.00 APE  loss 6.00 APE)',
+      '🎲 RTP (expected/reported/current): 97.38% 👌 / 98.53% / 95.56% (payout 129.00 APE  wagered 135.00 APE  loss 6.00 APE)',
       '🧮 Points: 675 (112.5 GP/APE)',
       '⏳ Next game in 6s',
     ]);
@@ -53,7 +53,7 @@ describe('Loop Stats', () => {
     assert.deepStrictEqual(lines, [
       '⚖️  Balance: 173.40 APE (+23.40)',
       '✌️  Win rate: 50.00% (1/2)',
-      '🎲 RTP (expected/reported/current): 97.50% 👌 / 98.53% / 131.48% (payout 177.50 APE  wagered 135.00 APE  win 42.50 APE)',
+      '🎲 RTP (expected/reported/current): 97.38% 👌 / 98.53% / 131.48% (payout 177.50 APE  wagered 135.00 APE  win 42.50 APE)',
       '🧮 Points: 675 (+675 GP, +42.50 APE)',
       '⏳ Next game in 6s',
     ]);
@@ -77,7 +77,7 @@ describe('Loop Stats', () => {
     assert.deepStrictEqual(lines, [
       '⚖️  Balance: 150.00 APE (+0.00)',
       '✌️  Win rate: 0.00% (0/1)',
-      '🎲 RTP (expected/reported/current): 97.50% 👌 / 98.53% / 100.00% (payout 25.00 APE  wagered 25.00 APE  even 0.00 APE)',
+      '🎲 RTP (expected/reported/current): 97.38% 👌 / 98.53% / 100.00% (payout 25.00 APE  wagered 25.00 APE  even 0.00 APE)',
       '🧮 Points: 125 (+125 GP)',
       '⏳ Next game in 6s',
     ]);
@@ -98,7 +98,7 @@ describe('Loop Stats', () => {
     assert.deepStrictEqual(output.split('\n'), [
       '⚖️  Balance: 200.00 APE (+50.00)',
       '✌️  Win rate: 100.00% (1/1)',
-      '🎲 RTP (expected/reported/current): 97.50% 👌 / 98.53% / 150.00% (payout 150.00 APE  wagered 100.00 APE  win 50.00 APE)',
+      '🎲 RTP (expected/reported/current): 97.38% 👌 / 98.53% / 150.00% (payout 150.00 APE  wagered 100.00 APE  win 50.00 APE)',
       '🧮 Points: 500 (+500 GP, +50.00 APE)',
     ]);
   });
@@ -125,7 +125,7 @@ describe('Loop Stats', () => {
       '   💸 Fees paid: 2.0000 APE',
       '   🎉 Net result: +38.00 APE (⚖️  end 188.00 > start 150.00)',
       '   ✌️  Win rate: 50.00% (1/2)',
-      '   🎲 RTP (expected/reported/current): 97.50% 👌 / 98.53% / 129.63% (payout 175.00 APE  wagered 135.00 APE  win 40.00 APE)',
+      '   🎲 RTP (expected/reported/current): 97.38% 👌 / 98.53% / 129.63% (payout 175.00 APE  wagered 135.00 APE  win 40.00 APE)',
       '   🧮 Points: 675 (+675 GP, +40.00 APE)',
     ]);
   });
