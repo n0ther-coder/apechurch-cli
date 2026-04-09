@@ -203,7 +203,7 @@ Sync and cache behavior:
 | Dino Dough | `play dino-dough 10 10` | Slots | `--spins 1-15` |
 | Bubblegum Heist | `play bubblegum-heist 10 10` | Slots | `--spins 1-15` |
 | Monkey Match ✔︎ | `play monkey-match 10` | Match | `--mode 1-2` |
-| Bear-A-Dice | `play bear-dice 10` | Dice | `--difficulty 0-4` `--rolls 1-5` |
+| Bear-A-Dice ✔︎ | `play bear-dice 10` | Dice | `--difficulty 0-4` `--rolls 1-5` |
 | Primes ✔︎ | `play primes 10 0 20` | Number | `--difficulty 0-3` `--runs 1-20` |
 | Blackjack ✔︎ | `blackjack 10 --auto` | Cards | Interactive or `--auto` |
 | Video Poker / Gimboz Poker | `video-poker 10 --auto` | Cards | Interactive or `--auto` |
@@ -416,9 +416,11 @@ apechurch-cli play monkey-match 10 --mode 2  # Normal risk / best EV
 
 ---
 
-### Bear-A-Dice
+### Bear-A-Dice ✔︎
 
 Roll dice, avoid unlucky numbers.
+
+**ABI verified:** `true`
 
 ```bash
 apechurch-cli play bear-dice <amount> [--difficulty N] [--rolls N]
@@ -438,6 +440,11 @@ apechurch-cli play bear-dice 10 --difficulty 0 --rolls 5
 |-------|--------|
 | 1-5 | More rolls = higher payout, more chances to lose |
 
+**Verified runtime:** all five difficulties support `1-5` rolls on-chain; the local CLI no longer applies a fake `3`-roll cap to Extreme or Master.
+**Settlement detail:** the contract is all-or-nothing. It stops on the first losing sum, zeroes the full payout, and leaves any remaining `dice1Results` / `dice2Results` slots at `0`, so the CLI filters those tails as "not executed".
+**Exact RTP:** ranges from `97.25%` (`Normal / 5 rolls`) to `97.94%` (`Normal / 1 roll`) across the verified on-chain table.
+**Exact win rate:** ranges from `83.33%` (`Easy / 1 roll`) down to `0.000053%` (`Master / 5 rolls`).
+**Max payout:** up to `1,847,949.193x` at `Master / 5 rolls`
 **Aliases:** `bear`, `bd`
 
 ---

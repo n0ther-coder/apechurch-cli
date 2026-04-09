@@ -98,6 +98,25 @@ describe('RTP Helpers', () => {
     ]);
   });
 
+  it('uses the lowest verified exact RTP when Bear-A-Dice has multiple difficulty/roll variants', () => {
+    const expected = getGameExpectedRtpReference('bear-dice');
+
+    assert.strictEqual(expected.display, '97.25%');
+    assert.strictEqual(expected.referenceType, 'calculated');
+    assert.strictEqual(expected.calculationKind, 'exact');
+    assert.ok(Math.abs(expected.value - 97.2529154277591) < 1e-12);
+  });
+
+  it('exposes exact calculated RTP constants for verified Bear-A-Dice difficulty and roll pairs', () => {
+    const variants = getGameCalculatedVariantReferences('bear-dice');
+    const byLabel = new Map(variants.map((variant) => [variant.variantLabel, variant]));
+
+    assert.strictEqual(variants.length, 25);
+    assert.strictEqual(byLabel.get('Easy / 1 roll').calculated.display, '97.89%');
+    assert.strictEqual(byLabel.get('Normal / 5 rolls').calculated.display, '97.25%');
+    assert.strictEqual(byLabel.get('Master / 5 rolls').maxPayout.display, '1,847,949.193x');
+  });
+
   it('exposes exact calculated RTP constants for each verified Keno pick count and the best EV at 5 picks', () => {
     const variants = getGameCalculatedVariantReferences('keno');
     const byLabel = new Map(variants.map((variant) => [variant.variantLabel, variant]));
@@ -162,6 +181,23 @@ describe('RTP Helpers', () => {
     assert.strictEqual(maxPayout.display, '250x');
   });
 
+  it('uses the verified Bear-A-Dice payout table for configured RTP and max payout', () => {
+    const expected = getConfiguredGameExpectedRtpReference({
+      game: 'bear-dice',
+      config: { difficulty: 4, rolls: 5 },
+    });
+    const maxPayout = getConfiguredGameMaxPayoutReference({
+      game: 'bear-dice',
+      config: { difficulty: 4, rolls: 5 },
+    });
+
+    assert.strictEqual(expected.display, '97.80%');
+    assert.strictEqual(expected.referenceType, 'calculated');
+    assert.strictEqual(expected.calculationKind, 'exact');
+    assert.ok(Math.abs(expected.value - 97.79744326762116) < 1e-12);
+    assert.strictEqual(maxPayout.display, '1,847,949.193x');
+  });
+
   it('canonicalizes Plinko variants to risk mode only, ignoring balls', () => {
     const jungle = resolveConfiguredGameVariant({
       game: 'jungle-plinko',
@@ -201,6 +237,21 @@ describe('RTP Helpers', () => {
       variantLabel: 'Extreme',
       rtpGame: 'primes',
       rtpConfig: { difficulty: 3 },
+    });
+  });
+
+  it('canonicalizes Bear-A-Dice variants by exact difficulty and roll count', () => {
+    const variant = resolveConfiguredGameVariant({
+      game: 'bear-dice',
+      config: { difficulty: 4, rolls: 5 },
+    });
+
+    assert.deepStrictEqual(variant, {
+      gameKey: 'bear-dice',
+      variantKey: 'bear-dice:difficulty:4:rolls:5',
+      variantLabel: 'Master / 5 rolls',
+      rtpGame: 'bear-dice',
+      rtpConfig: { difficulty: 4, rolls: 5 },
     });
   });
 

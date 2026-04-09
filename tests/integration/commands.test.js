@@ -141,6 +141,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--auto'), 'Should document explicit automatic random play');
       assert.ok(stdout.includes('<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*'), 'Should document Keno numbers grammar');
       assert.ok(stdout.includes('<runs> ::= <integer>'), 'Should document Primes run grammar');
+      assert.ok(stdout.includes('<rolls> ::= <integer>                              ; 1 <= value <= 5'), 'Should document the verified 1-5 Bear-A-Dice roll range');
+      assert.ok(!stdout.includes('<= 3 when difficulty >= 3'), 'Should not mention the removed fake Bear-A-Dice 3-roll cap');
       assert.ok(stdout.includes('--numbers 1,7,13,25,40'), 'Should document the single-token numbers form');
     });
 
@@ -261,6 +263,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Cosmic Plinko ✔︎'), 'Should list verified Cosmic Plinko');
       assert.ok(stdout.includes('Keno ✔︎'), 'Should list verified Keno');
       assert.ok(stdout.includes('Speed Keno ✔︎'), 'Should list verified Speed Keno');
+      assert.ok(stdout.includes('Bear-A-Dice ✔︎'), 'Should list verified Bear-A-Dice');
       assert.ok(stdout.includes('Primes ✔︎'), 'Should list verified Primes');
     });
 
@@ -309,6 +312,13 @@ describe('CLI Commands Integration Tests', () => {
     it('shows details for valid game', () => {
       const { stdout } = cli('game ape-strong');
       assert.ok(stdout.includes('ApeStrong') || stdout.includes('ape-strong'), 'Should show game name');
+    });
+
+    it('warns that Bear-A-Dice is all-or-nothing', () => {
+      const { stdout, code } = cli('game bear-dice');
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('All-or-nothing'), 'Should describe Bear-A-Dice as all-or-nothing');
+      assert.ok(stdout.includes('zeroes the payout'), 'Should explain that the first losing sum zeroes the payout');
     });
 
     it('resolves the new plinko aliases', () => {
@@ -389,6 +399,14 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Blackjack ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified Bear-A-Dice', () => {
+      const { stdout } = cli('game bear-dice --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Bear-A-Dice ✔︎');
     });
 
     it('shows per-parameter BNF in game helpers', () => {

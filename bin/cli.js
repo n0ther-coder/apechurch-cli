@@ -167,6 +167,7 @@ import {
   computeCooldownMs,
 } from '../lib/strategy.js';
 import { playGame, resolveGame } from '../lib/games/index.js';
+import { resolveBearDiceConfig } from '../lib/games/beardice.js';
 import {
   GAME_REGISTRY,
   listGames,
@@ -229,7 +230,7 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<games> ::= <integer>                              ; 1 <= value <= 20',
   '<difficulty> ::= <integer>                         ; 0 <= value <= 4 for Bear-A-Dice, 0 <= value <= 3 for Primes',
   '<runs> ::= <integer>                               ; 1 <= value <= 20',
-  '<rolls> ::= <integer>                              ; 1 <= value <= 5, and <= 3 when difficulty >= 3',
+  '<rolls> ::= <integer>                              ; 1 <= value <= 5',
   '<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*',
   '<keno-number> ::= <integer>                        ; 1 <= value <= 40',
   '<speed-keno-numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*',
@@ -269,6 +270,30 @@ function printConfigBnf(cfg = {}) {
   for (const line of lines) {
     console.log(`        ${line}`);
   }
+}
+
+function formatBearDiceResultLines(details = {}) {
+  const rolls = Array.isArray(details?.rolls) ? details.rolls : [];
+  if (rolls.length === 0) {
+    return [];
+  }
+
+  const numRuns = Number(details.num_runs ?? rolls.length);
+  const trailingZeroSlots = Number(details.trailing_zero_slots ?? Math.max(numRuns - rolls.length, 0));
+  const lines = [
+    `   Rolls executed: ${rolls.length}/${numRuns}`,
+  ];
+
+  for (const roll of rolls) {
+    const verdict = roll.losing ? 'loss' : 'safe';
+    lines.push(`   Roll ${roll.index}: ${roll.die_1}+${roll.die_2} = ${roll.sum} (${verdict})`);
+  }
+
+  if (trailingZeroSlots > 0) {
+    lines.push(`   Remaining ${trailingZeroSlots} roll(s): not executed after the first loss; getGameInfo leaves those slots at 0.`);
+  }
+
+  return lines;
 }
 
 // --- Helper: Interactive prompt ---
@@ -2444,27 +2469,13 @@ program
           gameConfig.picks = randomIntInclusive(min, max);
         }
       } else if (gameEntry.type === 'beardice') {
-        // Difficulty (0-4, default to Easy=0 for safety)
-        // Auto-play: 90% Easy, 10% Normal. Never Hard/Extreme/Master.
-        if (opts.difficulty !== undefined) gameConfig.difficulty = parseInt(opts.difficulty);
-        else if (positionalConfig.difficulty !== undefined) gameConfig.difficulty = positionalConfig.difficulty;
-        else if (gameConfig.difficulty === undefined) {
-          // 90% Easy, 10% Normal - never pick 2+ in auto-play
-          gameConfig.difficulty = Math.random() < 0.9 ? 0 : 1;
-        }
-        // Number of rolls (1-5, but Extreme/Master capped at 3)
-        // On Easy (0), allow more rolls since 5/6 win chance per roll
-        if (opts.rolls !== undefined) gameConfig.rolls = parseInt(opts.rolls);
-        else if (positionalConfig.rolls !== undefined) gameConfig.rolls = positionalConfig.rolls;
-        else if (gameConfig.rolls === undefined) {
-          const isEasy = gameConfig.difficulty === 0;
-          const [min, max] = strategyConfig.bearDice?.rolls || (isEasy ? [1, 5] : [1, 2]);
-          gameConfig.rolls = randomIntInclusive(min, max);
-        }
-        // Cap rolls at 3 for Extreme (3) and Master (4) - contract limit
-        if (gameConfig.difficulty >= 3 && gameConfig.rolls > 3) {
-          gameConfig.rolls = 3;
-        }
+        gameConfig = resolveBearDiceConfig(
+          gameConfig,
+          opts,
+          positionalConfig,
+          strategyConfig,
+          randomIntInclusive
+        );
       } else if (gameEntry.type === 'monkeymatch') {
         // Mode (1=Low Risk, 2=Normal Risk)
         if (opts.mode !== undefined) gameConfig.mode = parseInt(opts.mode);
@@ -2536,6 +2547,10 @@ program
         }
         console.log(`\n🎰 ${gameDesc}`);
         console.log(`   Betting ${parseFloat(wagerApeString).toFixed(2)} APE\n`);
+        if (gameEntry.type === 'beardice') {
+          console.log('   All-or-nothing: the first losing sum ends the game and zeroes the payout.');
+          console.log('   There is no cash-out or keep-the-current-payout option in the live contract.\n');
+        }
       }
 
       try {
@@ -2599,6 +2614,7 @@ program
               payout_ape: playResponse.result.payout_ape,
               won,
               pnl_ape: pnlApe.toFixed(6),
+              details: playResponse.result.details || null,
             } : null,
           }));
         } else {
@@ -2613,8 +2629,15 @@ program
                 ? theme.loss('LOST')
                 : theme.push('PUSH');
             const outcomeLine = `${outcomeIcon} ${outcomeLabel} ${theme.amount(`${wagerApeNum.toFixed(2)} APE`)} → ${theme.balance(`${payoutApe.toFixed(2)} APE`)} ${formatNetProfitLabel(pnlApe, 2)}`;
+            const detailLines = playResponse.game === 'beardice'
+              ? formatBearDiceResultLines(playResponse.result.details)
+              : [];
 
-            console.log(`${outcomeLine}\n`);
+            console.log(outcomeLine);
+            for (const line of detailLines) {
+              console.log(line);
+            }
+            console.log('');
             if (won) {
               queueWinChimeFromWei({
                 payoutWei: playResponse.result.payout_wei,

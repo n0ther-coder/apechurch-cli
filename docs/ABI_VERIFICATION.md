@@ -110,9 +110,10 @@ As of **2026-04-09**, these supported games are still not promoted to `ABI verif
 | ApeStrong | supported, unverified | Verified source or source-backed proof for the exact range payout rule, fee path, and promoted RTP wording |
 | Dino Dough | supported, unverified | Verified source or getters for the slot paytable and symbol-resolution logic |
 | Bubblegum Heist | supported, unverified | Verified source or getters for the slot paytable and symbol-resolution logic |
-| Bear-A-Dice | supported, unverified | Verified source for difficulty tables, roll limits, and payout multipliers |
 
-Currently promoted games are Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Monkey Match ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎.
+Currently promoted games are Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Monkey Match ✔︎, Bear-A-Dice ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎.
+
+Bear-A-Dice was promoted on **2026-04-09** from the ApeScan verified Solidity source at `https://apescan.io/address/0x6a48A513A46955D8622C809Fce876d2f11142003#code`. That check confirmed `MAX_RUNS = 5`, verified the `payouts[difficulty][numRuns][diceSum]` table, removed a stale local `difficulty >= 3 => rolls <= 3` assumption that did not exist on-chain, and clarified that `getGameInfo` preallocates the dice arrays to `numRuns` while leaving any post-loss tail slots at `0`.
 
 Blackjack was promoted on **2026-04-09** from the public production ABI reference exposed by `https://ape.church/games/blackjack` and its route bundle, cross-checked against the live ApeScan method surface and the repo's solver and runtime behavior notes.
 

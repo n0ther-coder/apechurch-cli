@@ -24,7 +24,7 @@ The `✔︎` marker means this repo has locally verified the game's ABI-facing b
 | Dino Dough | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` |
 | Bubblegum | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` |
 | Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --mode Y` |
-| Bear-A-Dice | `play bear-dice <amt>` | `--game bear-dice --amount X --difficulty Y --rolls Z` |
+| Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --difficulty Y --rolls Z` |
 | Primes ✔︎ | `play primes <amt> <difficulty> <runs>` | `--game primes --amount X --difficulty Y --runs Z` |
 
 ## Grammar Conventions
@@ -66,7 +66,7 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 | Dino Dough | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
 | Bubblegum Heist | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
 | Monkey Match ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
-| Bear-A-Dice | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager; volatility comes from difficulty and rolls |
+| Bear-A-Dice ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager; volatility comes from difficulty and rolls |
 | Primes ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` runs |
 | Blackjack ✔︎ | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
 | Video Poker ✔︎ / Gimboz Poker | Fixed denominations only | Fixed list: `1`, `5`, `10`, `25`, `50`, `100 APE` | Fixed max `100 APE` | Loop mode rounds to the closest affordable valid denomination; jackpot eligibility requires `100 APE` |
@@ -1044,14 +1044,23 @@ apechurch-cli play monkey-match 10 --loop --max-games 30
 
 ---
 
-## Bear-A-Dice
+## Bear-A-Dice ✔︎
 
 **Type:** Dice  
 **Contract:** `0x6a48A513A46955D8622C809Fce876d2f11142003`  
+**ABI verified:** `true`  
 **Aliases:** `bear`, `bd`
 
+The promotion evidence for `✔︎` is recorded in [BEAR_DICE_CONTRACT.md](./BEAR_DICE_CONTRACT.md).
+
 ### How It Works
-Roll 2 dice up to 5 times. Avoid unlucky numbers! Higher difficulty = more losing numbers.
+Roll 2 dice between `1` and `5` times. The verified contract decodes `(uint8 difficulty, uint8 numRuns, uint256 gameId, address ref, bytes32 userRandomWord)`, requests `numRuns * 2` random words, and resolves each roll as a `2d6` sum.
+
+Every surviving roll multiplies the current payout by `payouts[difficulty][numRuns][diceSum] / 100`. Any missing table entry is an immediate loss for the whole game. There is no verified on-chain `3`-roll cap for Extreme or Master: all five difficulties support `1-5` rolls.
+
+The contract also preallocates `dice1Results` and `dice2Results` to `numRuns`. If a losing sum appears early, settlement stops immediately and the unused trailing slots remain `0`, so a `0/0` pair in `getGameInfo` means "not executed", not a real roll.
+
+This is not a staged cash-out game. The player cannot bank the current compounded payout, choose whether to continue, or recover a partial payout after a failed roll; the live contract is strictly all-or-nothing.
 
 ### Syntax
 
@@ -1064,7 +1073,7 @@ apechurch-cli play bear-dice <amount> [--difficulty <0-4>] [--rolls <1-5>]
 ```bnf
 <amount> ::= <ape>
 <difficulty> ::= <integer>         ; 0 <= value <= 4
-<rolls> ::= <integer>              ; 1 <= value <= 5, and <= 3 when difficulty >= 3
+<rolls> ::= <integer>              ; 1 <= value <= 5
 ```
 
 ### Difficulty Levels
@@ -1077,11 +1086,67 @@ apechurch-cli play bear-dice <amount> [--difficulty <0-4>] [--rolls <1-5>]
 | 3 | Extreme | 4-10 | 2-3, 11-12 |
 | 4 | Master | 3-11 | 2, 12 only |
 
-### Rolls
+### Verified Runtime Constants
 
-More rolls = higher potential payout, but more chances to hit a losing number.
+- `MAX_RUNS = 5`
+- `BASE_GAS = 500000`
+- `GAS_PER_RUN = 100000`
+- `platformFee = 200` (`2%` of `totalBetAmount`)
 
-At Extreme and Master difficulty, the CLI caps rolls to `3` because of the contract limit.
+### Verified Runtime Behavior
+
+- `getVRFFee(customGasLimit)` forwards the current RNG fee from `IRNGPythV2(V2_RNG).getFeeV2(customGasLimit)`
+- `customGasLimit = BASE_GAS + (numRuns * GAS_PER_RUN)`
+- `play(...)` validates `numRuns` in `1..5`, checks `msg.value >= vrfFee`, and treats a difficulty as valid only if `payouts[difficulty][1][2] > 0`
+- `totalBetAmount = msg.value - vrfFee`; the platform fee is deducted from `totalBetAmount`, but payout compounding still starts from the full `totalBetAmount`
+- `getGameInfo(gameId)` returns `player`, `betAmount`, `numRuns`, `difficulty`, `dice1Results`, `dice2Results`, `totalPayout`, `hasEnded`, and `timestamp`; unused tail slots stay `0` after an early loss
+- `getEssentialGameInfo(gameIds)` returns the player, buy-in, payout, timestamp, and settled flag arrays used by the repo's history refresh path
+
+### Exact RTP by Verified Difficulty and Roll Count
+
+| Difficulty | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
+|------------|--------|---------|---------|---------|---------|
+| Easy | `97.89%` | `97.90%` | `97.85%` | `97.80%` | `97.80%` |
+| Normal | `97.94%` | `97.90%` | `97.52%` | `97.80%` | `97.25%` |
+| Hard | `97.83%` | `97.79%` | `97.85%` | `97.80%` | `97.80%` |
+| Extreme | `97.89%` | `97.79%` | `97.36%` | `97.80%` | `97.80%` |
+| Master | `97.89%` | `97.79%` | `97.85%` | `97.58%` | `97.80%` |
+
+These values come from the verified on-chain `payouts[difficulty][numRuns][diceSum]` table and the exact 2d6 sum distribution. In closed form:
+
+```text
+rollEV(d, n) = Σ_sum P(2d6 = sum) * payouts[d][n][sum] / 100
+RTP(d, n) = rollEV(d, n)^n * 100
+```
+
+The early-stop behavior does not change those RTP values: losing sums already contribute a zero multiplier, so stopping the loop and leaving the remaining array slots at `0` is economically equivalent to multiplying the remaining suffix by `0`.
+
+### Exact Win Rate by Verified Difficulty and Roll Count
+
+| Difficulty | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
+|------------|--------|---------|---------|---------|---------|
+| Easy | `83.33%` | `69.44%` | `57.87%` | `48.23%` | `40.19%` |
+| Normal | `55.56%` | `30.86%` | `17.15%` | `9.53%` | `5.29%` |
+| Hard | `33.33%` | `11.11%` | `3.70%` | `1.23%` | `0.41%` |
+| Extreme | `16.67%` | `2.78%` | `0.46%` | `0.08%` | `0.01%` |
+| Master | `5.56%` | `0.31%` | `0.02%` | `0.00%` | `0.00%` |
+
+Where:
+
+```text
+safeProb(d) = Σ_safe sums P(2d6 = sum)
+WinRate(d, n) = safeProb(d)^n * 100
+```
+
+### Verified Max Payout by Difficulty and Roll Count
+
+| Difficulty | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
+|------------|--------|---------|---------|---------|---------|
+| Easy | `1.830x` | `3.349x` | `6.230x` | `12.228x` | `21.091x` |
+| Normal | `3.800x` | `14.746x` | `57.067x` | `219.707x` | `856.913x` |
+| Hard | `6.300x` | `40.577x` | `262.144x` | `1,709.401x` | `10,991.447x` |
+| Extreme | `9.720x` | `96.040x` | `946.966x` | `9,375.197x` | `93,193.275x` |
+| Master | `17.620x` | `316.840x` | `5,706.550x` | `102,433.347x` | `1,847,949.193x` |
 
 ### Transparency Snapshot
 
@@ -1089,7 +1154,7 @@ At Extreme and Master difficulty, the CLI caps rolls to `3` because of the contr
 - Running RTP: `97.56%`
 - Total Wagered: `302,958 APE`
 - Total Games Played: `8,817`
-- Public transparency currently exposes aggregate metrics only for Bear-A-Dice, not the unlucky-number roll table used by this CLI.
+- Public transparency still exposes only aggregate metrics, but the verified ApeScan source now exposes the actual unlucky-number payout table used above
 
 ### Examples
 
@@ -1102,6 +1167,9 @@ apechurch-cli play bear-dice 10 --difficulty 0 --rolls 5
 
 # Normal difficulty
 apechurch-cli play bear-dice 10 --difficulty 1 --rolls 3
+
+# Extreme with 5 rolls is valid on-chain
+apechurch-cli play bear-dice 10 --difficulty 3 --rolls 5
 
 # Loop (stick to easy for auto-play)
 apechurch-cli play bear-dice 10 --difficulty 0 --loop --max-games 20
@@ -1478,6 +1546,7 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 | Speed Keno ✔︎ | Picks 5 | Yes | `97.84%` | Exact hypergeometric EV | `93.36%` |
 | Monkey Match ✔︎ | Low Risk | Yes | `97.99%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
 | Monkey Match ✔︎ | Normal Risk | Yes | `98.29%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
+| Bear-A-Dice ✔︎ | Difficulty / roll matrix | Yes | `97.25% - 97.94%` | Exact weighted sum over verified on-chain `payouts[difficulty][numRuns][diceSum]` and the true 2d6 distribution | `97.56%` |
 | Blackjack ✔︎ | Main Only | Yes | `100.05%` | Statistical main-game model from the repo simulator | `96.84%` |
 | Blackjack ✔︎ | Side Only | Yes | `79.88%` | Exact EV from the published player-side table | `96.84%` |
 | Blackjack ✔︎ | Dealer Side Only | Yes | `82.02%` | Exact EV from the published dealer-side conditions | `96.84%` |
@@ -1492,7 +1561,7 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 
 ### Still Not Exactly Calculable from Local Sources
 
-The local source set is still insufficient for a defensible closed-form RTP on `Dino Dough`, `Bubblegum Heist`, `Bear-A-Dice`, `Cash Dash`, `Gimboz Smash`, `Hi-Lo Nebula`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, `Sushi Showdown`, `Geez Diggerz`, and `Rico's Revenge`.
+The local source set is still insufficient for a defensible closed-form RTP on `Dino Dough`, `Bubblegum Heist`, `Cash Dash`, `Gimboz Smash`, `Hi-Lo Nebula`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, `Sushi Showdown`, `Geez Diggerz`, and `Rico's Revenge`.
 
 For `Blackjack ✔︎`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables and the public rule surface now matches the repo solver assumptions.
 

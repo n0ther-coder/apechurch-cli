@@ -489,9 +489,10 @@ export const GAME_REGISTRY = [
     name: 'Bear-A-Dice',
     slug: 'bear-dice',
     type: 'beardice',
-    description: 'Roll 2 dice up to 5 times. Avoid unlucky numbers! Easy mode: dodge 7s. Higher modes = more danger.',
+    description: 'All-or-nothing 2d6 survival game. Roll up to 5 times; the first losing sum ends the game and zeroes the payout.',
     contract: BEAR_DICE_CONTRACT,
     aliases: ['bear', 'dice', 'bd'],
+    abiVerified: true,
     config: {
       difficulty: {
         min: 0,
@@ -514,11 +515,10 @@ export const GAME_REGISTRY = [
         min: 1,
         max: 5,
         default: 1,
-        description: 'Number of dice rolls (1-5). More rolls = higher payout but more chances to lose.',
+        description: 'Number of dice rolls (1-5). More rolls = higher payout, but the first losing sum zeroes the entire payout.',
         bnf: [
           '<rolls> ::= <integer>',
           '; semantic constraint: 1 <= value <= 5',
-          '; additional contract constraint: if difficulty >= 3 then rolls <= 3',
         ],
       },
     },
