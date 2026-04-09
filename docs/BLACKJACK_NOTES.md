@@ -1,9 +1,9 @@
 # Blackjack Contract Integration Notes
 
-> Summary: Structured blackjack integration notes for the CLI. Summarizes contract state, action rules, parsing details, and implementation checkpoints derived from the raw contract notes.
+> Summary: Structured blackjack integration notes for the CLI. Summarizes contract state, action rules, parsing details, and implementation checkpoints. For the public promotion evidence used by `ABI verified`, see `docs/BLACKJACK_CONTRACT.md`.
 
 > Complete working document for blackjack CLI integration.
-> Source: Mark's contract + BLACKJACK_CONTRACT.md
+> Source: official public Ape Church Blackjack bundle, local implementation notes, and `docs/BLACKJACK_CONTRACT.md`
 
 ---
 
@@ -17,7 +17,7 @@
 
 ## Starting a Game
 
-**Function:** `playGame(address player, bytes gameData)` on game contract
+**Function:** `play(address player, bytes gameData)` on game contract
 
 **gameData encoding:**
 ```javascript
@@ -32,7 +32,7 @@ abi.encode(
 **Value:** `msg.value` = bet amount + vrfFee
 
 ### Game Start Flow
-1. Call `playGame()` with bet + vrfFee
+1. Call `play()` with bet + vrfFee
 2. VRF callback deals first 3 cards (2 to player, 1 to dealer)
 3. **If player has natural blackjack:**
    - Dealer draws second card in same block

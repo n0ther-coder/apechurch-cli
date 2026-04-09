@@ -18,7 +18,7 @@ const APE_STRONG_CONTRACT = '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600';
 describe('Status Helpers', () => {
   describe('resolveActiveGameName', () => {
     it('maps known stateful games to their display names', () => {
-      assert.strictEqual(resolveActiveGameName('blackjack'), 'Blackjack');
+      assert.strictEqual(resolveActiveGameName('blackjack'), 'Blackjack ✔︎');
       assert.strictEqual(resolveActiveGameName('video-poker'), 'Video Poker ✔︎');
     });
 
@@ -46,7 +46,7 @@ describe('Status Helpers', () => {
         },
         {
           key: 'blackjack',
-          game: 'Blackjack',
+          game: 'Blackjack ✔︎',
           unfinished_games: 1,
           game_ids: ['7'],
           resume_command: 'apechurch-cli blackjack resume [--game <id>][--auto [best]]',
@@ -107,7 +107,7 @@ describe('Status Helpers', () => {
           unfinished_game_ids: [],
         },
         {
-          game: 'Blackjack',
+          game: 'Blackjack ✔︎',
           group_key: 'blackjack',
           base_game_key: 'blackjack',
           variant_label: null,
@@ -199,7 +199,7 @@ describe('Status Helpers', () => {
             unsynced_games: 0,
           },
           {
-            game: 'Blackjack',
+            game: 'Blackjack ✔︎',
             total_saved_games: 1,
             games: 0,
             wins: 0,
@@ -238,7 +238,7 @@ describe('Status Helpers', () => {
           unfinished_game_ids: [],
         },
         {
-          game: 'Blackjack',
+          game: 'Blackjack ✔︎',
           group_key: 'blackjack',
           base_game_key: 'blackjack',
           variant_label: null,

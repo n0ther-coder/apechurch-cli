@@ -44,7 +44,7 @@ Every bet is placed and settled on-chain via smart contracts. Provably fair with
 3. [All Games](#all-games)
 4. [Loop Mode & Automation](#loop-mode--automation)
 5. [Betting Strategies](#betting-strategies)
-6. [Blackjack](#blackjack)
+6. [Blackjack](#blackjack-)
 7. [Video Poker](#video-poker)
 8. [Commands Reference](#commands-reference)
 9. [JSON Output Schemas](#json-output-schemas)
@@ -205,7 +205,7 @@ Sync and cache behavior:
 | Monkey Match ✔︎ | `play monkey-match 10` | Match | `--mode 1-2` |
 | Bear-A-Dice | `play bear-dice 10` | Dice | `--difficulty 0-4` `--rolls 1-5` |
 | Primes ✔︎ | `play primes 10 0 20` | Number | `--difficulty 0-3` `--runs 1-20` |
-| Blackjack | `blackjack 10 --auto` | Cards | Interactive or `--auto` |
+| Blackjack ✔︎ | `blackjack 10 --auto` | Cards | Interactive or `--auto` |
 | Video Poker / Gimboz Poker | `video-poker 10 --auto` | Cards | Interactive or `--auto` |
 
 ---
@@ -547,11 +547,12 @@ Lose → bet 10 → Lose → bet 10 → Lose → bet 20 → Lose → bet 30 → 
 
 ---
 
-## Blackjack
+## Blackjack ✔︎
 
 Interactive blackjack with optional auto-play.
 
 **CLI aliases:** `bj`
+**ABI verified:** `true`
 
 ### Quick Play (Auto)
 

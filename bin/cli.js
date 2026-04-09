@@ -598,6 +598,62 @@ const HISTORY_BREAKDOWN_FILTER_ALIASES = new Map([
   ['gimboz poker', 'video-poker'],
 ]);
 
+function createGameCatalogEntry(game) {
+  return {
+    key: game.key,
+    name: game.name,
+    displayName: getGameDisplayName(game),
+    type: game.type,
+    description: game.description,
+    abiVerified: Boolean(game.abiVerified),
+    aliases: game.aliases,
+    contract: game.contract,
+    config: game.config,
+  };
+}
+
+function getBlackjackCatalogEntry() {
+  return {
+    key: 'blackjack',
+    name: 'Blackjack',
+    displayName: resolveGameDisplayName({
+      gameKey: 'blackjack',
+      contract: BLACKJACK_CONTRACT,
+      fallbackName: 'Blackjack',
+    }),
+    type: 'stateful',
+    description: 'Classic blackjack with simple and exact-EV auto-play',
+    abiVerified: true,
+    aliases: ['bj'],
+    contract: BLACKJACK_CONTRACT,
+  };
+}
+
+function getVideoPokerCatalogEntry() {
+  return {
+    key: 'video-poker',
+    name: 'Video Poker',
+    displayName: resolveGameDisplayName({
+      gameKey: 'video-poker',
+      contract: VIDEO_POKER_CONTRACT,
+      fallbackName: 'Video Poker',
+    }),
+    type: 'stateful',
+    description: 'Jacks or Better video poker with verified on-chain paytable, simple auto-play, and exact best-EV auto-play',
+    abiVerified: true,
+    aliases: ['vp', 'gimboz-poker'],
+    contract: VIDEO_POKER_CONTRACT,
+  };
+}
+
+function listSupportedGameCatalogEntries() {
+  return [
+    ...GAME_REGISTRY.map((game) => createGameCatalogEntry(game)),
+    getBlackjackCatalogEntry(),
+    getVideoPokerCatalogEntry(),
+  ];
+}
+
 function normalizeHistoryBreakdownLookupInput(input) {
   return stripAbiVerifiedSymbol(String(input || '').trim()).toLowerCase();
 }
@@ -3193,6 +3249,7 @@ program
     const history = loadHistory(localWalletAddress || undefined);
     const historyBreakdown = summarizeHistoryGamesByGame(history);
     const includeActiveGames = Boolean(localWalletAddress);
+    const supportedGames = listSupportedGameCatalogEntries();
     const gameStats = opts.stats
       ? buildHistoryGameStatusSummary({
           historyBreakdown,
@@ -3202,25 +3259,14 @@ program
       : [];
 
     if (opts.json) {
-      const games = GAME_REGISTRY.map(g => ({
-        key: g.key,
-        name: g.name,
-        displayName: getGameDisplayName(g),
-        type: g.type,
-        description: g.description,
-        abiVerified: Boolean(g.abiVerified),
-        aliases: g.aliases,
-        contract: g.contract,
-        config: g.config,
-      }));
       console.log(JSON.stringify({
-        games,
+        games: supportedGames,
         ...(opts.stats ? { game_stats: gameStats } : {}),
       }));
     } else {
       console.log(`\n${formatHeader('Available Games', '🎰')}\n`);
-      for (const game of GAME_REGISTRY) {
-        console.log(`   ${theme.gameName(getGameDisplayName(game))} ${theme.dim(`(${game.key})`)}`);
+      for (const game of supportedGames) {
+        console.log(`   ${theme.gameName(game.displayName)} ${theme.dim(`(${game.key})`)}`);
         console.log(`      ${theme.value(game.description)}`);
         if (game.aliases?.length) console.log(`      ${theme.label('Aliases:')} ${theme.dim(game.aliases.join(', '))}`);
         console.log('');
@@ -3243,31 +3289,24 @@ program
   .action((name, opts) => {
     // Handle blackjack specially (stateful game)
     if (name.toLowerCase() === 'blackjack' || name.toLowerCase() === 'bj') {
+      const blackjack = getBlackjackCatalogEntry();
       if (opts.json) {
-        console.log(JSON.stringify({
-          name: 'Blackjack',
-          displayName: 'Blackjack',
-          type: 'stateful',
-          key: 'blackjack',
-          abiVerified: false,
-          aliases: ['bj'],
-          contract: BLACKJACK_CONTRACT,
-          description: 'Classic blackjack with simple and exact-EV auto-play',
-        }));
+        console.log(JSON.stringify(blackjack));
         return;
       }
       console.log(`
 ${'═'.repeat(60)}
-  BLACKJACK
+  ${blackjack.displayName.toUpperCase()}
 ${'═'.repeat(60)}
 
   Classic blackjack card game. Play against the dealer, aim for 21.
   Includes auto-play bot with mathematically optimal basic strategy.
 
-  Type:     stateful
-  Key:      blackjack
-  Aliases:  bj
-  Contract: ${BLACKJACK_CONTRACT}
+  Type:     ${blackjack.type}
+  Key:      ${blackjack.key}
+  ABI verified: ${blackjack.abiVerified}
+  Aliases:  ${blackjack.aliases.join(', ')}
+  Contract: ${blackjack.contract}
 
 ${'─'.repeat(60)}
   COMMANDS
@@ -3326,38 +3365,25 @@ ${'═'.repeat(60)}
     
     // Handle video-poker specially (stateful game)
     if (name.toLowerCase() === 'video-poker' || name.toLowerCase() === 'vp' || name.toLowerCase() === 'gimboz-poker') {
-      const videoPokerDisplayName = resolveGameDisplayName({
-        gameKey: 'video-poker',
-        contract: VIDEO_POKER_CONTRACT,
-        fallbackName: 'Video Poker',
-      });
+      const videoPoker = getVideoPokerCatalogEntry();
       if (opts.json) {
-        console.log(JSON.stringify({
-          name: 'Video Poker',
-          displayName: videoPokerDisplayName,
-          type: 'stateful',
-          key: 'video-poker',
-          abiVerified: true,
-          aliases: ['vp', 'gimboz-poker'],
-          contract: VIDEO_POKER_CONTRACT,
-          description: 'Jacks or Better video poker with verified on-chain paytable, simple auto-play, and exact best-EV auto-play',
-        }));
+        console.log(JSON.stringify(videoPoker));
         return;
       }
       console.log(`
 ${'═'.repeat(60)}
-  ${videoPokerDisplayName.toUpperCase()} (GIMBOZ POKER)
+  ${videoPoker.displayName.toUpperCase()} (GIMBOZ POKER)
 ${'═'.repeat(60)}
 
   Jacks or Better video poker. Get dealt 5 cards, choose which
   to discard, and draw replacements. Pair of Jacks+ wins.
   Max bet (100 APE) qualifies for progressive jackpot on Royal Flush.
 
-  Type:     stateful
-  Key:      video-poker
-  ABI verified: true
-  Aliases:  vp, gimboz-poker
-  Contract: ${VIDEO_POKER_CONTRACT}
+  Type:     ${videoPoker.type}
+  Key:      ${videoPoker.key}
+  ABI verified: ${videoPoker.abiVerified}
+  Aliases:  ${videoPoker.aliases.join(', ')}
+  Contract: ${videoPoker.contract}
 
 ${'─'.repeat(60)}
   COMMANDS

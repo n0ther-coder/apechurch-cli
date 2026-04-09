@@ -1,112 +1,114 @@
-# Blackjack Contract Raw Notes
+# Blackjack Contract Verification Notes
 
-> Summary: Raw working notes captured from the blackjack contract during integration. Preserves low-level state, ABI details, and action rules that feed the cleaner CLI integration notes.
+> Summary: Public ABI and runtime evidence used to promote Blackjack to `ABI verified` on 2026-04-09.
 
-Game Name: blackjack
-Slug: blackjack
-Contract: 0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7
+## Public Source Trail
 
-vrfFee: simple, one function, not ALWAYS used, depends on action (if it requires drawing randomness): function vrfFee() public view returns (uint256)
+- Official Ape Church game page: `https://ape.church/games/blackjack`
+- Official public route bundle used for this note, fetched on **2026-04-09**:
+  - `https://ape.church/_next/static/chunks/app/games/blackjack/page-213bdee3d58ec65d.js`
+- Live ApeScan contract page:
+  - `https://apescan.io/address/0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7`
 
-gameData for initial playGame:
-// decode game data
-        (
-            uint256[] memory sideBets,
-            uint256 gameId,
-            address ref,
-            bytes32 userRandomWord
-        ) = abi.decode(gameData, (uint256[], uint256, address, bytes32));
--- we'll discuss sideBets later, to get this to work without side bets, just pass in an array of two zeros [BigInt(0), BigInt(0)]
+As of **2026-04-09**, ApeScan still labels the contract source as `Unverified`. This promotion therefore relies on the public production ABI reference exposed by Ape Church's frontend bundle, cross-checked against the live ApeScan method surface and the repo's solver/runtime behavior, rather than explorer-published Solidity source.
 
-getGameInfo - how we can tell THE ENTIRE current state of a game: 
-function getGameInfo(uint256 _gameId) public view returns (
-        GameInfoReturnType memory
-    )
+## Contract Identity
 
-// return type -- THIS gives us all the state we need
-    struct GameInfoReturnType {
-        address user; // user playing the game
-        GameState gameState; // game state
-        uint8 activeHandIndex; // 0 or 1, points to which hand is being played
-        Hand[2] playerHands; // player hands
-        Hand dealerHand; // dealer hand
-        SideBet[2] sideBets; // side bets
-        SideBet insuranceBet; // insurance bet
-        bool awaitingRandomNumber; // watch this! when this is false its our turn if game not over.
-        uint256 initialBet;
-        uint256 totalBet;
-        uint256 totalPayout;
-        bool surrendered;
-        uint256 timestamp; // timestamp
-    }
+- Game title on the public route: `Blackjack+`
+- Slug: `blackjack`
+- Contract: `0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7`
+- The route SSR payload and the leaderboard/history widgets on the same page all point to that exact address.
 
-// game state
-    enum GameState {
-        READY,          // Game created, waiting for initial deal
-        PLAYER_ACTION,  // Player's main hand is active
-        SPLIT_ACTION_1, // Player is acting on their first split hand
-        SPLIT_ACTION_2, // Player is acting on their second split hand
-        DEALER_TURN,    // Player(s) stood or busted, dealer is drawing
-        HAND_COMPLETE   // Game finished, payouts calculated - game is OVER
-    }
+## Public ABI Reference
 
-    // hand status
-    enum HandStatus {
-        ACTIVE,
-        STOOD,
-        BUSTED,
-        BLACKJACK // Natural 21 on first two cards
-    }
+The public Blackjack route bundle exposes these exact signatures:
 
-    // RNG Status
-    enum RNGStatus {
-        INITIAL_DEAL,
-        DOUBLE_DOWN,
-        SPLIT,
-        HIT,
-        DEALER,
-        NONE
-    }
+- `function vrfFee() external view returns (uint256)`
+- `function getGameInfo(uint256 gameId) external view returns ((address user, uint8 gameState, uint8 activeHandIndex, ((uint8 value, uint8 rawCard)[] cards, uint8 handValue, bool isSoft, uint8 status, uint256 bet)[2] playerHands, ((uint8 value, uint8 rawCard)[] cards, uint8 handValue, bool isSoft, uint8 status, uint256 bet) dealerHand, (uint256 bet, uint256 amountForHouse, uint256 payout)[2] sideBets, (uint256 bet, uint256 amountForHouse, uint256 payout) insuranceBet, bool awaitingRandomNumber, uint256 initialBet, uint256 totalBet, uint256 totalPayout, bool surrendered, uint256 timestamp))`
+- `function play(address player, bytes gameData) payable`
+- `function playerHit(uint256 gameId) external payable`
+- `function playerStand(uint256 gameId) external payable`
+- `function playerDoubleDown(uint256 gameId) external payable`
+- `function playerSplit(uint256 gameId) external payable`
+- `function playerInsurance(uint256 gameId) external payable`
+- `function playerSurrender(uint256 gameId) external payable`
+- `function paused() external view returns (bool)`
+- `function numUsedGameIDs() external view returns (uint256)`
+- `function paginateUsedGameIDs(uint256 start, uint256 end) external view returns (uint256[] memory)`
+- `function getEssentialGameInfo(uint256[] calldata gameIds) external view returns (address[] memory,uint256[] memory,uint256[] memory,uint256[] memory,bool[] memory)`
+- `function maxPayout() external view returns (uint256)`
 
-    // Card Struct
-    struct Card {
-        uint8 value;
-        uint8 rawCard;
-    }
+## Verified Write Path
 
-    // hand structure
-    struct Hand {
-        Card[] cards;     // Card values: 2-9, 10 (T,J,Q,K), 11 (Ace)
-        uint8 handValue;   // Calculated total value
-        bool isSoft;       // True if the hand contains an Ace counted as 11
-        HandStatus status; // Current status of the hand
-        uint256 bet;       // The wager on this specific hand
-    }
+The production frontend encodes `gameData` as:
 
-    // Side Bet Structure
-    struct SideBet {
-        uint256 bet;
-        uint256 amountForHouse;
-        uint256 payout;
-    }
+```text
+(uint256[] sideBets, uint256 gameId, address ref, bytes32 randomWord)
+```
 
+Observed public behavior from the official bundle:
 
-Functions to call to update state:
+- `sideBets` contains two lanes: player-side and dealer-side
+- `play(...)` sends `mainBet + sideBet0 + sideBet1 + vrfFee()`
+- `playerHit(...)` sends exactly `vrfFee()`
+- `playerStand(...)` sends `0` only when moving from split hand 1 to an active second split hand; otherwise it sends `vrfFee()`
+- `playerDoubleDown(...)` sends `initialBet + vrfFee()`
+- `playerSplit(...)` sends `initialBet + vrfFee()`
+- `playerInsurance(...)` sends `initialBet / 2`
+- `playerSurrender(...)` sends `0`
 
-function playerHit(uint256 gameId) external payable - value passed in is the vrfFee (maybe fetch the fee again before to be safe)
+Those value rules match the repo's implementation in `lib/stateful/blackjack/actions.js` and `lib/stateful/blackjack/state.js`.
 
-function playerStand(uint256 gameId) external payable - value passed in is the vrfFee MOST of the time, it requires msg.value == 0 in one circumstance:
-we always get the VRF fee because we're usually drawing new numbers (the dealer's numbers) - the only time we don't do that is if we split our cards previously, and we stood on the first card and proceed to the second deck to decide to hit/stand/double etc
+## Verified Read Path
 
-function playerDoubleDown(uint256 gameId) external payable - only possible when the current active hand only has 2 cards in it, costs the bet amount on the active hand + vrf fee
+The same public ABI reference exposes:
 
-function playerSplit(uint256 gameId) external payable - costs bet amount on the active hand + vrf fee, splits cards into two groups and adds 1 more card each, if Aces it proceeds to dealer's turn, if not aces player can hit/stand/double from those cards like a regular deck before proceeding to the next one.
+- `gameState`, `activeHandIndex`, `playerHands`, `dealerHand`
+- `sideBets`, `insuranceBet`, `awaitingRandomNumber`
+- `initialBet`, `totalBet`, `totalPayout`, `surrendered`, `timestamp`
 
-function playerInsurance(uint256 gameId) external payable - buys insurance if dealer's upcard is an ace, cannot do if surrendered or vice versa, costs exactly 1/2 of bet amount on hand, has to be first action of the game after initial deal or offer goes away  - returns 3x wager if dealer has natural blackjack, allowing user to break even on the main game (bet 50, pays 25 wager, dealer has blackjack -> 75 payout)
+The public frontend also uses:
 
-function playerSurrender(uint256 gameId) external payable - cannot do if user has insurance, immediately ends the game, must be first move of the game only after initial deal, returns 50% of bet amount to the user.
+- `numUsedGameIDs()`
+- `paginateUsedGameIDs(start, end)`
+- `getEssentialGameInfo(gameIds)`
 
-NONE of the bet references above involve side bets, we will handle those later, those pay out and are tracked separately from the main game.
-We optimize VRF requests by combining certain actions. If you bust or get a 21 (either blackjack or 3 cards in) the dealer's cards are automatically drawn (assumes you'll stand) or switches to the other active hand (if you split). Certain actions like this make the game take less time and minimize costly transactions like stand when we know its what the choice would be. This is mostly the only time this rule is enforced, when player has 21 or busts the dealer's turn is started. When player busts one (or both if split) hands, the dealer only draws 1 extra card (for the insurance check), this is to save RNG gas costs since we know the player busted anyway and the rest of the cards do not matter since this is a 1v1 game.
+for replay and history surfaces. That matches the repo's expectation that Blackjack history can be reconstructed from contract-backed getters.
 
-Before you rush to implement this, take detailed notes and a detailed plan, save these notes somewhere you can remember and reference them. Ask me questions you are uncertain of. I built this contract from scratch and have infinite knowledge of how it works. Take your time and really plan this out with the logic etc from the changing return of getGameInfo.
+## Verified Public Rules and Solver Assumptions
+
+The public Blackjack bundle embeds the following rule config:
+
+- `dealerHitsSoft17: true`
+- `surrender: "early"`
+- `doubleAfterSplitAllowed: true`
+- `maxHands: 2`
+
+It also publishes the public side-bet tables used by the site:
+
+- Player side:
+  - `Diamond Sevens` -> `500x`
+  - `Perfect Pair` -> `20x`
+  - `Natural Blackjack` -> `5x`
+- Dealer side:
+  - `Match Dealer` -> `2x`
+  - `Dealer Ten` -> `2x`
+
+And it maps raw cards as:
+
+- `rank = rawCard % 13 + 1`
+- `suit = floor(rawCard / 13)`
+- suits ordered as `diamonds`, `hearts`, `clubs`, `spades`
+
+That public rule surface matches the repo's local assumptions in:
+
+- `lib/stateful/blackjack/solver.js`
+- `lib/stateful/blackjack/strategy.js`
+- `lib/stateful/blackjack/monte-carlo.js`
+- `lib/stateful/blackjack/state.js`
+
+## RTP and Modeling Notes
+
+- The main-hand RTP in this repo remains a Monte Carlo estimate, not a closed-form proof
+- The player-side and dealer-side RTP lanes are exact relative to the published public side-bet tables
+- Promotion to `ABI verified` is justified because the public ABI, runtime tuple shapes, action costs, state layout, and solver-rule surface are now source-backed and reproducible from public production artifacts

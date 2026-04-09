@@ -111,9 +111,10 @@ As of **2026-04-09**, these supported games are still not promoted to `ABI verif
 | Dino Dough | supported, unverified | Verified source or getters for the slot paytable and symbol-resolution logic |
 | Bubblegum Heist | supported, unverified | Verified source or getters for the slot paytable and symbol-resolution logic |
 | Bear-A-Dice | supported, unverified | Verified source for difficulty tables, roll limits, and payout multipliers |
-| Blackjack | supported, unverified | Raw integration notes and ABI exist locally, but the promotion standard is not yet fully tied back to a verified public contract source and repo-level evidence |
 
-Currently promoted games are Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Monkey Match ✔︎, Primes ✔︎, and Video Poker ✔︎.
+Currently promoted games are Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Monkey Match ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎.
+
+Blackjack was promoted on **2026-04-09** from the public production ABI reference exposed by `https://ape.church/games/blackjack` and its route bundle, cross-checked against the live ApeScan method surface and the repo's solver and runtime behavior notes.
 
 ## When the Docs Are Not Clear
 

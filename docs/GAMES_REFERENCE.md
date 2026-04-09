@@ -68,7 +68,7 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 | Monkey Match ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Bear-A-Dice | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager; volatility comes from difficulty and rolls |
 | Primes ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` runs |
-| Blackjack | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
+| Blackjack ✔︎ | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
 | Video Poker ✔︎ / Gimboz Poker | Fixed denominations only | Fixed list: `1`, `5`, `10`, `25`, `50`, `100 APE` | Fixed max `100 APE` | Loop mode rounds to the closest affordable valid denomination; jackpot eligibility requires `100 APE` |
 
 ---
@@ -1211,13 +1211,14 @@ apechurch-cli play primes 10 --difficulty 0 --runs 20 --loop --max-games 25
 
 ---
 
-## Blackjack
+## Blackjack ✔︎
 
 **Type:** Cards<br>
 **Contract:** `0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7`<br>
+**ABI verified:** `true`<br>
 **Aliases:** `bj`
 
-Stateful blackjack with interactive actions and auto-play support. See [SKILL.md](../SKILL.md#blackjack) for the full command flow, action handling, and solver notes.
+Stateful blackjack with interactive actions and auto-play support. The promotion evidence for `✔︎` is recorded in [BLACKJACK_CONTRACT.md](./BLACKJACK_CONTRACT.md). See [SKILL.md](../SKILL.md#blackjack-) for the full command flow, action handling, and solver notes.
 
 ### Grammar (BNF)
 
@@ -1244,6 +1245,44 @@ Stateful blackjack with interactive actions and auto-play support. See [SKILL.md
 - Normal win pays `2.0x`
 - Early surrender refunds `0.5x` of the initial stake
 - Insurance returns `3.0x` total on the insurance stake (`2:1`) if the dealer has blackjack
+
+### Verified Public ABI Reference
+
+The official public route `https://ape.church/games/blackjack` identifies the live game contract as `0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7`. The route bundle fetched on **2026-04-09** publishes the exact ABI signatures the production frontend uses against that contract:
+
+- `vrfFee()`
+- `getGameInfo(uint256 gameId)`
+- `play(address player, bytes gameData)`
+- `playerHit(uint256 gameId)`
+- `playerStand(uint256 gameId)`
+- `playerDoubleDown(uint256 gameId)`
+- `playerSplit(uint256 gameId)`
+- `playerInsurance(uint256 gameId)`
+- `playerSurrender(uint256 gameId)`
+- `numUsedGameIDs()`
+- `paginateUsedGameIDs(uint256 start, uint256 end)`
+- `getEssentialGameInfo(uint256[] gameIds)`
+- `maxPayout()`
+
+### Verified Runtime Behavior
+
+- `gameData` is encoded as `(uint256[] sideBets, uint256 gameId, address ref, bytes32 randomWord)`
+- The frontend submits two side-bet lanes in `sideBets`: player-side and dealer-side
+- `play(...)` value is `mainBet + sideBet0 + sideBet1 + vrfFee()`
+- `playerHit(...)` sends exactly `vrfFee()`
+- `playerStand(...)` sends `0` only when moving from split hand 1 to an active second split hand; otherwise it sends `vrfFee()`
+- `playerDoubleDown(...)` sends `initialBet + vrfFee()`
+- `playerSplit(...)` sends `initialBet + vrfFee()`
+- `playerInsurance(...)` sends `initialBet / 2`
+- `playerSurrender(...)` sends `0`
+- `getGameInfo(...)` returns `user`, `gameState`, `activeHandIndex`, `playerHands`, `dealerHand`, `sideBets`, `insuranceBet`, `awaitingRandomNumber`, `initialBet`, `totalBet`, `totalPayout`, `surrendered`, and `timestamp`
+- Replay and history surfaces read `numUsedGameIDs()`, `paginateUsedGameIDs(...)`, and `getEssentialGameInfo(...)` from the same public contract interface
+
+### Verified Public Rule Surface
+
+- The public frontend solver config is `dealerHitsSoft17: true`, `surrender: "early"`, `doubleAfterSplitAllowed: true`, `maxHands: 2`
+- The frontend maps `rawCard` as `rank = rawCard % 13 + 1` and `suit = floor(rawCard / 13)`, matching the CLI's 52-card display mapping
+- The published side-bet table below is embedded directly in the public Blackjack bundle and matches the repo's player-side and dealer-side RTP modeling
 
 ### Transparency Snapshot
 
@@ -1439,9 +1478,9 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 | Speed Keno ✔︎ | Picks 5 | Yes | `97.84%` | Exact hypergeometric EV | `93.36%` |
 | Monkey Match ✔︎ | Low Risk | Yes | `97.99%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
 | Monkey Match ✔︎ | Normal Risk | Yes | `98.29%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
-| Blackjack | Main Only | Yes | `100.05%` | Statistical main-game model from the repo simulator | `96.84%` |
-| Blackjack | Side Only | Yes | `79.88%` | Exact EV from the published player-side table | `96.84%` |
-| Blackjack | Dealer Side Only | Yes | `82.02%` | Exact EV from the published dealer-side conditions | `96.84%` |
+| Blackjack ✔︎ | Main Only | Yes | `100.05%` | Statistical main-game model from the repo simulator | `96.84%` |
+| Blackjack ✔︎ | Side Only | Yes | `79.88%` | Exact EV from the published player-side table | `96.84%` |
+| Blackjack ✔︎ | Dealer Side Only | Yes | `82.02%` | Exact EV from the published dealer-side conditions | `96.84%` |
 | Video Poker ✔︎ / Gimboz Poker | Base paytable at any fixed bet | Yes | `98.16%` | Exact weighted sum over verified on-chain paytable and final-hand odds | `89.53%` |
 | Video Poker ✔︎ / Gimboz Poker | `100 APE` bet with known jackpot pool | Yes | `98.16% + jackpot_ape / 40,000` | Exact parametric jackpot uplift from `jackpotTotal` | `89.53%` |
 | Blocks | Easy | No | `98.41%` | Exact weighted sum over cluster table | `93.92%` |
@@ -1455,7 +1494,7 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 
 The local source set is still insufficient for a defensible closed-form RTP on `Dino Dough`, `Bubblegum Heist`, `Bear-A-Dice`, `Cash Dash`, `Gimboz Smash`, `Hi-Lo Nebula`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, `Sushi Showdown`, `Geez Diggerz`, and `Rico's Revenge`.
 
-For `Blackjack`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables.
+For `Blackjack ✔︎`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables and the public rule surface now matches the repo solver assumptions.
 
 ---
 

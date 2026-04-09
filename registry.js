@@ -593,7 +593,7 @@ const SUPPLEMENTAL_DISPLAY_GAMES = Object.freeze([
     key: 'blackjack',
     name: 'Blackjack',
     contract: BLACKJACK_CONTRACT,
-    abiVerified: false,
+    abiVerified: true,
     aliases: ['bj'],
   }),
   Object.freeze({
