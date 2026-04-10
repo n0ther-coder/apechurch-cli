@@ -108,7 +108,7 @@ As of **2026-04-10**, there are no remaining supported games waiting on promotio
 
 Ordering: alphabetical by game title.
 
-Currently promoted games are ApeStrong ✔︎, Baccarat ✔︎, Bear-A-Dice ✔︎, Blackjack ✔︎, Blocks ✔︎, Bubblegum Heist ✔︎, Cosmic Plinko ✔︎, Dino Dough ✔︎, Jungle Plinko ✔︎, Keno ✔︎, Monkey Match ✔︎, Primes ✔︎, Roulette ✔︎, Speed Keno ✔︎, and Video Poker ✔︎.
+Currently promoted games are ApeStrong ✔︎, Baccarat ✔︎, Bear-A-Dice ✔︎, Blackjack ✔︎, Blocks ✔︎, Bubblegum Heist ✔︎, Cosmic Plinko ✔︎, Dino Dough ✔︎, Geez Diggerz ✔︎, Jungle Plinko ✔︎, Keno ✔︎, Monkey Match ✔︎, Primes ✔︎, Roulette ✔︎, Speed Keno ✔︎, Sushi Showdown ✔︎, and Video Poker ✔︎.
 
 Every promoted game now has a dedicated verification note under `docs/verification/`:
 
@@ -122,12 +122,14 @@ Every promoted game now has a dedicated verification note under `docs/verificati
 | Bubblegum Heist | `docs/verification/BUBBLEGUM_HEIST_CONTRACT.md` |
 | Cosmic Plinko | `docs/verification/COSMIC_PLINKO_CONTRACT.md` |
 | Dino Dough | `docs/verification/DINO_DOUGH_CONTRACT.md` |
+| Geez Diggerz | `docs/verification/GEEZ_DIGGERZ_CONTRACT.md` |
 | Jungle Plinko | `docs/verification/JUNGLE_PLINKO_CONTRACT.md` |
 | Keno | `docs/verification/KENO_CONTRACT.md` |
 | Monkey Match | `docs/verification/MONKEY_MATCH_CONTRACT.md` |
 | Primes | `docs/verification/PRIMES_CONTRACT.md` |
 | Roulette | `docs/verification/ROULETTE_CONTRACT.md` |
 | Speed Keno | `docs/verification/SPEED_KENO_CONTRACT.md` |
+| Sushi Showdown | `docs/verification/SUSHI_SHOWDOWN_CONTRACT.md` |
 | Video Poker | `docs/verification/VIDEO_POKER_CONTRACT.md` |
 
 ## When the Docs Are Not Clear

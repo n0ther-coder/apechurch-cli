@@ -30,9 +30,9 @@
   - `wallet hints` — View or update password hints
   - `wallet status` — Check encrypted-wallet status
 
-## Gaming (15 Games)
+## Gaming (17 Games)
 - **Plinko / Boards:** Jungle Plinko, Cosmic Plinko, Blocks
-- **Slots:** Dino Dough, Bubblegum Heist
+- **Slots:** Dino Dough, Bubblegum Heist, Geez Diggerz, Sushi Showdown
 - **Table:** Roulette, Baccarat
 - **Keno:** Standard Keno, Speed Keno (batched games)
 - **Dice / Number:** ApeStrong, Bear-A-Dice, Primes

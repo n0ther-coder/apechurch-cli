@@ -25,12 +25,14 @@ import {
   BUBBLEGUM_HEIST_CONTRACT,
   COSMIC_PLINKO_CONTRACT,
   DINO_DOUGH_CONTRACT,
+  GEEZ_DIGGERZ_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   KENO_CONTRACT,
   MONKEY_MATCH_CONTRACT,
   PRIMES_CONTRACT,
   ROULETTE_CONTRACT,
   SPEED_KENO_CONTRACT,
+  SUSHI_SHOWDOWN_CONTRACT,
   VIDEO_POKER_CONTRACT,
 } from './lib/constants.js';
 
@@ -415,6 +417,64 @@ export const GAME_REGISTRY = [
     description: 'Candy-themed slot machine. Spin for sweet multipliers and jackpots.',
     contract: BUBBLEGUM_HEIST_CONTRACT,
     aliases: ['bubblegum', 'heist'],
+    abiVerified: true,
+    config: {
+      spins: {
+        min: 1,
+        max: 15,
+        default: 10,
+        description: 'Number of spins per bet. Wager is split across all spins. More spins = smoother variance.',
+        bnf: [
+          '<spins> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 15',
+        ],
+      },
+    },
+    vrf: {
+      type: 'slots',
+    },
+  },
+
+  // ===========================================================================
+  // GEEZ DIGGERZ - Lower-ceiling multi-spin slot machine
+  // ===========================================================================
+  {
+    key: 'geez-diggerz',
+    name: 'Geez Diggerz',
+    slug: 'geez-diggerz',
+    type: 'slots',
+    description: 'Verified multi-spin slot with symmetric 6-symbol reels, a 50x top line, and a flatter rebate-heavy paytable than the other slots.',
+    contract: GEEZ_DIGGERZ_CONTRACT,
+    aliases: ['geez', 'diggerz'],
+    abiVerified: true,
+    config: {
+      spins: {
+        min: 1,
+        max: 15,
+        default: 10,
+        description: 'Number of spins per bet. Wager is split across all spins. More spins = smoother variance.',
+        bnf: [
+          '<spins> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 15',
+        ],
+      },
+    },
+    vrf: {
+      type: 'slots',
+    },
+  },
+
+  // ===========================================================================
+  // SUSHI SHOWDOWN - High-ceiling multi-spin slot machine
+  // ===========================================================================
+  {
+    key: 'sushi-showdown',
+    name: 'Sushi Showdown',
+    slug: 'sushi-showdown',
+    type: 'slots',
+    description: 'Verified multi-spin slot with 7 live symbol indexes, a 500x top line, and a wider fractional mid-tier payout surface.',
+    contract: SUSHI_SHOWDOWN_CONTRACT,
+    aliases: ['sushi', 'showdown'],
     abiVerified: true,
     config: {
       spins: {

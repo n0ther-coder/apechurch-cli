@@ -202,6 +202,8 @@ Sync and cache behavior:
 | Speed Keno ✔︎ | `play speed-keno 10` | Keno | `--picks 1-5` `--games 1-20` |
 | Dino Dough ✔︎ | `play dino-dough 10 10` | Slots | `--spins 1-15` |
 | Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | Slots | `--spins 1-15` |
+| Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | Slots | `--spins 1-15` |
+| Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | Slots | `--spins 1-15` |
 | Monkey Match ✔︎ | `play monkey-match 10` | Match | `--mode 1-2` |
 | Bear-A-Dice ✔︎ | `play bear-dice 10` | Dice | `--difficulty 0-4` `--rolls 1-5` |
 | Primes ✔︎ | `play primes 10 0 20` | Number | `--difficulty 0-3` `--runs 1-20` |
@@ -374,7 +376,7 @@ apechurch-cli play speed-keno 10 --picks 5 --games 20
 
 ---
 
-### Dino Dough ✔︎ & Bubblegum Heist ✔︎ (Slots)
+### Dino Dough ✔︎, Bubblegum Heist ✔︎, Geez Diggerz ✔︎ & Sushi Showdown ✔︎ (Slots)
 
 Verified multi-spin slot contracts with ordered left-to-right symbol triples.
 
@@ -382,6 +384,8 @@ Verified multi-spin slot contracts with ordered left-to-right symbol triples.
 apechurch-cli play dino-dough <amount> <spins>
 apechurch-cli play dino-dough 10 10      # 10 APE, 10 spins
 apechurch-cli play bubblegum-heist 10 15 # 10 APE, 15 spins
+apechurch-cli play geez-diggerz 10 10    # 10 APE, 10 spins
+apechurch-cli play sushi-showdown 10 10  # 10 APE, 10 spins
 ```
 
 | Parameter | Range | Description |
@@ -389,10 +393,11 @@ apechurch-cli play bubblegum-heist 10 15 # 10 APE, 15 spins
 | spins | 1-15 | Spins per bet (wager split) |
 
 **ABI verified:** `true`
-**Verified runtime:** both games decode `(gameId, numSpins, ref, userRandomWord)`, use a live `getVRFFee()` read, request `numSpins * 3` VRF words, and resolve ordered symbol triples through cumulative reel-stop tables.
-**Exact RTP:** `97.90%` for Dino Dough and `97.80%` for Bubblegum Heist from live reel/payout snapshots read on `2026-04-09`.
-**Current max payout:** `333x` for Dino Dough and `100x` for Bubblegum Heist.
-**Aliases:** `dino`, `slots`, `bubblegum`, `heist`
+**Verified runtime:** all four games decode `(gameId, numSpins, ref, userRandomWord)`, use a live `getVRFFee()` read, request `numSpins * 3` VRF words, and resolve ordered symbol triples through cumulative reel-stop tables.
+**Slot-family note:** Dino Dough and Geez Diggerz are currently exact-match verified on ApeScan; Bubblegum Heist and Sushi Showdown are currently linked `Similar Match` deployments in the same verified `Slots` family.
+**Exact RTP:** `97.90%` for Dino Dough, `97.80%` for Bubblegum Heist, `97.69%` for Geez Diggerz, and `97.87%` for Sushi Showdown from live reel/payout snapshots recorded in the repo.
+**Current max payout:** `333x` for Dino Dough, `100x` for Bubblegum Heist, `50x` for Geez Diggerz, and `500x` for Sushi Showdown.
+**Aliases:** `dino`, `slots`, `bubblegum`, `heist`, `geez`, `diggerz`, `sushi`, `showdown`
 
 
 ---

@@ -377,7 +377,7 @@ describe('RTP Helpers', () => {
     assert.ok(Math.abs(maxPayout.value - 1.025) < 1e-12);
   });
 
-  it('uses the verified live Dino Dough and Bubblegum slot tables for RTP and max payout', () => {
+  it('uses the verified live slot tables for all supported slot games', () => {
     const dino = getConfiguredGameExpectedRtpReference({
       game: 'dino-dough',
       config: { spins: 15 },
@@ -386,6 +386,14 @@ describe('RTP Helpers', () => {
       game: 'bubblegum-heist',
       config: { spins: 7 },
     });
+    const geez = getConfiguredGameExpectedRtpReference({
+      game: 'geez-diggerz',
+      config: { spins: 9 },
+    });
+    const sushi = getConfiguredGameExpectedRtpReference({
+      game: 'sushi-showdown',
+      config: { spins: 5 },
+    });
     const dinoMaxPayout = getConfiguredGameMaxPayoutReference({
       game: 'dino-dough',
       config: { spins: 3 },
@@ -393,6 +401,14 @@ describe('RTP Helpers', () => {
     const bubblegumMaxPayout = getConfiguredGameMaxPayoutReference({
       game: 'bubblegum-heist',
       config: { spins: 10 },
+    });
+    const geezMaxPayout = getConfiguredGameMaxPayoutReference({
+      game: 'geez-diggerz',
+      config: { spins: 1 },
+    });
+    const sushiMaxPayout = getConfiguredGameMaxPayoutReference({
+      game: 'sushi-showdown',
+      config: { spins: 12 },
     });
 
     assert.strictEqual(dino.display, '97.90%');
@@ -405,8 +421,20 @@ describe('RTP Helpers', () => {
     assert.strictEqual(bubblegum.calculationKind, 'exact');
     assert.ok(Math.abs(bubblegum.value - 97.79962375) < 1e-12);
 
+    assert.strictEqual(geez.display, '97.69%');
+    assert.strictEqual(geez.referenceType, 'calculated');
+    assert.strictEqual(geez.calculationKind, 'exact');
+    assert.ok(Math.abs(geez.value - 97.694552458612) < 1e-12);
+
+    assert.strictEqual(sushi.display, '97.87%');
+    assert.strictEqual(sushi.referenceType, 'calculated');
+    assert.strictEqual(sushi.calculationKind, 'exact');
+    assert.ok(Math.abs(sushi.value - 97.87165381190353) < 1e-12);
+
     assert.strictEqual(dinoMaxPayout.display, '333x');
     assert.strictEqual(bubblegumMaxPayout.display, '100x');
+    assert.strictEqual(geezMaxPayout.display, '50x');
+    assert.strictEqual(sushiMaxPayout.display, '500x');
   });
 
   it('computes config-aware max payout for combo-aware games', () => {
@@ -491,6 +519,8 @@ describe('RTP Helpers', () => {
   it('marks verified slot RTP references as exact rather than merely documented', () => {
     assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'bubblegum-heist', currentRtp: null })), '97.80% 👌 / 97.26% / …');
     assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'dino-dough', currentRtp: null })), '97.90% 👌 / 97.80% / …');
+    assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'geez-diggerz', currentRtp: null })), '97.69% 👌 / 97.25% / …');
+    assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'sushi-showdown', currentRtp: null })), '97.87% 👌 / 95.99% / …');
   });
 
   it('shows a statistical badge when the calculated RTP comes from Monte Carlo', () => {

@@ -56,7 +56,9 @@ The alias `dice` is currently registered on both `ape-strong` and `bear-dice`. T
 | `cosmic-plinko` | `cosmic` |
 | `dino-dough` | `dino`, `slots` |
 | `bubblegum-heist` | `bubblegum`, `heist` |
+| `geez-diggerz` | `geez`, `diggerz` |
 | `speed-keno` | `sk`, `speedk` |
+| `sushi-showdown` | `sushi`, `showdown` |
 | `monkey-match` | `monkey`, `mm` |
 | `bear-dice` | `bear`, `dice`, `bd` |
 | `primes` | `prime` |
@@ -93,9 +95,11 @@ The alias `dice` is currently registered on both `ape-strong` and `bear-dice`. T
                 | "speed-keno"
                 | "dino-dough"
                 | "bubblegum-heist"
+                | "geez-diggerz"
                 | "monkey-match"
                 | "bear-dice"
                 | "primes"
+                | "sushi-showdown"
 <video-poker-bet> ::= "1" | "5" | "10" | "25" | "50" | "100"
 <auto-mode> ::= "simple" | "best"
 ```

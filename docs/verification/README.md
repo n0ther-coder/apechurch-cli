@@ -15,6 +15,8 @@ Each `*_CONTRACT.md` file below is the maintainer-facing evidence bundle for one
 | Speed Keno | `SPEED_KENO_CONTRACT.md` | Batched draw model, custom gas limit, and exact RTPs |
 | Dino Dough | `DINO_DOUGH_CONTRACT.md` | Exact-match slots source trail, live reels, ordered paytable, and exact RTP |
 | Bubblegum Heist | `BUBBLEGUM_HEIST_CONTRACT.md` | Similar-match slots trail, live reels, ordered paytable, and exact RTP |
+| Geez Diggerz | `GEEZ_DIGGERZ_CONTRACT.md` | Exact-match slots source trail, symmetric reels, ordered paytable, and exact RTP |
+| Sushi Showdown | `SUSHI_SHOWDOWN_CONTRACT.md` | Similar-match slots trail, `7`-symbol asymmetric reels, ordered paytable, and exact RTP |
 | Monkey Match | `MONKEY_MATCH_CONTRACT.md` | Five-draw multiplicity model, live mode constants, and exact combinatorial RTP |
 | Bear-A-Dice | `BEAR_DICE_CONTRACT.md` | Verified 2d6 payout table, custom gas limit, and difficulty/run matrices |
 | Blocks | `BLOCKS_CONTRACT.md` | Verified tuple layout, batched run fee path, and exact mode RTP from the published cluster table |

@@ -267,9 +267,11 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Speed Keno ✔︎'), 'Should list verified Speed Keno');
       assert.ok(stdout.includes('Dino Dough ✔︎'), 'Should list verified Dino Dough');
       assert.ok(stdout.includes('Bubblegum Heist ✔︎'), 'Should list verified Bubblegum Heist');
+      assert.ok(stdout.includes('Geez Diggerz ✔︎'), 'Should list verified Geez Diggerz');
       assert.ok(stdout.includes('Bear-A-Dice ✔︎'), 'Should list verified Bear-A-Dice');
       assert.ok(stdout.includes('Blocks ✔︎'), 'Should list verified Blocks');
       assert.ok(stdout.includes('Primes ✔︎'), 'Should list verified Primes');
+      assert.ok(stdout.includes('Sushi Showdown ✔︎'), 'Should list verified Sushi Showdown');
       const simpleOrder = [
         'ApeStrong ✔︎',
         'Baccarat ✔︎',
@@ -278,12 +280,14 @@ describe('CLI Commands Integration Tests', () => {
         'Bubblegum Heist ✔︎',
         'Cosmic Plinko ✔︎',
         'Dino Dough ✔︎',
+        'Geez Diggerz ✔︎',
         'Jungle Plinko ✔︎',
         'Keno ✔︎',
         'Monkey Match ✔︎',
         'Primes ✔︎',
         'Roulette ✔︎',
         'Speed Keno ✔︎',
+        'Sushi Showdown ✔︎',
       ];
       let lastIndex = stdout.indexOf('Simple Games:');
       for (const title of simpleOrder) {
@@ -340,12 +344,14 @@ describe('CLI Commands Integration Tests', () => {
           'bubblegum-heist',
           'cosmic-plinko',
           'dino-dough',
+          'geez-diggerz',
           'jungle-plinko',
           'keno',
           'monkey-match',
           'primes',
           'roulette',
           'speed-keno',
+          'sushi-showdown',
           'video-poker',
         ],
         'Games JSON should be ordered alphabetically by game title'
@@ -369,7 +375,7 @@ describe('CLI Commands Integration Tests', () => {
 
     it('shows alphabetized available games when the name is invalid', () => {
       const { stdout } = cli('game nope');
-      assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | jungle-plinko | keno | monkey-match | primes | roulette | speed-keno'));
+      assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | geez-diggerz | jungle-plinko | keno | monkey-match | primes | roulette | speed-keno | sushi-showdown'));
       assert.ok(stdout.includes('Stateful: blackjack | video-poker'));
     });
 
@@ -386,12 +392,14 @@ describe('CLI Commands Integration Tests', () => {
         'bubblegum-heist',
         'cosmic-plinko',
         'dino-dough',
+        'geez-diggerz',
         'jungle-plinko',
         'keno',
         'monkey-match',
         'primes',
         'roulette',
         'speed-keno',
+        'sushi-showdown',
         'video-poker',
       ]);
     });
@@ -481,6 +489,22 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Bubblegum Heist ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified Geez Diggerz', () => {
+      const { stdout } = cli('game geez-diggerz --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Geez Diggerz ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified Sushi Showdown', () => {
+      const { stdout } = cli('game sushi-showdown --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Sushi Showdown ✔︎');
     });
 
     it('exposes ABI verification metadata for verified stateful video poker', () => {

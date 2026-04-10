@@ -24,12 +24,14 @@ Ordering: alphabetical by game title.
 | Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` |
 | Cosmic Plinko ✔︎ | `play cosmic <amt> <mode> <balls>` | `--game cosmic --amount X --mode Y --balls Z` |
 | Dino Dough ✔︎ | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` |
+| Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` |
 | Jungle Plinko ✔︎ | `play jungle <amt> <mode> <balls>` | `--game jungle --amount X --mode Y --balls Z` |
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` |
 | Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --mode Y` |
 | Primes ✔︎ | `play primes <amt> <difficulty> <runs>` | `--game primes --amount X --difficulty Y --runs Z` |
 | Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` |
 | Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` |
+| Sushi Showdown ✔︎ | `play sushi-showdown <amt> <spins>` | `--game sushi-showdown --amount X --spins Y` |
 | Video Poker ✔︎ / Gimboz Poker | `video-poker <amt>` | `video-poker <amt> --auto best` |
 
 ## Grammar Conventions
@@ -71,12 +73,14 @@ Ordering: alphabetical by game title.
 | Bubblegum Heist ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
 | Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-30` balls |
 | Dino Dough ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
+| Geez Diggerz ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
 | Jungle Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-100` balls |
 | Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Monkey Match ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Primes ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` runs |
 | Roulette ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split evenly across comma-separated bets |
 | Speed Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` batched games |
+| Sushi Showdown ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
 | Video Poker ✔︎ / Gimboz Poker | Fixed denominations only | Fixed list: `1`, `5`, `10`, `25`, `50`, `100 APE` | Fixed max `100 APE` | Loop mode rounds to the closest affordable valid denomination; jackpot eligibility requires `100 APE` |
 
 ---
@@ -270,6 +274,29 @@ Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` 
 - Max payout: `333x`.
 - Operational note: much deeper ordered paytable than the public crop suggests; use the verification note for the full reel and triple matrix.
 
+## Geez Diggerz ✔︎
+
+**Type:** Slots
+**Contract:** `0xB02b13Adb8eAaFe1F41ec942612C4a4862b74d1D`
+**ABI verified:** `true`
+**Aliases:** `geez`, `diggerz`
+**Verification notes:** [GEEZ_DIGGERZ_CONTRACT.md](./verification/GEEZ_DIGGERZ_CONTRACT.md)
+**Odds tables:** [GEEZ_DIGGERZ_ODDS_PAYOUTS.md](./odds/GEEZ_DIGGERZ_ODDS_PAYOUTS.md)
+
+Verified ordered `3`-reel slot with `6` live symbol indexes and the same cumulative `82`-stop reel table on all `3` reels. Spin count can be `1-15`; only floor-division dust changes across spin counts, not the contract-backed per-spin EV.
+
+**Command:** `apechurch-cli play geez-diggerz <amount> <spins>`
+
+```bnf
+<amount> ::= <ape>
+<spins> ::= <integer>              ; 1 <= value <= 15
+```
+
+**Compare:**
+- Exact RTP: `97.694552458612%` per spin.
+- Max payout: `50x`.
+- Operational note: flatter, rebate-heavy paytable than the other promoted slots; positive payout is about `41.02%`, while net-profit outcomes are about `30.00%`.
+
 ## Jungle Plinko ✔︎
 
 **Type:** Plinko
@@ -417,6 +444,29 @@ Fast batched keno on a `1-20` board. You choose `1-5` picks and batch `1-20` min
 - Max payout: `2,000x` on `5/5`.
 - Operational note: `5 picks` is the best-EV lane; batch count only changes dust and pacing, not the per-game draw EV.
 
+## Sushi Showdown ✔︎
+
+**Type:** Slots
+**Contract:** `0x7B53Ec7A5e1C30D4b91D2c3Ec0472a6E4818a657`
+**ABI verified:** `true`
+**Aliases:** `sushi`, `showdown`
+**Verification notes:** [SUSHI_SHOWDOWN_CONTRACT.md](./verification/SUSHI_SHOWDOWN_CONTRACT.md)
+**Odds tables:** [SUSHI_SHOWDOWN_ODDS_PAYOUTS.md](./odds/SUSHI_SHOWDOWN_ODDS_PAYOUTS.md)
+
+Verified ordered `3`-reel slot in the same ABI family as Dino Dough, Bubblegum Heist, and Geez Diggerz, but with `7` live symbol indexes and asymmetric reels. Spin count can be `1-15`; the per-spin EV comes from the live reel tables and full ordered paytable snapshot.
+
+**Command:** `apechurch-cli play sushi-showdown <amount> <spins>`
+
+```bnf
+<amount> ::= <ape>
+<spins> ::= <integer>              ; 1 <= value <= 15
+```
+
+**Compare:**
+- Exact RTP: `97.87165381190353%` per spin.
+- Max payout: `500x`.
+- Operational note: lower hit rate than Geez at about `31.19%`, but a much fatter top tail and many fractional mid-tier payouts from the live basis-point table.
+
 ## Video Poker ✔︎ / Gimboz Poker
 
 **Type:** Cards
@@ -548,6 +598,12 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 |------|-------------|-----------|--------|--------------------|
 | Any spin count `1-15` | Yes | `97.90%` | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `97.80%` |
 
+#### Sushi Showdown ✔︎
+
+| Mode | CLI Support | Exact RTP | Method | Public Running RTP |
+|------|-------------|-----------|--------|--------------------|
+| Any spin count `1-15` | Yes | `97.87%` | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `95.99%` |
+
 #### Speed Keno ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
@@ -571,6 +627,12 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 | Mode 2 / High | Yes | `97.80%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
 | Mode 1 / Modest | Yes | `97.76%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
 | Mode 0 / Low | Yes | `97.73%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
+
+#### Geez Diggerz ✔︎
+
+| Mode | CLI Support | Exact RTP | Method | Public Running RTP |
+|------|-------------|-----------|--------|--------------------|
+| Any spin count `1-15` | Yes | `97.69%` | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `97.25%` |
 
 #### ApeStrong ✔︎
 
@@ -601,7 +663,7 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 ### Still Not Exactly Calculable from Local Sources
 
-The local source set is still insufficient for a defensible closed-form RTP on `Cash Dash`, `Cult Quest`, `Geez Diggerz`, `Gimboz Smash`, `Glyde or Crash`, `Hi-Lo Nebula`, `Reel Pirates`, `Rico's Revenge`, and `Sushi Showdown`.
+The local source set is still insufficient for a defensible closed-form RTP on `Cash Dash`, `Cult Quest`, `Gimboz Smash`, `Glyde or Crash`, `Hi-Lo Nebula`, `Reel Pirates`, and `Rico's Revenge`.
 
 For `Blackjack ✔︎`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables and the public rule surface now matches the repo solver assumptions.
 
@@ -723,13 +785,11 @@ Ordering: alphabetical by game title.
 |------|------------------------|-------------|----------|-------|
 | Cash Dash | ladder / cash-out tile game | 96.04% | aggregate only | Docs + transparency; each step raises multiplier and can bust the run |
 | Cult Quest | gem / trap grid cash-out game | 96.67% | aggregate only | Docs + transparency; fewer safe spots means higher risk |
-| Geez Diggerz | slot-style icon game | 97.25% | partial paytable | Transparency only in the material archived here; header shows `97.8%` calculated RTP |
 | Gimboz Smash | range-target risk game | 99.42% | aggregate only | Docs + transparency; not the same mechanic as the supported `ape-strong` command |
 | Glyde or Crash | crash / cash-out multiplier game | 105.59% | aggregate only | Docs + transparency; official docs also use the spelling `Glyder or Crash` |
 | Hi-Lo Nebula | higher/lower card streak game | 97.84% | paytable | Docs + transparency; public header shows `97.5%` calculated RTP |
 | Reel Pirates | undocumented in current official source set | 99.81% | aggregate only | Transparency only in the material archived here |
 | Rico's Revenge | undocumented in current official source set | 90.94% | aggregate only | Transparency only in the material archived here |
-| Sushi Showdown | slot-style icon game | 95.99% | partial paytable | Transparency only in the material archived here |
 
 ### Richer Public Mechanics
 
@@ -737,6 +797,4 @@ Ordering: alphabetical by game title.
 
 | Game | Useful public detail |
 |------|----------------------|
-| Geez Diggerz | The visible public slot patterns top out at `50x` for `A A A`; mixed visible patterns mostly cluster around `8x` to `10x`. |
 | Hi-Lo Nebula | Multiplier depends on the current card. Edge cards only allow one direction at `1.0600x`, while `8` is symmetric at `2.0833x` for either `Higher` or `Lower`. |
-| Sushi Showdown | The visible public slot patterns top out at `500x` for `A A A`, with mixed patterns like `A A B`, `A B A`, and `B A A` all paying `100x`. |

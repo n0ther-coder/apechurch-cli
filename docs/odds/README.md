@@ -19,6 +19,8 @@ These notes belong under `docs/odds/` only when the repo already has a defensibl
 | Bear-A-Dice ✔︎ | [BEAR_DICE_ODDS_PAYOUTS.md](./BEAR_DICE_ODDS_PAYOUTS.md) | Fully exact `2d6` survival distributions across `5 x 5` verified difficulty/roll variants. |
 | Blocks ✔︎ | [BLOCKS_ODDS_PAYOUTS.md](./BLOCKS_ODDS_PAYOUTS.md) | The published cluster table collapses the whole 3x3 board game to seven paying outcome classes per mode. |
 | Primes ✔︎ | [PRIMES_ODDS_PAYOUTS.md](./PRIMES_ODDS_PAYOUTS.md) | Each difficulty has only three exact outcome classes: zero, prime, or dead run. |
+| Geez Diggerz ✔︎ | [GEEZ_DIGGERZ_ODDS_PAYOUTS.md](./GEEZ_DIGGERZ_ODDS_PAYOUTS.md) | The full live ordered-triple matrix compresses cleanly to `16` payout rows after the symmetric reel snapshot. |
+| Sushi Showdown ✔︎ | [SUSHI_SHOWDOWN_ODDS_PAYOUTS.md](./SUSHI_SHOWDOWN_ODDS_PAYOUTS.md) | The full live ordered-triple matrix still stays readable as a `45`-row exact per-spin distribution. |
 
 ## Possible, But Only With Extra Snapshotting
 

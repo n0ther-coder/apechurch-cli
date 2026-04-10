@@ -167,8 +167,9 @@ import {
   selectGameAndConfig,
   computeCooldownMs,
 } from '../lib/strategy.js';
-import { playGame, resolveGame } from '../lib/games/index.js';
+import { configGetters, playGame, resolveGame } from '../lib/games/index.js';
 import { resolveBearDiceConfig } from '../lib/games/beardice.js';
+import { resolveSlotsConfig } from '../lib/games/slots.js';
 import {
   GAME_REGISTRY,
   listGames,
@@ -2436,10 +2437,21 @@ program
       // Determine game and config
       let gameEntry;
       let gameConfig = {};
+      const preferGameDefault = Boolean(fixedGame && !loopMode);
       
       if (fixedGame) {
         gameEntry = fixedGame;
-        gameConfig = { ...positionalConfig };
+        const getConfig = configGetters[gameEntry.type];
+        gameConfig = getConfig
+          ? getConfig(
+              opts,
+              positionalConfig,
+              gameEntry,
+              strategyConfig,
+              randomIntInclusive,
+              { preferGameDefault }
+            )
+          : { ...positionalConfig };
       } else {
         const selection = selectGameAndConfig(strategyConfig);
         gameEntry = resolveGame(selection.game);
@@ -2454,8 +2466,8 @@ program
         };
       }
 
-      // Apply CLI opts/positional/strategy defaults
-      if (gameEntry.type === 'plinko') {
+      // Apply CLI opts/positional/strategy defaults for loop/auto flows.
+      if (!preferGameDefault && gameEntry.type === 'plinko') {
         if (opts.mode !== undefined) gameConfig.mode = parseInt(opts.mode);
         else if (positionalConfig.mode !== undefined) gameConfig.mode = positionalConfig.mode;
         else if (gameConfig.mode === undefined) {
@@ -2478,35 +2490,42 @@ program
           );
           gameConfig.balls = randomIntInclusive(min, max);
         }
-      } else if (gameEntry.type === 'slots') {
-        if (opts.spins !== undefined) gameConfig.spins = parseInt(opts.spins);
-        else if (positionalConfig.spins !== undefined) gameConfig.spins = positionalConfig.spins;
-        else if (gameConfig.spins === undefined) {
-          const [min, max] = strategyConfig.slots?.spins || [1, 15];
-          gameConfig.spins = randomIntInclusive(min, max);
+      } else if (!preferGameDefault && gameEntry.type === 'slots') {
+        if (gameConfig.spins === undefined) {
+          gameConfig = {
+            ...gameConfig,
+            ...resolveSlotsConfig({
+              opts,
+              positionalConfig,
+              strategyConfig,
+              randomIntInclusive,
+              gameEntry,
+              preferGameDefault: Boolean(fixedGame && !loopMode),
+            }),
+          };
         }
-      } else if (gameEntry.type === 'roulette') {
+      } else if (!preferGameDefault && gameEntry.type === 'roulette') {
         if (opts.bet) gameConfig.bet = opts.bet;
         else if (positionalConfig.bet) gameConfig.bet = positionalConfig.bet;
         else if (!gameConfig.bet) {
           const cfg = strategyConfig.roulette || { defaultBet: 'random' };
           gameConfig.bet = cfg.defaultBet === 'random' ? (Math.random() < 0.5 ? 'RED' : 'BLACK') : cfg.defaultBet;
         }
-      } else if (gameEntry.type === 'baccarat') {
+      } else if (!preferGameDefault && gameEntry.type === 'baccarat') {
         if (opts.bet) gameConfig.bet = opts.bet;
         else if (positionalConfig.bet) gameConfig.bet = positionalConfig.bet;
         else if (!gameConfig.bet) {
           const cfg = strategyConfig.baccarat || { defaultBet: 'random' };
           gameConfig.bet = cfg.defaultBet === 'random' ? (Math.random() < 0.5 ? 'PLAYER' : 'BANKER') : cfg.defaultBet;
         }
-      } else if (gameEntry.type === 'apestrong') {
+      } else if (!preferGameDefault && gameEntry.type === 'apestrong') {
         if (opts.range !== undefined) gameConfig.range = parseInt(opts.range);
         else if (positionalConfig.range !== undefined) gameConfig.range = positionalConfig.range;
         else if (gameConfig.range === undefined) {
           const [min, max] = strategyConfig.apestrong?.range || [40, 60];
           gameConfig.range = randomIntInclusive(min, max);
         }
-      } else if (gameEntry.type === 'keno') {
+      } else if (!preferGameDefault && gameEntry.type === 'keno') {
         // Numbers first (if provided, picks is inferred)
         if (opts.numbers) gameConfig.numbers = opts.numbers;
         else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
@@ -2522,7 +2541,7 @@ program
           const [min, max] = strategyConfig.keno?.picks || [3, 6];
           gameConfig.picks = randomIntInclusive(min, max);
         }
-      } else if (gameEntry.type === 'speedkeno') {
+      } else if (!preferGameDefault && gameEntry.type === 'speedkeno') {
         // Number of games (batching)
         if (opts.games !== undefined) gameConfig.games = parseInt(opts.games);
         else if (positionalConfig.games !== undefined) gameConfig.games = positionalConfig.games;
@@ -2545,7 +2564,7 @@ program
           const [min, max] = strategyConfig.speedKeno?.picks || [2, 4];
           gameConfig.picks = randomIntInclusive(min, max);
         }
-      } else if (gameEntry.type === 'beardice') {
+      } else if (!preferGameDefault && gameEntry.type === 'beardice') {
         gameConfig = resolveBearDiceConfig(
           gameConfig,
           opts,
@@ -2553,7 +2572,7 @@ program
           strategyConfig,
           randomIntInclusive
         );
-      } else if (gameEntry.type === 'monkeymatch') {
+      } else if (!preferGameDefault && gameEntry.type === 'monkeymatch') {
         // Mode (1=Low Risk, 2=Normal Risk)
         if (opts.mode !== undefined) gameConfig.mode = parseInt(opts.mode);
         else if (positionalConfig.mode !== undefined) gameConfig.mode = positionalConfig.mode;
@@ -2564,7 +2583,7 @@ program
         // Clamp to valid range
         if (gameConfig.mode < 1) gameConfig.mode = 1;
         if (gameConfig.mode > 2) gameConfig.mode = 2;
-      } else if (gameEntry.type === 'blocks') {
+      } else if (!preferGameDefault && gameEntry.type === 'blocks') {
         if (opts.mode !== undefined) gameConfig.mode = parseInt(opts.mode);
         else if (positionalConfig.mode !== undefined) gameConfig.mode = positionalConfig.mode;
         else if (gameConfig.mode === undefined) {
@@ -2588,7 +2607,7 @@ program
           );
           gameConfig.runs = randomIntInclusive(min, max);
         }
-      } else if (gameEntry.type === 'primes') {
+      } else if (!preferGameDefault && gameEntry.type === 'primes') {
         if (opts.difficulty !== undefined) gameConfig.difficulty = parseInt(opts.difficulty);
         else if (positionalConfig.difficulty !== undefined) gameConfig.difficulty = positionalConfig.difficulty;
         else if (gameConfig.difficulty === undefined) {

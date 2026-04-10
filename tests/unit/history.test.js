@@ -10,8 +10,10 @@ import {
   BUBBLEGUM_HEIST_CONTRACT,
   COSMIC_PLINKO_CONTRACT,
   DINO_DOUGH_CONTRACT,
+  GEEZ_DIGGERZ_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   ROULETTE_CONTRACT,
+  SUSHI_SHOWDOWN_CONTRACT,
 } from '../../lib/constants.js';
 import {
   fetchSavedHistoryEntries,
@@ -49,6 +51,8 @@ describe('History Helpers', () => {
     it('adds the ABI verified badge for verified simple-game contracts', () => {
       assert.strictEqual(resolveHistoryGameName(DINO_DOUGH_CONTRACT), 'Dino Dough ✔︎');
       assert.strictEqual(resolveHistoryGameName(BUBBLEGUM_HEIST_CONTRACT), 'Bubblegum Heist ✔︎');
+      assert.strictEqual(resolveHistoryGameName(GEEZ_DIGGERZ_CONTRACT), 'Geez Diggerz ✔︎');
+      assert.strictEqual(resolveHistoryGameName(SUSHI_SHOWDOWN_CONTRACT), 'Sushi Showdown ✔︎');
       assert.strictEqual(resolveHistoryGameName(BEAR_DICE_CONTRACT), 'Bear-A-Dice ✔︎');
       assert.strictEqual(resolveHistoryGameName(BACCARAT_CONTRACT), 'Baccarat ✔︎');
       assert.strictEqual(resolveHistoryGameName(JUNGLE_PLINKO_CONTRACT), 'Jungle Plinko ✔︎');
