@@ -263,6 +263,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Cosmic Plinko ✔︎'), 'Should list verified Cosmic Plinko');
       assert.ok(stdout.includes('Keno ✔︎'), 'Should list verified Keno');
       assert.ok(stdout.includes('Speed Keno ✔︎'), 'Should list verified Speed Keno');
+      assert.ok(stdout.includes('Dino Dough ✔︎'), 'Should list verified Dino Dough');
+      assert.ok(stdout.includes('Bubblegum Heist ✔︎'), 'Should list verified Bubblegum Heist');
       assert.ok(stdout.includes('Bear-A-Dice ✔︎'), 'Should list verified Bear-A-Dice');
       assert.ok(stdout.includes('Primes ✔︎'), 'Should list verified Primes');
     });
@@ -375,6 +377,22 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Speed Keno ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified Dino Dough', () => {
+      const { stdout } = cli('game dino-dough --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Dino Dough ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified Bubblegum Heist', () => {
+      const { stdout } = cli('game bubblegum-heist --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Bubblegum Heist ✔︎');
     });
 
     it('exposes ABI verification metadata for verified stateful video poker', () => {

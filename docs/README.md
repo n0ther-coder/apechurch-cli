@@ -20,14 +20,12 @@ Everything else lives under `docs/` or next to the code it explains.
 | `docs/COMMAND_REFERENCE.md` | Users / maintainers | High | Yes | Canonical CLI command surface, including top-level commands, options, aliases, and shared BNF. |
 | `docs/ADDING_GAMES.md` | Maintainers | High | Yes | Source of truth for extending the game registry and CLI handlers. |
 | `docs/ABI_VERIFICATION.md` | Maintainers | High | Yes | Promotion checklist for deciding when a supported game may be marked `ABI verified` and shown with `✔︎`. |
-| `docs/GAMES_REFERENCE.md` | Users / maintainers | High | Yes | Quick syntax cookbook plus BNF argument grammar, transparency-derived RTP, payout, paytable, comparison, and GP-farming notes for supported games, with a compact appendix for public-but-unsupported titles. |
+| `docs/GAMES_REFERENCE.md` | Users / maintainers | High | Yes | Comparison-first syntax and RTP summary for supported games, with a compact appendix for public-but-unsupported titles. |
 | `docs/PUBLISHING.md` | Maintainers | High | Yes | Release and packaging checklist. |
 | `docs/FEATURES.md` | Marketing / product | Medium | Maybe | Useful as a product snapshot, but some sections overlap with `README.md`. |
 | `docs/THESIS.md` | Marketing / narrative | Low | Maybe | Positioning document, not operational documentation. |
-| `docs/APESTRONG_CONTRACT.md` | Maintainers | Medium | Maybe | Raw contract notes for the ApeStrong ABI verification and live payout-table snapshot. |
-| `docs/BEAR_DICE_CONTRACT.md` | Maintainers | Medium | Maybe | Raw contract notes for the Bear-A-Dice ABI verification and RTP promotion. |
-| `docs/BLACKJACK_CONTRACT.md` | Maintainers | Medium | Maybe | Raw contract notes for blackjack integration. |
-| `docs/BLACKJACK_NOTES.md` | Maintainers | Medium | Yes | Cleaner blackjack integration notes derived from the contract details. |
+| `docs/verification/README.md` | Maintainers | High | Yes | Index of the canonical per-game ABI verification notes. |
+| `docs/verification/*.md` | Maintainers | High | Yes | Canonical per-game verification trail for every `ABI verified` title, including mechanics, tuple layout, and contract-backed RTP notes. |
 | `tests/README.md` | Maintainers | High | Yes | Test entry point; keep it next to the tests. |
 
 ## Archive
@@ -38,7 +36,7 @@ Historical notes that are not current source of truth live in `docs/archive/`:
 - `docs/archive/agent_nodes.md`
 - `docs/archive/TRANSPARENCY_REFERENCE.md`
 
-These are worth keeping for context, but they should not drive current implementation or release steps. `TRANSPARENCY_REFERENCE.md` stays archived as the fuller extraction snapshot after the supported-game details were folded into `docs/GAMES_REFERENCE.md`.
+These are worth keeping for context, but they should not drive current implementation or release steps. `TRANSPARENCY_REFERENCE.md` stays archived as the fuller extraction snapshot after the supported-game details were folded into `docs/GAMES_REFERENCE.md` and `docs/verification/`.
 
 ## Layout Policy
 

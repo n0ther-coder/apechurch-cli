@@ -340,6 +340,7 @@ export const GAME_REGISTRY = [
     description: 'Dinosaur-themed slot machine. Spin for matching symbols and multipliers.',
     contract: DINO_DOUGH_CONTRACT,
     aliases: ['dino', 'slots'],
+    abiVerified: true,
     config: {
       spins: {
         min: 1,
@@ -368,6 +369,7 @@ export const GAME_REGISTRY = [
     description: 'Candy-themed slot machine. Spin for sweet multipliers and jackpots.',
     contract: BUBBLEGUM_HEIST_CONTRACT,
     aliases: ['bubblegum', 'heist'],
+    abiVerified: true,
     config: {
       spins: {
         min: 1,

@@ -7,7 +7,9 @@ import { parseEther } from 'viem';
 import {
   BEAR_DICE_CONTRACT,
   BACCARAT_CONTRACT,
+  BUBBLEGUM_HEIST_CONTRACT,
   COSMIC_PLINKO_CONTRACT,
+  DINO_DOUGH_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   ROULETTE_CONTRACT,
 } from '../../lib/constants.js';
@@ -44,7 +46,9 @@ describe('History Helpers', () => {
       );
     });
 
-    it('adds the ABI verified badge for verified Plinko, Roulette, Baccarat, and Bear-A-Dice contracts', () => {
+    it('adds the ABI verified badge for verified simple-game contracts', () => {
+      assert.strictEqual(resolveHistoryGameName(DINO_DOUGH_CONTRACT), 'Dino Dough ✔︎');
+      assert.strictEqual(resolveHistoryGameName(BUBBLEGUM_HEIST_CONTRACT), 'Bubblegum Heist ✔︎');
       assert.strictEqual(resolveHistoryGameName(BEAR_DICE_CONTRACT), 'Bear-A-Dice ✔︎');
       assert.strictEqual(resolveHistoryGameName(BACCARAT_CONTRACT), 'Baccarat ✔︎');
       assert.strictEqual(resolveHistoryGameName(JUNGLE_PLINKO_CONTRACT), 'Jungle Plinko ✔︎');

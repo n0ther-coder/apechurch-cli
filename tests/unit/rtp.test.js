@@ -333,6 +333,38 @@ describe('RTP Helpers', () => {
     assert.ok(Math.abs(maxPayout.value - 1.025) < 1e-12);
   });
 
+  it('uses the verified live Dino Dough and Bubblegum slot tables for RTP and max payout', () => {
+    const dino = getConfiguredGameExpectedRtpReference({
+      game: 'dino-dough',
+      config: { spins: 15 },
+    });
+    const bubblegum = getConfiguredGameExpectedRtpReference({
+      game: 'bubblegum-heist',
+      config: { spins: 7 },
+    });
+    const dinoMaxPayout = getConfiguredGameMaxPayoutReference({
+      game: 'dino-dough',
+      config: { spins: 3 },
+    });
+    const bubblegumMaxPayout = getConfiguredGameMaxPayoutReference({
+      game: 'bubblegum-heist',
+      config: { spins: 10 },
+    });
+
+    assert.strictEqual(dino.display, '97.90%');
+    assert.strictEqual(dino.referenceType, 'calculated');
+    assert.strictEqual(dino.calculationKind, 'exact');
+    assert.ok(Math.abs(dino.value - 97.89751366817333) < 1e-12);
+
+    assert.strictEqual(bubblegum.display, '97.80%');
+    assert.strictEqual(bubblegum.referenceType, 'calculated');
+    assert.strictEqual(bubblegum.calculationKind, 'exact');
+    assert.ok(Math.abs(bubblegum.value - 97.79962375) < 1e-12);
+
+    assert.strictEqual(dinoMaxPayout.display, '333x');
+    assert.strictEqual(bubblegumMaxPayout.display, '100x');
+  });
+
   it('computes config-aware max payout for combo-aware games', () => {
     const roulette = getConfiguredGameMaxPayoutReference({ game: 'roulette', config: { bet: 'RED,BLACK' } });
     const baccarat = getConfiguredGameMaxPayoutReference({
@@ -412,8 +444,9 @@ describe('RTP Helpers', () => {
     assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'video-poker', currentRtp: null })), '98.16% 👌 / 89.53% / …');
   });
 
-  it('marks documented theoretical RTP references with a document badge', () => {
-    assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'bubblegum-heist', currentRtp: null })), '97.80% 📄 / 97.26% / …');
+  it('marks verified slot RTP references as exact rather than merely documented', () => {
+    assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'bubblegum-heist', currentRtp: null })), '97.80% 👌 / 97.26% / …');
+    assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'dino-dough', currentRtp: null })), '97.90% 👌 / 97.80% / …');
   });
 
   it('shows a statistical badge when the calculated RTP comes from Monte Carlo', () => {

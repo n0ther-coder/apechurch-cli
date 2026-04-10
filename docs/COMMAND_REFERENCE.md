@@ -4,7 +4,7 @@
 
 This file is the canonical command reference for the repo. `apechurch-cli commands` remains a compact terminal index; use this file when you need the full command surface, exact option names, or the shared BNF tokens accepted by the parser.
 
-For per-game argument grammar such as roulette bets, baccarat combined bets, and `--numbers` payloads, see [GAMES_REFERENCE.md](./GAMES_REFERENCE.md).
+For per-game argument grammar such as roulette bets, baccarat combined bets, and `--numbers` payloads, see [GAMES_REFERENCE.md](./GAMES_REFERENCE.md). For deeper mechanics and ABI-backed behavior notes, see `docs/verification/`.
 
 ## Conventions
 
@@ -404,7 +404,7 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 <commands-command> ::= "commands"
 ```
 
-This command is intentionally compact in the terminal. The canonical full reference is this file plus [GAMES_REFERENCE.md](./GAMES_REFERENCE.md).
+This command is intentionally compact in the terminal. The canonical reference set is this file plus [GAMES_REFERENCE.md](./GAMES_REFERENCE.md), with `docs/verification/` holding the deep per-game mechanics notes.
 
 ### `help [topic]`
 

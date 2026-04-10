@@ -1,6 +1,6 @@
 # Blackjack Contract Verification Notes
 
-> Summary: Public ABI and runtime evidence used to promote Blackjack to `ABI verified` on 2026-04-09.
+> Summary: Public ABI, runtime evidence, and maintainer-facing integration notes used to promote Blackjack to `ABI verified` on 2026-04-09.
 
 ## Public Source Trail
 
@@ -74,6 +74,107 @@ The public frontend also uses:
 - `getEssentialGameInfo(gameIds)`
 
 for replay and history surfaces. That matches the repo's expectation that Blackjack history can be reconstructed from contract-backed getters.
+
+## Verified Start Flow
+
+The local integration and the public ABI surface together imply this runtime sequence:
+
+1. `play(address player, bytes gameData)` starts the session with `mainBet + sideBet0 + sideBet1 + vrfFee()`.
+2. The initial VRF callback deals the player's first two cards and the dealer upcard.
+3. If the player has a natural blackjack, the dealer resolves immediately and the game may complete in the same callback.
+4. Otherwise the game moves into a player-action state with `awaitingRandomNumber = false`.
+
+Operational consequence:
+
+- polling should wait until `awaitingRandomNumber` becomes `false`; only then is it the player's turn again or the game is complete
+
+## Verified State Layout
+
+The public ABI reference exposes the full `GameInfoReturnType`, including:
+
+- `gameState`
+- `activeHandIndex`
+- `playerHands[2]`
+- `dealerHand`
+- `sideBets[2]`
+- `insuranceBet`
+- `awaitingRandomNumber`
+- `initialBet`
+- `totalBet`
+- `totalPayout`
+- `surrendered`
+- `timestamp`
+
+The repo's maintainer-facing enum layout is:
+
+### GameState
+
+| Value | Name | Meaning |
+|-------|------|---------|
+| `0` | `READY` | Before the initial deal completes |
+| `1` | `PLAYER_ACTION` | Main hand active |
+| `2` | `SPLIT_ACTION_1` | First split hand active |
+| `3` | `SPLIT_ACTION_2` | Second split hand active |
+| `4` | `DEALER_TURN` | Dealer resolving |
+| `5` | `HAND_COMPLETE` | Game settled |
+
+### HandStatus
+
+| Value | Name |
+|-------|------|
+| `0` | `ACTIVE` |
+| `1` | `STOOD` |
+| `2` | `BUSTED` |
+| `3` | `BLACKJACK` |
+
+### Card Display Mapping
+
+The public frontend and the repo agree on:
+
+```text
+rank = rawCard % 13 + 1
+suit = floor(rawCard / 13)
+```
+
+with suits ordered as `diamonds`, `hearts`, `clubs`, `spades`.
+
+## Verified Action Preconditions
+
+These action rules are part of the contract-facing behavior the repo relies on:
+
+- `playerHit(gameId)`
+  - requires an active player-action state
+  - sends exactly `vrfFee()`
+- `playerStand(gameId)`
+  - sends `0` only when standing from split hand 1 into an already-active second split hand
+  - otherwise sends `vrfFee()`
+- `playerDoubleDown(gameId)`
+  - requires exactly two cards on the active hand
+  - sends `initialBet + vrfFee()`
+- `playerSplit(gameId)`
+  - is only available from the main hand
+  - cannot be used after a prior split
+  - requires two equal-value opening cards
+  - sends `initialBet + vrfFee()`
+- `playerInsurance(gameId)`
+  - only on the first action
+  - requires dealer upcard Ace
+  - sends `initialBet / 2`
+- `playerSurrender(gameId)`
+  - only on the first action
+  - is mutually exclusive with insurance
+  - sends `0`
+
+Important implementation detail:
+
+- split checks card value, not face label, so `10`, `J`, `Q`, and `K` all count as splittable equals
+
+## Verified Turn Optimizations
+
+The repo's blackjack flow also relies on these contract-backed runtime shortcuts:
+
+- if a player busts or reaches a terminal total that immediately hands control away, the contract can move directly into dealer resolution without an extra manual stand action
+- after a bust, dealer draw behavior is minimized because the main outcome is already determined except for any insurance-related settlement path
 
 ## Verified Public Rules and Solver Assumptions
 

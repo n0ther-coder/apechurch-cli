@@ -1,10 +1,10 @@
 # Games Reference
 
-> Summary: Command cookbook for every supported game, plus a compact appendix for public Ape Church games not yet exposed by this CLI. Gives quick syntax, parameter reminders, examples, and the most useful transparency metrics without the broader agent-focused context in `SKILL.md`.
+> Summary: Comparison-first guide for every supported game, plus a compact appendix for public Ape Church games not yet exposed by this CLI. Keeps syntax and high-signal RTP/volatility notes in one place, while deeper mechanics and verification trails live under `docs/verification/`.
 
-Complete syntax and examples for all Ape Church CLI games.
+Compact syntax and comparison notes for all Ape Church CLI games.
 
-Where useful, this file also folds in payout tables and live Transparency-section snapshots for the games that are actually supported by this repo. Treat published RTP values as observed snapshots, not guaranteed long-run returns.
+Treat published running RTP values as observed snapshots, not guaranteed long-run returns. For ABI-backed tuple layouts, payout matrices, and maintainer-facing verification evidence, follow the per-game links in `docs/verification/`.
 
 The `✔︎` marker means this repo has locally verified the game's ABI-facing behavior against verified on-chain contract data. Supported games without the symbol are still playable in the CLI, but they have not yet been promoted to `ABI verified`; see [ABI_VERIFICATION.md](./ABI_VERIFICATION.md) for the maintainer checklist.
 
@@ -21,11 +21,13 @@ The `✔︎` marker means this repo has locally verified the game's ABI-facing b
 | Cosmic Plinko ✔︎ | `play cosmic <amt> <mode> <balls>` | `--game cosmic --amount X --mode Y --balls Z` |
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` |
 | Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` |
-| Dino Dough | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` |
-| Bubblegum | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` |
+| Dino Dough ✔︎ | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` |
+| Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` |
 | Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --mode Y` |
 | Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --difficulty Y --rolls Z` |
 | Primes ✔︎ | `play primes <amt> <difficulty> <runs>` | `--game primes --amount X --difficulty Y --runs Z` |
+| Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` |
+| Video Poker ✔︎ / Gimboz Poker | `video-poker <amt>` | `video-poker <amt> --auto best` |
 
 ## Grammar Conventions
 
@@ -63,8 +65,8 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 | Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-30` balls |
 | Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Speed Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` batched games |
-| Dino Dough | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
-| Bubblegum Heist | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
+| Dino Dough ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
+| Bubblegum Heist ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
 | Monkey Match ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Bear-A-Dice ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager; volatility comes from difficulty and rolls |
 | Primes ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` runs |
@@ -75,120 +77,37 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 
 ## ApeStrong ✔︎
 
-**Type:** Dice / Limbo  
-**Contract:** `0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600`  
-**ABI verified:** `true`  
-**Verification notes:** [APESTRONG_CONTRACT.md](./APESTRONG_CONTRACT.md)  
+**Type:** Dice / Limbo
+**Contract:** `0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600`
+**ABI verified:** `true`
 **Aliases:** `strong`, `dice`, `limbo`
+**Verification notes:** [APESTRONG_CONTRACT.md](./verification/APESTRONG_CONTRACT.md)
 
-### How It Works
-Pick a win probability (`5-95%`). The verified contract decodes `(uint8 edgeFlipRange, uint256 gameId, address ref, bytes32 userRandomWord)`, requests exactly one VRF word, resolves `winningNumber = uint8(randomWords[0] % 100)`, and pays only when `winningNumber < edgeFlipRange`.
+Range-based one-word VRF game. You choose a win probability `5-95`; the contract wins on `winningNumber < range` and settles from a live payout table rather than a closed-form multiplier.
 
-That means the win surface is exactly `range` winning outcomes out of `100` equally likely values (`0..99`), so `range = 50` really is a `50%` hit rate and `range = 95` wins on `0..94`.
-
-The payout rule is table-driven, not a pure on-chain formula: the contract settles with `edgeFlipRangeToPayout[range] * betAmount / 10_000`. A live getter snapshot on **2026-04-09** showed non-zero entries for every CLI-supported range `5..95`, `oddsLocked = false`, `platformFee = 220`, and `partnerFeeCut = 0`.
-
-As of **2026-04-09**, the public Ape Church docs page for Ape Strong still describes a hammer / target-score game rather than this verified range-based contract, so the verified contract and the note above are the source of truth for this CLI.
-
-### Syntax
-
-```bash
-# Positional
-apechurch-cli play ape-strong <amount> <range>
-
-# Flags
-apechurch-cli play --game ape-strong --amount <APE> --range <5-95>
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play ape-strong <amount> <range>`
 
 ```bnf
 <amount> ::= <ape>
 <range> ::= <integer>              ; 5 <= value <= 95
 ```
 
-### Parameters
-
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| amount | 1+ | required | Wager in APE |
-| range | 5-95 | 50 | Win probability (%) |
-
-### Verified Live Payout Samples
-
-Selected exact entries from the live `edgeFlipRangeToPayout(range)` table read on **2026-04-09**:
-
-| Range | Win Chance | Exact Multiplier | Exact RTP |
-|-------|------------|------------------|-----------|
-| 5 | 5% | `19.5x` | `97.50%` |
-| 10 | 10% | `9.75x` | `97.50%` |
-| 25 | 25% | `3.9x` | `97.50%` |
-| 50 | 50% | `1.95x` | `97.50%` |
-| 75 | 75% | `1.2999x` | `97.49%` |
-| 95 | 95% | `1.025x` | `97.38%` |
-
-For most supported ranges, the live table currently matches `floor(975000 / range)`; the current live exceptions are `75 -> 12999` and `95 -> 10250`.
-
-### Transparency Snapshot
-
-- House Profit: `90,902 APE`
-- Running RTP: `98.53%`
-- Total Wagered: `6,164,641 APE`
-- Total Games Played: `137,076`
-- Public transparency currently exposes aggregate metrics only for Ape Strong; the verified contract source and live getters are the useful source of truth for actual play here.
-
-### Exact Calculated RTP
-
-| Mode | Exact RTP | Basis |
-|------|-----------|-------|
-| Any supported `range` (`5-95`) | `97.38% - 97.50%` | Exact EV from the verified contract source plus the live `edgeFlipRangeToPayout(range)` table read on `2026-04-09` |
-| Current worst supported range (`95`) | `97.38%` | Exact `95%` hit rate times live multiplier `1.025x` |
-| Current common coin-flip range (`50`) | `97.50%` | Exact `50%` hit rate times live multiplier `1.95x` |
-
-### Examples
-
-```bash
-# 50% chance, 1.95x payout
-apechurch-cli play ape-strong 10 50
-
-# High risk, high reward
-apechurch-cli play ape-strong 5 10
-
-# Safe grinding
-apechurch-cli play ape-strong 20 75
-
-# Loop with martingale
-apechurch-cli play ape-strong 10 50 --loop --bet-strategy martingale --max-bet 80
-
-# JSON output
-apechurch-cli play ape-strong 10 50 --json
-```
-
----
+**Compare:**
+- Exact RTP: `97.38% - 97.50%` across the supported range surface.
+- Max supported multiplier: `19.5x` at `range 5`.
+- Operational note: `range 50` is the clean coin-flip baseline; `range 75` and `95` are slightly below the usual `97.5 / range` table due to live payout exceptions.
 
 ## Roulette ✔︎
 
-**Type:** Table  
-**Contract:** `0x1f48A104C1808eb4107f3999999D36aeafEC56d5`  
-**ABI verified:** `true`  
+**Type:** Table
+**Contract:** `0x1f48A104C1808eb4107f3999999D36aeafEC56d5`
+**ABI verified:** `true`
 **Aliases:** `rl`
+**Verification notes:** [ROULETTE_CONTRACT.md](./verification/ROULETTE_CONTRACT.md)
 
-### How It Works
-American roulette with 0, 00, and 1-36. The verified contract decodes `(uint8[] gameNumbers, uint256[] amounts, uint256 gameId, address ref, bytes32 userRandomWord)`, validates up to `25` distinct bet entries, and settles against a 38-pocket wheel where `0` and `00` are green.
+American roulette on a `38`-pocket wheel. The contract supports single numbers, colors, parity, halves, dozens, and columns; multi-bets split the wager across legs, while one-leg bets subtract `1 wei` because each encoded leg must stay strictly below the post-fee total.
 
-The CLI-supported outside bets are thirds/dozens, columns, halves, parity, and colors. For comma-separated bets the total wager is still split evenly, but a single-leg wager is reduced by `1 wei` before encoding because the contract requires each `amounts[i]` to stay strictly below the post-fee total bet amount.
-
-### Syntax
-
-```bash
-# Positional
-apechurch-cli play roulette <amount> <bet>
-
-# Flags
-apechurch-cli play --game roulette --amount <APE> --bet <BETS>
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play roulette <amount> <bet>`
 
 ```bnf
 <amount> ::= <ape>
@@ -197,117 +116,22 @@ apechurch-cli play --game roulette --amount <APE> --bet <BETS>
 <roulette-number> ::= <integer>    ; 1 <= value <= 36
 ```
 
-### Bet Types
-
-| Type | Options | Payout | Probability | Example |
-|------|---------|--------|-------------|---------|
-| Single Number | 0, 00, 1-36 | 36.9x | 2.63% | `17` |
-| Red/Black | RED, BLACK | 2.05x | 47.37% | `RED` |
-| Odd/Even | ODD, EVEN | 2.05x | 47.37% | `ODD` |
-| Halves | FIRST_HALF, SECOND_HALF | 2.05x | 47.37% | `FIRST_HALF` |
-| Thirds | FIRST_THIRD, SECOND_THIRD, THIRD_THIRD | 3.075x | 31.58% | `FIRST_THIRD` |
-| Columns | FIRST_COL, SECOND_COL, THIRD_COL | 3.075x | 31.58% | `FIRST_COL` |
-
-### Multi-Bet
-Comma-separate bets to split wager evenly:
-```bash
-apechurch-cli play roulette 100 RED,BLACK   # 50 on each (hedge bet)
-```
-
-Ape Church transparency copy sometimes describes broader roulette labels, but the verified contract at this address exposes the bet surface below through codes `1..50`, which is the exact surface this CLI supports.
-
-### Transparency Snapshot
-
-- Calculated RTP shown in transparency: `97.1%`
-- House Profit: `192,637 APE`
-- Running RTP: `97.05%`
-- Total Wagered: `6,529,689 APE`
-- Total Games Played: `90,386`
-
-### Verified Runtime Behavior
-
-- `getVRFFee()` forwards the current RNG fee from `IRNG(manager.RNG()).getFee()`
-- Number encoding is `0 -> 1`, `1..36 -> 2..37`, and `00 -> 38`
-- Outside-bet encoding is `FIRST_THIRD=39`, `SECOND_THIRD=40`, `THIRD_THIRD=41`, `FIRST_COL=42`, `SECOND_COL=43`, `THIRD_COL=44`, `FIRST_HALF=45`, `SECOND_HALF=46`, `EVEN=47`, `ODD=48`, `BLACK=49`, `RED=50`
-- `MAX_GUESSES = 25`; `gameNumbers.length` must equal `amounts.length`; duplicates revert
-- Each leg amount must be `> 0` and `< totalBetAmount`, which is why the CLI subtracts `1 wei` on one-leg plays
-- `getGameInfo(gameId)` returns `player`, `betAmount`, `totalPayout`, `hasEnded`, `chosenNumber`, `gameNumbers`, `betsPerNumbers`, and `timestamp`
-- `0` and `00` are green pockets, so outside bets pay only on `1..36`
-
-### Verified On-Chain Payout Constants
-
-| Bet class | Multiplier | Verified constant |
-|-----------|------------|-------------------|
-| Single Number | 36.9x | `number_payout = 369_000 / 10_000` |
-| Red / Black | 2.05x | `color_payout = 20_500 / 10_000` |
-| Even / Odd | 2.05x | `even_odd_payout = 20_500 / 10_000` |
-| Halves | 2.05x | `half_payout = 20_500 / 10_000` |
-| Thirds / Dozens | 3.075x | `third_payout = 30_750 / 10_000` |
-| Columns | 3.075x | `third_payout = 30_750 / 10_000` |
-
-### Exact Calculated RTP by Verified Bet Class
-
-| Verified bet class | Exact RTP | Basis |
-|------------------|-----------|-------|
-| Single Number | `97.11%` | Exact weighted sum on the 38-pocket wheel |
-| Red / Black | `97.11%` | Exact weighted sum on the 38-pocket wheel |
-| Even / Odd | `97.11%` | Exact weighted sum on the 38-pocket wheel |
-| Halves | `97.11%` | Exact weighted sum on the 38-pocket wheel |
-| Thirds / Dozens | `97.11%` | Exact weighted sum on the 38-pocket wheel |
-| Columns | `97.11%` | Exact weighted sum on the 38-pocket wheel |
-
-### Examples
-
-```bash
-# Color bet
-apechurch-cli play roulette 10 RED
-
-# Single number (big payout)
-apechurch-cli play roulette 5 17
-
-# Zero
-apechurch-cli play roulette 10 0
-
-# Double zero
-apechurch-cli play roulette 10 00
-
-# Hedge bet (small guaranteed profit unless 0/00)
-apechurch-cli play roulette 100 RED,BLACK
-
-# Third bet
-apechurch-cli play roulette 30 FIRST_THIRD
-
-# Loop on red
-apechurch-cli play roulette 10 RED --loop --target 150 --stop-loss 50
-```
-
----
+**Compare:**
+- Exact RTP: `97.11%` across all verified supported bet classes.
+- Max payout: `36.9x` on a single number, `0`, or `00`.
+- Operational note: `RED,BLACK` is the low-volatility hedge baseline and only loses to `0/00`.
 
 ## Baccarat ✔︎
 
-**Type:** Table  
-**Contract:** `0xB08C669dc0419151bA4e4920E80128802dB5497b`  
-**ABI verified:** `true`  
+**Type:** Table
+**Contract:** `0xB08C669dc0419151bA4e4920E80128802dB5497b`
+**ABI verified:** `true`
 **Aliases:** `bacc`
+**Verification notes:** [BACCARAT_CONTRACT.md](./verification/BACCARAT_CONTRACT.md)
 
-### How It Works
-Classic baccarat. Bet on Player, Banker, or Tie.
+Classic baccarat with contract-backed combined bets. You can play `PLAYER`, `BANKER`, or `TIE`, or combine one main side with an explicit `TIE` leg; `PLAYER` and `BANKER` together are not valid on-chain.
 
-The verified contract decodes `(uint256 gameId, uint256 playerBankerBet, uint256 tieBet, bool isBanker, address ref, bytes32 userRandomWord)`, checks that `msg.value - getVRFFee()` exactly equals `playerBankerBet + tieBet`, and stores the side choice as `betOnBanker`.
-
-Combined bets are not a UI-layer convention: the verified contract really supports one `PLAYER` or `BANKER` leg plus an optional `TIE` leg in the same wager. It does **not** support betting both `PLAYER` and `BANKER` together. Settlement uses 6 VRF words mapped to rank values `1..13`, then applies the on-chain third-card rules in `determineWinner(...)`.
-
-### Syntax
-
-```bash
-# Simple bet
-apechurch-cli play baccarat <amount> <bet>
-
-# Combined bet (explicit amounts)
-apechurch-cli play baccarat <total> <amt1> <bet1> <amt2> <bet2>
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play baccarat <amount> <bet>`
 
 ```bnf
 <amount> ::= <ape>
@@ -316,100 +140,22 @@ apechurch-cli play baccarat <total> <amt1> <bet1> <amt2> <bet2>
 <side-bet> ::= "PLAYER" | "BANKER"
 ```
 
-### Bet Types
-
-| Bet | Payout |
-|-----|--------|
-| PLAYER | 2.0x |
-| BANKER | 1.95x |
-| TIE | 9.0x |
-
-Combined bets can pair `PLAYER` or `BANKER` with `TIE`, but not `PLAYER` and `BANKER` together in the same wager.
-
-### Verified Runtime Behavior
-
-- `getVRFFee()` is the live RNG fee read from `IRNG(manager.RNG()).getFee()`
-- `play(...)` requires `msg.value >= getVRFFee()` and validates `msg.value - getVRFFee() == playerBankerBet + tieBet`
-- Platform fees are contract-side constants: `playerBankerFee = 100` (`1.00%`) and `tieFee = 300` (`3.00%`) with denominator `10_000`
-- `fulfillRandomWords(...)` requests exactly `6` VRF words and maps each to a rank in `1..13` via `(randomWord % 13) + 1`
-- `getGameInfo(gameId)` returns `playerBankerBet`, `tieBet`, `payout`, `user`, `betOnBanker`, `playerCards`, `bankerCards`, `hasEnded`, and `timestamp`
-
-### Verified On-Chain Payout Constants
-
-| Bet class | Multiplier | Verified constant |
-|-----------|------------|-------------------|
-| PLAYER | 2.0x | `PLAYER_PAYOUT = 200 / 100` |
-| BANKER | 1.95x | `BANKER_PAYOUT = 195 / 100` |
-| TIE | 9.0x | `TIE_PAYOUT = 900 / 100` |
-
-On a tie, the verified contract also refunds any `PLAYER` or `BANKER` leg in full. That refund is why the exact RTP of `PLAYER` and `BANKER` is higher than the raw win probability multiplied by the headline payout.
-
-### Exact Calculated RTP by Verified Bet Class
-
-The exact probabilities below come from exhaustively enumerating all `13^6 = 4,826,809` equally likely rank tuples implied by the verified VRF mapping and running the on-chain `determineWinner(...)` logic over each tuple.
-
-| Verified bet class | Exact RTP | Basis |
-|--------------------|-----------|-------|
-| PLAYER | `98.77%` | Exact weighted sum over the verified draw tree, including push-on-tie refunds |
-| BANKER | `98.94%` | Exact weighted sum over the verified draw tree, including push-on-tie refunds |
-| TIE | `85.88%` | Exact weighted sum over the verified draw tree |
-
-For combined bets, exact RTP is the wager-weighted average of the chosen main-side RTP and the `TIE` RTP. Example: a `140 BANKER 10 TIE` split has exact RTP `(140 x 98.9360009895% + 10 x 85.8830129802%) / 150 = 98.07%`.
-
-### Transparency Snapshot
-
-- House Profit: `9,888 APE`
-- Running RTP: `98.12%`
-- Total Wagered: `525,991 APE`
-- Total Games Played: `13,183`
-
-### Examples
-
-```bash
-# Single bet on Banker
-apechurch-cli play baccarat 50 BANKER
-
-# Single bet on Player
-apechurch-cli play baccarat 50 PLAYER
-
-# Tie bet (high risk)
-apechurch-cli play baccarat 10 TIE
-
-# Combined: 140 Banker + 10 Tie = 150 total
-apechurch-cli play baccarat 150 140 BANKER 10 TIE
-
-# Combined: 180 Player + 20 Tie = 200 total
-apechurch-cli play baccarat 200 180 PLAYER 20 TIE
-
-# Loop on Banker
-apechurch-cli play baccarat 25 BANKER --loop --max-games 50
-```
-
----
+**Compare:**
+- Exact RTP: `98.94%` on `BANKER`, `98.77%` on `PLAYER`, `85.88%` on `TIE`.
+- Max payout: `9x` on `TIE`.
+- Operational note: `BANKER` remains the best-EV simple bet; combo-bet RTP is just the wager-weighted average of the chosen legs.
 
 ## Jungle Plinko ✔︎
 
-**Type:** Plinko  
-**Contract:** `0x88683B2F9E765E5b1eC2745178354C70A03531Ce`  
-**ABI verified:** `true`  
+**Type:** Plinko
+**Contract:** `0x88683B2F9E765E5b1eC2745178354C70A03531Ce`
+**ABI verified:** `true`
 **Aliases:** `jungle`
+**Verification notes:** [JUNGLE_PLINKO_CONTRACT.md](./verification/JUNGLE_PLINKO_CONTRACT.md)
 
-### How It Works
-Drop balls through pegs. Higher modes = more volatile multipliers.
+Weighted-bucket Plinko, not a peg-by-peg physics sim. Mode controls the bucket table; ball count mainly changes variance and the tiny floor-division dust from splitting the wager across `1-100` balls.
 
-On-chain, Jungle Plinko ✔︎ is resolved as a weighted bucket draw, not a peg-by-peg left/right simulation. For each ball the contract samples one uniform integer `r` in `[0, totalWeight(mode) - 1]` and maps it into a bucket via the mode's cumulative weight table.
-
-### Syntax
-
-```bash
-# Positional
-apechurch-cli play jungle <amount> <mode> <balls>
-
-# Flags
-apechurch-cli play --game jungle --amount <APE> --mode <0-4> --balls <1-100>
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play jungle <amount> <mode> <balls>`
 
 ```bnf
 <amount> ::= <ape>
@@ -417,96 +163,22 @@ apechurch-cli play --game jungle --amount <APE> --mode <0-4> --balls <1-100>
 <balls> ::= <integer>              ; 1 <= value <= 100
 ```
 
-### Parameters
-
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| amount | 1+ | required | Total wager (split across balls) |
-| mode | 0-4 | 2 | Risk level |
-| balls | 1-100 | 50 | Number of balls |
-
-### Modes
-
-| Mode | Name | Description |
-|------|------|-------------|
-| 0 | Safe | Tight multiplier range |
-| 1 | Low | Slightly wider range |
-| 2 | Medium | Balanced (recommended) |
-| 3 | High | Wide swings |
-| 4 | Extreme | Maximum volatility |
-
-### Exact Calculated RTP
-
-Let `B` be the total wager in wei after subtracting the VRF fee, `N` the ball count, and `betPerBall = floor(B / N)`.
-
-- `deltaWeight_i(mode) = cumulativeWeight_i - cumulativeWeight_(i-1)`
-- `P(bucket_i | mode) = deltaWeight_i(mode) / totalWeight(mode)`
-- `multiplier_i(mode) = payout_i(mode) / 10,000`
-- `RTP_ball(mode) = sum_i(P(bucket_i | mode) * multiplier_i(mode))`
-- `RTP_game(mode, B, N) = RTP_ball(mode) * floor(B / N) * N / B`
-
-Implications:
-
-- If `B % N == 0`, exact RTP is independent of `N`.
-- If `B % N != 0`, exact RTP is reduced only by Solidity floor division dust; the mode table itself is unchanged.
-
-| Mode | Exact RTP | Top Multiplier |
-|------|-----------|----------------|
-| 0 / Safe | `98.00%` | `2.2x` |
-| 1 / Low | `97.97%` | `5x` |
-| 2 / Medium | `97.97%` | `15x` |
-| 3 / High | `97.94%` | `100x` |
-| 4 / Extreme | `97.99%` | `1000x` |
-
-### Transparency Snapshot
-
-- House Profit: `31,743 APE`
-- Running RTP: `98.42%`
-- Total Wagered: `2,008,923 APE`
-- Total Games Played: `41,638`
-- Public transparency currently exposes aggregate metrics only, but the verified contract exposes bucket weights and payouts via `getBucketWeights(mode)` and `getPayouts(mode)`.
-
-### Examples
-
-```bash
-# Standard play
-apechurch-cli play jungle 10 2 50
-
-# High risk, max balls
-apechurch-cli play jungle 100 4 100
-
-# Safe mode, few balls
-apechurch-cli play jungle 20 0 10
-
-# Loop
-apechurch-cli play jungle 10 2 50 --loop --max-games 20
-```
-
----
+**Compare:**
+- Exact RTP by mode: `97.94% - 98.00%`.
+- Top multipliers: `2.2x`, `5x`, `15x`, `100x`, `1000x` from mode `0` to `4`.
+- Operational note: more balls smooth variance, but mode is what changes the real payout surface.
 
 ## Cosmic Plinko ✔︎
 
-**Type:** Plinko  
-**Contract:** `0x674Bd91adb41897fA780386E610168afBB05e694`  
-**ABI verified:** `true`  
+**Type:** Plinko
+**Contract:** `0x674Bd91adb41897fA780386E610168afBB05e694`
+**ABI verified:** `true`
 **Aliases:** `cosmic`
+**Verification notes:** [COSMIC_PLINKO_CONTRACT.md](./verification/COSMIC_PLINKO_CONTRACT.md)
 
-### How It Works
-Drop balls through pegs into asymmetric multiplier buckets. Higher modes = more volatile multipliers and larger top-end payouts.
+Asymmetric weighted-bucket Plinko with a narrower mode range than Jungle. Ball count `1-30` mainly changes variance; the exact EV surface is mode-driven.
 
-On-chain, Cosmic Plinko ✔︎ is also resolved as a weighted bucket draw, not a peg-by-peg biased left/right simulation. For each ball the contract samples one uniform integer `r` in `[0, totalWeight(mode) - 1]` and maps it into a bucket via the mode's cumulative weight table.
-
-### Syntax
-
-```bash
-# Positional
-apechurch-cli play cosmic <amount> <mode> <balls>
-
-# Flags
-apechurch-cli play --game cosmic --amount <APE> --mode <0-2> --balls <1-30>
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play cosmic <amount> <mode> <balls>`
 
 ```bnf
 <amount> ::= <ape>
@@ -514,89 +186,22 @@ apechurch-cli play --game cosmic --amount <APE> --mode <0-2> --balls <1-30>
 <balls> ::= <integer>              ; 1 <= value <= 30
 ```
 
-### Parameters
-
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| amount | 1+ | required | Total wager (split across balls) |
-| mode | 0-2 | 1 | Risk level |
-| balls | 1-30 | 10 | Number of balls |
-
-### Modes
-
-| Mode | Name | Description |
-|------|------|-------------|
-| 0 | Low | Lowest-volatility Cosmic board |
-| 1 | Modest | Mid-volatility Cosmic board |
-| 2 | High | Highest-volatility Cosmic board |
-
-### Exact Calculated RTP
-
-Let `B` be the total wager in wei after subtracting the VRF fee, `N` the ball count, and `betPerBall = floor(B / N)`.
-
-- `deltaWeight_i(mode) = cumulativeWeight_i - cumulativeWeight_(i-1)`
-- `P(bucket_i | mode) = deltaWeight_i(mode) / totalWeight(mode)`
-- `multiplier_i(mode) = payout_i(mode) / 10,000`
-- `RTP_ball(mode) = sum_i(P(bucket_i | mode) * multiplier_i(mode))`
-- `RTP_game(mode, B, N) = RTP_ball(mode) * floor(B / N) * N / B`
-
-Implications:
-
-- If `B % N == 0`, exact RTP is independent of `N`.
-- If `B % N != 0`, exact RTP is reduced only by Solidity floor division dust; the mode table itself is unchanged.
-
-| Mode | Exact RTP | Top Multiplier |
-|------|-----------|----------------|
-| 0 / Low | `97.73%` | `50x` |
-| 1 / Modest | `97.76%` | `100x` |
-| 2 / High | `97.80%` | `250x` |
-
-### Transparency Snapshot
-
-- Running RTP: `97.32%`
-- The verified contract exposes bucket weights via `getBucketWeights(mode)` and per-bucket payouts via `getPayout(mode, index)`.
-
-### Examples
-
-```bash
-# Standard play
-apechurch-cli play cosmic 10 1 10
-
-# High risk, max balls
-apechurch-cli play cosmic 30 2 30
-
-# Low mode, fewer balls
-apechurch-cli play cosmic 12 0 6
-
-# Loop
-apechurch-cli play cosmic 10 1 10 --loop --max-games 20
-```
-
----
+**Compare:**
+- Exact RTP by mode: `97.73%`, `97.76%`, `97.80%`.
+- Top multipliers: `50x`, `100x`, `250x`.
+- Operational note: `mode 2` has the best exact RTP and the highest tail risk.
 
 ## Keno ✔︎
 
-**Type:** Keno  
-**Contract:** `0xc936D6691737afe5240975622f0597fA2d122FAd`  
-**ABI verified:** `true`  
+**Type:** Keno
+**Contract:** `0xc936D6691737afe5240975622f0597fA2d122FAd`
+**ABI verified:** `true`
 **Aliases:** `k`
+**Verification notes:** [KENO_CONTRACT.md](./verification/KENO_CONTRACT.md)
 
-### How It Works
-The verified contract decodes `(uint8[] gameNumbers, uint256 gameId, address ref, bytes32 userRandomWord)`, validates `1-10` unique picks in `1..40`, requests exactly `10` VRF words, and resolves the board with a partial Fisher-Yates shuffle over `[1..40]`. Because the draw is symmetric, the actual chosen numbers do not change RTP; only the pick count does.
+Classic `1-40` keno with `10` winning numbers drawn without replacement. Specific chosen numbers do not change exact EV; pick count is the only strategic lever.
 
-There is no redraw phase and no post-bet action tree. For Keno, "best play" reduces to pick-count selection only: `5 picks` has the highest exact RTP, while higher pick counts are variance choices with larger top-end payouts.
-
-### Syntax
-
-```bash
-# Random picks
-apechurch-cli play keno <amount> [--picks <1-10>]
-
-# Specific numbers
-apechurch-cli play keno <amount> --picks <N> --numbers <comma-separated>
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play keno <amount> [--picks <1-10>] [--numbers <list|random>]`
 
 ```bnf
 <amount> ::= <ape>
@@ -605,117 +210,22 @@ apechurch-cli play keno <amount> --picks <N> --numbers <comma-separated>
 <keno-number> ::= <integer>        ; 1 <= value <= 40
 ```
 
-### Parameters
-
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| amount | 1+ | required | Wager in APE |
-| picks | 1-10 | 5 | How many numbers |
-| numbers | 1-40 | random | Specific numbers |
-
-### Transparency Snapshot
-
-- House Profit: `16,821 APE`
-- Running RTP: `86.35%`
-- Total Wagered: `123,224 APE`
-- Total Games Played: `25,673`
-
-### Verified Runtime Behavior
-
-- `MAX_GUESSES = 10`, `MIN_GUESSES = 1`, `KENO_BOARD_SIZE = 40`
-- The contract requests exactly `10` VRF words and resolves `10` winning numbers without replacement
-- Winning numbers are produced by a partial Fisher-Yates shuffle on the in-memory board `[1..40]`
-- Payout is `betAmount * payouts[numGuesses][numCorrectGuesses] / 10_000`
-- `getGameInfo(gameId)` returns `betAmount`, `totalPayout`, `winningNumbers`, `gameNumbers`, and `timestamp`
-
-### Verified On-Chain Payout Matrix
-
-| Picks | 0 matches | 1 match | 2 matches | 3 matches | 4 matches | 5 matches | 6 matches | 7 matches | 8 matches | 9 matches | 10 matches |
-|-------|-----------|---------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|------------|
-| 1 | 0.5x | 2.25x | - | - | - | - | - | - | - | - | - |
-| 2 | 0x | 1.8x | 4.25x | - | - | - | - | - | - | - | - |
-| 3 | 0x | 0.8x | 2.5x | 20x | - | - | - | - | - | - | - |
-| 4 | 0x | 0x | 2x | 7x | 100x | - | - | - | - | - | - |
-| 5 | 1.25x | 0x | 1.1x | 2.5x | 10x | 200x | - | - | - | - | - |
-| 6 | 1.5x | 0x | 0.5x | 2x | 7x | 50x | 500x | - | - | - | - |
-| 7 | 2x | 0x | 0x | 1.25x | 4x | 37.5x | 250x | 2,500x | - | - | - |
-| 8 | 2x | 0x | 0.5x | 1.1x | 2x | 10x | 50x | 500x | 10,000x | - | - |
-| 9 | 3x | 0x | 0x | 0.25x | 1.5x | 10x | 50x | 500x | 5,000x | 500,000x | - |
-| 10 | 4x | 0x | 0x | 0.25x | 1.2x | 4x | 25x | 250x | 2,000x | 50,000x | 1,000,000x |
-
-### Exact Calculated RTP by Picks
-
-| Picks | Exact RTP |
-|-------|-----------|
-| 1 | `93.75%` |
-| 2 | `93.75%` |
-| 3 | `93.67%` |
-| 4 | `93.39%` |
-| 5 | `94.68%` |
-| 6 | `93.90%` |
-| 7 | `94.29%` |
-| 8 | `94.19%` |
-| 9 | `93.32%` |
-| 10 | `93.83%` |
-
-Formula:
-
-```text
-H ~ Hypergeometric(N = 40, K = 10, n = picks)
-RTP(picks) = Σ_h P(H = h) * payout(picks, h)
-```
-
-Best-EV pick count:
-
-- `5 picks`: `94.6800798774%`
-- No intra-game solver exists because there are no post-bet decisions to optimize
-
-### Examples
-
-```bash
-# Random 5 picks
-apechurch-cli play keno 10
-
-# 10 random picks (max risk)
-apechurch-cli play keno 10 --picks 10
-
-# Specific numbers
-apechurch-cli play keno 10 --picks 5 --numbers 1,7,13,25,40
-
-# 3 picks (lower risk)
-apechurch-cli play keno 20 --picks 3
-
-# Loop
-apechurch-cli play keno 5 --picks 5 --loop --max-games 50
-```
-
----
+**Compare:**
+- Exact RTP by pick count: `93.32% - 94.68%`.
+- Max payout: `1,000,000x` on `10/10`.
+- Operational note: `5 picks` is the best-EV lane; higher pick counts mainly buy variance and top-end exposure.
 
 ## Speed Keno ✔︎
 
-**Type:** Keno (Batched)  
-**Contract:** `0x40EE3295035901e5Fd80703774E5A9FE7CE2B90C`  
-**ABI verified:** `true`  
+**Type:** Keno (Batched)
+**Contract:** `0x40EE3295035901e5Fd80703774E5A9FE7CE2B90C`
+**ABI verified:** `true`
 **Aliases:** `sk`, `speedk`
+**Verification notes:** [SPEED_KENO_CONTRACT.md](./verification/SPEED_KENO_CONTRACT.md)
 
-### How It Works
-The verified contract decodes `(uint8 numGames, uint8[] gameNumbers, uint256 gameId, address ref, bytes32 userRandomWord)`, validates `1-5` unique picks in `1..20`, and batches `1-20` independent mini-games into one tx. Each mini-game requests `5` winning numbers without replacement, and the contract uses `Pyth V2 RNG` with a custom gas limit:
+Fast batched keno on a `1-20` board. You choose `1-5` picks and batch `1-20` mini-games into one tx; batch count changes fee efficiency and variance, while pick count changes actual EV.
 
-```text
-gasCost(numGames) = BASE_GAS + GAS_PER_GAME * numGames
-```
-
-Because each draw is symmetric, the actual chosen numbers do not change RTP; only the pick count does. `numGames` mainly affects variance, fee overhead, and the Solidity floor-division split of the wager across the batch.
-
-There is no redraw phase and no post-bet action tree. For Speed Keno, "best play" reduces to pick-count selection only: `5 picks` has the highest exact RTP.
-
-### Syntax
-
-```bash
-apechurch-cli play speed-keno <amount> [--picks <1-5>] [--games <1-20>]
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play speed-keno <amount> [--picks <1-5>] [--games <1-20>] [--numbers <list|random>]`
 
 ```bnf
 <amount> ::= <ape>
@@ -725,362 +235,88 @@ apechurch-cli play speed-keno <amount> [--picks <1-5>] [--games <1-20>]
 <speed-keno-number> ::= <integer>  ; 1 <= value <= 20
 ```
 
-### Parameters
+**Compare:**
+- Exact RTP by pick count: `97.37% - 97.84%`.
+- Max payout: `2,000x` on `5/5`.
+- Operational note: `5 picks` is the best-EV lane; batch count only changes dust and pacing, not the per-game draw EV.
 
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| amount | 1+ | required | Total wager (split across games) |
-| picks | 1-5 | 3 | Numbers to pick |
-| games | 1-20 | 5 | Games to batch |
+## Dino Dough ✔︎
 
-### Transparency Snapshot
-
-- House Profit: `15,083 APE`
-- Running RTP: `93.36%`
-- Total Wagered: `227,058 APE`
-- Total Games Played: `6,938`
-
-### Verified Runtime Behavior
-
-- `MAX_GUESSES = 5`, `MIN_GUESSES = 1`, `KENO_BOARD_SIZE = 20`, `MAX_GAMES = 20`
-- `BASE_GAS = 325_000`, `GAS_PER_GAME = 55_000`
-- `getVRFFee(customGasLimit)` delegates to `IRNGPythV2.getFeeV2(customGasLimit)`
-- The contract requests exactly `5 * numGames` random words per tx
-- Each batched game resolves `5` winning numbers without replacement by partial Fisher-Yates on `[1..20]`
-- Payout per mini-game is `betAmountPerGame * payouts[picks][hits] / 10_000`
-- `betAmountPerGame = floor(totalBetAmount / numGames)`, so uneven batch splits reduce effective session RTP slightly
-
-### Verified On-Chain Payout Matrix
-
-| Picks | 0 matches | 1 match | 2 matches | 3 matches | 4 matches | 5 matches |
-|-------|-----------|---------|-----------|-----------|-----------|-----------|
-| 1 | 0.5x | 2.4x | - | - | - | - |
-| 2 | 0.25x | 1.45x | 5x | - | - | - |
-| 3 | 0.5x | 0.5x | 2.5x | 25x | - | - |
-| 4 | 0.5x | 0.5x | 1.5x | 5.5x | 100x | - |
-| 5 | 1.25x | 0.2x | 0.5x | 3x | 35x | 2,000x |
-
-### Exact Calculated RTP by Picks
-
-| Picks | Exact RTP |
-|-------|-----------|
-| 1 | `97.50%` |
-| 2 | `97.37%` |
-| 3 | `97.81%` |
-| 4 | `97.42%` |
-| 5 | `97.84%` |
-
-Formula:
-
-```text
-H ~ Hypergeometric(N = 20, K = 5, n = picks)
-RTP_per_game(picks) = Σ_h P(H = h) * payout(picks, h)
-RTP_session(picks, totalBetAmount, numGames) = RTP_per_game(picks) * floor(totalBetAmount / numGames) * numGames / totalBetAmount
-```
-
-Best-EV pick count:
-
-- `5 picks`: `97.8376547988%`
-- No intra-game solver exists because there are no post-bet decisions to optimize
-
-### Examples
-
-```bash
-# Standard
-apechurch-cli play speed-keno 10
-
-# Max games
-apechurch-cli play speed-keno 20 --picks 5 --games 20
-
-# Specific numbers
-apechurch-cli play speed-keno 10 --picks 3 --numbers 5,10,15
-
-# Loop
-apechurch-cli play speed-keno 10 --loop --max-games 30
-```
-
----
-
-## Dino Dough
-
-**Type:** Slots  
-**Contract:** `0x9ebb4Df257B971582BAf096b62CA41DE7723F3CB`  
+**Type:** Slots
+**Contract:** `0x9ebb4Df257B971582BAf096b62CA41DE7723F3CB`
+**ABI verified:** `true`
 **Aliases:** `dino`, `slots`
+**Verification notes:** [DINO_DOUGH_CONTRACT.md](./verification/DINO_DOUGH_CONTRACT.md)
 
-### How It Works
-Dinosaur-themed slot machine. Spin for matching symbols and multipliers.
+Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` spins per tx. Spin count only changes floor-division dust against the buy-in; the contract-backed per-spin EV is fixed by the live reel tables and ordered payout matrix.
 
-### Syntax
-
-```bash
-apechurch-cli play dino-dough <amount> <spins>
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play dino-dough <amount> <spins>`
 
 ```bnf
 <amount> ::= <ape>
 <spins> ::= <integer>              ; 1 <= value <= 15
 ```
 
-### Parameters
+**Compare:**
+- Exact RTP: `97.89751366817333%` per spin.
+- Max payout: `333x`.
+- Operational note: much deeper ordered paytable than the public crop suggests; use the verification note for the full reel and triple matrix.
 
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| amount | 1+ | required | Total wager (split across spins) |
-| spins | 1-15 | 10 | Spins per bet |
+## Bubblegum Heist ✔︎
 
-### Transparency Snapshot
-
-- House Profit: `38,582 APE`
-- Running RTP: `97.80%`
-- Total Wagered: `1,755,176 APE`
-- Total Games Played: `25,154`
-
-### Visible Pattern Payouts
-
-Normalized symbols from the public transparency table:
-
-- `A` = blue dinosaur icon
-- `B` = gold square-like icon
-- `C` = round emblem icon
-
-| Visible Pattern | Payout |
-|-----------------|--------|
-| `A A A` | 333x |
-| `A A B` | 60x |
-| `A B A` | 60x |
-| `B A A` | 60x |
-| `C A A` | 53.33x |
-| `B B B` | 50x |
-| `A B B` | 40x |
-
-### Examples
-
-```bash
-# 10 APE, 10 spins
-apechurch-cli play dino-dough 10 10
-
-# High volume
-apechurch-cli play dino-dough 30 15
-
-# Few spins (more variance)
-apechurch-cli play dino-dough 10 3
-
-# Loop
-apechurch-cli play dino-dough 10 10 --loop --max-games 25
-```
-
----
-
-## Bubblegum Heist
-
-**Type:** Slots  
-**Contract:** `0xB5Da735118e848130B92994Ee16377dB2AE31a4c`  
+**Type:** Slots
+**Contract:** `0xB5Da735118e848130B92994Ee16377dB2AE31a4c`
+**ABI verified:** `true`
 **Aliases:** `bubblegum`, `heist`
+**Verification notes:** [BUBBLEGUM_HEIST_CONTRACT.md](./verification/BUBBLEGUM_HEIST_CONTRACT.md)
 
-### How It Works
-Candy-themed slot machine. Identical mechanics to Dino Dough.
+Same slots ABI family as Dino Dough, but with a different live reel and paytable snapshot. The current contract has `5` symbol indexes per reel and a lower top line.
 
-### Syntax
-
-```bash
-apechurch-cli play bubblegum-heist <amount> <spins>
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play bubblegum-heist <amount> <spins>`
 
 ```bnf
 <amount> ::= <ape>
 <spins> ::= <integer>              ; 1 <= value <= 15
 ```
 
-### Parameters
-
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| amount | 1+ | required | Total wager (split across spins) |
-| spins | 1-15 | 10 | Spins per bet |
-
-### Transparency Snapshot
-
-- House Profit: `20,985 APE`
-- Running RTP: `97.26%`
-- Total Wagered: `765,169 APE`
-- Total Games Played: `16,609`
-
-### Visible Pattern Payouts
-
-Normalized symbols from the public transparency table:
-
-- `A` = pink octopus-like icon
-- `B` = purple square icon
-
-| Visible Pattern | Payout |
-|-----------------|--------|
-| `A A A` | 100x |
-| `A A B` | 25x |
-| `A B A` | 25x |
-| `B A A` | 25x |
-| `A B B` | 12x |
-| `B A B` | 12x |
-| `B B A` | 12x |
-
-### Examples
-
-```bash
-apechurch-cli play bubblegum-heist 10 10
-apechurch-cli play bubblegum-heist 20 15 --loop
-```
-
----
+**Compare:**
+- Exact RTP: `97.79962375%` per spin.
+- Max payout: `100x`.
+- Operational note: lower ceiling than Dino, but still a contract-backed ordered slot rather than a generic three-of-a-kind toy model.
 
 ## Monkey Match ✔︎
 
-**Type:** Matching  
-**Contract:** `0x59EBd3406b76DCc74102AFa2cA5284E9AAB6bA28`  
-**ABI verified:** `true`  
+**Type:** Matching
+**Contract:** `0x59EBd3406b76DCc74102AFa2cA5284E9AAB6bA28`
+**ABI verified:** `true`
 **Aliases:** `monkey`, `mm`
+**Verification notes:** [MONKEY_MATCH_CONTRACT.md](./verification/MONKEY_MATCH_CONTRACT.md)
 
-### How It Works
-The contract requests `5` VRF words per round and resolves each monkey independently:
+Five independent monkey draws scored as multiplicity hands. There is no redraw or action tree; mode choice is the whole strategy surface.
 
-```text
-monkey_i = (randomWords[i] % totalMonkeys(mode)) + 1
-```
-
-The final 5-monkey board is then scored as a multiplicity hand:
-
-- Five of a Kind
-- Four of a Kind
-- Full House
-- Three of a Kind
-- Two Pair
-- One Pair
-- No Match
-
-There is no redraw phase and no post-deal action tree. For Monkey Match, "best play" is only a mode choice: `mode 2 / Normal Risk` has the higher exact RTP, while `mode 1 / Low Risk` is the lower-variance option.
-
-### Syntax
-
-```bash
-apechurch-cli play monkey-match <amount> [--mode <1-2>]
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play monkey-match <amount> [--mode <1-2>]`
 
 ```bnf
 <amount> ::= <ape>
 <mode> ::= <integer>               ; value ∈ {1, 2}
 ```
 
-### Modes
-
-| Mode | Name | Description |
-|------|------|-------------|
-| 1 | Low Risk | 6 monkey types, easier matches, lower variance |
-| 2 | Normal Risk | 7 monkey types, harder matches, higher exact RTP |
-
-### Verified Runtime Behavior
-
-- `play(player, gameData)` decodes `(uint8 gameMode, uint256 gameId, address ref, bytes32 userRandomWord)`
-- The contract requests exactly `5` random words per round
-- `getVRFFee()` is a static view call; the VRF fee does not depend on mode
-- Live reads on **April 2, 2026**:
-  - `platformFee = 200` (`2%`)
-  - `partnerFeeCut = 0`
-  - `getTotalMonkeys(1) = 6`
-  - `getTotalMonkeys(2) = 7`
-  - payout denominator `PAYOUT_DENOM = 1000`
-
-### Verified Paytable
-
-| Outcome | Low Risk (6 monkeys) | Exact Probability | Normal Risk (7 monkeys) | Exact Probability |
-|---------|------------------------|-------------|--------------------------|-------------|
-| Five of a Kind | 50x | 0.07716% | 50x | 0.04165% |
-| Four of a Kind | 5x | 1.92901% | 5x | 1.24948% |
-| Full House | 4x | 3.85802% | 4x | 2.49896% |
-| Three of a Kind | 2x | 15.43210% | 3x | 12.49479% |
-| Two Pair | 1.25x | 23.14815% | 2x | 18.74219% |
-| One Pair | 0.2x | 46.29630% | 0.1x | 49.97918% |
-| No Match | 0x | 9.25926% | 0x | 14.99375% |
-
-The transparency page publishes rounded percentages for the same hand classes. The verified contract path above is the source of truth.
-
-### Exact Calculated RTP by Mode
-
-Let `M = totalMonkeys(mode)`. Because the contract draws `5` independent monkeys, the exact hand counts are:
-
-- `five = M`
-- `four = 5 * M * (M - 1)`
-- `fullHouse = 10 * M * (M - 1)`
-- `three = 10 * M * (M - 1) * (M - 2)`
-- `twoPair = 15 * M * (M - 1) * (M - 2)`
-- `onePair = 10 * M * (M - 1) * (M - 2) * (M - 3)`
-- `noMatch = M * (M - 1) * (M - 2) * (M - 3) * (M - 4)`
-
-with total outcomes `M^5`.
-
-So:
-
-```text
-RTP(mode) = sum_hand(count(hand, M) / M^5 * payoutMultiplier(hand, mode))
-```
-
-At displayed precision this is exact; the only omitted effect is the negligible modulo bias from `uint256 % 6` / `uint256 % 7`.
-
-| Mode | Exact RTP | Top Multiplier |
-|------|-----------|
-| Low Risk | `97.99%` | `50x` |
-| Normal Risk | `98.29%` | `50x` |
-
-### Transparency Snapshot
-
-- House Profit: `9,169 APE`
-- Running RTP: `97.34%`
-- Total Wagered: `345,257 APE`
-- Total Games Played: `12,405`
-
-### Examples
-
-```bash
-# Low risk (default)
-apechurch-cli play monkey-match 10
-
-# Normal risk / best EV
-apechurch-cli play monkey-match 10 --mode 2
-
-# Loop
-apechurch-cli play monkey-match 10 --loop --max-games 30
-```
-
----
+**Compare:**
+- Exact RTP: `97.99%` in Low Risk, `98.29%` in Normal Risk.
+- Max payout: `50x` in both modes.
+- Operational note: `mode 2` has the better EV; `mode 1` is the lower-variance barrel mix.
 
 ## Bear-A-Dice ✔︎
 
-**Type:** Dice  
-**Contract:** `0x6a48A513A46955D8622C809Fce876d2f11142003`  
-**ABI verified:** `true`  
+**Type:** Dice
+**Contract:** `0x6a48A513A46955D8622C809Fce876d2f11142003`
+**ABI verified:** `true`
 **Aliases:** `bear`, `bd`
+**Verification notes:** [BEAR_DICE_CONTRACT.md](./verification/BEAR_DICE_CONTRACT.md)
 
-The promotion evidence for `✔︎` is recorded in [BEAR_DICE_CONTRACT.md](./BEAR_DICE_CONTRACT.md).
+All-or-nothing compounded `2d6` survival game. You pick a difficulty and `1-5` rolls; every safe sum compounds the payout, and the first losing sum zeroes the whole run.
 
-### How It Works
-Roll 2 dice between `1` and `5` times. The verified contract decodes `(uint8 difficulty, uint8 numRuns, uint256 gameId, address ref, bytes32 userRandomWord)`, requests `numRuns * 2` random words, and resolves each roll as a `2d6` sum.
-
-Every surviving roll multiplies the current payout by `payouts[difficulty][numRuns][diceSum] / 100`. Any missing table entry is an immediate loss for the whole game. There is no verified on-chain `3`-roll cap for Extreme or Master: all five difficulties support `1-5` rolls.
-
-The contract also preallocates `dice1Results` and `dice2Results` to `numRuns`. If a losing sum appears early, settlement stops immediately and the unused trailing slots remain `0`, so a `0/0` pair in `getGameInfo` means "not executed", not a real roll.
-
-This is not a staged cash-out game. The player cannot bank the current compounded payout, choose whether to continue, or recover a partial payout after a failed roll; the live contract is strictly all-or-nothing.
-
-### Syntax
-
-```bash
-apechurch-cli play bear-dice <amount> [--difficulty <0-4>] [--rolls <1-5>]
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play bear-dice <amount> [--difficulty <0-4>] [--rolls <1-5>]`
 
 ```bnf
 <amount> ::= <ape>
@@ -1088,143 +324,22 @@ apechurch-cli play bear-dice <amount> [--difficulty <0-4>] [--rolls <1-5>]
 <rolls> ::= <integer>              ; 1 <= value <= 5
 ```
 
-### Difficulty Levels
-
-| Level | Name | Losing Numbers | Safe Numbers |
-|-------|------|----------------|--------------|
-| 0 | Easy | 7 | 2-6, 8-12 |
-| 1 | Normal | 6, 7, 8 | 2-5, 9-12 |
-| 2 | Hard | 5-9 | 2-4, 10-12 |
-| 3 | Extreme | 4-10 | 2-3, 11-12 |
-| 4 | Master | 3-11 | 2, 12 only |
-
-### Verified Runtime Constants
-
-- `MAX_RUNS = 5`
-- `BASE_GAS = 500000`
-- `GAS_PER_RUN = 100000`
-- `platformFee = 200` (`2%` of `totalBetAmount`)
-
-### Verified Runtime Behavior
-
-- `getVRFFee(customGasLimit)` forwards the current RNG fee from `IRNGPythV2(V2_RNG).getFeeV2(customGasLimit)`
-- `customGasLimit = BASE_GAS + (numRuns * GAS_PER_RUN)`
-- `play(...)` validates `numRuns` in `1..5`, checks `msg.value >= vrfFee`, and treats a difficulty as valid only if `payouts[difficulty][1][2] > 0`
-- `totalBetAmount = msg.value - vrfFee`; the platform fee is deducted from `totalBetAmount`, but payout compounding still starts from the full `totalBetAmount`
-- `getGameInfo(gameId)` returns `player`, `betAmount`, `numRuns`, `difficulty`, `dice1Results`, `dice2Results`, `totalPayout`, `hasEnded`, and `timestamp`; unused tail slots stay `0` after an early loss
-- `getEssentialGameInfo(gameIds)` returns the player, buy-in, payout, timestamp, and settled flag arrays used by the repo's history refresh path
-
-### Exact RTP by Verified Difficulty and Roll Count
-
-| Difficulty | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
-|------------|--------|---------|---------|---------|---------|
-| Easy | `97.89%` | `97.90%` | `97.85%` | `97.80%` | `97.80%` |
-| Normal | `97.94%` | `97.90%` | `97.52%` | `97.80%` | `97.25%` |
-| Hard | `97.83%` | `97.79%` | `97.85%` | `97.80%` | `97.80%` |
-| Extreme | `97.89%` | `97.79%` | `97.36%` | `97.80%` | `97.80%` |
-| Master | `97.89%` | `97.79%` | `97.85%` | `97.58%` | `97.80%` |
-
-These values come from the verified on-chain `payouts[difficulty][numRuns][diceSum]` table and the exact 2d6 sum distribution. In closed form:
-
-```text
-rollEV(d, n) = Σ_sum P(2d6 = sum) * payouts[d][n][sum] / 100
-RTP(d, n) = rollEV(d, n)^n * 100
-```
-
-The early-stop behavior does not change those RTP values: losing sums already contribute a zero multiplier, so stopping the loop and leaving the remaining array slots at `0` is economically equivalent to multiplying the remaining suffix by `0`.
-
-### Exact Win Rate by Verified Difficulty and Roll Count
-
-| Difficulty | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
-|------------|--------|---------|---------|---------|---------|
-| Easy | `83.33%` | `69.44%` | `57.87%` | `48.23%` | `40.19%` |
-| Normal | `55.56%` | `30.86%` | `17.15%` | `9.53%` | `5.29%` |
-| Hard | `33.33%` | `11.11%` | `3.70%` | `1.23%` | `0.41%` |
-| Extreme | `16.67%` | `2.78%` | `0.46%` | `0.08%` | `0.01%` |
-| Master | `5.56%` | `0.31%` | `0.02%` | `0.00%` | `0.00%` |
-
-Where:
-
-```text
-safeProb(d) = Σ_safe sums P(2d6 = sum)
-WinRate(d, n) = safeProb(d)^n * 100
-```
-
-### Verified Max Payout by Difficulty and Roll Count
-
-| Difficulty | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
-|------------|--------|---------|---------|---------|---------|
-| Easy | `1.830x` | `3.349x` | `6.230x` | `12.228x` | `21.091x` |
-| Normal | `3.800x` | `14.746x` | `57.067x` | `219.707x` | `856.913x` |
-| Hard | `6.300x` | `40.577x` | `262.144x` | `1,709.401x` | `10,991.447x` |
-| Extreme | `9.720x` | `96.040x` | `946.966x` | `9,375.197x` | `93,193.275x` |
-| Master | `17.620x` | `316.840x` | `5,706.550x` | `102,433.347x` | `1,847,949.193x` |
-
-### Transparency Snapshot
-
-- House Profit: `7,382 APE`
-- Running RTP: `97.56%`
-- Total Wagered: `302,958 APE`
-- Total Games Played: `8,817`
-- Public transparency still exposes only aggregate metrics, but the verified ApeScan source now exposes the actual unlucky-number payout table used above
-
-### Examples
-
-```bash
-# Easy, 1 roll
-apechurch-cli play bear-dice 10
-
-# Easy, max rolls
-apechurch-cli play bear-dice 10 --difficulty 0 --rolls 5
-
-# Normal difficulty
-apechurch-cli play bear-dice 10 --difficulty 1 --rolls 3
-
-# Extreme with 5 rolls is valid on-chain
-apechurch-cli play bear-dice 10 --difficulty 3 --rolls 5
-
-# Loop (stick to easy for auto-play)
-apechurch-cli play bear-dice 10 --difficulty 0 --loop --max-games 20
-```
-
----
+**Compare:**
+- Exact RTP surface: `97.25% - 97.94%` depending on difficulty and roll count.
+- Max payout: from `1.830x` on Easy / 1 roll up to `1,847,949.193x` on Master / 5 rolls.
+- Operational note: there is no cash-out path; higher rolls only buy tail risk.
 
 ## Primes ✔︎
 
-**Type:** Number / VRF  
-**Contract:** `0xC1aCd12aA34dC33979871EF95c540D46A6566B4b`  
+**Type:** Number / VRF
+**Contract:** `0xC1aCd12aA34dC33979871EF95c540D46A6566B4b`
+**ABI verified:** `true`
 **Aliases:** `prime`
+**Verification notes:** [PRIMES_CONTRACT.md](./verification/PRIMES_CONTRACT.md)
 
-### How It Works
-Pick a difficulty and a run count. Each run draws one uniform integer with leading zeros preserved in display terms:
+Batched prime-or-zero number game. Difficulty controls the numeric range and fixed multipliers; run count only changes variance and floor-division dust.
 
-- Easy: `0-9`
-- Medium: `00-99`
-- Hard: `000-999`
-- Extreme: `0000-9999`
-
-Zero is the fixed top-payout case, not a live progressive jackpot. Any prime result wins the base multiplier. Non-prime, non-zero results pay `0`.
-
-On-chain, the contract batches `numRuns` draws and computes:
-
-```text
-betPerRun = floor(totalBetAmount / numRuns)
-Payout = Σ_run outcomeMultiplier(run) * betPerRun
-```
-
-So the per-run RTP depends only on difficulty. The only run-count adjustment is Solidity floor division when `totalBetAmount` is not evenly divisible by `numRuns`.
-
-### Syntax
-
-```bash
-# Positional
-apechurch-cli play primes <amount> <difficulty> <runs>
-
-# Flags
-apechurch-cli play --game primes --amount <APE> --difficulty <0-3> --runs <1-20>
-```
-
-### Grammar (BNF)
+**Command:** `apechurch-cli play primes <amount> <difficulty> <runs>`
 
 ```bnf
 <amount> ::= <ape>
@@ -1232,75 +347,22 @@ apechurch-cli play --game primes --amount <APE> --difficulty <0-3> --runs <1-20>
 <runs> ::= <integer>               ; 1 <= value <= 20
 ```
 
-### Difficulty Table
-
-| Difficulty | Label | Draw Space | Prime Hits | Prime Payout | Zero Payout | Total Win Chance | Exact RTP |
-|------------|-------|------------|------------|--------------|-------------|------------------|-----------|
-| 0 | Easy | `0-9` | `4 / 10` | `1.9x` | `2.2x` | `50.0%` | `98.00%` |
-| 1 | Medium | `00-99` | `25 / 100` | `3.5x` | `10.5x` | `26.0%` | `98.00%` |
-| 2 | Hard | `000-999` | `168 / 1000` | `5.5x` | `56x` | `16.9%` | `98.00%` |
-| 3 | Extreme | `0000-9999` | `1229 / 10000` | `7.57x` | `500x` | `12.3%` | `98.04%` |
-
-The verified contract stores these as `gameModes[difficulty] = { maxRange, primeMultiplier, zeroMultiplier }` and uses the on-chain `isPrime` mapping during settlement.
-
-### Verified Runtime Constants
-
-- `MAX_RUNS = 20`
-- `BASE_GAS = 520000`
-- `GAS_PER_RUN = 80000`
-- `platformFee = 200` (`2%` of the buy-in is routed as platform fee; payouts are still computed from the full `betAmount`)
-
-### Exact RTP Formula
-
-For difficulty `d`:
-
-```text
-RTP_run(d) = ((primeCount(d) * primeMultiplier(d)) + zeroMultiplier(d))
-             / maxRange(d) / 100
-
-RTP_game(d, B, N) = RTP_run(d) * floor(B / N) * N / B
-```
-
-Where multipliers are expressed in the contract's `0.0001x` precision, `B` is the buy-in after VRF fee, and `N` is `numRuns`.
-
-### Transparency Snapshot
-
-- House Profit: `-12,401 APE`
-- Running RTP: `105.64%`
-- Total Wagered: `219,787 APE`
-- Total Games Played: `6,484`
-
-### Examples
-
-```bash
-# Easy, many runs for smoother variance
-apechurch-cli play primes 10 0 20
-
-# Medium difficulty via flags
-apechurch-cli play primes 10 --difficulty 1 --runs 12
-
-# Hard, fewer runs
-apechurch-cli play primes 10 --difficulty 2 --runs 5
-
-# Extreme mode
-apechurch-cli play primes 10 --difficulty 3 --runs 1
-
-# Loop with capped risk
-apechurch-cli play primes 10 --difficulty 0 --runs 20 --loop --max-games 25
-```
-
----
+**Compare:**
+- Exact RTP: `98.00%` on Easy/Medium/Hard and `98.04%` on Extreme.
+- Max fixed top payout: `500x` on Extreme via zero.
+- Operational note: the transparency running RTP can sit above `100%`, but the contract-backed long-run surface is still the fixed difficulty table in the verification note.
 
 ## Blackjack ✔︎
 
-**Type:** Cards<br>
-**Contract:** `0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7`<br>
-**ABI verified:** `true`<br>
+**Type:** Cards
+**Contract:** `0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7`
+**ABI verified:** `true`
 **Aliases:** `bj`
+**Verification notes:** [BLACKJACK_CONTRACT.md](./verification/BLACKJACK_CONTRACT.md)
 
-Stateful blackjack with interactive actions and auto-play support. The promotion evidence for `✔︎` is recorded in [BLACKJACK_CONTRACT.md](./BLACKJACK_CONTRACT.md). See [SKILL.md](../SKILL.md#blackjack-) for the full command flow, action handling, and solver notes.
+Stateful blackjack with interactive actions, optional player-side exposure, and `--auto` support. This repo's promoted surface is based on the public production ABI, not an explorer-verified Solidity source. See [SKILL.md](../SKILL.md#blackjack-) for the user-facing action flow.
 
-### Grammar (BNF)
+**Command:** `apechurch-cli blackjack <amount> [--side <ape>] [--auto [simple|best]]`
 
 ```bnf
 <amount> ::= <ape>
@@ -1308,184 +370,32 @@ Stateful blackjack with interactive actions and auto-play support. The promotion
 <auto-mode> ::= "simple" | "best"
 ```
 
-### Accepted Bets
-
-- Main bet: any positive APE amount
-- Optional player side bet: `--side <ape>` accepts any non-negative APE amount
-- The decoded on-chain state also carries a separate dealer-side lane, even though the current CLI does not expose a dedicated flag for it yet
-- Derived follow-up wagers:
-  - `double` adds another stake equal to the initial bet
-  - `split` adds another stake equal to the initial bet
-  - `insurance` costs half of the initial bet
-
-### Core Rules and Payouts
-
-- Supported player actions: `hit`, `stand`, `double`, `split`, `insurance`, `surrender`
-- Natural blackjack pays `2.5x` total (`3:2`)
-- Normal win pays `2.0x`
-- Early surrender refunds `0.5x` of the initial stake
-- Insurance returns `3.0x` total on the insurance stake (`2:1`) if the dealer has blackjack
-
-### Verified Public ABI Reference
-
-The official public route `https://ape.church/games/blackjack` identifies the live game contract as `0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7`. The route bundle fetched on **2026-04-09** publishes the exact ABI signatures the production frontend uses against that contract:
-
-- `vrfFee()`
-- `getGameInfo(uint256 gameId)`
-- `play(address player, bytes gameData)`
-- `playerHit(uint256 gameId)`
-- `playerStand(uint256 gameId)`
-- `playerDoubleDown(uint256 gameId)`
-- `playerSplit(uint256 gameId)`
-- `playerInsurance(uint256 gameId)`
-- `playerSurrender(uint256 gameId)`
-- `numUsedGameIDs()`
-- `paginateUsedGameIDs(uint256 start, uint256 end)`
-- `getEssentialGameInfo(uint256[] gameIds)`
-- `maxPayout()`
-
-### Verified Runtime Behavior
-
-- `gameData` is encoded as `(uint256[] sideBets, uint256 gameId, address ref, bytes32 randomWord)`
-- The frontend submits two side-bet lanes in `sideBets`: player-side and dealer-side
-- `play(...)` value is `mainBet + sideBet0 + sideBet1 + vrfFee()`
-- `playerHit(...)` sends exactly `vrfFee()`
-- `playerStand(...)` sends `0` only when moving from split hand 1 to an active second split hand; otherwise it sends `vrfFee()`
-- `playerDoubleDown(...)` sends `initialBet + vrfFee()`
-- `playerSplit(...)` sends `initialBet + vrfFee()`
-- `playerInsurance(...)` sends `initialBet / 2`
-- `playerSurrender(...)` sends `0`
-- `getGameInfo(...)` returns `user`, `gameState`, `activeHandIndex`, `playerHands`, `dealerHand`, `sideBets`, `insuranceBet`, `awaitingRandomNumber`, `initialBet`, `totalBet`, `totalPayout`, `surrendered`, and `timestamp`
-- Replay and history surfaces read `numUsedGameIDs()`, `paginateUsedGameIDs(...)`, and `getEssentialGameInfo(...)` from the same public contract interface
-
-### Verified Public Rule Surface
-
-- The public frontend solver config is `dealerHitsSoft17: true`, `surrender: "early"`, `doubleAfterSplitAllowed: true`, `maxHands: 2`
-- The frontend maps `rawCard` as `rank = rawCard % 13 + 1` and `suit = floor(rawCard / 13)`, matching the CLI's 52-card display mapping
-- The published side-bet table below is embedded directly in the public Blackjack bundle and matches the repo's player-side and dealer-side RTP modeling
-
-### Transparency Snapshot
-
-- House Profit: `193,216 APE`
-- Running RTP: `96.84%`
-- Total Wagered: `6,107,706 APE`
-- Total Games Played: `89,385`
-
-### Public Side Bet Table
-
-| Side Bet Outcome | Condition | Payout | Probability |
-|------------------|-----------|--------|-------------|
-| Diamond Sevens | First two cards are both 7 of Diamonds | 500x | 0.037% |
-| Perfect Pair | First two cards share rank and suit | 20x | 1.923% |
-| Natural Blackjack | First two cards total 21 | 5x | 4.734% |
-| Match Dealer | One of the player's first two cards matches dealer upcard rank | 2x | 14.793% |
-| Dealer Ten | Dealer upcard is 10/J/Q/K | 2x | 30.769% |
-
-The transparency side-bet probabilities assume independent card draws for that published mode; do not silently swap them with finite-deck odds when reasoning about this table.
-
-### RTP Cases Used by `Game Stats`
-
-| Case | Expected RTP | Basis |
-|------|--------------|-------|
-| Main Only | `100.05%` | Statistical main-game model from the repo simulator |
-| Side Only | `79.88%` | Exact EV from the published player-side table |
-| Dealer Side Only | `82.02%` | Exact EV from the published dealer-side conditions under the same with-replacement model |
-| Mixed | weighted by configured amounts | Combines main / player side / dealer side exposures using the configured bet sizes |
-
-### Examples
-
-```bash
-# Auto-play
-apechurch-cli blackjack 10 --auto
-apechurch-cli blackjack 10 --auto best
-apechurch-cli bj 10 --auto --loop        # Using alias
-
-# Interactive
-apechurch-cli blackjack 10
-
-# Loop with strategy
-apechurch-cli blackjack 10 --auto --loop --bet-strategy martingale --max-bet 80
-apechurch-cli blackjack 10 --auto --loop --delay 5 --human
-```
-
----
+**Compare:**
+- RTP references used by the repo: `100.05%` main-only model, `79.88%` player-side only, `82.02%` dealer-side only.
+- Core payouts: natural blackjack `2.5x`, normal win `2.0x`, surrender refund `0.5x`.
+- Operational note: the main game remains a statistical model; the note file now holds the full action-cost and state-layout trail.
 
 ## Video Poker ✔︎ / Gimboz Poker
 
-**Type:** Cards<br>
-**Contract:** `0x4f7D016704bC9A1d373E512e10CF86A0E7015D1D`<br>
-**ABI verified:** `true`<br>
+**Type:** Cards
+**Contract:** `0x4f7D016704bC9A1d373E512e10CF86A0E7015D1D`
+**ABI verified:** `true`
 **Aliases:** `vp`, `gimboz-poker`
+**Verification notes:** [VIDEO_POKER_CONTRACT.md](./verification/VIDEO_POKER_CONTRACT.md)
 
-`video-poker` is the CLI command for Ape Church's `Gimboz Poker`.
+Stateful Jacks or Better with one redraw, interactive play, and an exact hold-EV solver. `video-poker` is the CLI command; Ape Church calls the same game `Gimboz Poker`.
 
-Stateful Jacks or Better video poker with one redraw, interactive play, `--auto` modes, and a best-EV solver view. The live verified contract exposes `getGameInfo`, `getBetAmounts`, `vrfFeeInitial`, `vrfFeeRedraw`, `determinePayout`, `determinePayoutFromRawNumbers`, and the progressive pool getter `jackpotTotal`. See [SKILL.md](../SKILL.md#video-poker) for the full flow and operational details.
-
-### Grammar (BNF)
+**Command:** `apechurch-cli video-poker <amount> [--auto [simple|best]]`
 
 ```bnf
 <amount> ::= "1" | "5" | "10" | "25" | "50" | "100"
 <auto-mode> ::= "simple" | "best"
 ```
 
-### Accepted Bets
-
-- Verified on-chain via `getBetAmounts()`: `1`, `5`, `10`, `25`, `50`, `100 APE`
-- In loop mode, strategy output is rounded to the closest affordable valid denomination
-- `100 APE` is the maximum fixed bet and the only jackpot-eligible denomination
-
-### Verified Contract Behavior
-
-- The payout function is standard Jacks or Better: `1x`, `2x`, `3x`, `4x`, `6x`, `9x`, `25x`, `50x`, `250x`
-- The contract stores the progressive pool in `jackpotTotal`, not `jackpot`
-- A Royal Flush always pays the visible `250x` base paytable, and at max bet (`100 APE`) it also wins the full current `jackpotTotal` pool
-- `--auto best` in this fork is an exact EV solver: it enumerates all `32` hold patterns and every redraw completion from the remaining `47` cards, and includes the live jackpot pool only when the bet is `100 APE`
-
-### Final Hand Paytable
-
-| Final Hand | Payout | Probability |
-|------------|--------|-------------|
-| Royal Flush | 250x | 0.0025% |
-| Straight Flush | 50x | 0.0108% |
-| Four of a Kind | 25x | 0.2363% |
-| Full House | 9x | 1.1512% |
-| Flush | 6x | 1.0995% |
-| Straight | 4x | 1.1214% |
-| Three of a Kind | 3x | 7.4449% |
-| Two Pair | 2x | 12.9279% |
-| Jacks or Better | 1x | 21.4585% |
-
-### Transparency Snapshot
-
-- House Profit: `29,557 APE`
-- Running RTP: `89.53%`
-- Total Wagered: `282,230 APE`
-- Total Games Played: `12,866`
-- Transparency publishes the visible base paytable above; the CLI also preserves the separate progressive-jackpot rule for a Royal Flush at max bet.
-
-### Exact Calculated RTP
-
-| Mode | Exact RTP | Basis |
-|------|-----------|-------|
-| Base paytable at any fixed bet (`1/5/10/25/50/100 APE`) | `98.1649%` | Exact weighted sum over the verified on-chain paytable and the final-hand odds |
-| `100 APE` bet with a known jackpot pool | `98.1649% + jackpot_ape / 40,000` | Exact base RTP plus the max-bet Royal Flush jackpot uplift from `jackpotTotal` |
-
-### Examples
-
-```bash
-# Auto-play
-apechurch-cli video-poker 10 --auto
-apechurch-cli video-poker 10 --auto best
-apechurch-cli video-poker 10 --solver
-
-# Interactive
-apechurch-cli video-poker 10
-
-# Loop
-apechurch-cli video-poker 10 --auto --loop --max-games 50
-apechurch-cli video-poker 10 --auto best --loop --delay 5 --human
-apechurch-cli video-poker --auto best --loop --human --delay 3 --target 2000 --max-games 50 25
-```
+**Compare:**
+- Exact base RTP: `98.1649%` at any fixed denomination.
+- Jackpot uplift: `98.1649% + jackpot_ape / 40,000` at `100 APE` only.
+- Operational note: redraw fee is `0` when standing pat; jackpot eligibility exists only at the max fixed bet.
 
 ---
 
@@ -1541,6 +451,8 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 | Cosmic Plinko ✔︎ | Mode 0 / Low | Yes | `97.73%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
 | Cosmic Plinko ✔︎ | Mode 1 / Modest | Yes | `97.76%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
 | Cosmic Plinko ✔︎ | Mode 2 / High | Yes | `97.80%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
+| Dino Dough ✔︎ | Any spin count `1-15` | Yes | `97.90%` | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `97.80%` |
+| Bubblegum Heist ✔︎ | Any spin count `1-15` | Yes | `97.80%` | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `97.26%` |
 | Keno ✔︎ | Picks 1 | Yes | `93.75%` | Exact hypergeometric EV | `86.35%` |
 | Keno ✔︎ | Picks 2 | Yes | `93.75%` | Exact hypergeometric EV | `86.35%` |
 | Keno ✔︎ | Picks 3 | Yes | `93.67%` | Exact hypergeometric EV | `86.35%` |
@@ -1573,7 +485,7 @@ This section keeps exact or formula-derived RTP separate from public `Running RT
 
 ### Still Not Exactly Calculable from Local Sources
 
-The local source set is still insufficient for a defensible closed-form RTP on `Dino Dough`, `Bubblegum Heist`, `Cash Dash`, `Gimboz Smash`, `Hi-Lo Nebula`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, `Sushi Showdown`, `Geez Diggerz`, and `Rico's Revenge`.
+The local source set is still insufficient for a defensible closed-form RTP on `Cash Dash`, `Gimboz Smash`, `Hi-Lo Nebula`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, `Sushi Showdown`, `Geez Diggerz`, and `Rico's Revenge`.
 
 For `Blackjack ✔︎`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables and the public rule surface now matches the repo solver assumptions.
 
@@ -1600,7 +512,7 @@ Every `10,000 GP` equals `1 Level`, so GP optimization is also level-progression
 - Best-case RTP inputs used below are:
   - `ApeStrong ✔︎` at `range 75`: `97.49%` from the verified live `edgeFlipRangeToPayout[75] = 12,999` table entry
   - `Roulette ✔︎` hedge (`RED,BLACK`): `97.1%` from the public transparency header
-  - `Bubblegum Heist`: `97.8%` from the public transparency header
+  - `Bubblegum Heist ✔︎`: `97.80%` from the verified live reel and ordered-paytable snapshot read on `2026-04-09`
 - The commands below omit `--stop-loss` so the wager-volume math stays exact. In real play, bankroll limits should still be imposed.
 
 ### Published Cumulative Wager Bonus Schedule

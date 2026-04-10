@@ -194,19 +194,19 @@ Sync and cache behavior:
 | Game | Command | Type | Key Parameters |
 |------|---------|------|----------------|
 | ApeStrong ✔︎ | `play ape-strong 10 50` | Dice | `--range 5-95` |
-| Roulette | `play roulette 10 RED` | Table | `--bet RED,BLACK,0-36,00` |
+| Roulette ✔︎ | `play roulette 10 RED` | Table | `--bet RED,BLACK,0-36,00` |
 | Baccarat ✔︎ | `play baccarat 10 BANKER` | Table | `--bet PLAYER,BANKER,TIE` |
 | Jungle Plinko ✔︎ | `play jungle 10 2 50` | Plinko | `--mode 0-4` `--balls 1-100` |
 | Cosmic Plinko ✔︎ | `play cosmic 10 1 10` | Plinko | `--mode 0-2` `--balls 1-30` |
 | Keno ✔︎ | `play keno 10` | Keno | `--picks 1-10` `--numbers 1-40` |
 | Speed Keno ✔︎ | `play speed-keno 10` | Keno | `--picks 1-5` `--games 1-20` |
-| Dino Dough | `play dino-dough 10 10` | Slots | `--spins 1-15` |
-| Bubblegum Heist | `play bubblegum-heist 10 10` | Slots | `--spins 1-15` |
+| Dino Dough ✔︎ | `play dino-dough 10 10` | Slots | `--spins 1-15` |
+| Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | Slots | `--spins 1-15` |
 | Monkey Match ✔︎ | `play monkey-match 10` | Match | `--mode 1-2` |
 | Bear-A-Dice ✔︎ | `play bear-dice 10` | Dice | `--difficulty 0-4` `--rolls 1-5` |
 | Primes ✔︎ | `play primes 10 0 20` | Number | `--difficulty 0-3` `--runs 1-20` |
 | Blackjack ✔︎ | `blackjack 10 --auto` | Cards | Interactive or `--auto` |
-| Video Poker / Gimboz Poker | `video-poker 10 --auto` | Cards | Interactive or `--auto` |
+| Video Poker ✔︎ / Gimboz Poker | `video-poker 10 --auto` | Cards | Interactive or `--auto` |
 
 ---
 
@@ -374,9 +374,9 @@ apechurch-cli play speed-keno 10 --picks 5 --games 20
 
 ---
 
-### Dino Dough & Bubblegum Heist (Slots)
+### Dino Dough ✔︎ & Bubblegum Heist ✔︎ (Slots)
 
-Slot machines with multiple spins.
+Verified multi-spin slot contracts with ordered left-to-right symbol triples.
 
 ```bash
 apechurch-cli play dino-dough <amount> <spins>
@@ -388,7 +388,12 @@ apechurch-cli play bubblegum-heist 10 15 # 10 APE, 15 spins
 |-----------|-------|-------------|
 | spins | 1-15 | Spins per bet (wager split) |
 
+**ABI verified:** `true`
+**Verified runtime:** both games decode `(gameId, numSpins, ref, userRandomWord)`, use a live `getVRFFee()` read, request `numSpins * 3` VRF words, and resolve ordered symbol triples through cumulative reel-stop tables.
+**Exact RTP:** `97.90%` for Dino Dough and `97.80%` for Bubblegum Heist from live reel/payout snapshots read on `2026-04-09`.
+**Current max payout:** `333x` for Dino Dough and `100x` for Bubblegum Heist.
 **Aliases:** `dino`, `slots`, `bubblegum`, `heist`
+
 
 ---
 

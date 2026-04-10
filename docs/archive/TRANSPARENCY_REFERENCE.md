@@ -18,7 +18,7 @@ notes:
 
 # Ape Church — mechanics, odds, payouts, and stats
 
-> Summary: Archived extraction of Transparency-section metrics, payout tables, and derived notes. Kept for raw detail and source archaeology after the supported-game highlights were folded into `docs/GAMES_REFERENCE.md`.
+> Summary: Archived extraction of Transparency-section metrics, payout tables, and derived notes. Kept for raw detail and source archaeology after the supported-game highlights were folded into `docs/GAMES_REFERENCE.md` and `docs/verification/`.
 
 ## Purpose
 

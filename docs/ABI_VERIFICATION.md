@@ -97,26 +97,35 @@ Before promotion, add or refresh tests for the relevant game:
 Only after the checks above are complete:
 
 - set `abiVerified: true` in `registry.js` or the supplemental display entry
-- update `docs/GAMES_REFERENCE.md` with `ABI verified: true` and the verified behavior notes
+- add or refresh the game's dedicated note under `docs/verification/`
+- update `docs/GAMES_REFERENCE.md` with `ABI verified: true`, the short verified summary, and a link to the dedicated note
 - update `README.md` or `SKILL.md` summaries if they enumerate verified games
 - confirm `apechurch-cli games` and `apechurch-cli game <name>` now show the `✔︎` or `true` metadata consistently
 
 ## Current Backlog
 
-As of **2026-04-09**, these supported games are still not promoted to `ABI verified` in the repo:
+As of **2026-04-09**, there are no remaining supported games waiting on promotion to `ABI verified` in this repo.
 
-| Game | Current status | What is still missing before `✔︎` |
-|------|----------------|-----------------------------------|
-| Dino Dough | supported, unverified | Verified source or getters for the slot paytable and symbol-resolution logic |
-| Bubblegum Heist | supported, unverified | Verified source or getters for the slot paytable and symbol-resolution logic |
+Currently promoted games are ApeStrong ✔︎, Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Dino Dough ✔︎, Bubblegum Heist ✔︎, Monkey Match ✔︎, Bear-A-Dice ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎.
 
-Currently promoted games are ApeStrong ✔︎, Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Monkey Match ✔︎, Bear-A-Dice ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎.
+Every promoted game now has a dedicated verification note under `docs/verification/`:
 
-ApeStrong was promoted on **2026-04-09** from the ApeScan exact-match verified Solidity source at `https://apescan.io/address/0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600#code` plus a live getter snapshot read on the same date. That check confirmed the CLI tuple decode `(uint8 edgeFlipRange, uint256 gameId, address ref, bytes32 userRandomWord)`, the static `getVRFFee()` path, the `winningNumber = uint8(randomWords[0] % 100)` and `winningNumber < edgeFlipRange` win rule, the `getGameInfo` / `getEssentialGameInfo` return surface, and the current live `edgeFlipRangeToPayout(range)` table. It also recorded that the current public Ape Church docs page still describes a different hammer / target-score game, so the verified contract rather than the public docs is the source of truth for the supported CLI mechanic.
-
-Bear-A-Dice was promoted on **2026-04-09** from the ApeScan verified Solidity source at `https://apescan.io/address/0x6a48A513A46955D8622C809Fce876d2f11142003#code`. That check confirmed `MAX_RUNS = 5`, verified the `payouts[difficulty][numRuns][diceSum]` table, removed a stale local `difficulty >= 3 => rolls <= 3` assumption that did not exist on-chain, and clarified that `getGameInfo` preallocates the dice arrays to `numRuns` while leaving any post-loss tail slots at `0`.
-
-Blackjack was promoted on **2026-04-09** from the public production ABI reference exposed by `https://ape.church/games/blackjack` and its route bundle, cross-checked against the live ApeScan method surface and the repo's solver and runtime behavior notes.
+| Game | Note |
+|------|------|
+| ApeStrong | `docs/verification/APESTRONG_CONTRACT.md` |
+| Roulette | `docs/verification/ROULETTE_CONTRACT.md` |
+| Baccarat | `docs/verification/BACCARAT_CONTRACT.md` |
+| Jungle Plinko | `docs/verification/JUNGLE_PLINKO_CONTRACT.md` |
+| Cosmic Plinko | `docs/verification/COSMIC_PLINKO_CONTRACT.md` |
+| Keno | `docs/verification/KENO_CONTRACT.md` |
+| Speed Keno | `docs/verification/SPEED_KENO_CONTRACT.md` |
+| Dino Dough | `docs/verification/DINO_DOUGH_CONTRACT.md` |
+| Bubblegum Heist | `docs/verification/BUBBLEGUM_HEIST_CONTRACT.md` |
+| Monkey Match | `docs/verification/MONKEY_MATCH_CONTRACT.md` |
+| Bear-A-Dice | `docs/verification/BEAR_DICE_CONTRACT.md` |
+| Primes | `docs/verification/PRIMES_CONTRACT.md` |
+| Blackjack | `docs/verification/BLACKJACK_CONTRACT.md` |
+| Video Poker | `docs/verification/VIDEO_POKER_CONTRACT.md` |
 
 ## When the Docs Are Not Clear
 
@@ -124,5 +133,5 @@ If a game looks "almost verified" but the evidence trail is still incomplete:
 
 1. Do not set `abiVerified: true`.
 2. Add the missing maintainer notes first.
-3. Capture the verified source or live getter evidence in `docs/GAMES_REFERENCE.md` or a dedicated contract note file.
+3. Capture the verified source or live getter evidence in `docs/verification/<GAME>_CONTRACT.md` and link it from `docs/GAMES_REFERENCE.md`.
 4. Only then flip the flag and add the `✔︎`.
