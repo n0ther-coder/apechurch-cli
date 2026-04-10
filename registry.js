@@ -21,6 +21,7 @@ import {
   BACCARAT_CONTRACT,
   BEAR_DICE_CONTRACT,
   BLACKJACK_CONTRACT,
+  BLOCKS_CONTRACT,
   BUBBLEGUM_HEIST_CONTRACT,
   COSMIC_PLINKO_CONTRACT,
   DINO_DOUGH_CONTRACT,
@@ -330,6 +331,51 @@ export const GAME_REGISTRY = [
   },
 
   // ===========================================================================
+  // BLOCKS - 3x3 cluster board with batched runs
+  // ===========================================================================
+  {
+    key: 'blocks',
+    name: 'Blocks',
+    slug: 'blocks',
+    type: 'blocks',
+    description: 'Fill a 3x3 board with random colors. Payout depends on the largest connected cluster; Hard mode drops the 3-block floor but pushes the top end to 5000x.',
+    contract: BLOCKS_CONTRACT,
+    abiVerified: true,
+    aliases: ['block'],
+    config: {
+      mode: {
+        min: 0,
+        max: 1,
+        default: 0,
+        description: 'Risk level. 0=Easy/Low starts paying at 3 connected blocks; 1=Hard/High removes that floor and raises the top payout.',
+        bnf: [
+          '<mode> ::= <integer>',
+          '; semantic constraint: value ∈ {0, 1}',
+        ],
+        options: [
+          { value: 0, label: 'Easy', desc: 'Lower volatility; a 3-block cluster already pays 1.01x' },
+          { value: 1, label: 'Hard', desc: 'No payout at 3 blocks, but 9 blocks pays 5000x' },
+        ],
+      },
+      runs: {
+        min: 1,
+        max: 5,
+        default: 1,
+        description: 'Number of boards to batch (1-5). Wager is split evenly across all runs.',
+        bnf: [
+          '<runs> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 5',
+        ],
+      },
+    },
+    vrf: {
+      type: 'blocks',
+      baseGas: 600000,
+      perUnitGas: 200000,
+    },
+  },
+
+  // ===========================================================================
   // DINO DOUGH - Dinosaur-themed slot machine
   // ===========================================================================
   {
@@ -608,6 +654,11 @@ const SUPPLEMENTAL_DISPLAY_GAMES = Object.freeze([
   }),
 ]);
 
+const GAME_TITLE_COLLATOR = new Intl.Collator('en', {
+  sensitivity: 'base',
+  numeric: true,
+});
+
 function normalizeGameLookupInput(input) {
   return String(input || '')
     .replace(/\s*✔︎$/, '')
@@ -724,18 +775,27 @@ export function resolveGameDisplayName({ gameKey = null, contract = null, fallba
   return normalizedFallback || 'Unknown';
 }
 
+function compareGamesByTitle(a, b) {
+  const titleA = stripAbiVerifiedSymbol(a?.name || '');
+  const titleB = stripAbiVerifiedSymbol(b?.name || '');
+  return GAME_TITLE_COLLATOR.compare(titleA, titleB)
+    || GAME_TITLE_COLLATOR.compare(String(a?.key || ''), String(b?.key || ''));
+}
+
 /**
  * List all available game keys
  *
- * Returns primary keys only (not aliases).
+ * Returns primary keys only (not aliases), ordered alphabetically by game title.
  * Useful for help text and validation.
  *
  * @returns {string[]} Array of game keys
  *
  * @example
  * listGames()
- * // ['keno', 'ape-strong', 'baccarat', 'roulette', 'jungle-plinko', ...]
+ * // ['ape-strong', 'baccarat', 'bear-dice', 'blocks', ...]
  */
 export function listGames() {
-  return GAME_REGISTRY.map((game) => game.key);
+  return [...GAME_REGISTRY]
+    .sort(compareGamesByTitle)
+    .map((game) => game.key);
 }

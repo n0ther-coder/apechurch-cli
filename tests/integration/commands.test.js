@@ -255,6 +255,8 @@ describe('CLI Commands Integration Tests', () => {
   describe('games command', () => {
     it('lists available games', () => {
       const { stdout } = cli('games');
+      assert.ok(stdout.includes('Simple Games:'), 'Should separate simple games');
+      assert.ok(stdout.includes('Stateful Games:'), 'Should separate stateful games');
       assert.ok(stdout.includes('ApeStrong ✔︎'), 'Should list verified ApeStrong');
       assert.ok(stdout.includes('Roulette ✔︎'), 'Should list verified Roulette');
       assert.ok(stdout.includes('Baccarat ✔︎'), 'Should list verified Baccarat');
@@ -266,7 +268,35 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Dino Dough ✔︎'), 'Should list verified Dino Dough');
       assert.ok(stdout.includes('Bubblegum Heist ✔︎'), 'Should list verified Bubblegum Heist');
       assert.ok(stdout.includes('Bear-A-Dice ✔︎'), 'Should list verified Bear-A-Dice');
+      assert.ok(stdout.includes('Blocks ✔︎'), 'Should list verified Blocks');
       assert.ok(stdout.includes('Primes ✔︎'), 'Should list verified Primes');
+      const simpleOrder = [
+        'ApeStrong ✔︎',
+        'Baccarat ✔︎',
+        'Bear-A-Dice ✔︎',
+        'Blocks ✔︎',
+        'Bubblegum Heist ✔︎',
+        'Cosmic Plinko ✔︎',
+        'Dino Dough ✔︎',
+        'Jungle Plinko ✔︎',
+        'Keno ✔︎',
+        'Monkey Match ✔︎',
+        'Primes ✔︎',
+        'Roulette ✔︎',
+        'Speed Keno ✔︎',
+      ];
+      let lastIndex = stdout.indexOf('Simple Games:');
+      for (const title of simpleOrder) {
+        const currentIndex = stdout.indexOf(title);
+        assert.ok(currentIndex > lastIndex, `${title} should appear in alphabetical order within simple games`);
+        lastIndex = currentIndex;
+      }
+
+      const statefulHeaderIndex = stdout.indexOf('Stateful Games:');
+      const blackjackIndex = stdout.indexOf('Blackjack ✔︎');
+      const videoPokerIndex = stdout.indexOf('Video Poker ✔︎');
+      assert.ok(blackjackIndex > statefulHeaderIndex, 'Blackjack should appear in the stateful section');
+      assert.ok(videoPokerIndex > blackjackIndex, 'Stateful games should be ordered alphabetically');
     });
 
     it('--stats appends the full Game Stats catalog', () => {
@@ -299,6 +329,27 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok('key' in game, 'Game should have key');
       assert.ok('name' in game, 'Game should have name');
       assert.ok('type' in game, 'Game should have type');
+      assert.deepStrictEqual(
+        data.games.map((entry) => entry.key),
+        [
+          'ape-strong',
+          'baccarat',
+          'bear-dice',
+          'blackjack',
+          'blocks',
+          'bubblegum-heist',
+          'cosmic-plinko',
+          'dino-dough',
+          'jungle-plinko',
+          'keno',
+          'monkey-match',
+          'primes',
+          'roulette',
+          'speed-keno',
+          'video-poker',
+        ],
+        'Games JSON should be ordered alphabetically by game title'
+      );
     });
 
     it('--json --stats includes the Game Stats catalog', () => {
@@ -314,6 +365,35 @@ describe('CLI Commands Integration Tests', () => {
     it('shows details for valid game', () => {
       const { stdout } = cli('game ape-strong');
       assert.ok(stdout.includes('ApeStrong') || stdout.includes('ape-strong'), 'Should show game name');
+    });
+
+    it('shows alphabetized available games when the name is invalid', () => {
+      const { stdout } = cli('game nope');
+      assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | jungle-plinko | keno | monkey-match | primes | roulette | speed-keno'));
+      assert.ok(stdout.includes('Stateful: blackjack | video-poker'));
+    });
+
+    it('returns the full alphabetized available catalog in JSON when the name is invalid', () => {
+      const { stdout } = cli('game nope --json');
+      const data = JSON.parse(stdout);
+
+      assert.deepStrictEqual(data.available, [
+        'ape-strong',
+        'baccarat',
+        'bear-dice',
+        'blackjack',
+        'blocks',
+        'bubblegum-heist',
+        'cosmic-plinko',
+        'dino-dough',
+        'jungle-plinko',
+        'keno',
+        'monkey-match',
+        'primes',
+        'roulette',
+        'speed-keno',
+        'video-poker',
+      ]);
     });
 
     it('warns that Bear-A-Dice is all-or-nothing', () => {
@@ -353,6 +433,14 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Primes ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified Blocks', () => {
+      const { stdout } = cli('game blocks --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Blocks ✔︎');
     });
 
     it('exposes ABI verification metadata for verified Monkey Match', () => {

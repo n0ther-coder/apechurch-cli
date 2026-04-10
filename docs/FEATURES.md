@@ -30,13 +30,14 @@
   - `wallet hints` — View or update password hints
   - `wallet status` — Check encrypted-wallet status
 
-## Gaming (10+ Games)
-- **Slots:** Jungle Plinko, Dino Dough, Bubblegum Heist
+## Gaming (15 Games)
+- **Plinko / Boards:** Jungle Plinko, Cosmic Plinko, Blocks
+- **Slots:** Dino Dough, Bubblegum Heist
 - **Table:** Roulette, Baccarat
 - **Keno:** Standard Keno, Speed Keno (batched games)
-- **Dice:** ApeStrong, Bear-A-Dice
+- **Dice / Number:** ApeStrong, Bear-A-Dice, Primes
 - **Other:** Monkey Match ✔︎
-- Full game customization (difficulty, risk, picks, rolls, bets)
+- Full game customization (difficulty, risk, runs, picks, rolls, bets)
 - Single plays or continuous loop mode
 - Strategy presets: Conservative → Degen
 

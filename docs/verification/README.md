@@ -17,6 +17,7 @@ Each `*_CONTRACT.md` file below is the maintainer-facing evidence bundle for one
 | Bubblegum Heist | `BUBBLEGUM_HEIST_CONTRACT.md` | Similar-match slots trail, live reels, ordered paytable, and exact RTP |
 | Monkey Match | `MONKEY_MATCH_CONTRACT.md` | Five-draw multiplicity model, live mode constants, and exact combinatorial RTP |
 | Bear-A-Dice | `BEAR_DICE_CONTRACT.md` | Verified 2d6 payout table, custom gas limit, and difficulty/run matrices |
+| Blocks | `BLOCKS_CONTRACT.md` | Verified tuple layout, batched run fee path, and exact mode RTP from the published cluster table |
 | Primes | `PRIMES_CONTRACT.md` | Difficulty table, prime-or-zero payout model, and exact RTP by mode |
 | Blackjack | `BLACKJACK_CONTRACT.md` | Public ABI trail, action costs, state layout, and solver-rule alignment |
 | Video Poker | `VIDEO_POKER_CONTRACT.md` | Stateful ABI surface, redraw flow, paytable, and jackpot-aware RTP |

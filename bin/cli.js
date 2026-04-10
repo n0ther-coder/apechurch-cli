@@ -220,6 +220,10 @@ const PACKAGE_VERSION = pkg.version || '0.0.0';
 
 program.name(BINARY_NAME).version(PACKAGE_VERSION, '-v, --version', 'output the current version');
 const GAME_LIST = listGames().join(' | ');
+const GAME_TITLE_COLLATOR = new Intl.Collator('en', {
+  sensitivity: 'base',
+  numeric: true,
+});
 const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<ape> ::= <number>                                 ; decimal APE amount; value > 0',
   '<points> ::= <number>                              ; decimal GP per APE rate; value > 0',
@@ -230,7 +234,7 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<picks> ::= <integer>                              ; 1 <= value <= 10 for Keno, 1 <= value <= 5 for Speed Keno',
   '<games> ::= <integer>                              ; 1 <= value <= 20',
   '<difficulty> ::= <integer>                         ; 0 <= value <= 4 for Bear-A-Dice, 0 <= value <= 3 for Primes',
-  '<runs> ::= <integer>                               ; 1 <= value <= 20',
+  '<runs> ::= <integer>                               ; 1 <= value <= 20 for Primes, 1 <= value <= 5 for Blocks',
   '<rolls> ::= <integer>                              ; 1 <= value <= 5',
   '<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*',
   '<keno-number> ::= <integer>                        ; 1 <= value <= 40',
@@ -638,6 +642,13 @@ function createGameCatalogEntry(game) {
   };
 }
 
+function compareCatalogEntriesByTitle(a, b) {
+  const titleA = stripAbiVerifiedSymbol(a?.name || a?.displayName || '');
+  const titleB = stripAbiVerifiedSymbol(b?.name || b?.displayName || '');
+  return GAME_TITLE_COLLATOR.compare(titleA, titleB)
+    || GAME_TITLE_COLLATOR.compare(String(a?.key || ''), String(b?.key || ''));
+}
+
 function getBlackjackCatalogEntry() {
   return {
     key: 'blackjack',
@@ -677,7 +688,43 @@ function listSupportedGameCatalogEntries() {
     ...GAME_REGISTRY.map((game) => createGameCatalogEntry(game)),
     getBlackjackCatalogEntry(),
     getVideoPokerCatalogEntry(),
-  ];
+  ].sort(compareCatalogEntriesByTitle);
+}
+
+function listAllSupportedGameKeys() {
+  return listSupportedGameCatalogEntries().map((game) => game.key);
+}
+
+function formatAvailableGameGroups() {
+  const supportedGames = listSupportedGameCatalogEntries();
+  const simpleGames = supportedGames.filter((game) => game.type !== 'stateful');
+  const statefulGames = supportedGames.filter((game) => game.type === 'stateful');
+  const lines = [];
+
+  if (simpleGames.length > 0) {
+    lines.push(`Simple: ${simpleGames.map((game) => game.key).join(' | ')}`);
+  }
+  if (statefulGames.length > 0) {
+    lines.push(`Stateful: ${statefulGames.map((game) => game.key).join(' | ')}`);
+  }
+
+  return lines.join('\n');
+}
+
+function printGameCatalogGroup(title, games) {
+  if (!Array.isArray(games) || games.length === 0) {
+    return;
+  }
+
+  console.log(`   ${theme.subheader(`${title}:`)}`);
+  console.log('');
+
+  for (const game of games) {
+    console.log(`   ${theme.gameName(game.displayName)} ${theme.dim(`(${game.key})`)}`);
+    console.log(`      ${theme.value(game.description)}`);
+    if (game.aliases?.length) console.log(`      ${theme.label('Aliases:')} ${theme.dim(game.aliases.join(', '))}`);
+    console.log('');
+  }
 }
 
 function normalizeHistoryBreakdownLookupInput(input) {
@@ -1992,13 +2039,17 @@ program
   .command('bet')
   .requiredOption('--game <type>', GAME_LIST)
   .requiredOption('--amount <ape>', 'Wager amount')
-  .option('--mode <mode>', 'Plinko mode', '0')
+  .option('--mode <mode>', 'Plinko / Blocks mode', '0')
   .option('--balls <balls>', 'Plinko balls', '50')
   .option('--spins <spins>', 'Slots spins', '10')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
   .option('--range <range>', 'ApeStrong range', '50')
   .option('--picks <picks>', 'Keno pick count', '5')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
+  .option('--games <games>', 'Speed Keno game count (batching)')
+  .option('--difficulty <difficulty>', 'Bear-A-Dice / Primes difficulty')
+  .option('--runs <runs>', 'Primes / Blocks run count (batching)')
+  .option('--rolls <rolls>', 'Bear-A-Dice roll count')
   .option('--timeout <ms>', 'Max wait for result (0 = no wait)', '0')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .addHelpText('after', formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES))
@@ -2051,6 +2102,9 @@ program
         picks: opts.picks,
         numbers: opts.numbers,
         games: opts.games,
+        difficulty: opts.difficulty,
+        runs: opts.runs,
+        rolls: opts.rolls,
         timeoutMs,
         referral: profile.referral,
         gpPerApe,
@@ -2074,7 +2128,7 @@ program
   .option('--auto', 'Opt into automatic random game/config selection when not specifying a game')
   .option('--game <name>', 'Game to play')
   .option('--amount <ape>', 'Amount to wager')
-  .option('--mode <mode>', 'Plinko mode')
+  .option('--mode <mode>', 'Game mode / risk mode')
   .option('--balls <balls>', 'Plinko balls')
   .option('--spins <spins>', 'Slots spins')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
@@ -2083,7 +2137,7 @@ program
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--games <games>', 'Speed Keno game count (batching)')
   .option('--difficulty <difficulty>', 'Bear-A-Dice / Primes difficulty')
-  .option('--runs <runs>', 'Primes run count (batching)')
+  .option('--runs <runs>', 'Primes / Blocks run count (batching)')
   .option('--rolls <rolls>', 'Bear-A-Dice roll count')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
@@ -2258,6 +2312,10 @@ program
         // For bear dice: configArgs can be [difficulty] or [difficulty, rolls]
         if (configArgs[0]) positionalConfig.difficulty = parseInt(configArgs[0]);
         if (configArgs[1]) positionalConfig.rolls = parseInt(configArgs[1]);
+      } else if (fixedGame.type === 'blocks') {
+        // For blocks: configArgs can be [mode] or [mode, runs]
+        if (configArgs[0]) positionalConfig.mode = parseInt(configArgs[0]);
+        if (configArgs[1]) positionalConfig.runs = parseInt(configArgs[1]);
       } else if (fixedGame.type === 'primes') {
         // For primes: configArgs can be [difficulty] or [difficulty, runs]
         if (configArgs[0]) positionalConfig.difficulty = parseInt(configArgs[0]);
@@ -2506,6 +2564,30 @@ program
         // Clamp to valid range
         if (gameConfig.mode < 1) gameConfig.mode = 1;
         if (gameConfig.mode > 2) gameConfig.mode = 2;
+      } else if (gameEntry.type === 'blocks') {
+        if (opts.mode !== undefined) gameConfig.mode = parseInt(opts.mode);
+        else if (positionalConfig.mode !== undefined) gameConfig.mode = positionalConfig.mode;
+        else if (gameConfig.mode === undefined) {
+          const [min, max] = clampRange(
+            strategyConfig.blocks?.mode?.[0] ?? gameEntry.config.mode.default,
+            strategyConfig.blocks?.mode?.[1] ?? gameEntry.config.mode.default,
+            gameEntry.config.mode.min,
+            gameEntry.config.mode.max
+          );
+          gameConfig.mode = randomIntInclusive(min, max);
+        }
+
+        if (opts.runs !== undefined) gameConfig.runs = parseInt(opts.runs);
+        else if (positionalConfig.runs !== undefined) gameConfig.runs = positionalConfig.runs;
+        else if (gameConfig.runs === undefined) {
+          const [min, max] = clampRange(
+            strategyConfig.blocks?.runs?.[0] ?? gameEntry.config.runs.default,
+            strategyConfig.blocks?.runs?.[1] ?? gameEntry.config.runs.default,
+            gameEntry.config.runs.min,
+            gameEntry.config.runs.max
+          );
+          gameConfig.runs = randomIntInclusive(min, max);
+        }
       } else if (gameEntry.type === 'primes') {
         if (opts.difficulty !== undefined) gameConfig.difficulty = parseInt(opts.difficulty);
         else if (positionalConfig.difficulty !== undefined) gameConfig.difficulty = positionalConfig.difficulty;
@@ -2554,6 +2636,9 @@ program
       } else if (gameEntry.type === 'monkeymatch') {
         const modeNames = { 1: 'Low Risk', 2: 'Normal Risk' };
         gameDesc += ` (${modeNames[gameConfig.mode] || 'Low Risk'})`;
+      } else if (gameEntry.type === 'blocks') {
+        const modeNames = ['Easy', 'Hard'];
+        gameDesc += ` (${modeNames[gameConfig.mode] || 'Easy'}, ${gameConfig.runs} runs)`;
       } else if (gameEntry.type === 'primes') {
         const difficultyNames = ['Easy', 'Medium', 'Hard', 'Extreme'];
         gameDesc += ` (${difficultyNames[gameConfig.difficulty] || 'Easy'}, ${gameConfig.runs} runs)`;
@@ -3292,6 +3377,8 @@ program
     const historyBreakdown = summarizeHistoryGamesByGame(history);
     const includeActiveGames = Boolean(localWalletAddress);
     const supportedGames = listSupportedGameCatalogEntries();
+    const simpleGames = supportedGames.filter((game) => game.type !== 'stateful');
+    const statefulGames = supportedGames.filter((game) => game.type === 'stateful');
     const gameStats = opts.stats
       ? buildHistoryGameStatusSummary({
           historyBreakdown,
@@ -3307,12 +3394,8 @@ program
       }));
     } else {
       console.log(`\n${formatHeader('Available Games', '🎰')}\n`);
-      for (const game of supportedGames) {
-        console.log(`   ${theme.gameName(game.displayName)} ${theme.dim(`(${game.key})`)}`);
-        console.log(`      ${theme.value(game.description)}`);
-        if (game.aliases?.length) console.log(`      ${theme.label('Aliases:')} ${theme.dim(game.aliases.join(', '))}`);
-        console.log('');
-      }
+      printGameCatalogGroup('Simple Games', simpleGames);
+      printGameCatalogGroup('Stateful Games', statefulGames);
 
       if (opts.stats) {
         console.log(`${formatHeader('Game Stats', '🎮')}\n`);
@@ -3484,9 +3567,9 @@ ${'═'.repeat(60)}
     
     const game = resolveGame(name);
     if (!game) {
-      const error = { error: `Unknown game: ${name}`, available: listGames() };
+      const error = { error: `Unknown game: ${name}`, available: listAllSupportedGameKeys() };
       if (opts.json) console.log(JSON.stringify(error));
-      else console.log(`\n❌ Unknown game: "${name}"\nAvailable: ${GAME_LIST}, blackjack, video-poker\n`);
+      else console.log(`\n❌ Unknown game: "${name}"\n${formatAvailableGameGroups()}\n`);
       return;
     }
 
@@ -3637,6 +3720,7 @@ BETTING STRATEGIES
 EXAMPLES
   ${BINARY_NAME} play jungle 10 2 50
   ${BINARY_NAME} play cosmic 10 1 10
+  ${BINARY_NAME} play blocks 10 1 5
   ${BINARY_NAME} play primes 10 0 20
   ${BINARY_NAME} play roulette 50 RED
   ${BINARY_NAME} play ape-strong 10 50

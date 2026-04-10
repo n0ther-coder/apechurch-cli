@@ -17,6 +17,7 @@ These notes belong under `docs/odds/` only when the repo already has a defensibl
 | Speed Keno ✔︎ | [SPEED_KENO_ODDS_PAYOUTS.md](./SPEED_KENO_ODDS_PAYOUTS.md) | Smaller hypergeometric state space than Keno, with exact hit-count tables by picks. |
 | Monkey Match ✔︎ | [MONKEY_MATCH_ODDS_PAYOUTS.md](./MONKEY_MATCH_ODDS_PAYOUTS.md) | Two verified modes and seven multiplicity classes make the full distribution compact. |
 | Bear-A-Dice ✔︎ | [BEAR_DICE_ODDS_PAYOUTS.md](./BEAR_DICE_ODDS_PAYOUTS.md) | Fully exact `2d6` survival distributions across `5 x 5` verified difficulty/roll variants. |
+| Blocks ✔︎ | [BLOCKS_ODDS_PAYOUTS.md](./BLOCKS_ODDS_PAYOUTS.md) | The published cluster table collapses the whole 3x3 board game to seven paying outcome classes per mode. |
 | Primes ✔︎ | [PRIMES_ODDS_PAYOUTS.md](./PRIMES_ODDS_PAYOUTS.md) | Each difficulty has only three exact outcome classes: zero, prime, or dead run. |
 
 ## Possible, But Only With Extra Snapshotting

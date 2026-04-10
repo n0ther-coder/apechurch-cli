@@ -247,6 +247,10 @@ Notes:
                | "--range" <integer>
                | "--picks" <integer>
                | "--numbers" <token>
+               | "--games" <count>
+               | "--difficulty" <integer>
+               | "--runs" <count>
+               | "--rolls" <count>
                | "--timeout" <integer>
                | "--gp-ape" <points>
 ```
@@ -255,13 +259,17 @@ Notes:
 |--------|---------|
 | `--game <type>` | Simple-game key |
 | `--amount <ape>` | Wager amount |
-| `--mode <mode>` | Plinko or Monkey Match mode |
+| `--mode <mode>` | Game risk mode for Plinko, Monkey Match, or Blocks |
 | `--balls <balls>` | Plinko ball count |
 | `--spins <spins>` | Slot spin count |
 | `--bet <bet>` | Roulette or baccarat bet payload |
 | `--range <range>` | ApeStrong range |
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token, for example `1,7,13,25,40` or `random` |
+| `--games <games>` | Speed Keno batch count |
+| `--difficulty <difficulty>` | Bear-A-Dice or Primes difficulty |
+| `--runs <runs>` | Primes or Blocks run count |
+| `--rolls <rolls>` | Bear-A-Dice roll count |
 | `--timeout <ms>` | Wait time for a result; `0` means no wait limit |
 | `--gp-ape <points>` | Override local GP estimation for this run |
 
@@ -307,7 +315,7 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--auto` | Opt into automatic random game/config selection when no game is specified |
 | `--game <name>` | Simple-game key |
 | `--amount <ape>` | Wager amount |
-| `--mode <mode>` | Plinko or Monkey Match mode |
+| `--mode <mode>` | Game risk mode for Plinko, Monkey Match, or Blocks |
 | `--balls <balls>` | Plinko ball count |
 | `--spins <spins>` | Slot spin count |
 | `--bet <bet>` | Roulette or baccarat bet payload |
@@ -316,7 +324,7 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--numbers <numbers>` | Keno numbers as one token |
 | `--games <games>` | Speed Keno batch count |
 | `--difficulty <difficulty>` | Bear-A-Dice or Primes difficulty |
-| `--runs <runs>` | Primes run count |
+| `--runs <runs>` | Primes or Blocks run count |
 | `--rolls <rolls>` | Bear-A-Dice roll count |
 | `--strategy <name>` | Persona used when the CLI chooses a game/config |
 | `--loop` | Keep playing until a stop condition is hit |

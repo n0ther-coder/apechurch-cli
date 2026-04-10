@@ -99,6 +99,19 @@ describe('RTP Helpers', () => {
     ]);
   });
 
+  it('exposes exact calculated RTP constants for each verified Blocks mode', () => {
+    const variants = getGameCalculatedVariantReferences('blocks');
+
+    assert.deepStrictEqual(variants.map((variant) => ({
+      variantLabel: variant.variantLabel,
+      display: variant.calculated.display,
+      maxPayout: variant.maxPayout.display,
+    })), [
+      { variantLabel: 'Easy', display: '98.41%', maxPayout: '2,500x' },
+      { variantLabel: 'Hard', display: '98.55%', maxPayout: '5,000x' },
+    ]);
+  });
+
   it('uses the lowest verified exact RTP when Bear-A-Dice has multiple difficulty/roll variants', () => {
     const expected = getGameExpectedRtpReference('bear-dice');
 
@@ -182,6 +195,22 @@ describe('RTP Helpers', () => {
     assert.strictEqual(maxPayout.display, '250x');
   });
 
+  it('uses the verified Blocks mode table even when runs are specified', () => {
+    const expected = getConfiguredGameExpectedRtpReference({
+      game: 'blocks',
+      config: { mode: 1, runs: 5 },
+    });
+    const maxPayout = getConfiguredGameMaxPayoutReference({
+      game: 'blocks',
+      config: { mode: 1, runs: 5 },
+    });
+
+    assert.strictEqual(expected.display, '98.55%');
+    assert.strictEqual(expected.referenceType, 'calculated');
+    assert.strictEqual(expected.calculationKind, 'exact');
+    assert.strictEqual(maxPayout.display, '5,000x');
+  });
+
   it('uses the verified Bear-A-Dice payout table for configured RTP and max payout', () => {
     const expected = getConfiguredGameExpectedRtpReference({
       game: 'bear-dice',
@@ -238,6 +267,21 @@ describe('RTP Helpers', () => {
       variantLabel: 'Extreme',
       rtpGame: 'primes',
       rtpConfig: { difficulty: 3 },
+    });
+  });
+
+  it('canonicalizes Blocks variants to risk mode only, ignoring runs', () => {
+    const blocks = resolveConfiguredGameVariant({
+      game: 'blocks',
+      config: { mode: 1, runs: 5 },
+    });
+
+    assert.deepStrictEqual(blocks, {
+      gameKey: 'blocks',
+      variantKey: 'blocks:mode:hard',
+      variantLabel: 'Hard',
+      rtpGame: 'blocks',
+      rtpConfig: { mode: 1 },
     });
   });
 
