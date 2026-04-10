@@ -26,6 +26,8 @@ Everything else lives under `docs/` or next to the code it explains.
 | `docs/THESIS.md` | Marketing / narrative | Low | Maybe | Positioning document, not operational documentation. |
 | `docs/verification/README.md` | Maintainers | High | Yes | Index of the canonical per-game ABI verification notes. |
 | `docs/verification/*.md` | Maintainers | High | Yes | Canonical per-game verification trail for every `ABI verified` title, including mechanics, tuple layout, and contract-backed RTP notes. |
+| `docs/odds/README.md` | Users / maintainers | High | Yes | Index of exact probability/payout notes for games with compact, fully documentable outcome surfaces. |
+| `docs/odds/*.md` | Users / maintainers | High | Yes | Exact odds and payout distributions intended to support game-selection decisions. |
 | `tests/README.md` | Maintainers | High | Yes | Test entry point; keep it next to the tests. |
 
 ## Archive

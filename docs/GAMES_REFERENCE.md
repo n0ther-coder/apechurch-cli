@@ -4,7 +4,7 @@
 
 Compact syntax and comparison notes for all Ape Church CLI games.
 
-Treat published running RTP values as observed snapshots, not guaranteed long-run returns. For ABI-backed tuple layouts, payout matrices, and maintainer-facing verification evidence, follow the per-game links in `docs/verification/`.
+Treat published running RTP values as observed snapshots, not guaranteed long-run returns. For ABI-backed tuple layouts, payout matrices, and maintainer-facing verification evidence, follow the per-game links in `docs/verification/`. For compact exact outcome distributions meant to help choose variants, see [docs/odds/README.md](./odds/README.md).
 
 The `✔︎` marker means this repo has locally verified the game's ABI-facing behavior against verified on-chain contract data. Supported games without the symbol are still playable in the CLI, but they have not yet been promoted to `ABI verified`; see [ABI_VERIFICATION.md](./ABI_VERIFICATION.md) for the maintainer checklist.
 
@@ -82,6 +82,7 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 **ABI verified:** `true`
 **Aliases:** `strong`, `dice`, `limbo`
 **Verification notes:** [APESTRONG_CONTRACT.md](./verification/APESTRONG_CONTRACT.md)
+**Odds tables:** [APESTRONG_ODDS_PAYOUTS.md](./odds/APESTRONG_ODDS_PAYOUTS.md)
 
 Range-based one-word VRF game. You choose a win probability `5-95`; the contract wins on `winningNumber < range` and settles from a live payout table rather than a closed-form multiplier.
 
@@ -104,6 +105,7 @@ Range-based one-word VRF game. You choose a win probability `5-95`; the contract
 **ABI verified:** `true`
 **Aliases:** `rl`
 **Verification notes:** [ROULETTE_CONTRACT.md](./verification/ROULETTE_CONTRACT.md)
+**Odds tables:** [ROULETTE_ODDS_PAYOUTS.md](./odds/ROULETTE_ODDS_PAYOUTS.md)
 
 American roulette on a `38`-pocket wheel. The contract supports single numbers, colors, parity, halves, dozens, and columns; multi-bets split the wager across legs, while one-leg bets subtract `1 wei` because each encoded leg must stay strictly below the post-fee total.
 
@@ -128,6 +130,7 @@ American roulette on a `38`-pocket wheel. The contract supports single numbers, 
 **ABI verified:** `true`
 **Aliases:** `bacc`
 **Verification notes:** [BACCARAT_CONTRACT.md](./verification/BACCARAT_CONTRACT.md)
+**Odds tables:** [BACCARAT_ODDS_PAYOUTS.md](./odds/BACCARAT_ODDS_PAYOUTS.md)
 
 Classic baccarat with contract-backed combined bets. You can play `PLAYER`, `BANKER`, or `TIE`, or combine one main side with an explicit `TIE` leg; `PLAYER` and `BANKER` together are not valid on-chain.
 
@@ -152,6 +155,7 @@ Classic baccarat with contract-backed combined bets. You can play `PLAYER`, `BAN
 **ABI verified:** `true`
 **Aliases:** `jungle`
 **Verification notes:** [JUNGLE_PLINKO_CONTRACT.md](./verification/JUNGLE_PLINKO_CONTRACT.md)
+**Odds tables:** [JUNGLE_PLINKO_ODDS_PAYOUTS.md](./odds/JUNGLE_PLINKO_ODDS_PAYOUTS.md)
 
 Weighted-bucket Plinko, not a peg-by-peg physics sim. Mode controls the bucket table; ball count mainly changes variance and the tiny floor-division dust from splitting the wager across `1-100` balls.
 
@@ -175,6 +179,7 @@ Weighted-bucket Plinko, not a peg-by-peg physics sim. Mode controls the bucket t
 **ABI verified:** `true`
 **Aliases:** `cosmic`
 **Verification notes:** [COSMIC_PLINKO_CONTRACT.md](./verification/COSMIC_PLINKO_CONTRACT.md)
+**Odds tables:** [COSMIC_PLINKO_ODDS_PAYOUTS.md](./odds/COSMIC_PLINKO_ODDS_PAYOUTS.md)
 
 Asymmetric weighted-bucket Plinko with a narrower mode range than Jungle. Ball count `1-30` mainly changes variance; the exact EV surface is mode-driven.
 
@@ -198,6 +203,7 @@ Asymmetric weighted-bucket Plinko with a narrower mode range than Jungle. Ball c
 **ABI verified:** `true`
 **Aliases:** `k`
 **Verification notes:** [KENO_CONTRACT.md](./verification/KENO_CONTRACT.md)
+**Odds tables:** [KENO_ODDS_PAYOUTS.md](./odds/KENO_ODDS_PAYOUTS.md)
 
 Classic `1-40` keno with `10` winning numbers drawn without replacement. Specific chosen numbers do not change exact EV; pick count is the only strategic lever.
 
@@ -222,6 +228,7 @@ Classic `1-40` keno with `10` winning numbers drawn without replacement. Specifi
 **ABI verified:** `true`
 **Aliases:** `sk`, `speedk`
 **Verification notes:** [SPEED_KENO_CONTRACT.md](./verification/SPEED_KENO_CONTRACT.md)
+**Odds tables:** [SPEED_KENO_ODDS_PAYOUTS.md](./odds/SPEED_KENO_ODDS_PAYOUTS.md)
 
 Fast batched keno on a `1-20` board. You choose `1-5` picks and batch `1-20` mini-games into one tx; batch count changes fee efficiency and variance, while pick count changes actual EV.
 
@@ -291,6 +298,7 @@ Same slots ABI family as Dino Dough, but with a different live reel and paytable
 **ABI verified:** `true`
 **Aliases:** `monkey`, `mm`
 **Verification notes:** [MONKEY_MATCH_CONTRACT.md](./verification/MONKEY_MATCH_CONTRACT.md)
+**Odds tables:** [MONKEY_MATCH_ODDS_PAYOUTS.md](./odds/MONKEY_MATCH_ODDS_PAYOUTS.md)
 
 Five independent monkey draws scored as multiplicity hands. There is no redraw or action tree; mode choice is the whole strategy surface.
 
@@ -313,6 +321,7 @@ Five independent monkey draws scored as multiplicity hands. There is no redraw o
 **ABI verified:** `true`
 **Aliases:** `bear`, `bd`
 **Verification notes:** [BEAR_DICE_CONTRACT.md](./verification/BEAR_DICE_CONTRACT.md)
+**Odds tables:** [BEAR_DICE_ODDS_PAYOUTS.md](./odds/BEAR_DICE_ODDS_PAYOUTS.md)
 
 All-or-nothing compounded `2d6` survival game. You pick a difficulty and `1-5` rolls; every safe sum compounds the payout, and the first losing sum zeroes the whole run.
 
@@ -336,6 +345,7 @@ All-or-nothing compounded `2d6` survival game. You pick a difficulty and `1-5` r
 **ABI verified:** `true`
 **Aliases:** `prime`
 **Verification notes:** [PRIMES_CONTRACT.md](./verification/PRIMES_CONTRACT.md)
+**Odds tables:** [PRIMES_ODDS_PAYOUTS.md](./odds/PRIMES_ODDS_PAYOUTS.md)
 
 Batched prime-or-zero number game. Difficulty controls the numeric range and fixed multipliers; run count only changes variance and floor-division dust.
 
