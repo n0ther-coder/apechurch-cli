@@ -222,6 +222,17 @@ import {
   formatRtpTripletCells,
   formatRtpTripletLine,
 } from '../lib/rtp.js';
+import {
+  estimateConfiguredGameLoopRunout,
+  formatLoopRunoutEstimate,
+  getConfiguredGameVrfFeeApe,
+} from '../lib/loop-estimate.js';
+import {
+  formatDelayMs,
+  getLoopDelayMs,
+  resolveLoopDelaySeconds,
+  sleep,
+} from '../lib/stateful/timing.js';
 
 // --- CLI Setup ---
 const program = new Command();
@@ -2181,7 +2192,8 @@ program
   .option('--rolls <rolls>', 'Bear-A-Dice roll count')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
-  .option('--delay <seconds>', 'Delay between games in loop', '3')
+  .option('--delay <seconds>', 'Fixed delay between looped games')
+  .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
@@ -2195,8 +2207,12 @@ program
   .addHelpText('after', formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES))
   .action(async (gameArg, amountArg, configArgs, opts) => {
     const loopMode = Boolean(opts.loop);
-    const delaySeconds = Math.max(parseFloat(opts.delay) || 3, 1);
-    const delayMs = delaySeconds * 1000;
+    const humanTiming = Boolean(opts.human);
+    const loopDelaySeconds = resolveLoopDelaySeconds({
+      rawDelay: opts.delay,
+      human: humanTiming,
+      defaultDelaySeconds: 3,
+    });
     const playCommand = program.commands.find((command) => command.name() === 'play');
     const hasPositionalInput = Boolean(gameArg || amountArg || (configArgs && configArgs.length > 0));
     const explicitPlayFlags = new Set([
@@ -2217,6 +2233,7 @@ program
       '--strategy',
       '--loop',
       '--delay',
+      '--human',
       '--max-games',
       '--target',
       '--target-x',
@@ -2285,6 +2302,7 @@ program
     let gamesPlayed = 0;
     let lastGameResult = null; // Track for betting strategy
     const loopStats = createLoopStats();
+    let loopEstimateShown = false;
 
     const gameInput = gameArg || opts.game;
     const amountInput = amountArg || opts.amount;
@@ -2401,9 +2419,15 @@ program
     if (loopMode && !opts.json) {
       console.log(`${formatGpPerApeNotice({ info: gpPerApeInfo })}\n`);
       const gameInfo = fixedGame ? getGameDisplayName(fixedGame) : 'random games';
+      const fixedDelayLabel = loopDelaySeconds > 0
+        ? formatDelayMs(Math.round(loopDelaySeconds * 1000))
+        : null;
+      const delayLabel = humanTiming
+        ? (fixedDelayLabel ? `${fixedDelayLabel} + humanized 3-9s delay` : 'humanized 3-9s delay')
+        : `${fixedDelayLabel || '0s'} delay`;
       const strategyInfo = betStrategyName !== 'flat' ? ` | Strategy: ${betStrategyName}` : '';
       const maxBetInfo = maxBet ? ` | Max bet: ${maxBet} APE` : '';
-      console.log(`\n🔄 Loop mode: ${gameInfo} (${delaySeconds}s delay${strategyInfo}${maxBetInfo})`);
+      console.log(`\n🔄 Loop mode: ${gameInfo} (${delayLabel}${strategyInfo}${maxBetInfo})`);
       if (targetBalance) console.log(`   🎯 Target: ${targetBalance} APE`);
       if (targetX) console.log(`   🎯 Target multiplier: ${targetX}x`);
       if (targetPayoutApe) console.log(`   💰 Target payout: ${targetPayoutApe} APE`);
@@ -2704,6 +2728,42 @@ program
       }
 
       // Human-friendly output: show what we're playing
+      if (loopMode && fixedGame && !opts.json && !loopEstimateShown) {
+        try {
+          const vrfFeeApe = await getConfiguredGameVrfFeeApe({
+            publicClient,
+            gameEntry,
+            config: gameConfig,
+          });
+          const estimateLine = formatLoopRunoutEstimate(
+            estimateConfiguredGameLoopRunout({
+              balanceApe,
+              availableApe,
+              stopLossApe: stopLoss,
+              gameEntry,
+              wagerApe,
+              config: gameConfig,
+              vrfFeeApe,
+            })
+          );
+
+          loopEstimateShown = true;
+          const promptText = estimateLine ? `\n${estimateLine}. Proceed? (Y/n) ` : '\nProceed? (Y/n) ';
+          const answer = await prompt(promptText);
+          if (answer.trim().toLowerCase() === 'n') {
+            console.log('\nLoop cancelled.\n');
+            return { shouldStop: true, reason: 'cancelled', gameResult: null, error: false, playedGameKey: null, playedConfig: null, counted: false };
+          }
+        } catch {
+          loopEstimateShown = true;
+          const answer = await prompt('\nProceed? (Y/n) ');
+          if (answer.trim().toLowerCase() === 'n') {
+            console.log('\nLoop cancelled.\n');
+            return { shouldStop: true, reason: 'cancelled', gameResult: null, error: false, playedGameKey: null, playedConfig: null, counted: false };
+          }
+        }
+      }
+
       if (!opts.json) {
         if (!loopMode) {
           console.log(`${formatGpPerApeNotice({ info: gpPerApeInfo })}\n`);
@@ -2921,7 +2981,9 @@ program
         }
         
         const result = await playOnce(nextBet);
-        gamesPlayed++;
+        if (result.counted !== false) {
+          gamesPlayed++;
+        }
 
         if (result.playedGameKey) {
           lastPlayedGameKey = result.playedGameKey;
@@ -2954,7 +3016,7 @@ program
           if (!opts.json) {
             console.log(`   ⚠️  Retrying next game in 5s (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS} consecutive errors)...\n`);
           }
-          await new Promise(r => setTimeout(r, 5000));
+          await sleep(5000);
           continue;
         }
         
@@ -2968,6 +3030,7 @@ program
 
         // Show balance and countdown before next game
         if (!opts.json) {
+          const nextDelayMs = getLoopDelayMs({ delaySeconds: loopDelaySeconds, human: humanTiming });
           const { publicClient: pc } = createClients();
           const currentBal = await pc.getBalance({ address: account.address });
           const currentApe = parseFloat(formatEther(currentBal));
@@ -2985,7 +3048,7 @@ program
             rtpGame: lastPlayedGameKey,
             rtpConfig: lastPlayedConfig,
             gpPerApe,
-            nextDelayLabel: terminalConditionReached ? null : `${delaySeconds}s`,
+            nextDelayLabel: terminalConditionReached ? null : formatDelayMs(nextDelayMs),
           }));
           if (singleGameTerminalCondition) {
             console.log('');
@@ -2994,9 +3057,11 @@ program
             break;
           }
           if (terminalConditionReached) continue;
+          await sleep(nextDelayMs);
+          continue;
         }
         if (singleGameTerminalCondition) break;
-        await new Promise(r => setTimeout(r, delayMs));
+        await sleep(getLoopDelayMs({ delaySeconds: loopDelaySeconds, human: humanTiming }));
       }
     } else {
       await playOnce();
@@ -3892,8 +3957,13 @@ ${'─'.repeat(70)}
                        Default base rate is 5 GP/APE unless a wallet-specific
                        current rate is set in profile
 
+  Hidden timing flag:
+    --human            Add humanized random pacing (3-9s)
+                       If --delay is also set, it is added on top
+
   These can be combined:
     ${BINARY_NAME} play --loop --target 200 --stop-loss 50 --max-games 500
+    ${BINARY_NAME} play roulette 10 RED --loop --human
 
   Where loop game estimates are supported, startup also prints a pre-loop estimate.
   Games with a full Monte Carlo model show the typical run plus lucky / bad-run bounds:
@@ -4133,6 +4203,7 @@ ${'─'.repeat(70)}
 
   For slower, less robotic pacing during loops:
 
+    ${BINARY_NAME} play roulette 10 RED --loop --human
     ${BINARY_NAME} video-poker 10 --auto best --loop \\
       --delay 5 --human
 

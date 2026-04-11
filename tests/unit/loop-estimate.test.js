@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   calculateLoopRunoutEstimate,
   calculateMonteCarloLoopRunoutEstimate,
+  estimateConfiguredGameLoopRunout,
   estimateVideoPokerLoopRunoutMonteCarlo,
   formatLoopRunoutEstimate,
   getBlackjackEstimatedFeesApe,
@@ -13,6 +14,7 @@ import {
   getVideoPokerEstimatedRtp,
   sampleVideoPokerGameNetDeltaApe,
 } from '../../lib/loop-estimate.js';
+import { resolveGame } from '../../registry.js';
 
 describe('Loop Estimate Helpers', () => {
   it('estimates games before wallet squandering from expected loss per game', () => {
@@ -125,6 +127,44 @@ describe('Loop Estimate Helpers', () => {
     assert.equal(estimate.p10Games, 3);
     assert.equal(estimate.p50Games, 3);
     assert.equal(estimate.p90Games, 3);
+  });
+
+  it('uses exact configured samplers for simple games with closed-form distributions', () => {
+    const gameEntry = resolveGame('roulette');
+    const rolls = [0.2, 0.9, 0.2, 0.9, 0.2, 0.2, 0.9, 0.9];
+    let index = 0;
+    const estimate = estimateConfiguredGameLoopRunout({
+      balanceApe: 40,
+      availableApe: 39,
+      gameEntry,
+      wagerApe: 10,
+      config: { bet: 'RED' },
+      vrfFeeApe: 0,
+      sessionCount: 4,
+      rng: () => rolls[index++ % rolls.length],
+    });
+
+    assert.equal(estimate.method, 'monte-carlo');
+    assert.match(
+      formatLoopRunoutEstimate(estimate),
+      /^Estimate games before wallet squandering: ~\d+ ⚠️\. On a lucky day, it could be \d+ 🍀; on a bad run, just \d+ 💀$/u
+    );
+  });
+
+  it('falls back to EV estimates when the full live payout matrix is not persisted locally', () => {
+    const gameEntry = resolveGame('dino-dough');
+    const estimate = estimateConfiguredGameLoopRunout({
+      balanceApe: 100,
+      availableApe: 99,
+      gameEntry,
+      wagerApe: 10,
+      config: { spins: 5 },
+      vrfFeeApe: 0.1,
+    });
+
+    assert.equal(estimate.method, 'ev');
+    assert.equal(estimate.scopeLabel, 'wallet squandering');
+    assert.match(formatLoopRunoutEstimate(estimate), /^Estimate games before wallet squandering ~\d+ games$/u);
   });
 
   it('uses the base video poker RTP for non-max bets', () => {

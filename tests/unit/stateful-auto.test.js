@@ -27,6 +27,19 @@ describe('Stateful Auto Mode', () => {
     assert.strictEqual(resolveLoopDelaySeconds({ rawDelay: undefined, human: true }), 0);
   });
 
+  it('supports alternate default delays for simple-game loops', () => {
+    assert.strictEqual(resolveLoopDelaySeconds({
+      rawDelay: undefined,
+      human: false,
+      defaultDelaySeconds: 3,
+    }), 3);
+    assert.strictEqual(resolveLoopDelaySeconds({
+      rawDelay: undefined,
+      human: true,
+      defaultDelaySeconds: 3,
+    }), 0);
+  });
+
   it('keeps only the humanized 3-9s jitter when --human is used without --delay', () => {
     for (let i = 0; i < 200; i++) {
       const delayMs = getLoopDelayMs({

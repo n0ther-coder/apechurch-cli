@@ -208,10 +208,20 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
 
+    it('play --help keeps --human hidden and documents loop controls', () => {
+      const { stdout } = cli('play --help');
+      assert.ok(stdout.includes('--loop'), 'Should still show loop option');
+      assert.ok(stdout.includes('--delay <seconds>'), 'Should still show delay option');
+      assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
+      assert.ok(stdout.includes('--target-profit <ape>'), 'Should show single-game payout stop option');
+      assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
+    });
+
     it('help auto still shows advanced examples', () => {
       const { stdout } = cli('help auto');
       assert.ok(stdout.includes('--auto best'), 'Should keep best-mode examples in helper text');
       assert.ok(stdout.includes('--human'), 'Should keep humanized pacing example in helper text');
+      assert.ok(stdout.includes('play roulette 10 RED --loop --human'), 'Should document humanized pacing for simple games');
     });
 
     it('help loop documents startup game estimates where RTP is known', () => {
@@ -220,6 +230,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--target-profit <ape>'), 'Should document single-game payout stop');
       assert.ok(stdout.includes('Estimate games before wallet squandering'), 'Should document wallet squandering estimate');
       assert.ok(stdout.includes('Estimate games before stop-loss'), 'Should document stop-loss estimate');
+      assert.ok(stdout.includes('--human'), 'Should document humanized loop pacing');
       assert.ok(stdout.includes('Proceed? (Y/n)'), 'Should document the confirmation prompt');
     });
   });
