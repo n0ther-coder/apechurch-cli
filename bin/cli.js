@@ -144,6 +144,7 @@ import {
   loadState,
   saveState,
   loadHistory,
+  saveHistory,
   getHistoryFilePath,
   registerUsername,
   generateUsername,
@@ -186,6 +187,7 @@ import {
 } from '../lib/status.js';
 import {
   downloadWalletHistory,
+  inferSavedHistoryGameVariants,
   readCurrentHistoryBalances,
   summarizeHistoryGames,
   summarizeHistoryGamesByGame,
@@ -209,6 +211,7 @@ import {
   getGameCalculatedVariantReference,
   getConfiguredGameMaxPayoutReference,
   getGameMaxPayoutVariantReference,
+  getUniformGameMaxPayoutReference,
   formatMaxPayoutReference,
   formatRtpDetails,
   formatRtpTripletCells,
@@ -888,6 +891,32 @@ function formatObservedMultiplier(value) {
   return theme.value(`${display}x`);
 }
 
+async function enrichStoredHistoryVariants(publicClient, history) {
+  if (!history || !Array.isArray(history.games) || history.games.length === 0) {
+    return history;
+  }
+
+  try {
+    const enrichment = await inferSavedHistoryGameVariants(publicClient, history.games);
+    if (!enrichment.changed) {
+      return history;
+    }
+
+    const nextHistory = {
+      ...history,
+      games: enrichment.games,
+    };
+    try {
+      saveHistory(nextHistory, nextHistory.wallet || history.wallet);
+    } catch {
+      // Best effort: keep the enriched in-memory view even if persistence fails.
+    }
+    return nextHistory;
+  } catch {
+    return history;
+  }
+}
+
 function formatGameStatsTable(games = []) {
   const columns = [
     { key: 'game', header: 'game', align: 'left' },
@@ -904,6 +933,12 @@ function formatGameStatsTable(games = []) {
 
   const rows = games.map((game) => {
     const { gameName, modeLabel } = splitGameStatsDisplay(game);
+    const resolvedGameKey = game.rtp_game || game.base_game_key || game.game;
+    const hasResolvedVariant = Boolean(
+      game.variant_label
+      || game.rtp_config
+      || (game.group_key && game.base_game_key && game.group_key !== game.base_game_key)
+    );
     const variantExpectedReference = game.group_key === 'blackjack:mixed'
       ? null
       : getGameCalculatedVariantReference(game.group_key)?.calculated;
@@ -911,7 +946,7 @@ function formatGameStatsTable(games = []) {
       ? null
       : getGameMaxPayoutVariantReference(game.group_key);
     const rtpCells = formatRtpTripletCells({
-      game: game.rtp_game || game.base_game_key || game.game,
+      game: resolvedGameKey,
       config: game.rtp_config || null,
       expectedReference: variantExpectedReference,
       currentRtp: game.rtp,
@@ -919,16 +954,13 @@ function formatGameStatsTable(games = []) {
     const maxPayoutReference = game.group_key === 'blackjack:mixed' && !game.rtp_config
       ? null
       : ((game.rtp_config
-      ? getConfiguredGameMaxPayoutReference({
-          game: game.rtp_game || game.base_game_key || game.game,
-          config: game.rtp_config || null,
-        })
-      : null)
+        ? getConfiguredGameMaxPayoutReference({
+            game: resolvedGameKey,
+            config: game.rtp_config || null,
+          })
+        : null)
       || variantMaxPayoutReference
-      || getConfiguredGameMaxPayoutReference({
-          game: game.rtp_game || game.base_game_key || game.game,
-          config: game.rtp_config || null,
-        }));
+      || (!hasResolvedVariant ? getUniformGameMaxPayoutReference(resolvedGameKey) : null));
 
     return {
       game: theme.gameName(gameName),
@@ -1707,9 +1739,11 @@ program
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: opts.json });
     const profile = loadProfile(account.address);
-    const history = loadHistory(account.address);
+    let history = loadHistory(account.address);
     const activeGames = loadActiveGames(account.address);
     const { publicClient } = createClients();
+
+    history = await enrichStoredHistoryVariants(publicClient, history);
 
     let balance;
     try {
@@ -3278,6 +3312,7 @@ program
     }
 
     const { publicClient } = createClients();
+    history = await enrichStoredHistoryVariants(publicClient, history);
     let currentBalances = {};
     try {
       currentBalances = await readCurrentHistoryBalances(publicClient, targetAddress);
@@ -3390,9 +3425,13 @@ program
   .command('games')
   .option('--stats', 'Append the full Game Stats catalog, using local history when available')
   .option('--json', 'JSON output')
-  .action((opts) => {
+  .action(async (opts) => {
     const localWalletAddress = getWalletAddress();
-    const history = loadHistory(localWalletAddress || undefined);
+    let history = loadHistory(localWalletAddress || undefined);
+    if (opts.stats && localWalletAddress) {
+      const { publicClient } = createClients();
+      history = await enrichStoredHistoryVariants(publicClient, history);
+    }
     const historyBreakdown = summarizeHistoryGamesByGame(history);
     const includeActiveGames = Boolean(localWalletAddress);
     const supportedGames = listSupportedGameCatalogEntries();

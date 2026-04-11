@@ -14,6 +14,7 @@ import {
   getGameExpectedRtpReference,
   getGameMaxPayoutReference,
   getGameTheoreticalRtpReference,
+  getUniformGameMaxPayoutReference,
   resolveConfiguredGameVariant,
 } from '../../lib/rtp.js';
 
@@ -349,6 +350,22 @@ describe('RTP Helpers', () => {
 
     assert.strictEqual(maxPayout.display, '1,000,000x');
     assert.strictEqual(maxPayout.value, 1000000);
+  });
+
+  it('keeps unresolved max payout unavailable when different modes have different caps', () => {
+    assert.strictEqual(getUniformGameMaxPayoutReference('blocks'), null);
+    assert.strictEqual(getUniformGameMaxPayoutReference('baccarat'), null);
+    assert.strictEqual(getUniformGameMaxPayoutReference('ape-strong'), null);
+  });
+
+  it('keeps unresolved max payout when every known mode shares the same cap', () => {
+    const monkeyMatch = getUniformGameMaxPayoutReference('monkey-match');
+    const sushi = getUniformGameMaxPayoutReference('sushi-showdown');
+
+    assert.strictEqual(monkeyMatch.display, '50x');
+    assert.strictEqual(monkeyMatch.value, 50);
+    assert.strictEqual(sushi.display, '500x');
+    assert.strictEqual(sushi.value, 500);
   });
 
   it('keeps max payout mode-specific when the config identifies a variant', () => {

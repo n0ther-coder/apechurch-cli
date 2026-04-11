@@ -182,6 +182,50 @@ describe('Status Helpers', () => {
       ]);
     });
 
+    it('excludes execution-reverted saved records from compact game counts', () => {
+      const summary = buildGameStatusSummary({
+        historyGames: [
+          { contract: APE_STRONG_CONTRACT, gameId: '1', last_sync_on: '2026-03-29T12:00:00.000Z' },
+          { contract: APE_STRONG_CONTRACT, gameId: '2', last_sync_on: '2026-03-29T18:00:00.000Z', last_sync_msg: 'execution reverted' },
+        ],
+        historyEntries: [
+          {
+            contract: APE_STRONG_CONTRACT,
+            game: 'ApeStrong ✔︎',
+            pnl_ape: '1.5000',
+            wager_ape: '1',
+            payout_ape: '2.5',
+            won: true,
+            push: false,
+            settled: true,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+          },
+        ],
+      });
+
+      assert.deepStrictEqual(summary, [
+        {
+          game: 'ApeStrong ✔︎',
+          group_key: 'ape-strong',
+          base_game_key: 'ape-strong',
+          variant_label: null,
+          rtp_game: 'ape-strong',
+          rtp_config: null,
+          games_played: 1,
+          net_profit_ape: '1.5000',
+          net_profit_complete: true,
+          wins: 1,
+          pushes: 0,
+          losses: 0,
+          win_rate: 100,
+          rtp: 250,
+          max_hit_x: 2.5,
+          unfinished_games: 0,
+          unfinished_game_ids: [],
+        },
+      ]);
+    });
+
     it('builds the same compact game-status shape from history breakdown stats', () => {
       const summary = buildHistoryGameStatusSummary({
         historyBreakdown: [

@@ -3,11 +3,26 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { parseEther } from 'viem';
-import { JUNGLE_PLINKO_CONTRACT } from '../../lib/constants.js';
+import { encodeAbiParameters, encodeFunctionData, parseEther } from 'viem';
+import {
+  BACCARAT_CONTRACT,
+  BEAR_DICE_CONTRACT,
+  BLOCKS_CONTRACT,
+  COSMIC_PLINKO_CONTRACT,
+  DINO_DOUGH_CONTRACT,
+  GAME_CONTRACT_ABI,
+  GEEZ_DIGGERZ_CONTRACT,
+  JUNGLE_PLINKO_CONTRACT,
+  KENO_CONTRACT,
+  MONKEY_MATCH_CONTRACT,
+  PRIMES_CONTRACT,
+  SPEED_KENO_CONTRACT,
+  ZERO_ADDRESS,
+} from '../../lib/constants.js';
 import {
   analyzeWalletHistory,
   diagnoseUnsyncedSupportedGames,
+  inferSavedHistoryGameVariants,
   mergeDownloadedHistoryGames,
   syncSavedStatefulHistoryGames,
   summarizeHistoryGames,
@@ -91,6 +106,41 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(summary.total_wape_received_ape, '15');
       assert.strictEqual(summary.current_gp_balance_display, '42');
       assert.strictEqual(summary.current_wape_balance_ape, '3');
+    });
+
+    it('excludes execution-reverted records from saved-game counts and unsynced totals', () => {
+      const summary = summarizeHistoryGames({
+        wallet: WALLET,
+        games: [
+          {
+            contract: APESTRONG,
+            gameId: '1',
+            timestamp: 1_700_000_000_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('10').toString(),
+            payout_wei: parseEther('20').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: '0',
+            gp_received_raw: '25',
+            wape_received_wei: parseEther('10').toString(),
+            won: true,
+            push: false,
+          },
+          {
+            contract: ROULETTE,
+            gameId: '2',
+            timestamp: 1_700_000_100_000,
+            last_sync_on: '2026-03-29T18:00:00.000Z',
+            last_sync_msg: 'execution reverted',
+          },
+        ],
+      });
+
+      assert.strictEqual(summary.total_saved_games, 1);
+      assert.strictEqual(summary.games, 1);
+      assert.strictEqual(summary.unsynced_games, 0);
+      assert.strictEqual(summary.total_wagered_ape, '10');
+      assert.strictEqual(summary.max_hit_x, 2);
     });
 
     it('groups synced history stats by game and keeps unsupported entries as unsynced', () => {
@@ -397,6 +447,504 @@ describe('Wallet History Analysis', () => {
           games: 2,
         },
       ]);
+    });
+
+    it('drops execution-reverted records before grouping and counting per-variant history', () => {
+      const breakdown = summarizeHistoryGamesByGame({
+        wallet: WALLET,
+        games: [
+          {
+            contract: BLOCKS_CONTRACT,
+            game: 'Blocks ✔︎',
+            game_key: 'blocks',
+            config: { mode: 0, modeName: 'Easy', runs: 1 },
+            variant_key: 'blocks:mode:easy',
+            variant_label: 'Easy',
+            rtp_game: 'blocks',
+            rtp_config: { mode: 0 },
+            gameId: '1',
+            timestamp: 1_700_000_000_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('25').toString(),
+            payout_wei: parseEther('30.3').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: '0',
+            gp_received_raw: '0',
+            wape_received_wei: '0',
+            won: true,
+            push: false,
+          },
+          {
+            contract: BLOCKS_CONTRACT,
+            game: 'Blocks ✔︎',
+            game_key: 'blocks',
+            config: { mode: 0, modeName: 'Easy', runs: 1 },
+            variant_key: 'blocks:mode:easy',
+            variant_label: 'Easy',
+            rtp_game: 'blocks',
+            rtp_config: { mode: 0 },
+            gameId: '2',
+            timestamp: 1_700_000_100_000,
+            last_sync_on: '2026-03-29T18:00:00.000Z',
+            last_sync_msg: 'execution reverted',
+          },
+        ],
+      });
+
+      assert.strictEqual(breakdown.length, 1);
+      assert.strictEqual(breakdown[0].variant_key, 'blocks:mode:easy');
+      assert.strictEqual(breakdown[0].total_saved_games, 1);
+      assert.strictEqual(breakdown[0].games, 1);
+      assert.strictEqual(breakdown[0].unsynced_games, 0);
+    });
+  });
+
+  describe('inferSavedHistoryGameVariants', () => {
+    it('reconstructs missing saved-game variant metadata from cached play tx hashes', async () => {
+      const gameId = 77n;
+      const playInput = encodeFunctionData({
+        abi: GAME_CONTRACT_ABI,
+        functionName: 'play',
+        args: [
+          WALLET,
+          encodeAbiParameters(
+            [
+              { name: 'riskMode', type: 'uint8' },
+              { name: 'numRuns', type: 'uint8' },
+              { name: 'gameId', type: 'uint256' },
+              { name: 'ref', type: 'address' },
+              { name: 'userRandomWord', type: 'bytes32' },
+            ],
+            [1, 4, gameId, ZERO_ADDRESS, '0x' + '22'.repeat(32)],
+          ),
+        ],
+      });
+
+      const result = await inferSavedHistoryGameVariants({
+        async getTransaction({ hash }) {
+          assert.strictEqual(hash, '0x' + 'c'.repeat(64));
+          return {
+            hash,
+            input: playInput,
+          };
+        },
+      }, [
+        {
+          contract: BLOCKS_CONTRACT,
+          game: 'Blocks ✔︎',
+          game_key: 'blocks',
+          gameId: gameId.toString(),
+          tx: '0x' + 'c'.repeat(64),
+          timestamp: 1_700_000_000_000,
+        },
+      ]);
+
+      assert.strictEqual(result.changed, true);
+      assert.strictEqual(result.inferred, 1);
+      assert.strictEqual(result.failedLookups, 0);
+      assert.deepStrictEqual(result.games[0].config, {
+        mode: 1,
+        modeName: 'Hard',
+        runs: 4,
+      });
+      assert.strictEqual(result.games[0].variant_key, 'blocks:mode:hard');
+      assert.strictEqual(result.games[0].variant_label, 'Hard');
+      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1 });
+    });
+
+    it('skips lookups for saved records that already have canonical variant metadata', async () => {
+      let lookupCount = 0;
+      const result = await inferSavedHistoryGameVariants({
+        async getTransaction() {
+          lookupCount += 1;
+          return null;
+        },
+      }, [
+        {
+          contract: BLOCKS_CONTRACT,
+          game: 'Blocks ✔︎',
+          game_key: 'blocks',
+          gameId: '1',
+          tx: '0x' + 'd'.repeat(64),
+          config: { mode: 0, modeName: 'Easy', runs: 3 },
+          variant_key: 'blocks:mode:easy',
+          variant_label: 'Easy',
+          rtp_game: 'blocks',
+          rtp_config: { mode: 0 },
+        },
+      ]);
+
+      assert.strictEqual(lookupCount, 0);
+      assert.strictEqual(result.changed, false);
+      assert.strictEqual(result.inferred, 0);
+      assert.strictEqual(result.games[0].variant_key, 'blocks:mode:easy');
+    });
+
+    it('falls back to getGameInfo when the saved tx is not the original play calldata', async () => {
+      let txLookups = 0;
+      let gameInfoLookups = 0;
+
+      const result = await inferSavedHistoryGameVariants({
+        async getTransaction({ hash }) {
+          txLookups += 1;
+          assert.strictEqual(hash, '0x' + 'e'.repeat(64));
+          return {
+            hash,
+            input: '0x3d30bc0e',
+          };
+        },
+        async readContract(params) {
+          gameInfoLookups += 1;
+          assert.strictEqual(params.address, BEAR_DICE_CONTRACT);
+          assert.strictEqual(params.functionName, 'getGameInfo');
+          assert.deepStrictEqual(params.args, [99n]);
+          return {
+            difficulty: 4,
+            numRuns: 5,
+          };
+        },
+      }, [
+        {
+          contract: BEAR_DICE_CONTRACT,
+          game: 'Bear-A-Dice ✔︎',
+          game_key: 'bear-dice',
+          gameId: '99',
+          tx: '0x' + 'e'.repeat(64),
+          timestamp: 1_700_000_000_000,
+        },
+      ]);
+
+      assert.strictEqual(txLookups, 1);
+      assert.strictEqual(gameInfoLookups, 1);
+      assert.strictEqual(result.changed, true);
+      assert.strictEqual(result.inferred, 1);
+      assert.strictEqual(result.failedLookups, 0);
+      assert.deepStrictEqual(result.games[0].config, {
+        difficulty: 4,
+        difficultyName: 'Master',
+        rolls: 5,
+      });
+      assert.strictEqual(result.games[0].variant_key, 'bear-dice:difficulty:4:rolls:5');
+      assert.strictEqual(result.games[0].variant_label, 'Master / 5 rolls');
+      assert.deepStrictEqual(result.games[0].rtp_config, {
+        difficulty: 4,
+        difficultyName: 'Master',
+        rolls: 5,
+      });
+    });
+
+    it('reconstructs Blocks, Primes, Speed Keno, and Cosmic Plinko from getGameInfo', async () => {
+      const result = await inferSavedHistoryGameVariants({
+        async getTransaction() {
+          return { input: '0x3d30bc0e' };
+        },
+        async readContract(params) {
+          switch (params.address) {
+            case BLOCKS_CONTRACT:
+              assert.deepStrictEqual(params.args, [201n]);
+              return {
+                riskMode: 1,
+                numRuns: 5,
+              };
+            case PRIMES_CONTRACT:
+              assert.deepStrictEqual(params.args, [202n]);
+              return {
+                difficulty: 3,
+                numRuns: 9,
+              };
+            case SPEED_KENO_CONTRACT:
+              assert.deepStrictEqual(params.args, [203n]);
+              return {
+                numGames: 4,
+                gameNumbers: [1, 7, 20],
+              };
+            case COSMIC_PLINKO_CONTRACT:
+              assert.deepStrictEqual(params.args, [204n]);
+              return {
+                gameMode: 2,
+                numBalls: 12,
+              };
+            default:
+              throw new Error(`Unexpected contract ${params.address}`);
+          }
+        },
+      }, [
+        {
+          contract: BLOCKS_CONTRACT,
+          game: 'Blocks ✔︎',
+          game_key: 'blocks',
+          gameId: '201',
+          tx: '0x' + '1'.repeat(64),
+        },
+        {
+          contract: PRIMES_CONTRACT,
+          game: 'Primes ✔︎',
+          game_key: 'primes',
+          gameId: '202',
+          tx: '0x' + '2'.repeat(64),
+        },
+        {
+          contract: SPEED_KENO_CONTRACT,
+          game: 'Speed Keno ✔︎',
+          game_key: 'speed-keno',
+          gameId: '203',
+          tx: '0x' + '3'.repeat(64),
+        },
+        {
+          contract: COSMIC_PLINKO_CONTRACT,
+          game: 'Cosmic Plinko ✔︎',
+          game_key: 'cosmic-plinko',
+          gameId: '204',
+          tx: '0x' + '4'.repeat(64),
+        },
+      ]);
+
+      assert.strictEqual(result.changed, true);
+      assert.strictEqual(result.inferred, 4);
+      assert.strictEqual(result.failedLookups, 0);
+
+      assert.deepStrictEqual(result.games[0].config, {
+        mode: 1,
+        modeName: 'Hard',
+        runs: 5,
+      });
+      assert.strictEqual(result.games[0].variant_key, 'blocks:mode:hard');
+      assert.strictEqual(result.games[0].variant_label, 'Hard');
+      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1 });
+
+      assert.deepStrictEqual(result.games[1].config, {
+        difficulty: 3,
+        difficultyName: 'Extreme',
+        runs: 9,
+      });
+      assert.strictEqual(result.games[1].variant_key, 'primes:mode:extreme');
+      assert.strictEqual(result.games[1].variant_label, 'Extreme');
+      assert.deepStrictEqual(result.games[1].rtp_config, { difficulty: 3 });
+
+      assert.deepStrictEqual(result.games[2].config, {
+        games: 4,
+        picks: 3,
+        numbers: [1, 7, 20],
+      });
+      assert.strictEqual(result.games[2].variant_key, 'speed-keno:picks:3');
+      assert.strictEqual(result.games[2].variant_label, 'Picks 3');
+      assert.deepStrictEqual(result.games[2].rtp_config, {
+        games: 4,
+        picks: 3,
+        numbers: [1, 7, 20],
+      });
+
+      assert.deepStrictEqual(result.games[3].config, {
+        mode: 2,
+        modeName: 'High',
+        balls: 12,
+      });
+      assert.strictEqual(result.games[3].variant_key, 'cosmic-plinko:mode:2');
+      assert.strictEqual(result.games[3].variant_label, 'High');
+      assert.deepStrictEqual(result.games[3].rtp_config, { mode: 2 });
+    });
+
+    it('reconstructs ApeStrong, Baccarat, Roulette, Keno, Jungle Plinko, Monkey Match, and Slots from getGameInfo', async () => {
+      const result = await inferSavedHistoryGameVariants({
+        async getTransaction() {
+          return { input: '0x3d30bc0e' };
+        },
+        async readContract(params) {
+          switch (params.address) {
+            case APESTRONG:
+              assert.deepStrictEqual(params.args, [301n]);
+              return {
+                edgeFlipRange: 42,
+              };
+            case BACCARAT_CONTRACT:
+              assert.deepStrictEqual(params.args, [302n]);
+              return {
+                playerBankerBet: parseEther('140'),
+                tieBet: parseEther('10'),
+                betOnBanker: true,
+              };
+            case ROULETTE:
+              assert.deepStrictEqual(params.args, [303n]);
+              return {
+                gameNumbers: [1, 38, 49],
+              };
+            case KENO_CONTRACT:
+              assert.deepStrictEqual(params.args, [304n]);
+              return {
+                gameNumbers: [1, 7, 20, 33],
+              };
+            case JUNGLE_PLINKO_CONTRACT:
+              assert.deepStrictEqual(params.args, [305n]);
+              return {
+                gameMode: 1,
+                numBalls: 8,
+              };
+            case MONKEY_MATCH_CONTRACT:
+              assert.deepStrictEqual(params.args, [306n]);
+              return {
+                gameMode: 2,
+              };
+            case DINO_DOUGH_CONTRACT:
+              assert.deepStrictEqual(params.args, [307n]);
+              return {
+                num0: [1, 2, 3],
+                num1: [2, 3, 4],
+                num2: [3, 4, 5],
+              };
+            case GEEZ_DIGGERZ_CONTRACT:
+              assert.deepStrictEqual(params.args, [308n]);
+              return {
+                betAmountPerSpin: parseEther('5'),
+                totalBetAmount: parseEther('25'),
+              };
+            default:
+              throw new Error(`Unexpected contract ${params.address}`);
+          }
+        },
+      }, [
+        {
+          contract: APESTRONG,
+          game: 'ApeStrong ✔︎',
+          game_key: 'ape-strong',
+          gameId: '301',
+          tx: '0x' + '5'.repeat(64),
+        },
+        {
+          contract: BACCARAT_CONTRACT,
+          game: 'Baccarat ✔︎',
+          game_key: 'baccarat',
+          gameId: '302',
+          tx: '0x' + '6'.repeat(64),
+        },
+        {
+          contract: ROULETTE,
+          game: 'Roulette ✔︎',
+          game_key: 'roulette',
+          gameId: '303',
+          tx: '0x' + '7'.repeat(64),
+        },
+        {
+          contract: KENO_CONTRACT,
+          game: 'Keno ✔︎',
+          game_key: 'keno',
+          gameId: '304',
+          tx: '0x' + '8'.repeat(64),
+        },
+        {
+          contract: JUNGLE_PLINKO_CONTRACT,
+          game: 'Jungle Plinko ✔︎',
+          game_key: 'jungle-plinko',
+          gameId: '305',
+          tx: '0x' + '9'.repeat(64),
+        },
+        {
+          contract: MONKEY_MATCH_CONTRACT,
+          game: 'Monkey Match ✔︎',
+          game_key: 'monkey-match',
+          gameId: '306',
+          tx: '0x' + 'a'.repeat(64),
+        },
+        {
+          contract: DINO_DOUGH_CONTRACT,
+          game: 'Dino Dough ✔︎',
+          game_key: 'dino-dough',
+          gameId: '307',
+          tx: '0x' + 'b'.repeat(64),
+        },
+        {
+          contract: GEEZ_DIGGERZ_CONTRACT,
+          game: 'Geez Diggerz ✔︎',
+          game_key: 'geez-diggerz',
+          gameId: '308',
+          tx: '0x' + 'c'.repeat(64),
+        },
+      ]);
+
+      assert.strictEqual(result.changed, true);
+      assert.strictEqual(result.inferred, 8);
+      assert.strictEqual(result.failedLookups, 0);
+
+      assert.deepStrictEqual(result.games[0].config, {
+        range: 42,
+      });
+      assert.strictEqual(result.games[0].variant_key, 'ape-strong:range:42');
+      assert.strictEqual(result.games[0].variant_label, 'Range 42');
+      assert.deepStrictEqual(result.games[0].rtp_config, { range: 42 });
+
+      assert.deepStrictEqual(result.games[1].config, {
+        bet: '140 BANKER 10 TIE',
+        betType: 'BANKER,TIE',
+        playerBankerBet: '140',
+        tieBet: '10',
+        isBanker: true,
+      });
+      assert.strictEqual(result.games[1].variant_key, 'baccarat:bet:banker-tie');
+      assert.strictEqual(result.games[1].variant_label, 'BANKER,TIE');
+      assert.deepStrictEqual(result.games[1].rtp_config, {
+        bet: '140 BANKER 10 TIE',
+        betType: 'BANKER,TIE',
+        playerBankerBet: '140',
+        tieBet: '10',
+        isBanker: true,
+      });
+
+      assert.deepStrictEqual(result.games[2].config, {
+        bet: '0,00,BLACK',
+        gameNumbers: [1, 38, 49],
+        numBets: 3,
+      });
+      assert.strictEqual(result.games[2].variant_key, 'roulette:bet:0-00-black');
+      assert.strictEqual(result.games[2].variant_label, '0,00,BLACK');
+      assert.deepStrictEqual(result.games[2].rtp_config, {
+        bet: '0,00,BLACK',
+        gameNumbers: [1, 38, 49],
+        numBets: 3,
+      });
+
+      assert.deepStrictEqual(result.games[3].config, {
+        picks: 4,
+        numbers: [1, 7, 20, 33],
+      });
+      assert.strictEqual(result.games[3].variant_key, 'keno:picks:4');
+      assert.strictEqual(result.games[3].variant_label, 'Picks 4');
+      assert.deepStrictEqual(result.games[3].rtp_config, {
+        picks: 4,
+        numbers: [1, 7, 20, 33],
+      });
+
+      assert.deepStrictEqual(result.games[4].config, {
+        mode: 1,
+        modeName: 'Low',
+        balls: 8,
+      });
+      assert.strictEqual(result.games[4].variant_key, 'jungle-plinko:mode:1');
+      assert.strictEqual(result.games[4].variant_label, 'Low');
+      assert.deepStrictEqual(result.games[4].rtp_config, { mode: 1 });
+
+      assert.deepStrictEqual(result.games[5].config, {
+        mode: 2,
+        modeName: 'Normal Risk',
+      });
+      assert.strictEqual(result.games[5].variant_key, 'monkey-match:mode:2');
+      assert.strictEqual(result.games[5].variant_label, 'Normal Risk');
+      assert.deepStrictEqual(result.games[5].rtp_config, {
+        mode: 2,
+        modeName: 'Normal Risk',
+      });
+
+      assert.deepStrictEqual(result.games[6].config, {
+        spins: 3,
+      });
+      assert.strictEqual(result.games[6].variant_key, 'dino-dough:spins:3');
+      assert.strictEqual(result.games[6].variant_label, '3 spins');
+      assert.deepStrictEqual(result.games[6].rtp_config, { spins: 3 });
+
+      assert.deepStrictEqual(result.games[7].config, {
+        spins: 5,
+      });
+      assert.strictEqual(result.games[7].variant_key, 'geez-diggerz:spins:5');
+      assert.strictEqual(result.games[7].variant_label, '5 spins');
+      assert.deepStrictEqual(result.games[7].rtp_config, { spins: 5 });
     });
   });
 
@@ -776,6 +1324,91 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(analysis.recent_games[1].chain_timestamp, 1700000000);
       assert.strictEqual(analysis.recent_games[1].contract_fee_ape, '0.1');
       assert.strictEqual(analysis.recent_games[1].gas_fee_ape, '0.2');
+    });
+
+    it('reconstructs stateless variant metadata from play calldata when the settlement log lacks config', async () => {
+      const gameId = 42n;
+      const blocksGameData = encodeAbiParameters(
+        [
+          { name: 'riskMode', type: 'uint8' },
+          { name: 'numRuns', type: 'uint8' },
+          { name: 'gameId', type: 'uint256' },
+          { name: 'ref', type: 'address' },
+          { name: 'userRandomWord', type: 'bytes32' },
+        ],
+        [0, 3, gameId, ZERO_ADDRESS, '0x' + '11'.repeat(32)],
+      );
+      const blocksPlayInput = encodeFunctionData({
+        abi: GAME_CONTRACT_ABI,
+        functionName: 'play',
+        args: [WALLET, blocksGameData],
+      });
+
+      const publicClient = {
+        async getBlockNumber() {
+          return 10n;
+        },
+        async getLogs(params) {
+          if (params.topics) {
+            return [];
+          }
+          return [
+            {
+              address: BLOCKS_CONTRACT,
+              blockNumber: 10n,
+              logIndex: 0,
+              transactionHash: '0x' + 'a'.repeat(64),
+              removed: false,
+              args: {
+                user: WALLET,
+                gameId,
+                buyIn: parseEther('25'),
+                payout: parseEther('30.3'),
+              },
+            },
+          ];
+        },
+        async getTransaction() {
+          return {
+            hash: '0x' + 'a'.repeat(64),
+            from: SPONSOR,
+            value: parseEther('25'),
+            gasPrice: 0n,
+            input: blocksPlayInput,
+          };
+        },
+        async getTransactionReceipt() {
+          return {
+            logs: [],
+            gasUsed: 0n,
+            effectiveGasPrice: 0n,
+          };
+        },
+        async getBlock() {
+          return { timestamp: 1_700_000_000n };
+        },
+        async readContract(params) {
+          if (params.functionName === 'getCurrentEXP') {
+            return 0n;
+          }
+          if (params.functionName === 'balanceOf') {
+            return 0n;
+          }
+          throw new Error(`Unexpected contract read: ${params.functionName}`);
+        },
+      };
+
+      const analysis = await analyzeWalletHistory(publicClient, WALLET);
+
+      assert.strictEqual(analysis.recent_games.length, 1);
+      assert.deepStrictEqual(analysis.recent_games[0].config, {
+        mode: 0,
+        modeName: 'Easy',
+        runs: 3,
+      });
+      assert.strictEqual(analysis.recent_games[0].variant_key, 'blocks:mode:easy');
+      assert.strictEqual(analysis.recent_games[0].variant_label, 'Easy');
+      assert.deepStrictEqual(analysis.recent_games[0].rtp_config, { mode: 0 });
     });
   });
 });
