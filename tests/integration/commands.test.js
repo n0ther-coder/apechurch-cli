@@ -193,6 +193,8 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout } = cli('blackjack --help');
       assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
       assert.ok(stdout.includes('--side <ape>'), 'Should show player side bet option');
+      assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
+      assert.ok(stdout.includes('--target-profit <ape>'), 'Should show single-game payout stop option');
       assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
@@ -200,6 +202,8 @@ describe('CLI Commands Integration Tests', () => {
     it('video-poker --help keeps --human hidden and documents generic auto-play', () => {
       const { stdout } = cli('video-poker --help');
       assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
+      assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
+      assert.ok(stdout.includes('--target-profit <ape>'), 'Should show single-game payout stop option');
       assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
@@ -212,6 +216,8 @@ describe('CLI Commands Integration Tests', () => {
 
     it('help loop documents startup game estimates where RTP is known', () => {
       const { stdout } = cli('help loop');
+      assert.ok(stdout.includes('--target-x <x>'), 'Should document single-game multiplier stop');
+      assert.ok(stdout.includes('--target-profit <ape>'), 'Should document single-game payout stop');
       assert.ok(stdout.includes('Estimate games before wallet squandering'), 'Should document wallet squandering estimate');
       assert.ok(stdout.includes('Estimate games before stop-loss'), 'Should document stop-loss estimate');
       assert.ok(stdout.includes('Proceed? (Y/n)'), 'Should document the confirmation prompt');

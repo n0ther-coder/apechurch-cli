@@ -301,6 +301,8 @@ Notes:
                 | "--delay" <seconds>
                 | "--max-games" <count>
                 | "--target" <ape>
+                | "--target-x" <number>
+                | "--target-profit" <ape>
                 | "--stop-loss" <ape-nonnegative>
                 | "--bet-strategy" <bet-strategy>
                 | "--max-bet" <ape>
@@ -335,6 +337,8 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--delay <seconds>` | Delay between looped games |
 | `--max-games <count>` | Stop loop after N games |
 | `--target <ape>` | Stop loop when balance reaches the target |
+| `--target-x <x>` | Stop loop when one game pays at least the target multiplier |
+| `--target-profit <ape>` | Stop loop when one game pays at least the target payout |
 | `--stop-loss <ape>` | Stop loop when balance drops to the threshold |
 | `--bet-strategy <name>` | Loop bet progression |
 | `--max-bet <ape>` | Loop safety cap for progressive strategies |
@@ -471,6 +475,8 @@ If no action is supplied, `house` shows status.
                      | "--loop"
                      | "--max-games" <count>
                      | "--target" <ape>
+                     | "--target-x" <number>
+                     | "--target-profit" <ape>
                      | "--stop-loss" <ape-nonnegative>
                      | "--bet-strategy" <bet-strategy>
                      | "--max-bet" <ape>
@@ -501,6 +507,8 @@ If the first positional token is numeric, the command starts a new hand with tha
                        | "--loop"
                        | "--max-games" <count>
                        | "--target" <ape>
+                       | "--target-x" <number>
+                       | "--target-profit" <ape>
                        | "--stop-loss" <ape-nonnegative>
                        | "--bet-strategy" <bet-strategy>
                        | "--max-bet" <ape>

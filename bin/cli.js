@@ -120,6 +120,11 @@ import {
 import { queueWinChimeFromWei } from '../lib/chime.js';
 import { createLoopStats, formatLoopProgress, recordLoopGame } from '../lib/loop-stats.js';
 import {
+  formatLoopTerminalConditionMessage,
+  getSingleGameLoopTerminalCondition,
+  parseLoopTerminalOptions,
+} from '../lib/loop-conditions.js';
+import {
   getWallet,
   walletExists,
   createClients,
@@ -2179,6 +2184,8 @@ program
   .option('--delay <seconds>', 'Delay between games in loop', '3')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
+  .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
@@ -2212,6 +2219,8 @@ program
       '--delay',
       '--max-games',
       '--target',
+      '--target-x',
+      '--target-profit',
       '--stop-loss',
       '--bet-strategy',
       '--max-bet',
@@ -2231,23 +2240,24 @@ program
     }
 
     // Parse and validate loop parameters
-    const targetBalance = opts.target ? parseFloat(opts.target) : null;
-    const stopLoss = opts.stopLoss ? parseFloat(opts.stopLoss) : null;
-    const maxGames = opts.maxGames ? parseInt(opts.maxGames, 10) : null;
+    let targetBalance;
+    let stopLoss;
+    let maxGames;
+    let targetX;
+    let targetPayoutApe;
     const maxBet = opts.maxBet ? parseFloat(opts.maxBet) : null;
     let cliGpPerApe = null;
 
-    // Validate numeric parameters
-    if (opts.target !== undefined && (isNaN(targetBalance) || targetBalance <= 0)) {
-      console.error(JSON.stringify({ error: `Invalid --target value: "${opts.target}". Must be a positive number (e.g., --target 200)` }));
-      process.exit(1);
-    }
-    if (opts.stopLoss !== undefined && (isNaN(stopLoss) || stopLoss < 0)) {
-      console.error(JSON.stringify({ error: `Invalid --stop-loss value: "${opts.stopLoss}". Must be a non-negative number (e.g., --stop-loss 50)` }));
-      process.exit(1);
-    }
-    if (opts.maxGames !== undefined && (isNaN(maxGames) || maxGames <= 0)) {
-      console.error(JSON.stringify({ error: `Invalid --max-games value: "${opts.maxGames}". Must be a positive integer (e.g., --max-games 20)` }));
+    try {
+      ({
+        targetBalance,
+        stopLoss,
+        maxGames,
+        targetX,
+        targetProfit: targetPayoutApe,
+      } = parseLoopTerminalOptions(opts));
+    } catch (error) {
+      console.error(JSON.stringify({ error: error.message }));
       process.exit(1);
     }
     if (opts.maxBet !== undefined && (isNaN(maxBet) || maxBet <= 0)) {
@@ -2262,13 +2272,7 @@ program
         process.exit(1);
       }
     }
-    
-    // Validate logical constraints
-    if (targetBalance !== null && stopLoss !== null && stopLoss >= targetBalance) {
-      console.error(JSON.stringify({ error: `Invalid range: --stop-loss (${stopLoss}) must be less than --target (${targetBalance})` }));
-      process.exit(1);
-    }
-    
+
     // Betting strategy setup
     const betStrategyName = opts.betStrategy || 'flat';
     const betStrategy = getStrategy(betStrategyName);
@@ -2401,6 +2405,8 @@ program
       const maxBetInfo = maxBet ? ` | Max bet: ${maxBet} APE` : '';
       console.log(`\n🔄 Loop mode: ${gameInfo} (${delaySeconds}s delay${strategyInfo}${maxBetInfo})`);
       if (targetBalance) console.log(`   🎯 Target: ${targetBalance} APE`);
+      if (targetX) console.log(`   🎯 Target multiplier: ${targetX}x`);
+      if (targetPayoutApe) console.log(`   💰 Target payout: ${targetPayoutApe} APE`);
       if (stopLoss) console.log(`   🛑 Stop-loss: ${stopLoss} APE`);
       if (maxGames) console.log(`   🏁 Max games: ${maxGames}`);
       console.log('─'.repeat(50));
@@ -2813,6 +2819,7 @@ program
           won,
           bet: parseFloat(wagerApeString),
           payout: parseFloat(playResponse.result.payout_ape),
+          exactPayout: true,
         } : null;
         
         return {
@@ -2952,13 +2959,20 @@ program
         }
         
         if (result.shouldStop) break;
-        
+
+        const singleGameTerminalCondition = getSingleGameLoopTerminalCondition({
+          gameResult: lastGameResult,
+          targetX,
+          targetProfit: targetPayoutApe,
+        });
+
         // Show balance and countdown before next game
         if (!opts.json) {
           const { publicClient: pc } = createClients();
           const currentBal = await pc.getBalance({ address: account.address });
           const currentApe = parseFloat(formatEther(currentBal));
           const terminalConditionReached = (
+            singleGameTerminalCondition ||
             (targetBalance !== null && currentApe >= targetBalance) ||
             (stopLoss !== null && currentApe <= stopLoss) ||
             (maxGames !== null && gamesPlayed >= maxGames)
@@ -2973,8 +2987,15 @@ program
             gpPerApe,
             nextDelayLabel: terminalConditionReached ? null : `${delaySeconds}s`,
           }));
+          if (singleGameTerminalCondition) {
+            console.log('');
+            console.log(formatLoopTerminalConditionMessage(singleGameTerminalCondition, { gamesPlayed }));
+            console.log('');
+            break;
+          }
           if (terminalConditionReached) continue;
         }
+        if (singleGameTerminalCondition) break;
         await new Promise(r => setTimeout(r, delayMs));
       }
     } else {
@@ -3507,6 +3528,8 @@ ${'─'.repeat(60)}
   --side <ape>    Player side bet amount
   --loop          Keep playing until balance runs out
   --target <ape>  Stop when balance reaches this amount
+  --target-x <x>  Stop when a hand pays at least this multiplier
+  --target-profit <ape>  Stop when a hand pays at least this payout
   --stop-loss <ape>  Stop when balance drops to this amount
 
 ${'─'.repeat(60)}
@@ -3540,6 +3563,8 @@ ${'─'.repeat(60)}
   ${BINARY_NAME} blackjack 25 --auto --loop     Bot grinds until broke
   ${BINARY_NAME} blackjack 10 --auto --loop --target 500
                                            Bot plays until 500 APE balance
+  ${BINARY_NAME} blackjack 10 --auto --loop --target-x 2.5
+                                           Stop after any 2.5x-or-better hand
 
 ${'═'.repeat(60)}
 `);
@@ -3584,6 +3609,8 @@ ${'─'.repeat(60)}
   --auto [mode]   Auto-play the hand
   --loop          Keep playing until balance runs out
   --target <ape>  Stop when balance reaches this amount
+  --target-x <x>  Stop when a hand pays at least this multiplier
+  --target-profit <ape>  Stop when a hand pays at least this payout
   --stop-loss <ape>  Stop when balance drops to this amount
 
 ${'─'.repeat(60)}
@@ -3762,6 +3789,8 @@ ENVIRONMENT
 LOOP OPTIONS
   --loop                  Play continuously
   --target <ape>          Stop when balance reaches target
+  --target-x <x>          Stop when one game pays at least Xx
+  --target-profit <ape>   Stop when one game pays at least this payout
   --stop-loss <ape>       Stop when balance drops to limit
   --max-games <count>     Stop after N games
   --bet-strategy <name>   Betting strategy (flat, martingale, etc.)
@@ -3846,6 +3875,12 @@ ${'─'.repeat(70)}
 
   --target <ape>       Stop when balance REACHES this amount
                        Example: --target 200 (stop at 200 APE)
+
+  --target-x <x>       Stop when a single game pays at least this multiplier
+                       Example: --target-x 10 (stop on any 10x+ hit)
+
+  --target-profit <ape>  Stop when a single game pays at least this payout
+                         Example: --target-profit 250 (stop on any 250+ APE payout)
                        
   --stop-loss <ape>    Stop when balance DROPS to this amount
                        Example: --stop-loss 50 (stop if you hit 50 APE)
@@ -3897,6 +3932,8 @@ ${'─'.repeat(70)}
 
   Loop exits cleanly on:
     • Reaching --target balance
+    • Hitting --target-x on a single game
+    • Hitting --target-profit on a single game
     • Hitting --stop-loss floor
     • Completing --max-games
     • Balance too low for minimum bet
@@ -5053,6 +5090,8 @@ program
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
+  .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
@@ -5135,6 +5174,8 @@ program
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
+  .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')

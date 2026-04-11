@@ -501,6 +501,8 @@ Note: `play` defaults to `--delay 3`, while `blackjack` and `video-poker` defaul
 --delay <seconds>         # Fixed time between games
 --human                   # Add weighted 3-9s human-like delay on top of --delay
 --target <ape>            # Stop at target balance
+--target-x <x>            # Stop after any single-game payout multiplier at or above X
+--target-profit <ape>     # Stop after any single-game payout amount at or above this APE
 --stop-loss <ape>         # Stop at loss limit
 --max-games <n>           # Stop after N games
 --bet-strategy <name>     # flat, martingale, fibonacci, dalembert, reverse-martingale

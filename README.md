@@ -265,6 +265,10 @@ apechurch-cli play --loop
 # With safety limits
 apechurch-cli play --loop --target 200 --stop-loss 50 --max-games 100
 
+# Stop after any big hit
+apechurch-cli play ape-strong 10 50 --loop --target-x 3.9
+apechurch-cli play ape-strong 10 50 --loop --target-profit 39
+
 # Specific game
 apechurch-cli play ape-strong 10 50 --loop --target 150
 ```
@@ -272,6 +276,8 @@ apechurch-cli play ape-strong 10 50 --loop --target 150
 | Option | Description |
 |--------|-------------|
 | `--target <ape>` | Stop when balance reaches target |
+| `--target-x <x>` | Stop when one game pays at least this multiplier |
+| `--target-profit <ape>` | Stop when one game pays at least this payout |
 | `--stop-loss <ape>` | Stop when balance drops to limit |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
