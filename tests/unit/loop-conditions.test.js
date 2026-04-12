@@ -2,7 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
 import {
+  createLoopTerminalState,
   formatLoopTerminalConditionMessage,
+  getBalanceLoopTerminalCondition,
   getSingleGameLoopTerminalCondition,
   parseLoopTerminalOptions,
 } from '../../lib/loop-conditions.js';
@@ -15,12 +17,16 @@ describe('Loop Terminal Conditions', () => {
       maxGames: '25',
       targetX: '3.5',
       targetProfit: '150',
+      recoverLoss: '20',
+      givebackProfit: '35',
     }), {
       targetBalance: 200,
       stopLoss: 50,
       maxGames: 25,
       targetX: 3.5,
       targetProfit: 150,
+      recoverLoss: 20,
+      givebackProfit: 35,
     });
   });
 
@@ -97,5 +103,89 @@ describe('Loop Terminal Conditions', () => {
     assert.ok(message.includes('Target multiplier hit! 7.5x >= 5x'));
     assert.ok(message.includes('Payout: 75.00 APE on 10.00 APE wager'));
     assert.ok(message.includes('Games played: 4'));
+  });
+
+  it('arms recover-loss after a drawdown and stops on break-even recovery', () => {
+    const terminalState = createLoopTerminalState();
+
+    assert.strictEqual(getBalanceLoopTerminalCondition({
+      currentBalanceApe: 85,
+      startingBalanceApe: 100,
+      recoverLoss: 20,
+      gamesPlayed: 3,
+      state: terminalState,
+    }), null);
+
+    assert.strictEqual(getBalanceLoopTerminalCondition({
+      currentBalanceApe: 78,
+      startingBalanceApe: 100,
+      recoverLoss: 20,
+      gamesPlayed: 4,
+      state: terminalState,
+    }), null);
+
+    assert.equal(terminalState.recoverLossArmed, true);
+
+    assert.deepStrictEqual(getBalanceLoopTerminalCondition({
+      currentBalanceApe: 101,
+      startingBalanceApe: 100,
+      recoverLoss: 20,
+      gamesPlayed: 7,
+      state: terminalState,
+    }), {
+      kind: 'recover_loss',
+      threshold: 20,
+      sessionPnlApe: 1,
+    });
+  });
+
+  it('arms giveback-profit after a run-up and stops on break-even giveback', () => {
+    const terminalState = createLoopTerminalState();
+
+    assert.strictEqual(getBalanceLoopTerminalCondition({
+      currentBalanceApe: 130,
+      startingBalanceApe: 100,
+      givebackProfit: 40,
+      gamesPlayed: 3,
+      state: terminalState,
+    }), null);
+
+    assert.strictEqual(getBalanceLoopTerminalCondition({
+      currentBalanceApe: 142,
+      startingBalanceApe: 100,
+      givebackProfit: 40,
+      gamesPlayed: 4,
+      state: terminalState,
+    }), null);
+
+    assert.equal(terminalState.givebackProfitArmed, true);
+
+    assert.deepStrictEqual(getBalanceLoopTerminalCondition({
+      currentBalanceApe: 99,
+      startingBalanceApe: 100,
+      givebackProfit: 40,
+      gamesPlayed: 8,
+      state: terminalState,
+    }), {
+      kind: 'giveback_profit',
+      threshold: 40,
+      sessionPnlApe: -1,
+    });
+  });
+
+  it('formats human-readable recover-loss stop messages', () => {
+    const message = formatLoopTerminalConditionMessage({
+      kind: 'recover_loss',
+      threshold: 25,
+      sessionPnlApe: 0.5,
+    }, {
+      currentBalanceApe: 100.5,
+      startingBalanceApe: 100,
+      gamesPlayed: 9,
+    });
+
+    assert.ok(message.includes('Loss recovered! Session P&L: +0.50 APE'));
+    assert.ok(message.includes('Triggered after reaching -25.00 APE or worse'));
+    assert.ok(message.includes('Games played: 9'));
   });
 });

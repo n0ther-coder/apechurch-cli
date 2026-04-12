@@ -503,6 +503,8 @@ Note: `play` defaults to `--delay 3`, while `blackjack` and `video-poker` defaul
 --target <ape>            # Stop at target balance
 --target-x <x>            # Stop after any single-game payout multiplier at or above X
 --target-profit <ape>     # Stop after any single-game payout amount at or above this APE
+--recover-loss <ape>      # Stop once a drawdown of at least this size gets back to break-even/profit
+--giveback-profit <ape>   # Stop once a run-up of at least this size falls back to break-even/loss
 --stop-loss <ape>         # Stop at loss limit
 --max-games <n>           # Stop after N games
 --bet-strategy <name>     # flat, martingale, fibonacci, dalembert, reverse-martingale

@@ -303,6 +303,8 @@ Notes:
                 | "--target" <ape>
                 | "--target-x" <number>
                 | "--target-profit" <ape>
+                | "--recover-loss" <ape>
+                | "--giveback-profit" <ape>
                 | "--stop-loss" <ape-nonnegative>
                 | "--bet-strategy" <bet-strategy>
                 | "--max-bet" <ape>
@@ -339,6 +341,8 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--target <ape>` | Stop loop when balance reaches the target |
 | `--target-x <x>` | Stop loop when one game pays at least the target multiplier |
 | `--target-profit <ape>` | Stop loop when one game pays at least the target payout |
+| `--recover-loss <ape>` | Stop loop when session P&L returns to break-even/profit after a drawdown of at least this size |
+| `--giveback-profit <ape>` | Stop loop when session P&L returns to break-even/loss after a run-up of at least this size |
 | `--stop-loss <ape>` | Stop loop when balance drops to the threshold |
 | `--bet-strategy <name>` | Loop bet progression |
 | `--max-bet <ape>` | Loop safety cap for progressive strategies |
@@ -477,6 +481,8 @@ If no action is supplied, `house` shows status.
                      | "--target" <ape>
                      | "--target-x" <number>
                      | "--target-profit" <ape>
+                     | "--recover-loss" <ape>
+                     | "--giveback-profit" <ape>
                      | "--stop-loss" <ape-nonnegative>
                      | "--bet-strategy" <bet-strategy>
                      | "--max-bet" <ape>
@@ -509,6 +515,8 @@ If the first positional token is numeric, the command starts a new hand with tha
                        | "--target" <ape>
                        | "--target-x" <number>
                        | "--target-profit" <ape>
+                       | "--recover-loss" <ape>
+                       | "--giveback-profit" <ape>
                        | "--stop-loss" <ape-nonnegative>
                        | "--bet-strategy" <bet-strategy>
                        | "--max-bet" <ape>

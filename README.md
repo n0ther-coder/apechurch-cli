@@ -269,6 +269,10 @@ apechurch-cli play --loop --target 200 --stop-loss 50 --max-games 100
 apechurch-cli play ape-strong 10 50 --loop --target-x 3.9
 apechurch-cli play ape-strong 10 50 --loop --target-profit 39
 
+# Stop after recovering a drawdown or giving back a run-up
+apechurch-cli play roulette 10 RED --loop --recover-loss 25
+apechurch-cli play roulette 10 RED --loop --giveback-profit 40
+
 # Specific game
 apechurch-cli play ape-strong 10 50 --loop --target 150
 ```
@@ -278,6 +282,8 @@ apechurch-cli play ape-strong 10 50 --loop --target 150
 | `--target <ape>` | Stop when balance reaches target |
 | `--target-x <x>` | Stop when one game pays at least this multiplier |
 | `--target-profit <ape>` | Stop when one game pays at least this payout |
+| `--recover-loss <ape>` | Stop when session P&L gets back to break-even/profit after a drawdown of at least this size |
+| `--giveback-profit <ape>` | Stop when session P&L falls back to break-even/loss after a run-up of at least this size |
 | `--stop-loss <ape>` | Stop when balance drops to limit |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |

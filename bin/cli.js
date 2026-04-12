@@ -120,7 +120,9 @@ import {
 import { queueWinChimeFromWei } from '../lib/chime.js';
 import { createLoopStats, formatLoopProgress, recordLoopGame } from '../lib/loop-stats.js';
 import {
+  createLoopTerminalState,
   formatLoopTerminalConditionMessage,
+  getBalanceLoopTerminalCondition,
   getSingleGameLoopTerminalCondition,
   parseLoopTerminalOptions,
 } from '../lib/loop-conditions.js';
@@ -128,6 +130,7 @@ import {
   getWallet,
   walletExists,
   createClients,
+  getBalanceWithRetry,
   loadWalletData,
   isWalletEncrypted,
   getWalletHints,
@@ -1763,7 +1766,7 @@ program
 
     let balance;
     try {
-      balance = await publicClient.getBalance({ address: account.address });
+      balance = await getBalanceWithRetry(publicClient, account.address);
     } catch (error) {
       const err = { error: `Failed to fetch balance: ${sanitizeError(error)}` };
       if (opts.json) console.log(JSON.stringify(err));
@@ -2110,7 +2113,7 @@ program
     
     let balance;
     try {
-      balance = await publicClient.getBalance({ address: account.address });
+      balance = await getBalanceWithRetry(publicClient, account.address);
     } catch (error) {
       console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
       process.exit(1);
@@ -2198,6 +2201,8 @@ program
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
+  .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
+  .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
@@ -2238,6 +2243,8 @@ program
       '--target',
       '--target-x',
       '--target-profit',
+      '--recover-loss',
+      '--giveback-profit',
       '--stop-loss',
       '--bet-strategy',
       '--max-bet',
@@ -2262,6 +2269,8 @@ program
     let maxGames;
     let targetX;
     let targetPayoutApe;
+    let recoverLoss;
+    let givebackProfit;
     const maxBet = opts.maxBet ? parseFloat(opts.maxBet) : null;
     let cliGpPerApe = null;
 
@@ -2272,6 +2281,8 @@ program
         maxGames,
         targetX,
         targetProfit: targetPayoutApe,
+        recoverLoss,
+        givebackProfit,
       } = parseLoopTerminalOptions(opts));
     } catch (error) {
       console.error(JSON.stringify({ error: error.message }));
@@ -2302,6 +2313,7 @@ program
     let gamesPlayed = 0;
     let lastGameResult = null; // Track for betting strategy
     const loopStats = createLoopStats();
+    const loopTerminalState = createLoopTerminalState();
     let loopEstimateShown = false;
 
     const gameInput = gameArg || opts.game;
@@ -2431,6 +2443,8 @@ program
       if (targetBalance) console.log(`   🎯 Target: ${targetBalance} APE`);
       if (targetX) console.log(`   🎯 Target multiplier: ${targetX}x`);
       if (targetPayoutApe) console.log(`   💰 Target payout: ${targetPayoutApe} APE`);
+      if (recoverLoss) console.log(`   🛟 Recover-loss: ${recoverLoss} APE drawdown`);
+      if (givebackProfit) console.log(`   📉 Giveback-profit: ${givebackProfit} APE run-up`);
       if (stopLoss) console.log(`   🛑 Stop-loss: ${stopLoss} APE`);
       if (maxGames) console.log(`   🏁 Max games: ${maxGames}`);
       console.log('─'.repeat(50));
@@ -2453,7 +2467,7 @@ program
       const { publicClient } = createClients();
       let balance;
       try {
-        balance = await publicClient.getBalance({ address: account.address });
+        balance = await getBalanceWithRetry(publicClient, account.address);
       } catch (error) {
         console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
         return { shouldStop: true, reason: 'balance_error', gameResult: null, playedGameKey: null, playedConfig: null };
@@ -2915,7 +2929,7 @@ program
       while (true) {
         // Check balance for target/stop-loss
         const { publicClient } = createClients();
-        const balance = await publicClient.getBalance({ address: account.address });
+        const balance = await getBalanceWithRetry(publicClient, account.address);
         const balanceApe = parseFloat(formatEther(balance));
         const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
         
@@ -2944,26 +2958,25 @@ program
           }
         }
         
-        // Check target
-        if (targetBalance !== null && balanceApe >= targetBalance) {
-          const profit = balanceApe - startingBalance;
-          console.log(`\n🎯 Target reached! Balance: ${balanceApe.toFixed(2)} APE (target: ${targetBalance} APE)`);
-          console.log(`   Profit: +${profit.toFixed(2)} APE`);
-          console.log(`   Games played: ${gamesPlayed}\n`);
-          break;
-        }
-        
-        // Check stop-loss
-        if (stopLoss !== null && balanceApe <= stopLoss) {
-          const loss = startingBalance - balanceApe;
-          console.log(`\n🛑 Stop-loss hit! Balance: ${balanceApe.toFixed(2)} APE (limit: ${stopLoss} APE)`);
-          console.log(`   Loss: -${loss.toFixed(2)} APE`);
-          console.log(`   Games played: ${gamesPlayed}\n`);
-          break;
-        }
-        
-        // Check max games
-        if (maxGames !== null && gamesPlayed >= maxGames) {
+        const preGameTerminalCondition = getBalanceLoopTerminalCondition({
+          currentBalanceApe: balanceApe,
+          startingBalanceApe: startingBalance,
+          targetBalance,
+          stopLoss,
+          maxGames,
+          recoverLoss,
+          givebackProfit,
+          gamesPlayed,
+          state: loopTerminalState,
+        });
+        if (preGameTerminalCondition) {
+          console.log('');
+          console.log(formatLoopTerminalConditionMessage(preGameTerminalCondition, {
+            currentBalanceApe: balanceApe,
+            startingBalanceApe: startingBalance,
+            gamesPlayed,
+          }));
+          console.log('');
           break;
         }
         
@@ -3027,19 +3040,25 @@ program
           targetX,
           targetProfit: targetPayoutApe,
         });
+        const { publicClient: pc } = createClients();
+        const currentBal = await getBalanceWithRetry(pc, account.address);
+        const currentApe = parseFloat(formatEther(currentBal));
+        const sessionTerminalCondition = getBalanceLoopTerminalCondition({
+          currentBalanceApe: currentApe,
+          startingBalanceApe: startingBalance,
+          targetBalance,
+          stopLoss,
+          maxGames,
+          recoverLoss,
+          givebackProfit,
+          gamesPlayed,
+          state: loopTerminalState,
+        });
 
         // Show balance and countdown before next game
         if (!opts.json) {
           const nextDelayMs = getLoopDelayMs({ delaySeconds: loopDelaySeconds, human: humanTiming });
-          const { publicClient: pc } = createClients();
-          const currentBal = await pc.getBalance({ address: account.address });
-          const currentApe = parseFloat(formatEther(currentBal));
-          const terminalConditionReached = (
-            singleGameTerminalCondition ||
-            (targetBalance !== null && currentApe >= targetBalance) ||
-            (stopLoss !== null && currentApe <= stopLoss) ||
-            (maxGames !== null && gamesPlayed >= maxGames)
-          );
+          const terminalConditionReached = singleGameTerminalCondition || sessionTerminalCondition;
           console.log('');
           console.log(formatLoopProgress({
             currentBalanceApe: currentApe,
@@ -3056,11 +3075,21 @@ program
             console.log('');
             break;
           }
+          if (sessionTerminalCondition) {
+            console.log('');
+            console.log(formatLoopTerminalConditionMessage(sessionTerminalCondition, {
+              currentBalanceApe: currentApe,
+              startingBalanceApe: startingBalance,
+              gamesPlayed,
+            }));
+            console.log('');
+            break;
+          }
           if (terminalConditionReached) continue;
           await sleep(nextDelayMs);
           continue;
         }
-        if (singleGameTerminalCondition) break;
+        if (singleGameTerminalCondition || sessionTerminalCondition) break;
         await sleep(getLoopDelayMs({ delaySeconds: loopDelaySeconds, human: humanTiming }));
       }
     } else {
@@ -3151,7 +3180,7 @@ program
       // Check balance
       let balance;
       try {
-        balance = await publicClient.getBalance({ address: account.address });
+        balance = await getBalanceWithRetry(publicClient, account.address);
       } catch (error) {
         const msg = { error: `Failed to fetch balance: ${sanitizeError(error)}` };
         if (opts.json) console.log(JSON.stringify(msg));
@@ -3258,7 +3287,7 @@ program
           functionName: 'getTotalWagered',
           args: [account.address],
         }),
-        publicClient.getBalance({ address: account.address }),
+        getBalanceWithRetry(publicClient, account.address),
       ]);
     } catch (error) {
       // Continue with defaults if fetch fails
@@ -3595,6 +3624,8 @@ ${'─'.repeat(60)}
   --target <ape>  Stop when balance reaches this amount
   --target-x <x>  Stop when a hand pays at least this multiplier
   --target-profit <ape>  Stop when a hand pays at least this payout
+  --recover-loss <ape>  Stop after a drawdown recovers to break-even/profit
+  --giveback-profit <ape>  Stop after a run-up falls back to break-even/loss
   --stop-loss <ape>  Stop when balance drops to this amount
 
 ${'─'.repeat(60)}
@@ -3630,6 +3661,8 @@ ${'─'.repeat(60)}
                                            Bot plays until 500 APE balance
   ${BINARY_NAME} blackjack 10 --auto --loop --target-x 2.5
                                            Stop after any 2.5x-or-better hand
+  ${BINARY_NAME} blackjack 10 --auto --loop --recover-loss 25
+                                           Stop once a 25 APE drawdown gets recovered
 
 ${'═'.repeat(60)}
 `);
@@ -3676,6 +3709,8 @@ ${'─'.repeat(60)}
   --target <ape>  Stop when balance reaches this amount
   --target-x <x>  Stop when a hand pays at least this multiplier
   --target-profit <ape>  Stop when a hand pays at least this payout
+  --recover-loss <ape>  Stop after a drawdown recovers to break-even/profit
+  --giveback-profit <ape>  Stop after a run-up falls back to break-even/loss
   --stop-loss <ape>  Stop when balance drops to this amount
 
 ${'─'.repeat(60)}
@@ -3709,6 +3744,8 @@ ${'─'.repeat(60)}
   ${BINARY_NAME} video-poker 25 --auto best     Exact EV solver
   ${BINARY_NAME} video-poker 25 --auto --loop
                                         Bot grinds until broke
+  ${BINARY_NAME} video-poker 25 --auto --loop --giveback-profit 40
+                                        Stop once a 40 APE run-up is given back
 
 ${'═'.repeat(60)}
 `);
@@ -3856,6 +3893,8 @@ LOOP OPTIONS
   --target <ape>          Stop when balance reaches target
   --target-x <x>          Stop when one game pays at least Xx
   --target-profit <ape>   Stop when one game pays at least this payout
+  --recover-loss <ape>    Stop at break-even/profit after a drawdown of at least this size
+  --giveback-profit <ape> Stop at break-even/loss after a run-up of at least this size
   --stop-loss <ape>       Stop when balance drops to limit
   --max-games <count>     Stop after N games
   --bet-strategy <name>   Betting strategy (flat, martingale, etc.)
@@ -3946,6 +3985,14 @@ ${'─'.repeat(70)}
 
   --target-profit <ape>  Stop when a single game pays at least this payout
                          Example: --target-profit 250 (stop on any 250+ APE payout)
+
+  --recover-loss <ape>   Arm after session P&L falls to -<ape> or worse;
+                         stop once it returns to break-even or profit
+                         Example: --recover-loss 25
+
+  --giveback-profit <ape> Arm after session P&L rises to +<ape> or better;
+                          stop once it returns to break-even or loss
+                          Example: --giveback-profit 40
                        
   --stop-loss <ape>    Stop when balance DROPS to this amount
                        Example: --stop-loss 50 (stop if you hit 50 APE)
@@ -3963,6 +4010,7 @@ ${'─'.repeat(70)}
 
   These can be combined:
     ${BINARY_NAME} play --loop --target 200 --stop-loss 50 --max-games 500
+    ${BINARY_NAME} play roulette 10 RED --loop --recover-loss 25
     ${BINARY_NAME} play roulette 10 RED --loop --human
 
   Where loop game estimates are supported, startup also prints a pre-loop estimate.
@@ -4004,6 +4052,8 @@ ${'─'.repeat(70)}
     • Reaching --target balance
     • Hitting --target-x on a single game
     • Hitting --target-profit on a single game
+    • Recovering from a --recover-loss drawdown
+    • Giving back a --giveback-profit run-up
     • Hitting --stop-loss floor
     • Completing --max-games
     • Balance too low for minimum bet
@@ -4678,7 +4728,7 @@ program
       // Check balance
       let balance;
       try {
-        balance = await publicClient.getBalance({ address: account.address });
+        balance = await getBalanceWithRetry(publicClient, account.address);
       } catch (error) {
         const err = { error: 'Failed to fetch balance' };
         if (opts.json) console.log(JSON.stringify(err));
@@ -4789,7 +4839,7 @@ program
       // Check APE for gas
       let apeBalance;
       try {
-        apeBalance = await publicClient.getBalance({ address: account.address });
+        apeBalance = await getBalanceWithRetry(publicClient, account.address);
       } catch (error) {
         const err = { error: 'Failed to fetch APE balance for gas' };
         if (opts.json) console.log(JSON.stringify(err));
@@ -4974,7 +5024,7 @@ program
       const { publicClient: pc, walletClient } = createClients(account);
 
       // Check balance
-      const balance = await pc.getBalance({ address: account.address });
+      const balance = await getBalanceWithRetry(pc, account.address);
       const gasPrice = await pc.getGasPrice();
       const estimatedGas = 100000n;
       const gasCost = gasPrice * estimatedGas;
@@ -5163,6 +5213,8 @@ program
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
+  .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
+  .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
@@ -5247,6 +5299,8 @@ program
   .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
+  .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
+  .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')

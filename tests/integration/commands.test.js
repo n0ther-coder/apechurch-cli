@@ -195,6 +195,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--side <ape>'), 'Should show player side bet option');
       assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
       assert.ok(stdout.includes('--target-profit <ape>'), 'Should show single-game payout stop option');
+      assert.ok(stdout.includes('--recover-loss <ape>'), 'Should show drawdown recovery stop option');
+      assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
       assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
@@ -204,6 +206,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
       assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
       assert.ok(stdout.includes('--target-profit <ape>'), 'Should show single-game payout stop option');
+      assert.ok(stdout.includes('--recover-loss <ape>'), 'Should show drawdown recovery stop option');
+      assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
       assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
@@ -214,6 +218,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--delay <seconds>'), 'Should still show delay option');
       assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
       assert.ok(stdout.includes('--target-profit <ape>'), 'Should show single-game payout stop option');
+      assert.ok(stdout.includes('--recover-loss <ape>'), 'Should show drawdown recovery stop option');
+      assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
 
@@ -228,6 +234,8 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout } = cli('help loop');
       assert.ok(stdout.includes('--target-x <x>'), 'Should document single-game multiplier stop');
       assert.ok(stdout.includes('--target-profit <ape>'), 'Should document single-game payout stop');
+      assert.ok(stdout.includes('--recover-loss <ape>'), 'Should document drawdown recovery stop');
+      assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should document profit giveback stop');
       assert.ok(stdout.includes('Estimate games before wallet squandering'), 'Should document wallet squandering estimate');
       assert.ok(stdout.includes('Estimate games before stop-loss'), 'Should document stop-loss estimate');
       assert.ok(stdout.includes('--human'), 'Should document humanized loop pacing');
