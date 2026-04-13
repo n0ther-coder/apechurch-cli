@@ -6,6 +6,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Hi-Lo Nebula dedicated command now accepts the shared stateful loop controls, including `--loop`, `--max-games`, session stop conditions, and betting strategies
+
+## [8.2.2] - 2026-04-13
+
+### Changed
+- Hi-Lo Nebula `--auto best` now scores continuations on net EV, subtracting the extra VRF fee from each future guess while keeping the live jackpot share as the terminal bonus snapshot
+- Hi-Lo Nebula manual `Suggested action` hints now appear only with `--solver`, using the same `best` continuation engine when requested
+- Hi-Lo Nebula helper text and unfinished-game resume hints now advertise `--solver` alongside `--auto [best]`
+
+## [8.2.1] - 2026-04-13
+
+### Changed
+- Refined the Hi-Lo Nebula full display to use the new compact streak layout with centered draw rows, inline range guides, and simplified decision prompts
+- Added the standalone `hilo` alias across the CLI catalog and help surface
+- Kept the initial Hi-Lo render to a plain waiting message until the first card is revealed
+
 ## [8.2.0] - 2026-04-13
 
 ### Added

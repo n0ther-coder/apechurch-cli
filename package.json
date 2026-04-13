@@ -1,6 +1,6 @@
 {
   "name": "@n0ther/apechurch-cli",
-  "version": "8.2.1",
+  "version": "8.2.2",
   "description": "Hardened autonomous agent CLI for Ape Church on ApeChain. Local-only signing with encrypted wallet storage.",
   "main": "./registry.js",
   "scripts": {

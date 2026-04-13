@@ -3737,6 +3737,13 @@ ${'─'.repeat(60)}
 ${'─'.repeat(60)}
 
   --auto [mode]   Auto-play the run
+  --solver        Show the best continuation suggestion in manual mode
+  --loop          Keep starting new runs until a stop condition triggers
+  --max-games <count> Stop after N runs in loop mode
+  --target <ape>  Stop when balance reaches this amount
+  --stop-loss <ape> Stop when balance drops to this amount
+  --bet-strategy <name> Betting strategy for loop mode
+  --max-bet <ape> Maximum bet amount for progressive strategies
   --display <mode> Display mode: full, simple, json
   --game <id>     Specify game ID (for resume/action)
 
@@ -3762,8 +3769,11 @@ ${'─'.repeat(60)}
 ${'─'.repeat(60)}
 
   ${BINARY_NAME} hi-lo-nebula 25                Play one run, 25 APE
+  ${BINARY_NAME} hi-lo-nebula 25 --solver       Manual play with best suggestion
   ${BINARY_NAME} hi-lo-nebula 25 --auto         Simple auto-play
-  ${BINARY_NAME} hi-lo-nebula 25 --auto best    Jackpot-aware EV auto-play
+  ${BINARY_NAME} hi-lo-nebula 25 --auto best    Net-EV auto-play with VRF/jackpot snapshot
+  ${BINARY_NAME} hi-lo-nebula 25 --auto best --loop --max-games 20
+                                          Continuous Hi-Lo auto-play
   ${BINARY_NAME} hi-lo-nebula lower             Continue the current run with LOWER
   ${BINARY_NAME} hi-lo-nebula cashout           End the current run and collect
 
@@ -4169,7 +4179,7 @@ ${'─'.repeat(70)}
 
   • All simple games (play command)
   • Blackjack (${BINARY_NAME} blackjack <amt> --loop --auto)
-  • Hi-Lo Nebula (${BINARY_NAME} hi-lo-nebula <amt> --auto)
+  • Hi-Lo Nebula (${BINARY_NAME} hi-lo-nebula <amt> --loop --auto)
   • Video Poker (${BINARY_NAME} video-poker <amt> --loop --auto)
 
 ${'═'.repeat(70)}
@@ -4280,7 +4290,7 @@ ${'═'.repeat(70)}
 ${'═'.repeat(70)}
 
   The --auto flag lets the CLI play without human input.
-  Available on games that require decisions (Blackjack, Video Poker).
+  Available on games that require decisions (Blackjack, Hi-Lo Nebula, Video Poker).
 
   Modes:
     • simple   Fast heuristic mode (default)
@@ -4313,6 +4323,25 @@ ${'─'.repeat(70)}
     • When to surrender (if offered)
     • Insurance decisions from exact live EV
     • Opening side bets are independent from the in-hand auto solver
+
+${'─'.repeat(70)}
+  HI-LO NEBULA --auto
+${'─'.repeat(70)}
+
+  simple:
+    • Banks the first available cashout
+    • Otherwise picks the highest immediate hit rate
+
+  best:
+    • Uses the net-EV continuation solver
+    • Subtracts future VRF fees from continuation value
+    • Includes the live jackpot snapshot as the terminal bonus
+
+  Commands:
+    ${BINARY_NAME} hi-lo-nebula 10 --auto            # One run, auto-play
+    ${BINARY_NAME} hi-lo-nebula 10 --auto best       # Net-EV solver
+    ${BINARY_NAME} hi-lo-nebula 10 --auto --loop     # Continuous auto-play
+    ${BINARY_NAME} hi-lo-nebula 10 --solver          # Manual play with suggestions
 
 ${'─'.repeat(70)}
   VIDEO POKER --auto
@@ -5398,6 +5427,19 @@ program
   .option('--json', 'JSON output only')
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--auto [mode]', 'Auto-play the run')
+  .option('--solver', 'Show the best continuation suggestion in manual mode')
+  .option('--delay <seconds>', 'Fixed delay between looped games')
+  .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
+  .option('--loop', 'Keep playing until balance runs out')
+  .option('--max-games <count>', 'Stop after N games (use with --loop)')
+  .option('--target <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
+  .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
+  .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
+  .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
+  .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
+  .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .action(async (action, amount, opts) => {
     const hiLoNebula = await import('../lib/stateful/hi-lo-nebula/index.js');

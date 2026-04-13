@@ -361,7 +361,7 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 ```
 
 - Base local rate: `5 GP/APE`
-- Per-run override: `bet`, `play`, `blackjack`, `video-poker`
+- Per-run override: `bet`, `play`, `blackjack`, `hi-lo-nebula`, `video-poker`
 - Wallet-specific current override: `profile set --gp-ape <points>`
 - Wallet-specific reset to base default: `profile set --no-gp-ape`
 - On-chain GP precedence: when a settled game includes on-chain GP, reports use that value instead of a local estimate
@@ -521,10 +521,23 @@ If the first positional token is numeric, the command starts a new hand with tha
                         | "-v"
                         | "--verbose"
                         | "--auto" [ <auto-mode> ]
+                        | "--solver"
+                        | "--delay" <seconds>
+                        | "--human"
+                        | "--loop"
+                        | "--max-games" <count>
+                        | "--target" <ape>
+                        | "--target-x" <number>
+                        | "--target-profit" <ape>
+                        | "--recover-loss" <ape>
+                        | "--giveback-profit" <ape>
+                        | "--stop-loss" <ape-nonnegative>
+                        | "--bet-strategy" <bet-strategy>
+                        | "--max-bet" <ape>
                         | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new run. `--auto best` is a jackpot-aware continuation heuristic over the verified rank-only branch table; the command does not currently expose `--loop`.
+If the first positional token is numeric, the command starts a new run. `--solver` shows the manual `Suggested action` line using the same `best` engine. `--auto best` is a VRF-aware net-EV continuation solver over the verified rank-only branch table, using the live jackpot snapshot as the terminal bonus reference. `--human` is supported but hidden from standard `--help`.
 
 ### `video-poker [action] [amount]`
 

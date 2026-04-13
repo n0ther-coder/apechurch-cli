@@ -25,7 +25,7 @@ Ordering: alphabetical by game title.
 | Cosmic Plinko ✔︎ | `play cosmic <amt> <mode> <balls>` | `--game cosmic --amount X --mode Y --balls Z` |
 | Dino Dough ✔︎ | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` |
 | Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` |
-| Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best` |
+| Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` |
 | Jungle Plinko ✔︎ | `play jungle <amt> <mode> <balls>` | `--game jungle --amount X --mode Y --balls Z` |
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` |
 | Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --mode Y` |
@@ -310,7 +310,7 @@ Verified ordered `3`-reel slot with `6` live symbol indexes and the same cumulat
 
 Stateful sequential card-prediction game with explicit `HIGHER`, `LOWER`, `SAME`, and `CASHOUT` actions. The verified contract does **not** use a `52`-card deck: it samples only ranks `2..A` uniformly with replacement, so suits and deck depletion are not part of the on-chain model.
 
-**Command:** `apechurch-cli hi-lo-nebula <amount> [--auto [simple|best]]`
+**Command:** `apechurch-cli hi-lo-nebula <amount> [--auto [simple|best]] [--solver] [--loop]`
 
 ```bnf
 <amount> ::= <ape>
@@ -320,6 +320,9 @@ Stateful sequential card-prediction game with explicit `HIGHER`, `LOWER`, `SAME`
 **Compare:**
 - Public references still carried by the repo: `97.5%` calculated RTP and `97.84%` running RTP from the archived transparency snapshot.
 - Verified mechanics: `play`, `makeGuess`, `cashOut`, live `getVRFFee`, verified `getGameInfo`, and a live `getJackpotAmount(betAmount)` getter.
+- `--auto best` uses a VRF-aware net-EV continuation solver on the verified branch model, with the live jackpot share treated as the terminal bonus snapshot.
+- `--solver` enables manual `Suggested action` hints from that same `best` engine.
+- `--loop` now supports the common session stop conditions and betting strategies used by the other stateful games.
 - Operational note: the repo now verifies the rank/paytable model exactly, but it still does **not** promote one closed-form whole-game RTP because the player can stop after any successful guess and the jackpot pool is live.
 
 ## Jungle Plinko ✔︎
@@ -519,7 +522,7 @@ Stateful Jacks or Better with one redraw, interactive play, and an exact hold-EV
 ## Common Loop Options
 
 All games support these with `--loop`.
-Note: `play` defaults to `--delay 3`, while `blackjack` and `video-poker` default to `--delay 5`.
+Note: `play` defaults to `--delay 3`, while `blackjack`, `hi-lo-nebula`, and `video-poker` default to `--delay 5`.
 
 ```bash
 --loop                    # Enable continuous play
@@ -546,6 +549,7 @@ Note: `play` defaults to `--delay 3`, while `blackjack` and `video-poker` defaul
 - VRF fees are automatically calculated and added
 - Stateful games use `--auto simple` by default; `blackjack`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`
 - `hi-lo-nebula --display full` uses the boxed multi-panel layout with current card, action keys, and streak info
+- `hi-lo-nebula --loop` supports the common `--target`, `--stop-loss`, `--max-games`, `--bet-strategy`, and related session controls
 - `video-poker --solver` shows a best-EV hold suggestion in interactive mode
 - `video-poker --display full` uses the boxed ASCII table renderer; `simple` stays compact
 - Use `apechurch-cli game <name>` for detailed in-CLI help

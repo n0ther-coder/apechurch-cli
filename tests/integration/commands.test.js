@@ -560,6 +560,14 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('12.5000x'));
     });
 
+    it('documents Hi-Lo Nebula loop controls in command help', () => {
+      const { stdout, code } = cli('hilo --help');
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('--loop'), 'Should expose loop mode in hi-lo help');
+      assert.ok(stdout.includes('--max-games <count>'), 'Should expose max-games in hi-lo help');
+      assert.ok(stdout.includes('--bet-strategy <name>'), 'Should expose betting strategies in hi-lo help');
+    });
+
     it('exposes ABI verification metadata for verified Roulette', () => {
       const { stdout } = cli('game roulette --json');
       const data = JSON.parse(stdout);

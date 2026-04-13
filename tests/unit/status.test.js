@@ -59,7 +59,7 @@ describe('Status Helpers', () => {
           game: 'Hi-Lo Nebula ✔︎',
           unfinished_games: 1,
           game_ids: ['22'],
-          resume_command: 'apechurch-cli hi-lo-nebula resume [--game <id>][--auto [best]]',
+          resume_command: 'apechurch-cli hi-lo-nebula resume [--game <id>][--auto [best] | --solver]',
           clear_command: 'apechurch-cli hi-lo-nebula clear',
         },
       ]);
@@ -76,7 +76,7 @@ describe('Status Helpers', () => {
       );
       assert.strictEqual(
         resolveActiveGameResumeCommand('hi-lo-nebula'),
-        'apechurch-cli hi-lo-nebula resume [--game <id>][--auto [best]]'
+        'apechurch-cli hi-lo-nebula resume [--game <id>][--auto [best] | --solver]'
       );
     });
   });
