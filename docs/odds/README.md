@@ -20,6 +20,7 @@ These notes belong under `docs/odds/` only when the repo already has a defensibl
 | Blocks ✔︎ | [BLOCKS_ODDS_PAYOUTS.md](./BLOCKS_ODDS_PAYOUTS.md) | The published cluster table collapses the whole 3x3 board game to seven paying outcome classes per mode. |
 | Primes ✔︎ | [PRIMES_ODDS_PAYOUTS.md](./PRIMES_ODDS_PAYOUTS.md) | Each difficulty has only three exact outcome classes: zero, prime, or dead run. |
 | Geez Diggerz ✔︎ | [GEEZ_DIGGERZ_ODDS_PAYOUTS.md](./GEEZ_DIGGERZ_ODDS_PAYOUTS.md) | The full live ordered-triple matrix compresses cleanly to `16` payout rows after the symmetric reel snapshot. |
+| Hi-Lo Nebula ✔︎ | [HI_LO_NEBULA_ODDS_PAYOUTS.md](./HI_LO_NEBULA_ODDS_PAYOUTS.md) | The verified rank-only paytable collapses to a compact per-rank branch table with exact hit rates and branch EV. |
 | Sushi Showdown ✔︎ | [SUSHI_SHOWDOWN_ODDS_PAYOUTS.md](./SUSHI_SHOWDOWN_ODDS_PAYOUTS.md) | The full live ordered-triple matrix still stays readable as a `45`-row exact per-spin distribution. |
 
 ## Possible, But Only With Extra Snapshotting

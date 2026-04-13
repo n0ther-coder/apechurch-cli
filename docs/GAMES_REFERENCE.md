@@ -25,6 +25,7 @@ Ordering: alphabetical by game title.
 | Cosmic Plinko ✔︎ | `play cosmic <amt> <mode> <balls>` | `--game cosmic --amount X --mode Y --balls Z` |
 | Dino Dough ✔︎ | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` |
 | Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` |
+| Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best` |
 | Jungle Plinko ✔︎ | `play jungle <amt> <mode> <balls>` | `--game jungle --amount X --mode Y --balls Z` |
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` |
 | Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --mode Y` |
@@ -74,6 +75,7 @@ Ordering: alphabetical by game title.
 | Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-30` balls |
 | Dino Dough ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
 | Geez Diggerz ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
+| Hi-Lo Nebula ✔︎ | Any positive APE amount | CLI accepts `> 0` | No explicit CLI max besides wallet balance and contract-side liquidity constraints | Start pays the live `getVRFFee()` once; every guess pays the same VRF fee again |
 | Jungle Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-100` balls |
 | Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
 | Monkey Match ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
@@ -297,6 +299,29 @@ Verified ordered `3`-reel slot with `6` live symbol indexes and the same cumulat
 - Max payout: `50x`.
 - Operational note: flatter, rebate-heavy paytable than the other promoted slots; positive payout is about `41.02%`, while net-profit outcomes are about `30.00%`.
 
+## Hi-Lo Nebula ✔︎
+
+**Type:** Cards / Cash-out streak
+**Contract:** `0xa67d5CD51028cAaa367eEFcE90a5eA0b71c6cBE2`
+**ABI verified:** `true`
+**Aliases:** `hi-lo`, `hilo`, `hilo-nebula`, `nebula`
+**Verification notes:** [HI_LO_NEBULA_CONTRACT.md](./verification/HI_LO_NEBULA_CONTRACT.md)
+**Odds tables:** [HI_LO_NEBULA_ODDS_PAYOUTS.md](./odds/HI_LO_NEBULA_ODDS_PAYOUTS.md)
+
+Stateful sequential card-prediction game with explicit `HIGHER`, `LOWER`, `SAME`, and `CASHOUT` actions. The verified contract does **not** use a `52`-card deck: it samples only ranks `2..A` uniformly with replacement, so suits and deck depletion are not part of the on-chain model.
+
+**Command:** `apechurch-cli hi-lo-nebula <amount> [--auto [simple|best]]`
+
+```bnf
+<amount> ::= <ape>
+<auto-mode> ::= "simple" | "best"
+```
+
+**Compare:**
+- Public references still carried by the repo: `97.5%` calculated RTP and `97.84%` running RTP from the archived transparency snapshot.
+- Verified mechanics: `play`, `makeGuess`, `cashOut`, live `getVRFFee`, verified `getGameInfo`, and a live `getJackpotAmount(betAmount)` getter.
+- Operational note: the repo now verifies the rank/paytable model exactly, but it still does **not** promote one closed-form whole-game RTP because the player can stop after any successful guess and the jackpot pool is live.
+
 ## Jungle Plinko ✔︎
 
 **Type:** Plinko
@@ -519,7 +544,8 @@ Note: `play` defaults to `--delay 3`, while `blackjack` and `video-poker` defaul
 - All amounts are in APE
 - Manual `play` for simple games accepts any positive APE amount; built-in strategy presets usually floor auto-sized bets at `1 APE`
 - VRF fees are automatically calculated and added
-- Stateful games use `--auto simple` by default; `blackjack` and `video-poker` also support `--auto best`
+- Stateful games use `--auto simple` by default; `blackjack`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`
+- `hi-lo-nebula --display full` uses the boxed multi-panel layout with current card, action keys, and streak info
 - `video-poker --solver` shows a best-EV hold suggestion in interactive mode
 - `video-poker --display full` uses the boxed ASCII table renderer; `simple` stays compact
 - Use `apechurch-cli game <name>` for detailed in-CLI help
@@ -667,9 +693,11 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 ### Still Not Exactly Calculable from Local Sources
 
-The local source set is still insufficient for a defensible closed-form RTP on `Cash Dash`, `Cult Quest`, `Gimboz Smash`, `Glyde or Crash`, `Hi-Lo Nebula`, `Reel Pirates`, and `Rico's Revenge`.
+The local source set is still insufficient for a defensible closed-form RTP on `Cash Dash`, `Cult Quest`, `Gimboz Smash`, `Glyde or Crash`, `Reel Pirates`, and `Rico's Revenge`.
 
 For `Blackjack ✔︎`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables and the public rule surface now matches the repo solver assumptions.
+
+For `Hi-Lo Nebula ✔︎`, the contract-backed rank model, paytable, and jackpot getter are now verified, but the repo still treats whole-run RTP as policy-dependent because the player can cash out after any winning guess and the jackpot pool is live.
 
 ---
 
@@ -791,7 +819,6 @@ Ordering: alphabetical by game title.
 | Cult Quest | gem / trap grid cash-out game | 96.67% | aggregate only | Docs + transparency; fewer safe spots means higher risk |
 | Gimboz Smash | range-target risk game | 99.42% | aggregate only | Docs + transparency; not the same mechanic as the supported `ape-strong` command |
 | Glyde or Crash | crash / cash-out multiplier game | 105.59% | aggregate only | Docs + transparency; official docs also use the spelling `Glyder or Crash` |
-| Hi-Lo Nebula | higher/lower card streak game | 97.84% | paytable | Docs + transparency; public header shows `97.5%` calculated RTP |
 | Reel Pirates | undocumented in current official source set | 99.81% | aggregate only | Transparency only in the material archived here |
 | Rico's Revenge | undocumented in current official source set | 90.94% | aggregate only | Transparency only in the material archived here |
 
@@ -801,4 +828,3 @@ Ordering: alphabetical by game title.
 
 | Game | Useful public detail |
 |------|----------------------|
-| Hi-Lo Nebula | Multiplier depends on the current card. Edge cards only allow one direction at `1.0600x`, while `8` is symmetric at `2.0833x` for either `Higher` or `Lower`. |

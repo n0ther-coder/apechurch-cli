@@ -16,6 +16,7 @@ Each `*_CONTRACT.md` file below is the maintainer-facing evidence bundle for one
 | Dino Dough | `DINO_DOUGH_CONTRACT.md` | Exact-match slots source trail, live reels, ordered paytable, and exact RTP |
 | Bubblegum Heist | `BUBBLEGUM_HEIST_CONTRACT.md` | Similar-match slots trail, live reels, ordered paytable, and exact RTP |
 | Geez Diggerz | `GEEZ_DIGGERZ_CONTRACT.md` | Exact-match slots source trail, symmetric reels, ordered paytable, and exact RTP |
+| Hi-Lo Nebula | `HI_LO_NEBULA_CONTRACT.md` | Stateful rank-only draw model, streak actions, jackpot getter, and verified paytable |
 | Sushi Showdown | `SUSHI_SHOWDOWN_CONTRACT.md` | Similar-match slots trail, `7`-symbol asymmetric reels, ordered paytable, and exact RTP |
 | Monkey Match | `MONKEY_MATCH_CONTRACT.md` | Five-draw multiplicity model, live mode constants, and exact combinatorial RTP |
 | Bear-A-Dice | `BEAR_DICE_CONTRACT.md` | Verified 2d6 payout table, custom gas limit, and difficulty/run matrices |

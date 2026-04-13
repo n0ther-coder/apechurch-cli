@@ -38,6 +38,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `send <asset> <amount> <destination>` | none | Send `APE` or `GP` |
 | `house [action] [amount]` | none | Show, deposit into, or withdraw from The House |
 | `blackjack [action] [amount]` | `bj` | Interactive/stateful blackjack |
+| `hi-lo-nebula [action] [amount]` | `hi-lo`, `hilo`, `hilo-nebula`, `nebula` | Interactive/stateful Hi-Lo Nebula |
 | `video-poker [action] [amount]` | `vp`, `gimboz-poker` | Interactive/stateful video poker |
 
 ## Game Aliases
@@ -63,6 +64,7 @@ The alias `dice` is currently registered on both `ape-strong` and `bear-dice`. T
 | `bear-dice` | `bear`, `dice`, `bd` |
 | `primes` | `prime` |
 | `blackjack` | `bj` |
+| `hi-lo-nebula` | `hi-lo`, `hilo`, `hilo-nebula`, `nebula`, `Hi-Lo Nebula`, `hilo nebula` |
 | `video-poker` | `vp`, `gimboz-poker`, `gimboz poker`, `Video Poker`, `Gimboz Poker` |
 
 ## Shared Grammar
@@ -490,6 +492,39 @@ If no action is supplied, `house` shows status.
 ```
 
 If the first positional token is numeric, the command starts a new hand with that amount. `--human` is a supported advanced option but intentionally hidden from standard `--help`.
+
+### `hi-lo-nebula [action] [amount]`
+
+```bnf
+<hi-lo-nebula-command> ::= ( "hi-lo-nebula" | "hi-lo" | "hilo" | "hilo-nebula" | "nebula" ) [ <hi-lo-nebula-head> ] [ <ape> ] <hi-lo-nebula-option>*
+<hi-lo-nebula-head> ::= <ape>
+                       | "resume"
+                       | "status"
+                       | "payouts"
+                       | "table"
+                       | "clear"
+                       | "higher"
+                       | "high"
+                       | "h"
+                       | "lower"
+                       | "low"
+                       | "l"
+                       | "same"
+                       | "push"
+                       | "s"
+                       | "cashout"
+                       | "cash"
+                       | "c"
+<hi-lo-nebula-option> ::= "--game" <game-id>
+                        | "--display" <display>
+                        | "--json"
+                        | "-v"
+                        | "--verbose"
+                        | "--auto" [ <auto-mode> ]
+                        | "--gp-ape" <points>
+```
+
+If the first positional token is numeric, the command starts a new run. `--auto best` is a jackpot-aware continuation heuristic over the verified rank-only branch table; the command does not currently expose `--loop`.
 
 ### `video-poker [action] [amount]`
 

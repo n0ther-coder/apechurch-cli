@@ -25,6 +25,7 @@
  * │ play [game] [amt] Play games (auto or manual, supports --loop)          │
  * │ bet              Quick manual bet on a specific simple game             │
  * │ blackjack <amt>   Interactive blackjack (stateful, multi-step)          │
+ * │ hi-lo-nebula <amt> Interactive Hi-Lo Nebula (stateful, multi-step)      │
  * │ video-poker <amt> Interactive video poker (stateful, multi-step)        │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ INFORMATION                                                             │
@@ -99,6 +100,7 @@ import {
   HOUSE_LOCK_TIME,
   HOUSE_WITHDRAW_FEE,
   BLACKJACK_CONTRACT,
+  HI_LO_NEBULA_CONTRACT,
   PACKAGE_NAME,
   BINARY_NAME,
   PASS_ENV_VAR,
@@ -644,6 +646,12 @@ function formatHistoryBreakdownReport(gameStats) {
 const HISTORY_BREAKDOWN_FILTER_ALIASES = new Map([
   ['blackjack', 'blackjack'],
   ['bj', 'blackjack'],
+  ['hi-lo-nebula', 'hi-lo-nebula'],
+  ['hi-lo nebula', 'hi-lo-nebula'],
+  ['hi-lo', 'hi-lo-nebula'],
+  ['hilo', 'hi-lo-nebula'],
+  ['hilo-nebula', 'hi-lo-nebula'],
+  ['nebula', 'hi-lo-nebula'],
   ['video-poker', 'video-poker'],
   ['video poker', 'video-poker'],
   ['vp', 'video-poker'],
@@ -689,6 +697,23 @@ function getBlackjackCatalogEntry() {
   };
 }
 
+function getHiLoNebulaCatalogEntry() {
+  return {
+    key: 'hi-lo-nebula',
+    name: 'Hi-Lo Nebula',
+    displayName: resolveGameDisplayName({
+      gameKey: 'hi-lo-nebula',
+      contract: HI_LO_NEBULA_CONTRACT,
+      fallbackName: 'Hi-Lo Nebula',
+    }),
+    type: 'stateful',
+    description: 'Sequential higher/lower/same card-streak game with cashout and jackpot pathing',
+    abiVerified: true,
+    aliases: ['hi-lo', 'hilo', 'hilo-nebula', 'nebula'],
+    contract: HI_LO_NEBULA_CONTRACT,
+  };
+}
+
 function getVideoPokerCatalogEntry() {
   return {
     key: 'video-poker',
@@ -710,6 +735,7 @@ function listSupportedGameCatalogEntries() {
   return [
     ...GAME_REGISTRY.map((game) => createGameCatalogEntry(game)),
     getBlackjackCatalogEntry(),
+    getHiLoNebulaCatalogEntry(),
     getVideoPokerCatalogEntry(),
   ].sort(compareCatalogEntriesByTitle);
 }
@@ -3668,6 +3694,83 @@ ${'═'.repeat(60)}
 `);
       return;
     }
+
+    if (
+      name.toLowerCase() === 'hi-lo-nebula'
+      || name.toLowerCase() === 'hi-lo'
+      || name.toLowerCase() === 'hilo'
+      || name.toLowerCase() === 'hilo-nebula'
+      || name.toLowerCase() === 'nebula'
+    ) {
+      const hiLoNebula = getHiLoNebulaCatalogEntry();
+      if (opts.json) {
+        console.log(JSON.stringify(hiLoNebula));
+        return;
+      }
+      console.log(`
+${'═'.repeat(60)}
+  ${hiLoNebula.displayName.toUpperCase()}
+${'═'.repeat(60)}
+
+  Sequential rank-only card prediction game. Guess HIGHER, LOWER,
+  or SAME against the current card. Each correct guess advances the
+  streak and increases the next cashout value; a miss loses everything.
+  The verified contract samples ranks 2..A uniformly with replacement.
+
+  Type:     ${hiLoNebula.type}
+  Key:      ${hiLoNebula.key}
+  ABI verified: ${hiLoNebula.abiVerified}
+  Aliases:  ${hiLoNebula.aliases.join(', ')}
+  Contract: ${hiLoNebula.contract}
+
+${'─'.repeat(60)}
+  COMMANDS
+${'─'.repeat(60)}
+
+  ${BINARY_NAME} hi-lo-nebula <amount>  Start new game with bet
+  ${BINARY_NAME} hi-lo-nebula resume    Resume unfinished games in queue
+  ${BINARY_NAME} hi-lo-nebula status    Check current game state
+  ${BINARY_NAME} hi-lo-nebula payouts   Show verified payout table
+
+${'─'.repeat(60)}
+  OPTIONS
+${'─'.repeat(60)}
+
+  --auto [mode]   Auto-play the run
+  --display <mode> Display mode: full, simple, json
+  --game <id>     Specify game ID (for resume/action)
+
+${'─'.repeat(60)}
+  GRAMMAR (BNF)
+${'─'.repeat(60)}
+
+  <amount> ::= <ape>
+  <ape> ::= <number>            ; decimal APE amount; value > 0
+  <auto-mode> ::= "simple" | "best"
+
+${'─'.repeat(60)}
+  ACTIONS (during game)
+${'─'.repeat(60)}
+
+  h / high        Guess the next rank will be higher
+  l / lower       Guess the next rank will be lower
+  s / same        Guess the next rank will match
+  c / cashout     Bank current winnings and end the round
+
+${'─'.repeat(60)}
+  EXAMPLES
+${'─'.repeat(60)}
+
+  ${BINARY_NAME} hi-lo-nebula 25                Play one run, 25 APE
+  ${BINARY_NAME} hi-lo-nebula 25 --auto         Simple auto-play
+  ${BINARY_NAME} hi-lo-nebula 25 --auto best    Jackpot-aware EV auto-play
+  ${BINARY_NAME} hi-lo-nebula lower             Continue the current run with LOWER
+  ${BINARY_NAME} hi-lo-nebula cashout           End the current run and collect
+
+${'═'.repeat(60)}
+`);
+      return;
+    }
     
     // Handle video-poker specially (stateful game)
     if (name.toLowerCase() === 'video-poker' || name.toLowerCase() === 'vp' || name.toLowerCase() === 'gimboz-poker') {
@@ -3865,6 +3968,7 @@ PLAY
   ${BINARY_NAME} play --loop          Continuous play
   ${BINARY_NAME} bet --game X --amount Y   Manual bet
   ${BINARY_NAME} blackjack <amt>      Interactive blackjack (alias: bj)
+  ${BINARY_NAME} hi-lo-nebula <amt>   Interactive Hi-Lo Nebula (aliases: hi-lo, hilo, nebula)
   ${BINARY_NAME} video-poker <amt>    Interactive video poker (aliases: vp, gimboz-poker)
 
 CONTROL
@@ -4065,6 +4169,7 @@ ${'─'.repeat(70)}
 
   • All simple games (play command)
   • Blackjack (${BINARY_NAME} blackjack <amt> --loop --auto)
+  • Hi-Lo Nebula (${BINARY_NAME} hi-lo-nebula <amt> --auto)
   • Video Poker (${BINARY_NAME} video-poker <amt> --loop --auto)
 
 ${'═'.repeat(70)}
@@ -5275,6 +5380,70 @@ program
         console.error(`\n❌ Unknown action: ${action}`);
         console.error('   Valid actions: hit, stand, double, split, insurance, surrender');
         console.error('   Or: resume, status, clear\n');
+    }
+  });
+
+// ============================================================================
+// COMMAND: HI-LO NEBULA (Stateful game)
+// ============================================================================
+program
+  .command('hi-lo-nebula [action] [amount]')
+  .alias('hi-lo')
+  .alias('hilo')
+  .alias('hilo-nebula')
+  .alias('nebula')
+  .description('Play Hi-Lo Nebula ✔︎ - sequential higher/lower/same card streaks')
+  .option('--game <id>', 'Specify game ID (for resume/action)')
+  .option('--display <mode>', 'Display mode: full, simple, json')
+  .option('--json', 'JSON output only')
+  .option('-v, --verbose', 'Show technical progress logs')
+  .option('--auto [mode]', 'Auto-play the run')
+  .option('--gp-ape <points>', 'Override GP earned per APE for this run')
+  .action(async (action, amount, opts) => {
+    const hiLoNebula = await import('../lib/stateful/hi-lo-nebula/index.js');
+
+    if (!action || !isNaN(parseFloat(action))) {
+      const betAmount = action || amount;
+      if (!betAmount) {
+        console.error('\n❌ Bet amount required');
+        console.error(`   Usage: ${BINARY_NAME} hi-lo-nebula <amount>\n`);
+        console.error(`   Example: ${BINARY_NAME} hi-lo-nebula 25\n`);
+        return;
+      }
+      await getWalletWithPrompt({ json: opts.json, gameplay: true });
+      return hiLoNebula.start(betAmount, opts);
+    }
+
+    const actionLower = action.toLowerCase();
+    switch (actionLower) {
+      case 'resume':
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
+        return hiLoNebula.resume(opts.game, opts);
+
+      case 'status':
+        return hiLoNebula.status(opts.game, opts);
+
+      case 'payouts':
+      case 'table':
+        return hiLoNebula.payouts();
+
+      case 'clear': {
+        const games = loadActiveGames();
+        const hiLoGames = games['hi-lo-nebula'] || [];
+        if (hiLoGames.length === 0) {
+          console.log('\n✅ No active Hi-Lo Nebula games to clear.\n');
+        } else {
+          console.log(`\n🗑️  Clearing ${hiLoGames.length} stored Hi-Lo Nebula game(s)...`);
+          games['hi-lo-nebula'] = [];
+          saveActiveGames(games);
+          console.log('✅ Done.\n');
+        }
+        return;
+      }
+
+      default:
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
+        return hiLoNebula.action(actionLower, opts);
     }
   });
 

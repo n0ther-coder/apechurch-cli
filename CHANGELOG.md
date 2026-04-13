@@ -6,6 +6,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [8.2.0] - 2026-04-13
+
+### Added
+- **Hi-Lo Nebula ✔︎**: Full stateful command with verified start / guess / cashout flow
+  - `apechurch-cli hi-lo-nebula <amount>` starts a new run
+  - `resume`, `status`, `payouts`, `clear`, and direct action aliases (`high`, `lower`, `same`, `cashout`)
+  - `--display full|simple|json`
+  - `--auto simple|best` for risk-averse cashout and jackpot-aware continuation heuristics
+- **Hi-Lo Nebula docs and verification trail**
+  - New contract note: `docs/verification/HI_LO_NEBULA_CONTRACT.md`
+  - New odds note: `docs/odds/HI_LO_NEBULA_ODDS_PAYOUTS.md`
+  - Updated `ABI_VERIFICATION`, `COMMAND_REFERENCE`, and `GAMES_REFERENCE`
+- **Hi-Lo Nebula coverage**
+  - New display renderer tests
+  - Stateful history refresh now rebuilds Hi-Lo Nebula sessions from `getGameInfo`
+
+### Changed
+- `games`, `game <name>`, `status`, and history/status helpers now treat `hi-lo-nebula` as a supported stateful title
+- The repo now marks Hi-Lo Nebula as `ABI verified` with a contract-backed rank-only draw model and live jackpot getter support
+
 ### Added
 - `--auto [simple|best]` for stateful games
 - Exact EV `best` solver for Video Poker, including live jackpot value at max bet

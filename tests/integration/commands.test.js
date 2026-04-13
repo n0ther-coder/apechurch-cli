@@ -286,6 +286,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Roulette ✔︎'), 'Should list verified Roulette');
       assert.ok(stdout.includes('Baccarat ✔︎'), 'Should list verified Baccarat');
       assert.ok(stdout.includes('Blackjack ✔︎'), 'Should list verified Blackjack');
+      assert.ok(stdout.includes('Hi-Lo Nebula ✔︎'), 'Should list verified Hi-Lo Nebula');
       assert.ok(stdout.includes('Jungle Plinko ✔︎'), 'Should list verified Jungle Plinko');
       assert.ok(stdout.includes('Cosmic Plinko ✔︎'), 'Should list verified Cosmic Plinko');
       assert.ok(stdout.includes('Keno ✔︎'), 'Should list verified Keno');
@@ -323,9 +324,11 @@ describe('CLI Commands Integration Tests', () => {
 
       const statefulHeaderIndex = stdout.indexOf('Stateful Games:');
       const blackjackIndex = stdout.indexOf('Blackjack ✔︎');
+      const hiLoNebulaIndex = stdout.indexOf('Hi-Lo Nebula ✔︎');
       const videoPokerIndex = stdout.indexOf('Video Poker ✔︎');
       assert.ok(blackjackIndex > statefulHeaderIndex, 'Blackjack should appear in the stateful section');
-      assert.ok(videoPokerIndex > blackjackIndex, 'Stateful games should be ordered alphabetically');
+      assert.ok(hiLoNebulaIndex > blackjackIndex, 'Hi-Lo Nebula should appear after Blackjack');
+      assert.ok(videoPokerIndex > hiLoNebulaIndex, 'Stateful games should be ordered alphabetically');
     });
 
     it('--stats appends the full Game Stats catalog', () => {
@@ -370,6 +373,7 @@ describe('CLI Commands Integration Tests', () => {
           'cosmic-plinko',
           'dino-dough',
           'geez-diggerz',
+          'hi-lo-nebula',
           'jungle-plinko',
           'keno',
           'monkey-match',
@@ -401,7 +405,7 @@ describe('CLI Commands Integration Tests', () => {
     it('shows alphabetized available games when the name is invalid', () => {
       const { stdout } = cli('game nope');
       assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | geez-diggerz | jungle-plinko | keno | monkey-match | primes | roulette | speed-keno | sushi-showdown'));
-      assert.ok(stdout.includes('Stateful: blackjack | video-poker'));
+      assert.ok(stdout.includes('Stateful: blackjack | hi-lo-nebula | video-poker'));
     });
 
     it('returns the full alphabetized available catalog in JSON when the name is invalid', () => {
@@ -418,6 +422,7 @@ describe('CLI Commands Integration Tests', () => {
         'cosmic-plinko',
         'dino-dough',
         'geez-diggerz',
+        'hi-lo-nebula',
         'jungle-plinko',
         'keno',
         'monkey-match',
@@ -538,6 +543,21 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Video Poker ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified Hi-Lo Nebula', () => {
+      const { stdout } = cli('game hilo --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Hi-Lo Nebula ✔︎');
+      assert.ok(data.aliases.includes('hilo'));
+    });
+
+    it('supports the standalone hilo alias for payout table output', () => {
+      const { stdout } = cli('hilo payouts');
+      assert.ok(stdout.includes('Same'));
+      assert.ok(stdout.includes('12.5000x'));
     });
 
     it('exposes ABI verification metadata for verified Roulette', () => {

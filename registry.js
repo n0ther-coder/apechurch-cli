@@ -26,6 +26,7 @@ import {
   COSMIC_PLINKO_CONTRACT,
   DINO_DOUGH_CONTRACT,
   GEEZ_DIGGERZ_CONTRACT,
+  HI_LO_NEBULA_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   KENO_CONTRACT,
   MONKEY_MATCH_CONTRACT,
@@ -711,6 +712,13 @@ const SUPPLEMENTAL_DISPLAY_GAMES = Object.freeze([
     contract: VIDEO_POKER_CONTRACT,
     abiVerified: true,
     aliases: ['vp', 'gimboz-poker', 'gimboz poker', 'Video Poker', 'Gimboz Poker'],
+  }),
+  Object.freeze({
+    key: 'hi-lo-nebula',
+    name: 'Hi-Lo Nebula',
+    contract: HI_LO_NEBULA_CONTRACT,
+    abiVerified: true,
+    aliases: ['hi-lo', 'hilo', 'hilo-nebula', 'nebula', 'Hi-Lo Nebula', 'hilo nebula'],
   }),
 ]);
 

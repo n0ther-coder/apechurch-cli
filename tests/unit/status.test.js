@@ -19,6 +19,7 @@ describe('Status Helpers', () => {
   describe('resolveActiveGameName', () => {
     it('maps known stateful games to their display names', () => {
       assert.strictEqual(resolveActiveGameName('blackjack'), 'Blackjack ✔︎');
+      assert.strictEqual(resolveActiveGameName('hi-lo-nebula'), 'Hi-Lo Nebula ✔︎');
       assert.strictEqual(resolveActiveGameName('video-poker'), 'Video Poker ✔︎');
     });
 
@@ -31,6 +32,7 @@ describe('Status Helpers', () => {
     it('returns sorted unfinished summaries and ignores empty lists', () => {
       const summaries = summarizeUnfinishedGames({
         blackjack: ['7'],
+        'hi-lo-nebula': ['22'],
         'video-poker': ['11', '12'],
         empty: [],
       });
@@ -52,6 +54,14 @@ describe('Status Helpers', () => {
           resume_command: 'apechurch-cli blackjack resume [--game <id>][--auto [best]]',
           clear_command: 'apechurch-cli blackjack clear',
         },
+        {
+          key: 'hi-lo-nebula',
+          game: 'Hi-Lo Nebula ✔︎',
+          unfinished_games: 1,
+          game_ids: ['22'],
+          resume_command: 'apechurch-cli hi-lo-nebula resume [--game <id>][--auto [best]]',
+          clear_command: 'apechurch-cli hi-lo-nebula clear',
+        },
       ]);
     });
 
@@ -63,6 +73,10 @@ describe('Status Helpers', () => {
       assert.strictEqual(
         resolveActiveGameResumeCommand('blackjack'),
         'apechurch-cli blackjack resume [--game <id>][--auto [best]]'
+      );
+      assert.strictEqual(
+        resolveActiveGameResumeCommand('hi-lo-nebula'),
+        'apechurch-cli hi-lo-nebula resume [--game <id>][--auto [best]]'
       );
     });
   });

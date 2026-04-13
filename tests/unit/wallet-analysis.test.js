@@ -12,6 +12,7 @@ import {
   DINO_DOUGH_CONTRACT,
   GAME_CONTRACT_ABI,
   GEEZ_DIGGERZ_CONTRACT,
+  HI_LO_NEBULA_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   KENO_CONTRACT,
   MONKEY_MATCH_CONTRACT,
@@ -1148,6 +1149,40 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(result.games[0].last_sync_msg, 'ok');
       assert.strictEqual(result.games[0].settled, true);
       assert.strictEqual(result.games[0].timestamp, 1_888_888_888_000);
+    });
+
+    it('rebuilds completed hi-lo nebula history entries from getGameInfo', async () => {
+      const syncTimestamp = '2026-04-02T12:00:00.000Z';
+      const result = await syncSavedStatefulHistoryGames({
+        async readContract(params) {
+          assert.strictEqual(params.functionName, 'getGameInfo');
+          assert.strictEqual(params.address, HI_LO_NEBULA_CONTRACT);
+          return {
+            initialBetAmount: parseEther('25'),
+            payout: parseEther('44.6425'),
+            user: WALLET,
+            hasEnded: true,
+            timestamp: 1_999_999_999n,
+            rounds: [],
+          };
+        },
+      }, [
+        {
+          contract: HI_LO_NEBULA_CONTRACT,
+          gameId: '99',
+          timestamp: 0,
+        },
+      ], WALLET, syncTimestamp);
+
+      assert.strictEqual(result.games.length, 1);
+      assert.strictEqual(result.diagnosticsByGameKey.size, 0);
+      assert.strictEqual(result.games[0].game_key, 'hi-lo-nebula');
+      assert.strictEqual(result.games[0].variant_key, 'hi-lo-nebula');
+      assert.strictEqual(result.games[0].wager_wei, parseEther('25').toString());
+      assert.strictEqual(result.games[0].payout_wei, parseEther('44.6425').toString());
+      assert.strictEqual(result.games[0].settled, true);
+      assert.strictEqual(result.games[0].timestamp, 1_999_999_999_000);
+      assert.strictEqual(result.games[0].last_sync_msg, 'ok');
     });
   });
 
