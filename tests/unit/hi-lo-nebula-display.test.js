@@ -55,18 +55,19 @@ describe('Hi-Lo Nebula Display', () => {
     const output = renderGame(makeDecisionState(), { displayMode: 'full' });
 
     const lines = output.split('\n');
-    const visibleLengths = lines.map((line) => line.replace(ANSI_REGEX, '').length);
+    const visibleLengths = lines
+      .filter((line) => line.length > 0)
+      .map((line) => line.replace(ANSI_REGEX, '').length);
     const bodyLengths = visibleLengths.slice(1);
 
     assert.match(output, /HI-LO NEBULA ✔︎/);
-    assert.match(output, /Actions/);
-    assert.match(output, /\[H\] Higher 2\.5000x/);
-    assert.match(output, /│\s+9[♥♦♣♠]\s+│/u);
+    assert.match(output, /ACTIONS:/);
+    assert.match(output, /DRAW: 9[♥♦♣♠] \(•\)\( \)\( \)\( \)/u);
+    assert.match(output, /\[h\] Higher 2\.5000x/);
     assert.match(output, /Bet: 25 APE/);
-    assert.match(output, /Cashout: 44\.6425 APE/);
-    assert.match(output, /Jackpot: 1\.1974 APE/);
-    assert.doesNotMatch(output, /Choose HIGH \/ LOWER \/ SAME/);
-    assert.doesNotMatch(output, /Suggestion:/);
+    assert.match(output, /Cashout: 44\.64 APE/);
+    assert.match(output, /Jackpot: 1\.2 APE/);
+    assert.match(output, /\| 2 3 4 5 6 7 8 \| \| 9 \| \| 10 J Q K A \|/);
     assert.ok(bodyLengths.every((length) => length === bodyLengths[0]), 'Expected the outer frame lines to stay aligned');
   });
 
