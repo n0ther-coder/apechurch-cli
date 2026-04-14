@@ -3,7 +3,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { JUNGLE_PLINKO_CONTRACT } from '../../lib/constants.js';
+import { JUNGLE_PLINKO_CONTRACT, ROULETTE_CONTRACT } from '../../lib/constants.js';
 import { VIDEO_POKER_CONTRACT } from '../../lib/stateful/video-poker/constants.js';
 import {
   buildGameStatusSummary,
@@ -354,6 +354,56 @@ describe('Status Helpers', () => {
           group_key: 'keno:picks:10',
           rtp_game: 'keno',
           rtp_config: { picks: 10 },
+        },
+      ]);
+    });
+
+    it('canonicalizes roulette variants from legacy bet strings to chip counts', () => {
+      const summary = buildGameStatusSummary({
+        historyGames: [
+          {
+            contract: ROULETTE_CONTRACT,
+            gameId: '9',
+            game: 'Roulette ✔︎',
+            game_key: 'roulette',
+            config: { bet: '0,00,BLACK' },
+            variant_key: 'roulette:bet:0-00-black',
+            variant_label: '0,00,BLACK',
+            rtp_game: 'roulette',
+            rtp_config: { bet: '0,00,BLACK' },
+          },
+        ],
+        historyEntries: [
+          {
+            contract: ROULETTE_CONTRACT,
+            game: 'Roulette ✔︎',
+            game_key: 'roulette',
+            config: { bet: '0,00,BLACK' },
+            variant_key: 'roulette:bet:0-00-black',
+            variant_label: '0,00,BLACK',
+            rtp_game: 'roulette',
+            rtp_config: { bet: '0,00,BLACK' },
+            pnl_ape: '1.0000',
+            wager_ape: '3',
+            payout_ape: '4',
+            won: true,
+            push: false,
+            settled: true,
+          },
+        ],
+      });
+
+      assert.deepStrictEqual(summary.map((entry) => ({
+        game: entry.game,
+        group_key: entry.group_key,
+        variant_label: entry.variant_label,
+        rtp_config: entry.rtp_config,
+      })), [
+        {
+          game: 'Roulette ✔︎ (2 Single Number, 1 Red/Black)',
+          group_key: 'roulette:chips:single-number:2:red-black:1',
+          variant_label: '2 Single Number, 1 Red/Black',
+          rtp_config: { bet: '0,00,BLACK' },
         },
       ]);
     });

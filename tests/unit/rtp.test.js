@@ -286,6 +286,21 @@ describe('RTP Helpers', () => {
     });
   });
 
+  it('canonicalizes Roulette variants to chip counts by bet class', () => {
+    const variant = resolveConfiguredGameVariant({
+      game: 'roulette',
+      config: { bet: '0,00,BLACK' },
+    });
+
+    assert.deepStrictEqual(variant, {
+      gameKey: 'roulette',
+      variantKey: 'roulette:chips:single-number:2:red-black:1',
+      variantLabel: '2 Single Number, 1 Red/Black',
+      rtpGame: 'roulette',
+      rtpConfig: { bet: '0,00,BLACK' },
+    });
+  });
+
   it('canonicalizes Bear-A-Dice variants by exact difficulty and roll count', () => {
     const variant = resolveConfiguredGameVariant({
       game: 'bear-dice',

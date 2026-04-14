@@ -894,8 +894,8 @@ describe('Wallet History Analysis', () => {
         gameNumbers: [1, 38, 49],
         numBets: 3,
       });
-      assert.strictEqual(result.games[2].variant_key, 'roulette:bet:0-00-black');
-      assert.strictEqual(result.games[2].variant_label, '0,00,BLACK');
+      assert.strictEqual(result.games[2].variant_key, 'roulette:chips:single-number:2:red-black:1');
+      assert.strictEqual(result.games[2].variant_label, '2 Single Number, 1 Red/Black');
       assert.deepStrictEqual(result.games[2].rtp_config, {
         bet: '0,00,BLACK',
         gameNumbers: [1, 38, 49],
