@@ -3,12 +3,36 @@ import assert from 'node:assert';
 
 import {
   createLoopStats,
+  formatLoopGameCompletion,
   formatLoopProgress,
   formatSessionStats,
   recordLoopGame,
 } from '../../lib/loop-stats.js';
+import { stripAnsi } from '../../lib/ansi.js';
 
 describe('Loop Stats', () => {
+  it('formats a standalone loop completion line with the gray game id suffix', () => {
+    const output = formatLoopGameCompletion({
+      currentGame: 7,
+      gameId: '1234567890',
+    });
+
+    assert.strictEqual(stripAnsi(output), 'Game 7 complete (1234567890)');
+  });
+
+  it('adds a 60-character progress bar when max-games is configured', () => {
+    const output = formatLoopGameCompletion({
+      currentGame: 30,
+      maxGames: 60,
+      gameId: '1234567890',
+    });
+
+    assert.deepStrictEqual(stripAnsi(output).split('\n'), [
+      'Game 30 complete (1234567890)',
+      `🔢  ${'▓'.repeat(30)}${'░'.repeat(30)} 50%`,
+    ]);
+  });
+
   it('formats loss-side points as GP per APE spent', () => {
     const stats = createLoopStats();
 

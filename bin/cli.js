@@ -120,7 +120,12 @@ import {
   parseNonNegativeInt,
 } from '../lib/utils.js';
 import { queueWinChimeFromWei } from '../lib/chime.js';
-import { createLoopStats, formatLoopProgress, recordLoopGame } from '../lib/loop-stats.js';
+import {
+  createLoopStats,
+  formatLoopGameCompletion,
+  formatLoopProgress,
+  recordLoopGame,
+} from '../lib/loop-stats.js';
 import {
   createLoopTerminalState,
   formatLoopTerminalConditionMessage,
@@ -2481,7 +2486,16 @@ program
       const freshProfile = loadProfile();
       
       if (freshProfile.paused) {
-        return { shouldStop: true, reason: 'paused', gameResult: null, playedGameKey: null, playedConfig: null };
+        return {
+          shouldStop: true,
+          reason: 'paused',
+          gameId: null,
+          gameResult: null,
+          playedGameKey: null,
+          playedConfig: null,
+          counted: false,
+          completed: false,
+        };
       }
 
       const strategy = normalizeStrategy(opts.strategy || freshProfile.persona);
@@ -2496,7 +2510,16 @@ program
         balance = await getBalanceWithRetry(publicClient, account.address);
       } catch (error) {
         console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
-        return { shouldStop: true, reason: 'balance_error', gameResult: null, playedGameKey: null, playedConfig: null };
+        return {
+          shouldStop: true,
+          reason: 'balance_error',
+          gameId: null,
+          gameResult: null,
+          playedGameKey: null,
+          playedConfig: null,
+          counted: false,
+          completed: false,
+        };
       }
 
       const balanceApe = parseFloat(formatEther(balance));
@@ -2512,7 +2535,16 @@ program
         };
         if (opts.json) console.log(JSON.stringify(response));
         else console.log(JSON.stringify(response, null, 2));
-        return { shouldStop: true, reason: 'insufficient_balance', gameResult: null, playedGameKey: null, playedConfig: null };
+        return {
+          shouldStop: true,
+          reason: 'insufficient_balance',
+          gameId: null,
+          gameResult: null,
+          playedGameKey: null,
+          playedConfig: null,
+          counted: false,
+          completed: false,
+        };
       }
 
       // Determine wager (betOverride from betting strategy takes precedence in loop mode)
@@ -2528,11 +2560,29 @@ program
         wagerApe = parseFloat(amountInput);
         if (isNaN(wagerApe) || wagerApe <= 0) {
           console.error(JSON.stringify({ error: 'Invalid amount.' }));
-          return { shouldStop: true, reason: 'invalid_amount', gameResult: null, playedGameKey: null, playedConfig: null };
+          return {
+            shouldStop: true,
+            reason: 'invalid_amount',
+            gameId: null,
+            gameResult: null,
+            playedGameKey: null,
+            playedConfig: null,
+            counted: false,
+            completed: false,
+          };
         }
         if (wagerApe > availableApe) {
           console.error(JSON.stringify({ error: `Insufficient balance. Available: ${availableApe.toFixed(4)} APE` }));
-          return { shouldStop: true, reason: 'insufficient_balance', gameResult: null, playedGameKey: null, playedConfig: null };
+          return {
+            shouldStop: true,
+            reason: 'insufficient_balance',
+            gameId: null,
+            gameResult: null,
+            playedGameKey: null,
+            playedConfig: null,
+            counted: false,
+            completed: false,
+          };
         }
       } else {
         wagerApe = calculateWager(availableApe, strategyConfig);
@@ -2924,6 +2974,8 @@ program
         
         return {
           shouldStop: false,
+          completed: hasResult,
+          gameId: playResponse.gameId,
           gameResult,
           error: false,
           playedGameKey: gameEntry.key,
@@ -2936,7 +2988,17 @@ program
           console.error(`\n❌ Error: ${error.message}\n`);
         }
         // Return error indicator - let loop decide whether to stop
-        return { shouldStop: false, reason: 'error', gameResult: null, error: true, playedGameKey: null, playedConfig: null };
+        return {
+          shouldStop: false,
+          reason: 'error',
+          completed: false,
+          counted: false,
+          gameId: null,
+          gameResult: null,
+          error: true,
+          playedGameKey: null,
+          playedConfig: null,
+        };
       }
     }
 
@@ -3060,6 +3122,16 @@ program
         }
         
         if (result.shouldStop) break;
+
+        if (!opts.json && result.completed) {
+          console.log('');
+          console.log(formatLoopGameCompletion({
+            currentGame: gamesPlayed,
+            maxGames,
+            gameId: result.gameId,
+          }));
+          console.log('');
+        }
 
         const singleGameTerminalCondition = getSingleGameLoopTerminalCondition({
           gameResult: lastGameResult,
