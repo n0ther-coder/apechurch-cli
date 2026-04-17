@@ -645,6 +645,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(Array.isArray(data.games), 'Games should be array');
       assert.strictEqual(data.games[0].gp_received_display, '2');
       assert.strictEqual(data.games[1].gp_received_display, '5');
+      assert.strictEqual(data.stats.average_gp_per_ape, 1);
     });
 
     it('--limit works', () => {
@@ -689,6 +690,7 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.ok(stdout.includes('🧮 5 GP'));
       assert.ok(stdout.includes('🧮 2 GP'));
+      assert.ok(stdout.includes('Average GP Ratio: 1 GP/APE'));
     });
 
     it('shows unfinished games after recent games with resume and clear hints', () => {

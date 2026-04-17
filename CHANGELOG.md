@@ -33,7 +33,7 @@ All notable changes to this project will be documented in this file.
   - `--auto simple|best` for risk-averse cashout and jackpot-aware continuation heuristics
 - **Hi-Lo Nebula docs and verification trail**
   - New contract note: `docs/verification/HI_LO_NEBULA_CONTRACT.md`
-  - New odds note: `docs/odds/HI_LO_NEBULA_ODDS_PAYOUTS.md`
+  - New analytics note: `docs/analytics/HI_LO_NEBULA_ANALYTICS.md`
   - Updated `ABI_VERIFICATION`, `COMMAND_REFERENCE`, and `GAMES_REFERENCE`
 - **Hi-Lo Nebula coverage**
   - New display renderer tests

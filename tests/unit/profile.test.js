@@ -18,6 +18,7 @@ import {
   resolveGpPerApeInfo,
   formatGpPerApeValue,
   formatGpPerApeNotice,
+  deriveCurrentGpPerApeFromHistoryGames,
   estimateGpFromWagerApe,
 } from '../../lib/profile.js';
 
@@ -235,6 +236,52 @@ describe('Profile', () => {
         estimateGpFromWagerApe({ wagerApe: 1, gpPerApe: 7.5 }),
         '7'
       );
+    });
+  });
+
+  describe('deriveCurrentGpPerApeFromHistoryGames', () => {
+    it('uses the newest receipt-backed game ratio', () => {
+      const currentGpPerApe = deriveCurrentGpPerApeFromHistoryGames([
+        {
+          timestamp: 1_700_000_000_000,
+          gp_source: 'receipt',
+          gp_received_raw: '25',
+          wager_wei: '5000000000000000000',
+        },
+        {
+          timestamp: 1_700_000_100_000,
+          gp_source: 'receipt',
+          gp_received_raw: '29',
+          wager_wei: '4000000000000000000',
+        },
+      ]);
+
+      assert.strictEqual(currentGpPerApe, 7.25);
+    });
+
+    it('ignores local estimates and missing wager data', () => {
+      const currentGpPerApe = deriveCurrentGpPerApeFromHistoryGames([
+        {
+          timestamp: 1_700_000_200_000,
+          gp_source: 'local-estimate',
+          gp_received_raw: '100',
+          wager_wei: '10000000000000000000',
+        },
+        {
+          timestamp: 1_700_000_100_000,
+          gp_source: 'receipt',
+          gp_received_raw: '0',
+          wager_wei: '0',
+        },
+        {
+          timestamp: 1_700_000_000_000,
+          gp_source: 'receipt',
+          gp_received_raw: '12',
+          wager_wei: '2000000000000000000',
+        },
+      ]);
+
+      assert.strictEqual(currentGpPerApe, 6);
     });
   });
 });

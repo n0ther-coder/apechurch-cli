@@ -4,7 +4,7 @@
 
 Compact syntax and comparison notes for all Ape Church CLI games.
 
-Treat published running RTP values as observed snapshots, not guaranteed long-run returns. For ABI-backed tuple layouts, payout matrices, and maintainer-facing verification evidence, follow the per-game links in `docs/verification/`. For compact exact outcome distributions meant to help choose variants, see [docs/odds/README.md](./odds/README.md).
+Treat published running RTP values as observed snapshots, not guaranteed long-run returns. For ABI-backed tuple layouts, payout matrices, and maintainer-facing verification evidence, follow the per-game links in `docs/verification/`. For compact exact outcome distributions meant to help choose variants, see [docs/analytics/README.md](./analytics/README.md).
 
 The `✔︎` marker means this repo has locally verified the game's ABI-facing behavior against verified on-chain contract data. Supported games without the symbol are still playable in the CLI, but they have not yet been promoted to `ABI verified`; see [ABI_VERIFICATION.md](./ABI_VERIFICATION.md) for the maintainer checklist.
 
@@ -96,7 +96,7 @@ Ordering for supported game sections below: alphabetical by game title.
 **ABI verified:** `true`
 **Aliases:** `strong`, `dice`, `limbo`
 **Verification notes:** [APESTRONG_CONTRACT.md](./verification/APESTRONG_CONTRACT.md)
-**Odds tables:** [APESTRONG_ODDS_PAYOUTS.md](./odds/APESTRONG_ODDS_PAYOUTS.md)
+**Analytics:** [APESTRONG_ANALYTICS.md](./analytics/APESTRONG_ANALYTICS.md)
 
 Range-based one-word VRF game. You choose a win probability `5-95`; the contract wins on `winningNumber < range` and settles from a live payout table rather than a closed-form multiplier.
 
@@ -119,7 +119,7 @@ Range-based one-word VRF game. You choose a win probability `5-95`; the contract
 **ABI verified:** `true`
 **Aliases:** `bacc`
 **Verification notes:** [BACCARAT_CONTRACT.md](./verification/BACCARAT_CONTRACT.md)
-**Odds tables:** [BACCARAT_ODDS_PAYOUTS.md](./odds/BACCARAT_ODDS_PAYOUTS.md)
+**Analytics:** [BACCARAT_ANALYTICS.md](./analytics/BACCARAT_ANALYTICS.md)
 
 Classic baccarat with contract-backed combined bets. You can play `PLAYER`, `BANKER`, or `TIE`, or combine one main side with an explicit `TIE` leg; `PLAYER` and `BANKER` together are not valid on-chain.
 
@@ -144,7 +144,7 @@ Classic baccarat with contract-backed combined bets. You can play `PLAYER`, `BAN
 **ABI verified:** `true`
 **Aliases:** `bear`, `bd`
 **Verification notes:** [BEAR_DICE_CONTRACT.md](./verification/BEAR_DICE_CONTRACT.md)
-**Odds tables:** [BEAR_DICE_ODDS_PAYOUTS.md](./odds/BEAR_DICE_ODDS_PAYOUTS.md)
+**Analytics:** [BEAR_DICE_ANALYTICS.md](./analytics/BEAR_DICE_ANALYTICS.md)
 
 All-or-nothing compounded `2d6` survival game. You pick a difficulty and `1-5` rolls; every safe sum compounds the payout, and the first losing sum zeroes the whole run.
 
@@ -191,7 +191,7 @@ Stateful blackjack with interactive actions, optional player-side exposure, and 
 **ABI verified:** `true`
 **Aliases:** `block`
 **Verification notes:** [BLOCKS_CONTRACT.md](./verification/BLOCKS_CONTRACT.md)
-**Odds tables:** [BLOCKS_ODDS_PAYOUTS.md](./odds/BLOCKS_ODDS_PAYOUTS.md)
+**Analytics:** [BLOCKS_ANALYTICS.md](./analytics/BLOCKS_ANALYTICS.md)
 
 Batched 3x3 cluster game. Each run fills a 9-tile board, and the payout depends only on the largest connected color cluster. Mode changes the payout table, while run count only changes variance and floor-division dust.
 
@@ -237,7 +237,7 @@ Same slots ABI family as Dino Dough, but with a different live reel and paytable
 **ABI verified:** `true`
 **Aliases:** `cosmic`
 **Verification notes:** [COSMIC_PLINKO_CONTRACT.md](./verification/COSMIC_PLINKO_CONTRACT.md)
-**Odds tables:** [COSMIC_PLINKO_ODDS_PAYOUTS.md](./odds/COSMIC_PLINKO_ODDS_PAYOUTS.md)
+**Analytics:** [COSMIC_PLINKO_ANALYTICS.md](./analytics/COSMIC_PLINKO_ANALYTICS.md)
 
 Asymmetric weighted-bucket Plinko with a narrower mode range than Jungle. Ball count `1-30` mainly changes variance; the exact EV surface is mode-driven.
 
@@ -283,7 +283,7 @@ Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` 
 **ABI verified:** `true`
 **Aliases:** `geez`, `diggerz`
 **Verification notes:** [GEEZ_DIGGERZ_CONTRACT.md](./verification/GEEZ_DIGGERZ_CONTRACT.md)
-**Odds tables:** [GEEZ_DIGGERZ_ODDS_PAYOUTS.md](./odds/GEEZ_DIGGERZ_ODDS_PAYOUTS.md)
+**Analytics:** [GEEZ_DIGGERZ_ANALYTICS.md](./analytics/GEEZ_DIGGERZ_ANALYTICS.md)
 
 Verified ordered `3`-reel slot with `6` live symbol indexes and the same cumulative `82`-stop reel table on all `3` reels. Spin count can be `1-15`; only floor-division dust changes across spin counts, not the contract-backed per-spin EV.
 
@@ -306,7 +306,7 @@ Verified ordered `3`-reel slot with `6` live symbol indexes and the same cumulat
 **ABI verified:** `true`
 **Aliases:** `hi-lo`, `hilo`, `hilo-nebula`, `nebula`
 **Verification notes:** [HI_LO_NEBULA_CONTRACT.md](./verification/HI_LO_NEBULA_CONTRACT.md)
-**Odds tables:** [HI_LO_NEBULA_ODDS_PAYOUTS.md](./odds/HI_LO_NEBULA_ODDS_PAYOUTS.md)
+**Analytics:** [HI_LO_NEBULA_ANALYTICS.md](./analytics/HI_LO_NEBULA_ANALYTICS.md)
 
 Stateful sequential card-prediction game with explicit `HIGHER`, `LOWER`, `SAME`, and `CASHOUT` actions. The verified contract does **not** use a `52`-card deck: it samples only ranks `2..A` uniformly with replacement, so suits and deck depletion are not part of the on-chain model.
 
@@ -332,7 +332,7 @@ Stateful sequential card-prediction game with explicit `HIGHER`, `LOWER`, `SAME`
 **ABI verified:** `true`
 **Aliases:** `jungle`
 **Verification notes:** [JUNGLE_PLINKO_CONTRACT.md](./verification/JUNGLE_PLINKO_CONTRACT.md)
-**Odds tables:** [JUNGLE_PLINKO_ODDS_PAYOUTS.md](./odds/JUNGLE_PLINKO_ODDS_PAYOUTS.md)
+**Analytics:** [JUNGLE_PLINKO_ANALYTICS.md](./analytics/JUNGLE_PLINKO_ANALYTICS.md)
 
 Weighted-bucket Plinko, not a peg-by-peg physics sim. Mode controls the bucket table; ball count mainly changes variance and the tiny floor-division dust from splitting the wager across `1-100` balls.
 
@@ -356,7 +356,7 @@ Weighted-bucket Plinko, not a peg-by-peg physics sim. Mode controls the bucket t
 **ABI verified:** `true`
 **Aliases:** `k`
 **Verification notes:** [KENO_CONTRACT.md](./verification/KENO_CONTRACT.md)
-**Odds tables:** [KENO_ODDS_PAYOUTS.md](./odds/KENO_ODDS_PAYOUTS.md)
+**Analytics:** [KENO_ANALYTICS.md](./analytics/KENO_ANALYTICS.md)
 
 Classic `1-40` keno with `10` winning numbers drawn without replacement. Specific chosen numbers do not change exact EV; pick count is the only strategic lever.
 
@@ -381,7 +381,7 @@ Classic `1-40` keno with `10` winning numbers drawn without replacement. Specifi
 **ABI verified:** `true`
 **Aliases:** `monkey`, `mm`
 **Verification notes:** [MONKEY_MATCH_CONTRACT.md](./verification/MONKEY_MATCH_CONTRACT.md)
-**Odds tables:** [MONKEY_MATCH_ODDS_PAYOUTS.md](./odds/MONKEY_MATCH_ODDS_PAYOUTS.md)
+**Analytics:** [MONKEY_MATCH_ANALYTICS.md](./analytics/MONKEY_MATCH_ANALYTICS.md)
 
 Five independent monkey draws scored as multiplicity hands. There is no redraw or action tree; mode choice is the whole strategy surface.
 
@@ -404,7 +404,7 @@ Five independent monkey draws scored as multiplicity hands. There is no redraw o
 **ABI verified:** `true`
 **Aliases:** `prime`
 **Verification notes:** [PRIMES_CONTRACT.md](./verification/PRIMES_CONTRACT.md)
-**Odds tables:** [PRIMES_ODDS_PAYOUTS.md](./odds/PRIMES_ODDS_PAYOUTS.md)
+**Analytics:** [PRIMES_ANALYTICS.md](./analytics/PRIMES_ANALYTICS.md)
 
 Batched prime-or-zero number game. Difficulty controls the numeric range and fixed multipliers; run count only changes variance and floor-division dust.
 
@@ -428,7 +428,7 @@ Batched prime-or-zero number game. Difficulty controls the numeric range and fix
 **ABI verified:** `true`
 **Aliases:** `rl`
 **Verification notes:** [ROULETTE_CONTRACT.md](./verification/ROULETTE_CONTRACT.md)
-**Odds tables:** [ROULETTE_ODDS_PAYOUTS.md](./odds/ROULETTE_ODDS_PAYOUTS.md)
+**Analytics:** [ROULETTE_ANALYTICS.md](./analytics/ROULETTE_ANALYTICS.md)
 
 American roulette on a `38`-pocket wheel. The contract supports single numbers, colors, parity, halves, dozens, and columns; multi-bets split the wager across legs, while one-leg bets subtract `1 wei` because each encoded leg must stay strictly below the post-fee total.
 
@@ -453,7 +453,7 @@ American roulette on a `38`-pocket wheel. The contract supports single numbers, 
 **ABI verified:** `true`
 **Aliases:** `sk`, `speedk`
 **Verification notes:** [SPEED_KENO_CONTRACT.md](./verification/SPEED_KENO_CONTRACT.md)
-**Odds tables:** [SPEED_KENO_ODDS_PAYOUTS.md](./odds/SPEED_KENO_ODDS_PAYOUTS.md)
+**Analytics:** [SPEED_KENO_ANALYTICS.md](./analytics/SPEED_KENO_ANALYTICS.md)
 
 Fast batched keno on a `1-20` board. You choose `1-5` picks and batch `1-20` mini-games into one tx; batch count changes fee efficiency and variance, while pick count changes actual EV.
 
@@ -479,7 +479,7 @@ Fast batched keno on a `1-20` board. You choose `1-5` picks and batch `1-20` min
 **ABI verified:** `true`
 **Aliases:** `sushi`, `showdown`
 **Verification notes:** [SUSHI_SHOWDOWN_CONTRACT.md](./verification/SUSHI_SHOWDOWN_CONTRACT.md)
-**Odds tables:** [SUSHI_SHOWDOWN_ODDS_PAYOUTS.md](./odds/SUSHI_SHOWDOWN_ODDS_PAYOUTS.md)
+**Analytics:** [SUSHI_SHOWDOWN_ANALYTICS.md](./analytics/SUSHI_SHOWDOWN_ANALYTICS.md)
 
 Verified ordered `3`-reel slot in the same ABI family as Dino Dough, Bubblegum Heist, and Geez Diggerz, but with `7` live symbol indexes and asymmetric reels. Spin count can be `1-15`; the per-spin EV comes from the live reel tables and full ordered paytable snapshot.
 

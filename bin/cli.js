@@ -584,6 +584,14 @@ function formatHistoryRtpDetails(stats) {
   });
 }
 
+function formatAverageGpRatio(value) {
+  if (value === null || value === undefined) {
+    return 'n.a.';
+  }
+
+  return `${formatGpPerApeValue(value)} GP/APE`;
+}
+
 function formatHistoryStatsReport(stats) {
   const netResultValue = Number.parseFloat(stats.net_result_ape || 0);
   const netResultIcon = netResultValue > 0 ? '🎉' : netResultValue < 0 ? '💀' : '🤝';
@@ -598,6 +606,7 @@ function formatHistoryStatsReport(stats) {
     `   ${formatRtpTripletLine({ currentRtp: stats.rtp })} ${formatHistoryRtpDetails(stats)}`,
     `   🎟️  APE Wagered (wAPE): ${formatNullableValue(stats.current_wape_balance_ape, (value) => formatPlainTokenAmount(value, 2))}/${formatPlainTokenAmount(stats.total_wape_received_ape, 2)}`,
     `   🧮 Gimbo Points (GP): ${formatNullableValue(stats.current_gp_balance_display)}/${stats.total_gp_received_display}`,
+    `   📈 Average GP Ratio: ${formatAverageGpRatio(stats.average_gp_per_ape)}`,
     `   🪜 Level rate: Every ${GP_PER_LEVEL.toLocaleString('en-US')} GP = 1 Level`,
   ];
 
@@ -636,6 +645,7 @@ function formatHistoryBreakdownReport(gameStats) {
     lines.push(`      🎯 Max hit: ${formatObservedMultiplier(stats.max_hit_x)}`);
     lines.push(`      🎟️  APE Wagered (wAPE) received: ${formatPlainTokenAmount(stats.total_wape_received_ape, 2)}`);
     lines.push(`      🧮 Gimbo Points (GP) received: ${stats.total_gp_received_display}`);
+    lines.push(`      📈 Average GP Ratio: ${formatAverageGpRatio(stats.average_gp_per_ape)}`);
     lines.push(`      🪜 Level rate: Every ${GP_PER_LEVEL.toLocaleString('en-US')} GP = 1 Level`);
 
     if (stats.unsynced_games > 0) {
@@ -1065,6 +1075,10 @@ function formatWalletDownloadReport(downloadResult) {
 
   if (sync.missing_transaction_metadata > 0) {
     lines.push(`   ${theme.warning(`Missing tx metadata for ${sync.missing_transaction_metadata} game(s); gas/fees may be incomplete.`)}`);
+  }
+
+  if (sync.current_gp_per_ape !== null && sync.current_gp_per_ape !== undefined) {
+    lines.push(`   ${theme.label('Current GP Rate:')} ${theme.yellow(`${formatGpPerApeValue(sync.current_gp_per_ape)} GP/APE`)} ${theme.dim('(latest on-chain tx)')}`);
   }
 
   lines.push(formatHistoryStatsReport(stats), '');

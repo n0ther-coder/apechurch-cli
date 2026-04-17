@@ -3,15 +3,17 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { encodeAbiParameters, encodeFunctionData, parseEther } from 'viem';
+import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, parseEther } from 'viem';
 import {
   BACCARAT_CONTRACT,
   BEAR_DICE_CONTRACT,
   BLOCKS_CONTRACT,
   COSMIC_PLINKO_CONTRACT,
   DINO_DOUGH_CONTRACT,
+  ERC20_ABI,
   GAME_CONTRACT_ABI,
   GEEZ_DIGGERZ_CONTRACT,
+  GP_TOKEN_CONTRACT,
   HI_LO_NEBULA_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   KENO_CONTRACT,
@@ -36,6 +38,21 @@ const WALLET = '0x1111111111111111111111111111111111111111';
 const SPONSOR = '0x2222222222222222222222222222222222222222';
 const APESTRONG = '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600';
 const ROULETTE = '0x1f48A104C1808eb4107f3999999D36aeafEC56d5';
+
+function buildGpTransferLog({ to, value }) {
+  return {
+    address: GP_TOKEN_CONTRACT,
+    topics: encodeEventTopics({
+      abi: ERC20_ABI,
+      eventName: 'Transfer',
+      args: {
+        from: ZERO_ADDRESS,
+        to,
+      },
+    }),
+    data: encodeAbiParameters([{ name: 'value', type: 'uint256' }], [BigInt(value)]),
+  };
+}
 
 describe('Wallet History Analysis', () => {
   describe('summarizeHistoryGames', () => {
@@ -104,6 +121,7 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(summary.rtp, 166.7);
       assert.strictEqual(summary.max_hit_x, 2);
       assert.strictEqual(summary.total_gp_received_display, '30');
+      assert.strictEqual(summary.average_gp_per_ape, 2);
       assert.strictEqual(summary.total_wape_received_ape, '15');
       assert.strictEqual(summary.current_gp_balance_display, '42');
       assert.strictEqual(summary.current_wape_balance_ape, '3');
@@ -231,6 +249,7 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(apeStrong.contract_fees_paid_ape, '1.3');
       assert.strictEqual(apeStrong.gas_paid_ape, '0.7');
       assert.strictEqual(apeStrong.total_gp_received_display, '28');
+      assert.strictEqual(apeStrong.average_gp_per_ape, 2.154);
       assert.strictEqual(apeStrong.total_wape_received_ape, '13');
 
       assert.strictEqual(roulette.total_saved_games, 1);
@@ -246,6 +265,7 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(blackjack.total_wagered_ape, '0');
       assert.strictEqual(blackjack.max_hit_x, null);
       assert.strictEqual(blackjack.total_gp_received_display, '0');
+      assert.strictEqual(blackjack.average_gp_per_ape, null);
     });
 
     it('groups synced history stats by saved variant key when available', () => {
@@ -1184,6 +1204,90 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(result.games[0].timestamp, 1_999_999_999_000);
       assert.strictEqual(result.games[0].last_sync_msg, 'ok');
     });
+
+    it('replaces local GP estimates with receipt-backed rewards for settled stateful games', async () => {
+      const syncTimestamp = '2026-04-02T12:00:00.000Z';
+      const txHash = '0x' + 'a'.repeat(64);
+      const result = await syncSavedStatefulHistoryGames({
+        async readContract(params) {
+          assert.strictEqual(params.functionName, 'getGameInfo');
+          return {
+            player: WALLET,
+            betAmount: parseEther('10'),
+            totalPayout: parseEther('14'),
+            initialCards: [],
+            finalCards: [],
+            gameState: 3,
+            handStatus: 2,
+            awaitingRNG: false,
+            timestamp: 1_777_777_777n,
+          };
+        },
+        async getTransaction({ hash }) {
+          assert.strictEqual(hash, txHash);
+          return { hash, from: WALLET };
+        },
+        async getTransactionReceipt({ hash }) {
+          assert.strictEqual(hash, txHash);
+          return {
+            logs: [
+              buildGpTransferLog({ to: WALLET, value: 72n }),
+            ],
+          };
+        },
+      }, [
+        {
+          contract: VIDEO_POKER_CONTRACT,
+          gameId: '77',
+          tx: txHash,
+          gp_received_raw: '50',
+          gp_source: 'local-estimate',
+          timestamp: 0,
+        },
+      ], WALLET, syncTimestamp);
+
+      assert.strictEqual(result.games.length, 1);
+      assert.strictEqual(result.games[0].tx, txHash);
+      assert.strictEqual(result.games[0].gp_received_raw, '72');
+      assert.strictEqual(result.games[0].gp_received_display, '72');
+      assert.strictEqual(result.games[0].gp_source, 'receipt');
+    });
+
+    it('keeps local GP estimates when the saved stateful tx has no reward transfer', async () => {
+      const syncTimestamp = '2026-04-02T12:00:00.000Z';
+      const txHash = '0x' + 'b'.repeat(64);
+      const result = await syncSavedStatefulHistoryGames({
+        async readContract() {
+          return {
+            user: WALLET,
+            initialBetAmount: parseEther('25'),
+            payout: parseEther('44.6425'),
+            hasEnded: true,
+            timestamp: 1_999_999_999n,
+            rounds: [],
+          };
+        },
+        async getTransaction() {
+          return { hash: txHash, from: WALLET };
+        },
+        async getTransactionReceipt() {
+          return { logs: [] };
+        },
+      }, [
+        {
+          contract: HI_LO_NEBULA_CONTRACT,
+          gameId: '99',
+          tx: txHash,
+          gp_received_raw: '125',
+          gp_source: 'local-estimate',
+          timestamp: 0,
+        },
+      ], WALLET, syncTimestamp);
+
+      assert.strictEqual(result.games.length, 1);
+      assert.strictEqual(result.games[0].gp_received_raw, '125');
+      assert.strictEqual(result.games[0].gp_source, 'local-estimate');
+    });
   });
 
   describe('diagnoseUnsyncedSupportedGames', () => {
@@ -1348,6 +1452,7 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(analysis.stats.net_result_ape, '-1.3');
       assert.strictEqual(analysis.stats.win_rate, 50.0);
       assert.strictEqual(analysis.stats.rtp, 66.7);
+      assert.strictEqual(analysis.stats.average_gp_per_ape, 0);
       assert.strictEqual(analysis.stats.current_gp_balance_display, '12');
       assert.strictEqual(analysis.stats.current_wape_balance_ape, '3');
       assert.strictEqual(analysis.recent_games.length, 2);
