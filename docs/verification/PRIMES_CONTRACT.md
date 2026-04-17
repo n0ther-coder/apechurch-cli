@@ -67,6 +67,12 @@ Important mechanic:
 
 The documented payout model depends on the verified `gameModes[difficulty]` table plus the on-chain `isPrime` mapping.
 
+## Fee Notes
+
+- Primes uses a dynamic `getVRFFee(customGasLimit)` path, so VRF overhead scales with `numRuns`.
+- Live runtime constants also expose `platformFee = 200`, i.e. a `2%` platform fee surface.
+- Difficulty changes the EV table, but not the documented fee model.
+
 ## Exact RTP Model
 
 For difficulty `d`:

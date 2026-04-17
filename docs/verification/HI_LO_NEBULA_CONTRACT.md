@@ -121,6 +121,12 @@ The jackpot getter was also checked live on **2026-04-13**:
 
 That confirms the repo can treat the current jackpot share as a live getter-backed value, not only a transparency screenshot field.
 
+## Fee Notes
+
+- Starting a run pays the live `getVRFFee()` once, and every `makeGuess(...)` call pays that same VRF fee again.
+- `cashOut(...)` is non-payable, so closing a winning streak does not add another RNG fee.
+- Live getters currently expose `platformFee() = 2.5%` and `jackpotFee() = 0.5%`, so the player-facing fee surface mixes per-action fixed VRF overhead with proportional protocol fees.
+
 ## Verified Draw Model
 
 The verified source resolves the next card as:

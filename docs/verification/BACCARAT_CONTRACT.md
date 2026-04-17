@@ -65,6 +65,12 @@ Important consequence:
 
 - on a tie, the contract refunds the `PLAYER` or `BANKER` lane in full; it is not scored as a total loss on the main lane
 
+## Fee Notes
+
+- The only extra tx amount the CLI adds is the live static `getVRFFee()`.
+- The encoded `playerBankerBet + tieBet` must match the post-VRF buy-in, so the VRF fee sits outside the wagered lanes.
+- `BANKER`'s reduced `1.95x` payout is the player-facing commission surface; it is not a second standalone surcharge sent on top of the wager.
+
 ## Verified Payout Constants
 
 | Bet class | Multiplier | Verified constant |

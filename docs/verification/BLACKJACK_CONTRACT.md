@@ -59,6 +59,12 @@ Observed public behavior from the official bundle:
 
 Those value rules match the repo's implementation in `lib/stateful/blackjack/actions.js` and `lib/stateful/blackjack/state.js`.
 
+## Fee Notes
+
+- The true fee surface here is the live `vrfFee()` charged on start and on most resolving actions.
+- `double`, `split`, and `insurance` send extra stake in addition to any VRF amount; those stake increases are not protocol fees.
+- One split-hand `stand` transition can be free (`0`) when simply handing control to the second split hand, so action cost is state-dependent rather than proportional to the opening bet.
+
 ## Verified Read Path
 
 The same public ABI reference exposes:

@@ -83,6 +83,12 @@ The Bubblegum contract's live getters on **2026-04-09** returned:
 
 As with Dino Dough, `oddsLocked = false` means a future maintainer should re-read the live reel and payout surface before assuming it is unchanged.
 
+## Fee Notes
+
+- Bubblegum Heist adds one live static `getVRFFee()` on top of the submitted wager.
+- The linked verified slot source also applies `platformFee = 200` basis points (`2.00%`) to `totalBetAmount = msg.value - getVRFFee()`.
+- The player therefore sees both a fixed per-session RNG fee and a proportional platform fee.
+
 ## Verified Read Path
 
 The linked verified source exposes:

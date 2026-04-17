@@ -47,6 +47,12 @@ Verified runtime behavior:
 
 The live frontend bundle matches that tuple order and fee path exactly, which is the shape now encoded by `lib/games/blocks.js`.
 
+## Fee Notes
+
+- The documented contract fee surface here is the dynamic `getVRFFee(customGasLimit)` path.
+- Fee overhead scales with `numRuns`, not with the stake size itself.
+- Any remaining house edge used by the repo's RTP references is already in the published payout table rather than modeled as a second explicit percentage fee here.
+
 ## Verified Read Path
 
 The verified contract exposes:

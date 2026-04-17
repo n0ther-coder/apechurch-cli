@@ -55,6 +55,12 @@ Live reads recorded on **2026-04-02**:
 - `getTotalMonkeys(2) = 7`
 - payout denominator `PAYOUT_DENOM = 1000`
 
+## Fee Notes
+
+- The repo treats Monkey Match as a single-draw static-fee game and calls one live `getVRFFee()` at entry.
+- Live runtime reads also show `platformFee = 200`, i.e. a `2%` platform fee surface.
+- Mode choice changes the payout distribution, not the fee model.
+
 ## Verified Paytable
 
 | Outcome | Low Risk (6 monkeys) | Exact Probability | Normal Risk (7 monkeys) | Exact Probability |

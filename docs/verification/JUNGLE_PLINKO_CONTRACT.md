@@ -41,6 +41,12 @@ customGasLimit = 289000 + 11000 * numBalls
 
 That fee model is part of the documented ABI-facing behavior for this game.
 
+## Fee Notes
+
+- Jungle's VRF fee is dynamic and follows `customGasLimit = 289000 + 11000 * numBalls`.
+- That means fee overhead scales with ball count, not with stake size itself.
+- Ball count can also create floor-division dust in the wager split, but that dust is separate from the VRF fee path.
+
 ## Verified Weighted-Bucket Model
 
 The contract-backed mechanic is not a peg-by-peg left/right simulation. Each ball resolves as one weighted bucket draw:

@@ -38,6 +38,12 @@ Important consequence:
 
 - the draw is symmetric, so exact RTP depends only on the pick count, not on which specific numbers the player selected
 
+## Fee Notes
+
+- Keno uses one live static `getVRFFee()` on top of the submitted wager.
+- That documented fee overhead is fixed per session rather than proportional to pick count or stake size.
+- There is no post-bet action tree, so there are no additional in-game action fees after the opening tx.
+
 ## Verified Read Surface
 
 `getGameInfo(gameId)` returns:

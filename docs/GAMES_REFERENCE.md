@@ -58,32 +58,40 @@ apechurch-cli play keno 10 --numbers 1 7 13 25 40
 
 ---
 
+## Fee Conventions
+
+- `wager` in this guide means the intended buy-in, not necessarily the full `tx.value` sent on-chain.
+- Many games add a separate VRF / RNG fee on top of the wager; the CLI auto-reads and adds that amount for you.
+- Some games also apply percentage fees to the post-VRF buy-in, or bake their commission into the payout table instead of charging a second explicit tx surcharge.
+
+---
+
 ## Accepted Wagers
 
 For simple `play` games, the CLI accepts any positive APE amount that can be parsed and funded by the current wallet. There is no shared fixed-denomination whitelist for those games. In loop mode, the built-in strategy presets still default to a `1 APE` floor unless you override strategy settings. The main exceptions are `video-poker`, which is fixed-denomination, and `blackjack`, which separates the main bet from optional side exposure.
 
 Ordering: alphabetical by game title.
 
-| Game | Accepted Main Bet | Min / Floor | Max / Cap | Notes |
-|------|-------------------|-------------|-----------|-------|
-| ApeStrong ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
-| Baccarat ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | In combined bets, explicit sub-amounts must sum to the total wager |
-| Bear-A-Dice ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager; volatility comes from difficulty and rolls |
-| Blackjack ✔︎ | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
-| Blocks ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-5` runs |
-| Bubblegum Heist ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
-| Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-30` balls |
-| Dino Dough ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
-| Geez Diggerz ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
-| Hi-Lo Nebula ✔︎ | Any positive APE amount | CLI accepts `> 0` | No explicit CLI max besides wallet balance and contract-side liquidity constraints | Start pays the live `getVRFFee()` once; every guess pays the same VRF fee again |
-| Jungle Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-100` balls |
-| Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
-| Monkey Match ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Single total wager |
-| Primes ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` runs |
-| Roulette ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split evenly across comma-separated bets |
-| Speed Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-20` batched games |
-| Sushi Showdown ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Total wager is split across `1-15` spins |
-| Video Poker ✔︎ / Gimboz Poker | Fixed denominations only | Fixed list: `1`, `5`, `10`, `25`, `50`, `100 APE` | Fixed max `100 APE` | Loop mode rounds to the closest affordable valid denomination; jackpot eligibility requires `100 APE` |
+| Game | Accepted Main Bet | Min / Floor | Max / Cap | Fee Model | Notes |
+|------|-------------------|-------------|-----------|------------|-------|
+| ApeStrong ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + live `2.2%` platform fee | Single total wager |
+| Baccarat ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF; `BANKER` commission is baked into the `1.95x` payout | In combined bets, explicit sub-amounts must sum to the total wager |
+| Bear-A-Dice ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with rolls + `2%` platform fee | Single total wager; volatility comes from difficulty and rolls |
+| Blackjack ✔︎ | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | Action-based VRF; `double` / `split` / `insurance` are extra stakes, not fees | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
+| Blocks ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with runs | Total wager is split across `1-5` runs |
+| Bubblegum Heist ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
+| Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF | Total wager is split across `1-30` balls |
+| Dino Dough ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
+| Geez Diggerz ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
+| Hi-Lo Nebula ✔︎ | Any positive APE amount | CLI accepts `> 0` | No explicit CLI max besides wallet balance and contract-side liquidity constraints | VRF on start and each guess + `2.5%` platform + `0.5%` jackpot fee | `cashOut()` is non-payable |
+| Jungle Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with balls | Total wager is split across `1-100` balls |
+| Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF | Single total wager |
+| Monkey Match ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + live `2%` platform fee | Single total wager |
+| Primes ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with runs + live `2%` platform fee | Total wager is split across `1-20` runs |
+| Roulette ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static live RNG fee; house edge is in the payout multipliers | Total wager is split evenly across comma-separated bets |
+| Speed Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with batched games | Total wager is split across `1-20` batched games |
+| Sushi Showdown ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
+| Video Poker ✔︎ / Gimboz Poker | Fixed denominations only | Fixed list: `1`, `5`, `10`, `25`, `50`, `100 APE` | Fixed max `100 APE` | Separate start / redraw VRF; stand-pat redraw is free | Loop mode rounds to the closest affordable valid denomination; jackpot eligibility requires `100 APE` |
 
 ---
 
@@ -546,7 +554,7 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `hi-lo-nebula`, and `vi
 
 - All amounts are in APE
 - Manual `play` for simple games accepts any positive APE amount; built-in strategy presets usually floor auto-sized bets at `1 APE`
-- VRF fees are automatically calculated and added
+- VRF fees are automatically calculated and added; some games also expose percentage fees or payout-side commissions, so check `Accepted Wagers` and the per-game verification note before comparing raw stake sizes
 - Stateful games use `--auto simple` by default; `blackjack`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`
 - `hi-lo-nebula --display full` uses the boxed multi-panel layout with current card, action keys, and streak info
 - `hi-lo-nebula --loop` supports the common `--target`, `--stop-loss`, `--max-games`, `--bet-strategy`, and related session controls

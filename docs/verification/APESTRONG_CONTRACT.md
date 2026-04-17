@@ -112,6 +112,12 @@ The mutable runtime values below were read from live ApeChain getters on **2026-
 
 Because `oddsLocked` is currently `false`, a future maintainer should re-read the live table before assuming the payout surface is unchanged.
 
+## Fee Notes
+
+- The player-visible tx overhead is one live static `getVRFFee()` added on top of the chosen wager.
+- The contract also charges `platformFee = 220` basis points (`2.2%`) on `totalBetAmount = msg.value - getVRFFee()`.
+- Effective cost therefore combines a fixed RNG fee with a proportional platform fee; only the platform fee scales with stake size.
+
 ## Exact Range Payout Rule
 
 For the CLI-supported surface `5..95`, the live getter snapshot on **2026-04-09** showed:

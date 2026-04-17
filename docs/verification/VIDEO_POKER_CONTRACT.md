@@ -50,6 +50,12 @@ with:
 - `value = vrfFeeRedraw()` if at least one card is redrawn
 - `value = 0` if the player stands pat and redraws nothing
 
+## Fee Notes
+
+- Starting a hand adds `vrfFeeInitial()` on top of the chosen fixed bet denomination.
+- Redraw adds `vrfFeeRedraw()` only if at least one card is replaced; standing pat on the redraw step costs `0`.
+- Jackpot eligibility at `100 APE` changes the payout surface, not the fee surface.
+
 ## Verified Read Surface
 
 The contract-backed ABI used by the repo exposes:

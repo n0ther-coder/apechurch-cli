@@ -62,6 +62,12 @@ The mutable runtime values below were read from live ApeChain getters on **2026-
 
 Because `oddsLocked` is currently `false`, a future maintainer should re-read the reels and payout table before assuming the live slot surface is unchanged.
 
+## Fee Notes
+
+- Dino Dough adds one live static `getVRFFee()` on top of the submitted wager.
+- The verified slot source also applies `platformFee = 200` basis points (`2.00%`) to `totalBetAmount = msg.value - getVRFFee()`.
+- Effective cost therefore combines fixed RNG overhead with a proportional fee on the post-VRF buy-in.
+
 ## Verified Read Path
 
 The verified contract exposes:

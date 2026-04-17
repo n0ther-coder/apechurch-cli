@@ -49,6 +49,12 @@ The wager split is not a UI-only convention. The contract expects an `amounts[]`
 
 `getVRFFee()` exists as the repo's fee path, but the contract-side getter forwards the live RNG fee rather than exposing a hardcoded constant.
 
+## Fee Notes
+
+- Roulette adds one live `getVRFFee()` per opening tx; the getter forwards current RNG pricing rather than a hardcoded constant.
+- The published payout multipliers already include the house edge, so this note does not model a second explicit stake-proportional platform fee on top.
+- The one-leg `-1 wei` encoding rule is a contract constraint, not a hidden fee.
+
 ## Verified Settlement Surface
 
 The contract settles against a `38`-pocket wheel where `0` and `00` are green. Important verified consequences:

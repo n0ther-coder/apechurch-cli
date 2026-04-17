@@ -42,6 +42,12 @@ GAS_PER_GAME = 55000
 customGasLimit = BASE_GAS + GAS_PER_GAME * numGames
 ```
 
+## Fee Notes
+
+- Speed Keno's VRF fee is dynamic and scales with `numGames` through `getVRFFee(customGasLimit)`.
+- Pick count changes EV, but not the fee formula.
+- Session results can also lose tiny floor-division dust from `floor(totalBetAmount / numGames)`, which is separate from the VRF fee itself.
+
 ## Verified Draw and Payout Model
 
 Each batched mini-game:

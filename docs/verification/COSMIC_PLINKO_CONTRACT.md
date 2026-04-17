@@ -35,6 +35,12 @@ Verified runtime constraints used by the repo:
 
 Unlike Jungle, Cosmic uses a static fee path in the repo: `getVRFFee()` with no custom gas argument.
 
+## Fee Notes
+
+- Cosmic's documented fee path is one static `getVRFFee()` charged per session.
+- That overhead is fixed with respect to both stake size and ball count in the current repo integration.
+- Ball count still affects floor-division dust when splitting the wager, but that is distinct from the VRF fee itself.
+
 ## Verified Weighted-Bucket Model
 
 Cosmic is also settled as a weighted bucket draw rather than a peg-by-peg simulation:

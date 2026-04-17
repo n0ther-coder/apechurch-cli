@@ -44,6 +44,12 @@ The verified behavior is:
 
 This verification disproved the repo's old local assumption that Extreme and Master were capped at 3 rolls. The verified source contains non-zero payout tables for difficulty `3` and `4` at `4` and `5` rolls, so the local clamp was removed as part of the promotion.
 
+## Fee Notes
+
+- Bear-A-Dice adds one dynamic `getVRFFee(customGasLimit)` on top of the wager, and that fee scales with `numRuns`.
+- The verified source also applies a `2%` platform fee to `totalBetAmount = msg.value - vrfFee`.
+- Total cost therefore mixes a parameter-scaled VRF component with a proportional buy-in fee.
+
 ## Verified Read Path
 
 The verified contract exposes:
