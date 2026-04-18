@@ -53,6 +53,11 @@ function setupHistoryFixtureHome() {
           timestamp: 1710000000,
           game: 'ApeStrong',
           game_key: 'ape-strong',
+          config: { range: 50 },
+          variant_key: 'ape-strong:range:50',
+          variant_label: 'Range 50',
+          rtp_game: 'ape-strong',
+          rtp_config: { range: 50 },
           wager_wei: '5000000000000000000',
           payout_wei: '0',
           contract_fee_wei: '100000000000000000',
@@ -69,6 +74,11 @@ function setupHistoryFixtureHome() {
           timestamp: 1710000100,
           game: 'Roulette',
           game_key: 'roulette',
+          config: { bet: 'RED' },
+          variant_key: 'roulette:bet-type:red-black',
+          variant_label: 'Red/Black',
+          rtp_game: 'roulette',
+          rtp_config: { bet: 'RED' },
           wager_wei: '2000000000000000000',
           payout_wei: '4000000000000000000',
           contract_fee_wei: '0',
@@ -182,6 +192,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('play') || stdout.includes('PLAY'), 'Should mention play command');
       assert.ok(stdout.includes('docs/COMMAND_REFERENCE.md'), 'Should point to the canonical command reference');
       assert.ok(stdout.includes('--gp-ape <points>'), 'Should mention GP rate overrides');
+      assert.ok(stdout.includes('scoreboard [address]'), 'Should mention the scoreboard command');
     });
 
     it('commands does not advertise wAPE transfers', () => {
@@ -340,9 +351,9 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('max hit (x)'), 'Should render the max hit column');
       assert.ok(stdout.includes('Keno'), 'Should include supported games in the stats table');
       assert.ok(stdout.includes('Picks 1'), 'Should include unplayed exact modes in the catalog');
-      assert.ok(stdout.includes('1,000,000x'), 'Should include known top payouts for exact modes');
+      assert.ok(stdout.includes('1,000,000.00x'), 'Should include known top payouts for exact modes with fixed decimals');
       assert.ok(stdout.includes('Bet 1/5/10/25/50 APE'), 'Should group non-jackpot video poker bet tiers');
-      assert.ok(stdout.includes('250x + 💰'), 'Should mark jackpot-aware max payouts');
+      assert.ok(stdout.includes('250.00x + 💰'), 'Should mark jackpot-aware max payouts with fixed decimals');
       assert.ok(stdout.includes('Legend:'), 'Should explain the RTP badges');
       assert.ok(stdout.includes('📄 documented'), 'Should explain documented RTP values');
       assert.ok(stdout.includes('👌 exact formula'), 'Should explain exact-formula RTP values');
@@ -682,6 +693,45 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(data.breakdown_filter.game_key, 'ape-strong');
     });
 
+    it('--json --scoreboard appends the derived scoreboard payload', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history --json --scoreboard', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+      const data = JSON.parse(stdout);
+
+      assert.ok(data.scoreboard, 'Should include scoreboard data');
+      assert.ok(Array.isArray(data.scoreboard.highest_multipliers), 'Should include highest multipliers');
+      assert.ok(Array.isArray(data.scoreboard.biggest_payouts), 'Should include biggest payouts');
+      assert.strictEqual(data.scoreboard.highest_multipliers[0].game_title, 'Roulette');
+      assert.strictEqual(data.scoreboard.biggest_payouts[0].game_title, 'Roulette');
+    });
+
+    it('--scoreboard keeps URLs hidden in the terminal report unless --url is passed', () => {
+      setupHistoryFixtureHome();
+      const { stdout: withoutUrls } = cli('history --scoreboard', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+      const { stdout: withUrls } = cli('history --scoreboard --url', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+
+      assert.ok(!withoutUrls.includes('https://www.ape.church/games/'), 'Should hide game URLs by default');
+      assert.ok(withUrls.includes('https://www.ape.church/games/'), 'Should show game URLs when --url is passed');
+    });
+
+    it('--scoreboard renders Game Stats net profit with two decimals', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history --scoreboard', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+
+      assert.ok(stdout.includes('-5.11 APE'), 'Should show ApeStrong net profit with two decimals');
+      assert.ok(stdout.includes('+1.99 APE'), 'Should show Roulette net profit with two decimals');
+      assert.ok(!stdout.includes('-5.1100 APE'), 'Should no longer show four-decimal net profit values');
+      assert.ok(!stdout.includes('+1.9900 APE'), 'Should no longer show four-decimal positive net profit values');
+    });
+
     it('shows GP earned in the human-readable history output', () => {
       setupHistoryFixtureHome();
       const { stdout } = cli('history', {
@@ -720,6 +770,8 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout } = cli('history --help');
       assert.ok(stdout.includes('--list'), 'Should expose --list in help');
       assert.ok(stdout.includes('--all'), 'Should expose --all in help');
+      assert.ok(stdout.includes('--scoreboard'), 'Should expose the scoreboard toggle in help');
+      assert.ok(stdout.includes('--url'), 'Should expose the scoreboard URL toggle in help');
       assert.ok(stdout.includes('--breakdown [game]'), 'Should expose the optional breakdown game filter in help');
     });
 
@@ -729,6 +781,58 @@ describe('CLI Commands Integration Tests', () => {
         env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
       });
       assert.ok(stdout.includes(HISTORY_FIXTURE_WALLET.toLowerCase()), 'Should list cached history wallets');
+    });
+  });
+
+  describe('scoreboard command', () => {
+    it('renders the cached scoreboards from local history', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('scoreboard', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+
+      assert.ok(stdout.includes('Scoreboard'), 'Should render the scoreboard section');
+      assert.ok(stdout.includes('Highest Multipliers'), 'Should render the highest multipliers table');
+      assert.ok(stdout.includes('Biggest Payouts'), 'Should render the biggest payouts table');
+      assert.ok(!stdout.includes('https://www.ape.church/games/'), 'Should hide game URLs by default');
+    });
+
+    it('--url shows game links in the terminal scoreboard tables', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('scoreboard --url', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+
+      assert.ok(stdout.includes('https://www.ape.church/games/'), 'Should show game URLs when requested');
+    });
+
+    it('--json returns scoreboard metadata and rankings', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('scoreboard --json', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.wallet, HISTORY_FIXTURE_WALLET.toLowerCase());
+      assert.ok(typeof data.scoreboard_file === 'string' && data.scoreboard_file.endsWith('_score.json'));
+      assert.ok(Array.isArray(data.highest_multipliers), 'Should include highest multipliers');
+      assert.ok(Array.isArray(data.biggest_payouts), 'Should include biggest payouts');
+      assert.strictEqual(data.highest_multipliers[0].game_title, 'Roulette');
+      assert.strictEqual(data.biggest_payouts[0].game_title, 'Roulette');
+    });
+
+    it('--list shows wallets with cached scoreboards or derivable history', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('scoreboard --list', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+
+      assert.ok(stdout.includes(HISTORY_FIXTURE_WALLET.toLowerCase()), 'Should list scoreboard wallets');
+    });
+
+    it('--help documents the --url toggle', () => {
+      const { stdout } = cli('scoreboard --help');
+      assert.ok(stdout.includes('--url'), 'Should expose the URL toggle in help');
     });
   });
 

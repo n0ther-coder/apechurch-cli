@@ -142,6 +142,18 @@ apechurch-cli history 0x1234...abcd --stats
 # Show history stats split by game
 apechurch-cli history 0x1234...abcd --breakdown
 
+# Append the cached wallet leaderboard to the history report
+apechurch-cli history 0x1234...abcd --scoreboard
+
+# Include game URLs in the terminal leaderboard tables
+apechurch-cli history 0x1234...abcd --scoreboard --url
+
+# Read the cached leaderboard on its own
+apechurch-cli scoreboard 0x1234...abcd
+
+# Show URLs in the standalone terminal leaderboard
+apechurch-cli scoreboard 0x1234...abcd --url
+
 # Refresh from chain before showing
 apechurch-cli history 0x1234...abcd --refresh
 
@@ -159,6 +171,8 @@ Sync and cache behavior:
 - Explicit backfills are merged into the local file and deduplicated by `contract + gameId`.
 - `history --refresh` runs the same on-chain sync path as `wallet download` before reading the local file.
 - `history` shows `👀 Recent Games` plus `📜 History Stats` by default. `--stats` suppresses the game list, while `--breakdown` appends the same stats split by game.
+- `history --scoreboard` appends two cached Top 20 tables: `Highest Multipliers` and `Biggest Payouts`.
+- Scoreboard terminal tables hide `game_url` by default; pass `--url` to include the links. JSON output keeps `game_url`.
 - Standard `history` output also includes a compact `🎮 Game Status` section with per-game `played`, `net`, `win rate`, `RTP`, and local `unfinished` counts when available.
 
 Text output includes:
@@ -191,6 +205,8 @@ Text output includes:
 | `--all` | Show all cached games instead of the recent slice |
 | `--stats` | Show only history stats |
 | `--breakdown` | Append the same stats split by game |
+| `--scoreboard` | Append the cached wallet leaderboard derived from history |
+| `--url` | Show game URLs in terminal scoreboard tables |
 | `--refresh` | Run `wallet download` before rendering |
 | `--from-block <n>` | Start block for `--refresh` |
 | `--to-block <n>` | End block for `--refresh` (default: latest block) |
@@ -363,7 +379,8 @@ apechurch-cli game <name>                       # Game details
 apechurch-cli pause                             # Stop autonomous play
 apechurch-cli continue                          # Continue play
 apechurch-cli history --list                    # List wallets with local cached history files
-apechurch-cli history [address] [--stats] [--breakdown] [--refresh]  # Read cached history and reporting
+apechurch-cli history [address] [--stats] [--breakdown] [--scoreboard] [--refresh]  # Read cached history and reporting
+apechurch-cli scoreboard [address] [--url]     # Read cached leaderboard tables
 apechurch-cli commands                          # Full reference
 ```
 
@@ -377,6 +394,7 @@ apechurch-cli play --auto --json
 apechurch-cli play --loop --json
 apechurch-cli wallet download 0x1234...abcd --json
 apechurch-cli history 0x1234...abcd --breakdown --json
+apechurch-cli scoreboard 0x1234...abcd --json
 ```
 
 See [SKILL.md](./SKILL.md) for complete agent documentation.

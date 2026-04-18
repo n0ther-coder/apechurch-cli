@@ -31,6 +31,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `play` | none | Play a selected simple game, or opt into random selection with `--auto` |
 | `contest [action]` | none | Contest info and registration |
 | `history [address]` | none | Read, refresh, or list cached per-wallet history |
+| `scoreboard [address]` | none | Read cached per-wallet leaderboards derived from history |
 | `games` | none | List supported games |
 | `game <name>` | none | Show metadata and grammar for one game |
 | `commands` | none | Show the compact terminal command index |
@@ -384,6 +385,8 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
                    | "--ids"
                    | "--stats"
                    | "--breakdown" [ <token> ]
+                   | "--scoreboard"
+                   | "--url"
                    | "--refresh"
                    | "--from-block" <block>
                    | "--to-block" <block>
@@ -399,11 +402,45 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--ids` | Append local game IDs in the terminal renderer |
 | `--stats` | Show stats only |
 | `--breakdown [game]` | Show per-game stats, optionally filtered to one game |
+| `--scoreboard` | Append the cached Highest Multipliers and Biggest Payouts tables |
+| `--url` | Show game URLs in terminal scoreboard tables |
 | `--refresh` | Download/refresh the history before rendering |
 | `--from-block <n>` | Start block for `--refresh` |
 | `--to-block <n>` | End block for `--refresh` |
 | `--chunk-size <n>` | Block span per log query during refresh |
 | `--json` | Emit JSON output |
+
+`--url` only affects terminal scoreboard tables. JSON output keeps the `game_url` field.
+
+### `scoreboard [address]`
+
+```bnf
+<scoreboard-command> ::= "scoreboard" [ <address> ] <scoreboard-option>*
+<scoreboard-option> ::= "--list"
+                      | "--url"
+                      | "--refresh"
+                      | "--from-block" <block>
+                      | "--to-block" <block>
+                      | "--chunk-size" <count>
+                      | "--json"
+```
+
+| Option | Meaning |
+|--------|---------|
+| `--list` | Show wallet addresses with local cached scoreboards or history |
+| `--url` | Show game URLs in terminal scoreboard tables |
+| `--refresh` | Download/refresh the history before rebuilding the scoreboard |
+| `--from-block <n>` | Start block for `--refresh` |
+| `--to-block <n>` | End block for `--refresh` |
+| `--chunk-size <n>` | Block span per log query during refresh |
+| `--json` | Emit JSON output |
+
+This command renders the same two cached Top 20 leaderboards used by `history --scoreboard`:
+
+- `Highest Multipliers`: descending by total realized payout multiplier
+- `Biggest Payouts`: descending by total realized payout
+
+URLs stay hidden in terminal tables unless `--url` is passed. JSON output keeps `game_url`.
 
 ### `games`
 

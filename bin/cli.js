@@ -31,7 +31,8 @@
  * │ INFORMATION                                                             │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ status           Show wallet balance and local state                    │
- * │ history          Read cached per-wallet history, games, and stats      │
+ * │ history          Read cached per-wallet history, games, stats, scores  │
+ * │ scoreboard       Read cached per-wallet leaderboards from history       │
  * │ games            List all available games                               │
  * │ game <name>      Detailed info about a specific game                    │
  * │ commands         Full help reference for all commands                   │
@@ -53,6 +54,7 @@
  * - profiles/         - Per-wallet usernames, persona, preferences
  * - states/           - Per-wallet local stats and betting state
  * - history/          - Per-wallet cached game histories and sync state
+ * - scores/           - Per-wallet top multipliers and biggest payouts
  * - games/            - Per-wallet unfinished stateful games
  *
  * @module bin/cli
@@ -176,6 +178,11 @@ import {
   loadActiveGames,
   ensureWalletScopedData,
 } from '../lib/profile.js';
+import {
+  getScoreFilePath,
+  listScoreWalletAddresses,
+  saveScoresFromHistory,
+} from '../lib/scores.js';
 import {
   getStrategyConfig,
   applyProfileOverrides,
@@ -658,6 +665,123 @@ function formatHistoryBreakdownReport(gameStats) {
   return lines.join('\n').trimEnd();
 }
 
+function formatScoreNumericValue(value, { suffix = '', decimals = 6, trimTrailingZeros = true } = {}) {
+  const numeric = Number.parseFloat(value);
+  if (!Number.isFinite(numeric)) {
+    return theme.warning('…');
+  }
+
+  const formatted = numeric.toFixed(decimals);
+  return theme.value(`${trimTrailingZeros ? formatted.replace(/\.?0+$/, '') : formatted}${suffix}`);
+}
+
+function formatScoreDateValue(value) {
+  const normalized = String(value || '').trim();
+  return normalized ? theme.dim(normalized) : theme.warning('…');
+}
+
+function formatScoreModeValue(value) {
+  const normalized = String(value || '').trim();
+  return normalized ? theme.value(normalized) : theme.dim('Base');
+}
+
+function formatScoreUrlValue(value) {
+  const normalized = String(value || '').trim();
+  return normalized || theme.warning('…');
+}
+
+function formatScoreboardCell(text, width, align = 'left') {
+  return align === 'right'
+    ? padAnsiStart(text, width)
+    : fitAnsiText(text, width);
+}
+
+function formatScoreboardTable(entries = [], columns = []) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return `   ${theme.dim('No economically synced games available yet.')}`;
+  }
+
+  const widths = Object.fromEntries(columns.map(({ key, header }) => [
+    key,
+    Math.max(
+      header.length,
+      ...entries.map((entry) => getVisibleWidth(entry[key]))
+    ),
+  ]));
+
+  const renderRow = (row) => `   | ${columns
+    .map(({ key, align }) => formatScoreboardCell(row[key], widths[key], align))
+    .join(' | ')} |`;
+
+  const headerRow = renderRow(Object.fromEntries(columns.map(({ key, header }) => [key, header])));
+  const separatorRow = `   |-${columns.map(({ key }) => '-'.repeat(widths[key])).join('-|-')}-|`;
+
+  return [
+    headerRow,
+    separatorRow,
+    ...entries.map(renderRow),
+  ].join('\n');
+}
+
+function formatScoreboardReport(scoreboard, { includeHeader = true, showUrls = false } = {}) {
+  const highestMultipliers = Array.isArray(scoreboard?.highest_multipliers)
+    ? scoreboard.highest_multipliers
+    : [];
+  const biggestPayouts = Array.isArray(scoreboard?.biggest_payouts)
+    ? scoreboard.biggest_payouts
+    : [];
+
+  const highestMultiplierRows = highestMultipliers.map((entry) => ({
+    multiplier: formatScoreNumericValue(entry.multiplier, { suffix: 'x', decimals: 2, trimTrailingZeros: false }),
+    game_title: theme.gameName(entry.game_title || 'Unknown'),
+    game_mode: formatScoreModeValue(entry.game_mode),
+    bet: formatScoreNumericValue(entry.bet, { suffix: ' APE' }),
+    payout: formatScoreNumericValue(entry.payout, { suffix: ' APE', decimals: 2, trimTrailingZeros: false }),
+    datetime_utc: formatScoreDateValue(entry.datetime_utc),
+    game_url: formatScoreUrlValue(entry.game_url),
+  }));
+  const biggestPayoutRows = biggestPayouts.map((entry) => ({
+    payout: formatScoreNumericValue(entry.payout, { suffix: ' APE', decimals: 2, trimTrailingZeros: false }),
+    game_title: theme.gameName(entry.game_title || 'Unknown'),
+    game_mode: formatScoreModeValue(entry.game_mode),
+    bet: formatScoreNumericValue(entry.bet, { suffix: ' APE' }),
+    multiplier: formatScoreNumericValue(entry.multiplier, { suffix: 'x', decimals: 2, trimTrailingZeros: false }),
+    datetime_utc: formatScoreDateValue(entry.datetime_utc),
+    game_url: formatScoreUrlValue(entry.game_url),
+  }));
+
+  const lines = [];
+  if (includeHeader) {
+    lines.push(formatHeader('Scoreboard', '🏆'), '');
+  }
+
+  const highestMultiplierColumns = [
+    { key: 'multiplier', header: 'multiplier', align: 'right' },
+    { key: 'game_title', header: 'game title', align: 'left' },
+    { key: 'game_mode', header: 'game mode', align: 'left' },
+    { key: 'bet', header: 'bet', align: 'right' },
+    { key: 'payout', header: 'payout', align: 'right' },
+    { key: 'datetime_utc', header: 'datetime UTC', align: 'left' },
+    ...(showUrls ? [{ key: 'game_url', header: 'game url', align: 'left' }] : []),
+  ];
+  const biggestPayoutColumns = [
+    { key: 'payout', header: 'payout', align: 'right' },
+    { key: 'game_title', header: 'game title', align: 'left' },
+    { key: 'game_mode', header: 'game mode', align: 'left' },
+    { key: 'bet', header: 'bet', align: 'right' },
+    { key: 'multiplier', header: 'multiplier', align: 'right' },
+    { key: 'datetime_utc', header: 'datetime UTC', align: 'left' },
+    ...(showUrls ? [{ key: 'game_url', header: 'game url', align: 'left' }] : []),
+  ];
+
+  lines.push('Highest Multipliers:', '');
+  lines.push(formatScoreboardTable(highestMultiplierRows, highestMultiplierColumns));
+  lines.push('', 'Biggest Payouts:', '');
+  lines.push(formatScoreboardTable(biggestPayoutRows, biggestPayoutColumns));
+
+  return lines.join('\n').trimEnd();
+}
+
 const HISTORY_BREAKDOWN_FILTER_ALIASES = new Map([
   ['blackjack', 'blackjack'],
   ['bj', 'blackjack'],
@@ -943,12 +1067,31 @@ function formatObservedMultiplier(value) {
     return theme.warning('…');
   }
 
-  const display = numeric
-    .toFixed(3)
-    .replace(/\.?0+$/, '')
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const display = numeric.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
   return theme.value(`${display}x`);
+}
+
+function formatGameStatsMaxPayout(reference) {
+  if (!reference) {
+    return theme.warning('…');
+  }
+
+  const numeric = Number(reference.value);
+  if (!Number.isFinite(numeric)) {
+    return formatMaxPayoutReference(reference);
+  }
+
+  const display = numeric.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const jackpotSuffix = String(reference.display || '').includes('💰') ? ' + 💰' : '';
+
+  return theme.value(`${display}x${jackpotSuffix}`);
 }
 
 async function enrichStoredHistoryVariants(publicClient, history) {
@@ -1026,12 +1169,12 @@ function formatGameStatsTable(games = []) {
       game: theme.gameName(gameName),
       mode: modeLabel,
       plays: theme.value(String(game.games_played)),
-      net_profit: game.net_profit_ape === null ? theme.warning('…') : formatPnL(game.net_profit_ape, 4),
+      net_profit: game.net_profit_ape === null ? theme.warning('…') : formatPnL(game.net_profit_ape, 2),
       win_rate: formatNullablePercent(game.win_rate),
       expected_rtp: rtpCells.expected,
       reported_rtp: rtpCells.reported,
       current_rtp: rtpCells.current,
-      max_payout: formatMaxPayoutReference(maxPayoutReference),
+      max_payout: formatGameStatsMaxPayout(maxPayoutReference),
       max_hit: formatObservedMultiplier(game.max_hit_x),
     };
   });
@@ -3467,13 +3610,15 @@ program
 // ============================================================================
 program
   .command('history [address]')
-  .description('Read cached per-wallet history, recent games, and history stats')
+  .description('Read cached per-wallet history, recent games, stats, and optional scoreboards')
   .option('--list', 'List wallet addresses with local cached history files')
   .option('--limit <n>', 'Number of recent cached games to show', '10')
   .option('--all', 'Show all cached games instead of the recent slice')
   .option('--ids', 'Show game IDs at the end of each history line')
   .option('--stats', 'Show only history stats')
   .option('--breakdown [game]', 'Show history stats split by game, optionally filtered to one game')
+  .option('--scoreboard', 'Append the wallet scoreboard derived from cached history')
+  .option('--url', 'Show scoreboard game URLs in terminal output')
   .option('--refresh', 'Refresh local history from chain before showing it')
   .option('--from-block <n>', 'Start block for --refresh sync or backfill')
   .option('--to-block <n>', 'End block for --refresh sync (default latest)')
@@ -3540,6 +3685,12 @@ program
 
     const { publicClient } = createClients();
     history = await enrichStoredHistoryVariants(publicClient, history);
+    const scoreboard = opts.scoreboard
+      ? saveScoresFromHistory(history, targetAddress, {
+          updatedOn: new Date().toISOString(),
+        })
+      : null;
+    const scoreboardFilePath = scoreboard ? getScoreFilePath(targetAddress) : null;
     let currentBalances = {};
     try {
       currentBalances = await readCurrentHistoryBalances(publicClient, targetAddress);
@@ -3606,6 +3757,10 @@ program
         unfinished_games: unfinishedGames,
         game_stats: gameStatus,
         breakdown,
+        scoreboard: scoreboard ? {
+          file_path: scoreboardFilePath,
+          ...scoreboard,
+        } : null,
         sync: refreshResult?.sync || null,
         games: opts.stats ? [] : numberedResults,
       }));
@@ -3626,6 +3781,10 @@ program
         }
       }
       console.log(formatHistoryStatsReport(stats));
+      if (scoreboard) {
+        console.log('');
+        console.log(formatScoreboardReport(scoreboard, { showUrls: Boolean(opts.url) }));
+      }
       if (!opts.stats && gameStatus.length > 0) {
         console.log('');
         console.log(`${formatHeader('Game Stats', '🎮')}\n`);
@@ -3643,6 +3802,121 @@ program
       }
       console.log('');
     }
+  });
+
+// ============================================================================
+// COMMAND: SCOREBOARD
+// ============================================================================
+program
+  .command('scoreboard [address]')
+  .description('Read cached per-wallet scoreboards derived from history')
+  .option('--list', 'List wallet addresses with local cached scoreboards or history')
+  .option('--url', 'Show game URLs in the terminal scoreboard tables')
+  .option('--refresh', 'Refresh local history from chain before showing the scoreboard')
+  .option('--from-block <n>', 'Start block for --refresh sync or backfill')
+  .option('--to-block <n>', 'End block for --refresh sync (default latest)')
+  .option('--chunk-size <n>', 'Block range per log query for --refresh sync', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
+  .option('--json', 'JSON output')
+  .action(async (address, opts) => {
+    if (opts.list) {
+      const addresses = [...new Set([
+        ...listHistoryWalletAddresses(),
+        ...listScoreWalletAddresses(),
+      ])].sort((left, right) => left.localeCompare(right));
+      const currentAddress = getWalletAddress();
+      if (opts.json) {
+        console.log(JSON.stringify({
+          wallets: addresses,
+          current_wallet: currentAddress || null,
+        }));
+      } else {
+        printAddressList('Scoreboard Wallets', addresses, { currentAddress });
+      }
+      return;
+    }
+
+    const targetAddress = resolveHistoryTargetAddress(address);
+    if (!targetAddress) {
+      const message = `No wallet address provided and no local wallet found. Use: ${BINARY_NAME} scoreboard <address>`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.error(`\n❌ ${message}\n`);
+      process.exit(1);
+    }
+
+    if (!isAddress(targetAddress)) {
+      const message = `Invalid wallet address: ${targetAddress}`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.error(`\n❌ ${message}\n`);
+      process.exit(1);
+    }
+
+    let history;
+    let refreshResult = null;
+
+    if (opts.refresh) {
+      try {
+        if (!opts.json) {
+          console.log(`\n📥 Refreshing history for ${targetAddress}...\n`);
+        }
+        refreshResult = await downloadHistoryForCli(targetAddress, opts);
+        history = refreshResult.history;
+      } catch (error) {
+        const message = `Failed to refresh history: ${sanitizeError(error)}`;
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(`\n❌ ${message}\n`);
+        process.exit(1);
+      }
+    } else {
+      history = loadHistory(targetAddress);
+    }
+
+    const hasDownloadedHistory = Boolean(history.last_download_on) || history.games.length > 0;
+    if (!hasDownloadedHistory) {
+      const message = `No downloaded history for this wallet. Run: ${BINARY_NAME} wallet download ${targetAddress}`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.log(`\n${message}\n`);
+      return;
+    }
+
+    const scoreboard = saveScoresFromHistory(history, targetAddress, {
+      updatedOn: new Date().toISOString(),
+    });
+    const scoreboardFilePath = getScoreFilePath(targetAddress);
+
+    if (opts.json) {
+      console.log(JSON.stringify({
+        wallet: targetAddress.toLowerCase(),
+        scoreboard_file: scoreboardFilePath,
+        meta: {
+          version: scoreboard.version,
+          chain_id: scoreboard.chain_id,
+          updated_on: scoreboard.updated_on,
+          history_last_download_on: scoreboard.history_last_download_on,
+        },
+        sync: refreshResult?.sync || null,
+        highest_multipliers: scoreboard.highest_multipliers,
+        biggest_payouts: scoreboard.biggest_payouts,
+      }));
+      return;
+    }
+
+    const lines = [
+      '',
+      formatHeader('Scoreboard', '🏆'),
+      '',
+      `   ${theme.label('Wallet:')} ${formatAddress(targetAddress)}`,
+      `   ${theme.label('File:')} ${theme.dim(scoreboardFilePath)}`,
+    ];
+
+    if (scoreboard.history_last_download_on) {
+      lines.push(`   ${theme.label('History Download:')} ${theme.dim(scoreboard.history_last_download_on)}`);
+    }
+
+    lines.push('', formatScoreboardReport(scoreboard, {
+      includeHeader: false,
+      showUrls: Boolean(opts.url),
+    }), '');
+    console.log(lines.join('\n'));
   });
 
 // ============================================================================
@@ -4077,6 +4351,14 @@ INFO
   ${BINARY_NAME} game <name>          Game details
   ${BINARY_NAME} history --list       List wallets with local cached history
   ${BINARY_NAME} history [address]    Read cached history, recent games, and history stats
+  ${BINARY_NAME} history [address] --scoreboard
+                                   Append the cached wallet scoreboard to history output
+  ${BINARY_NAME} history [address] --scoreboard --url
+                                   Include game URLs in scoreboard terminal tables
+  ${BINARY_NAME} scoreboard [address]
+                                   Read cached scoreboards built from history
+  ${BINARY_NAME} scoreboard [address] --url
+                                   Include game URLs in scoreboard terminal tables
   ${BINARY_NAME} commands             This help
 
 CONTEST
@@ -4547,10 +4829,14 @@ ${'─'.repeat(70)}
     ${BINARY_NAME} history [address] --limit 25
     ${BINARY_NAME} history [address] --all
     ${BINARY_NAME} history [address] --stats
+    ${BINARY_NAME} history [address] --scoreboard
+    ${BINARY_NAME} history [address] --scoreboard --url
     ${BINARY_NAME} history [address] --breakdown
     ${BINARY_NAME} history [address] --breakdown video-poker
     ${BINARY_NAME} history [address] --refresh
     ${BINARY_NAME} history [address] --refresh --from-block 0
+    ${BINARY_NAME} scoreboard [address]
+    ${BINARY_NAME} scoreboard [address] --url
 
   History stats output:
     🎰 Games                     Economically synced games included in totals
@@ -4568,6 +4854,8 @@ ${'─'.repeat(70)}
     --limit <n>                Show N recent cached games (default 10)
     --all                      Show all cached games in the local file
     --stats                    Show only aggregate history stats
+    --scoreboard               Append the cached wallet scoreboard
+    --url                      Show scoreboard game URLs in terminal output
     --breakdown [game]         Show the same stats split by game, optionally filtered
     --refresh                  Run wallet download first, then render
     --from-block <n>           Start block for --refresh
@@ -4595,10 +4883,14 @@ ${'─'.repeat(70)}
   2. ${BINARY_NAME} history [address]
      Reads that local file, shows recent games, and prints history stats.
 
-  3. ${BINARY_NAME} history [address] --breakdown
+  3. ${BINARY_NAME} history [address] --scoreboard
+     Appends the cached wallet scoreboard to the history report.
+     Use --url if you also want the game links in the terminal tables.
+
+  4. ${BINARY_NAME} history [address] --breakdown
      Adds a per-game split of the same economic stats.
 
-  4. ${BINARY_NAME} history [address] --breakdown video-poker
+  5. ${BINARY_NAME} history [address] --breakdown video-poker
      Restricts that split to one game family.
 
 ${'─'.repeat(70)}
@@ -4684,9 +4976,13 @@ ${'─'.repeat(70)}
   ${BINARY_NAME} history --limit 25
   ${BINARY_NAME} history --all
   ${BINARY_NAME} history --stats
+  ${BINARY_NAME} history --scoreboard
+  ${BINARY_NAME} history --scoreboard --url
   ${BINARY_NAME} history --breakdown
   ${BINARY_NAME} history --breakdown jungle
   ${BINARY_NAME} history --refresh
+  ${BINARY_NAME} scoreboard
+  ${BINARY_NAME} scoreboard --url
 
 ${'─'.repeat(70)}
   OUTPUT MODES
@@ -4706,6 +5002,11 @@ ${'─'.repeat(70)}
   --stats:
     • Only aggregate history stats
 
+  --scoreboard:
+    • Appends the cached wallet leaderboard derived from history
+    • Shows Highest Multipliers and Biggest Payouts top-20 tables
+    • URLs stay hidden unless you also pass --url
+
   --breakdown:
     • Per-game split of the same stats
     • If you pass [game], only rows for that game are shown
@@ -4715,7 +5016,7 @@ ${'─'.repeat(70)}
 
   --json:
     • Returns wallet, file metadata, aggregate stats, optional breakdown,
-      refresh metadata, and rendered game entries
+      optional scoreboard, refresh metadata, and rendered game entries
 
 ${'─'.repeat(70)}
   ECONOMIC FIELDS
