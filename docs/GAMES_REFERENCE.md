@@ -18,18 +18,18 @@ Ordering: alphabetical by game title.
 |------|------------------|-------------|
 | ApeStrong ✔︎ | `play ape-strong <amt> <range>` | `--game ape-strong --amount X --range Y` |
 | Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` |
-| Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --difficulty Y --rolls Z` |
+| Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --rolls Z` |
 | Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` |
-| Blocks ✔︎ | `play blocks <amt> <mode> <runs>` | `--game blocks --amount X --mode Y --runs Z` |
+| Blocks ✔︎ | `play blocks <amt> <risk> <runs>` | `--game blocks --amount X --risk Y --runs Z` |
 | Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` |
-| Cosmic Plinko ✔︎ | `play cosmic <amt> <mode> <balls>` | `--game cosmic --amount X --mode Y --balls Z` |
+| Cosmic Plinko ✔︎ | `play cosmic <amt> <risk> <balls>` | `--game cosmic --amount X --risk Y --balls Z` |
 | Dino Dough ✔︎ | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` |
 | Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` |
-| Jungle Plinko ✔︎ | `play jungle <amt> <mode> <balls>` | `--game jungle --amount X --mode Y --balls Z` |
+| Jungle Plinko ✔︎ | `play jungle <amt> <risk> <balls>` | `--game jungle --amount X --risk Y --balls Z` |
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` |
-| Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --mode Y` |
-| Primes ✔︎ | `play primes <amt> <difficulty> <runs>` | `--game primes --amount X --difficulty Y --runs Z` |
+| Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --risk Y` |
+| Primes ✔︎ | `play primes <amt> <risk> <runs>` | `--game primes --amount X --risk Y --runs Z` |
 | Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` |
 | Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` |
 | Sushi Showdown ✔︎ | `play sushi-showdown <amt> <spins>` | `--game sushi-showdown --amount X --spins Y` |
@@ -76,7 +76,7 @@ Ordering: alphabetical by game title.
 |------|-------------------|-------------|-----------|------------|-------|
 | ApeStrong ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + live `2.2%` platform fee | Single total wager |
 | Baccarat ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF; `BANKER` commission is baked into the `1.95x` payout | In combined bets, explicit sub-amounts must sum to the total wager |
-| Bear-A-Dice ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with rolls + `2%` platform fee | Single total wager; volatility comes from difficulty and rolls |
+| Bear-A-Dice ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with rolls + `2%` platform fee | Single total wager; volatility comes from risk and rolls |
 | Blackjack ✔︎ | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | Action-based VRF; `double` / `split` / `insurance` are extra stakes, not fees | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
 | Blocks ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with runs | Single total wager across `1-5` consecutive rolls; any dead roll zeroes the whole game |
 | Bubblegum Heist ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
@@ -154,18 +154,18 @@ Classic baccarat with contract-backed combined bets. You can play `PLAYER`, `BAN
 **Verification notes:** [BEAR_DICE_CONTRACT.md](./verification/BEAR_DICE_CONTRACT.md)
 **Analytics:** [BEAR_DICE_ANALYTICS.md](./analytics/BEAR_DICE_ANALYTICS.md)
 
-All-or-nothing compounded `2d6` survival game. You pick a difficulty and `1-5` rolls; every safe sum compounds the payout, and the first losing sum zeroes the whole run.
+All-or-nothing compounded `2d6` survival game. You pick a risk level and `1-5` rolls; every safe sum compounds the payout, and the first losing sum zeroes the whole run.
 
-**Command:** `apechurch-cli play bear-dice <amount> [--difficulty <0-4>] [--rolls <1-5>]`
+**Command:** `apechurch-cli play bear-dice <amount> [--risk <0-4|Easy|Medium|Hard|Expert|Master>] [--rolls <1-5>]`
 
 ```bnf
 <amount> ::= <ape>
-<difficulty> ::= <integer>         ; 0 <= value <= 4
+<risk> ::= <integer> | "Easy" | "Medium" | "Hard" | "Expert" | "Master"  ; 0 <= value <= 4
 <rolls> ::= <integer>              ; 1 <= value <= 5
 ```
 
 **Compare:**
-- Exact RTP surface: `97.25% - 97.94%` depending on difficulty and roll count.
+- Exact RTP surface: `97.25% - 97.94%` depending on risk and roll count.
 - Max payout: from `1.830x` on Easy / 1 roll up to `1,847,949.193x` on Master / 5 rolls.
 - Operational note: there is no cash-out path; higher rolls only buy tail risk.
 
@@ -201,13 +201,13 @@ Stateful blackjack with interactive actions, optional player-side exposure, and 
 **Verification notes:** [BLOCKS_CONTRACT.md](./verification/BLOCKS_CONTRACT.md)
 **Analytics:** [BLOCKS_ANALYTICS.md](./analytics/BLOCKS_ANALYTICS.md)
 
-Consecutive-roll `3x3` cluster game. Each roll resolves a full `9`-tile board, and the payout depends only on the largest connected color cluster. For the chosen mode and roll count, every surviving roll compounds the current payout, while any dead cluster ends the whole game at `0x`.
+Consecutive-roll `3x3` cluster game. Each roll resolves a full `9`-tile board, and the payout depends only on the largest connected color cluster. For the chosen risk and roll count, every surviving roll compounds the current payout, while any dead cluster ends the whole game at `0x`.
 
-**Command:** `apechurch-cli play blocks <amount> <mode> <runs>`
+**Command:** `apechurch-cli play blocks <amount> <risk> <runs>`
 
 ```bnf
 <amount> ::= <ape>
-<mode> ::= <integer>               ; value ∈ {0, 1}
+<risk> ::= <integer> | "Low" | "High"  ; value ∈ {0, 1}
 <runs> ::= <integer>               ; 1 <= value <= 5
 ```
 
@@ -248,20 +248,20 @@ Same slots ABI family as Dino Dough, but with a different live reel and paytable
 **Verification notes:** [COSMIC_PLINKO_CONTRACT.md](./verification/COSMIC_PLINKO_CONTRACT.md)
 **Analytics:** [COSMIC_PLINKO_ANALYTICS.md](./analytics/COSMIC_PLINKO_ANALYTICS.md)
 
-Asymmetric weighted-bucket Plinko with a narrower mode range than Jungle. Ball count `1-30` mainly changes variance; the exact EV surface is mode-driven.
+Asymmetric weighted-bucket Plinko with a narrower risk range than Jungle. Ball count `1-30` mainly changes variance; the exact EV surface is risk-driven.
 
-**Command:** `apechurch-cli play cosmic <amount> <mode> <balls>`
+**Command:** `apechurch-cli play cosmic <amount> <risk> <balls>`
 
 ```bnf
 <amount> ::= <ape>
-<mode> ::= <integer>               ; 0 <= value <= 2
+<risk> ::= <integer> | "Low" | "Modest" | "High"  ; 0 <= value <= 2
 <balls> ::= <integer>              ; 1 <= value <= 30
 ```
 
 **Compare:**
-- Exact RTP by mode: `97.73%`, `97.76%`, `97.80%`.
+- Exact RTP by risk: `97.73%`, `97.76%`, `97.80%`.
 - Top multipliers: `50x`, `100x`, `250x`.
-- Operational note: `mode 2` has the best exact RTP and the highest tail risk.
+- Operational note: `risk 2` (`High`) has the best exact RTP and the highest tail risk.
 
 ## Dino Dough ✔︎
 
@@ -345,18 +345,18 @@ Stateful sequential card-prediction game with explicit `HIGHER`, `LOWER`, `SAME`
 
 Weighted-bucket Plinko, not a peg-by-peg physics sim. Mode controls the bucket table; ball count mainly changes variance and the tiny floor-division dust from splitting the wager across `1-100` balls.
 
-**Command:** `apechurch-cli play jungle <amount> <mode> <balls>`
+**Command:** `apechurch-cli play jungle <amount> <risk> <balls>`
 
 ```bnf
 <amount> ::= <ape>
-<mode> ::= <integer>               ; 0 <= value <= 4
+<risk> ::= <integer> | "Low" | "Moderate" | "High" | "Degen" | "Ultra Degen"  ; 0 <= value <= 4
 <balls> ::= <integer>              ; 1 <= value <= 100
 ```
 
 **Compare:**
-- Exact RTP by mode: `97.94% - 98.00%`.
-- Top multipliers: `2.2x`, `5x`, `15x`, `100x`, `1000x` from mode `0` to `4`.
-- Operational note: more balls smooth variance, but mode is what changes the real payout surface.
+- Exact RTP by risk: `97.94% - 98.00%`.
+- Top multipliers: `2.2x`, `5x`, `15x`, `100x`, `1000x` from risk `0` to `4`.
+- Operational note: more balls smooth variance, but risk is what changes the real payout surface.
 
 ## Keno ✔︎
 
@@ -392,19 +392,19 @@ Classic `1-40` keno with `10` winning numbers drawn without replacement. Specifi
 **Verification notes:** [MONKEY_MATCH_CONTRACT.md](./verification/MONKEY_MATCH_CONTRACT.md)
 **Analytics:** [MONKEY_MATCH_ANALYTICS.md](./analytics/MONKEY_MATCH_ANALYTICS.md)
 
-Five independent monkey draws scored as multiplicity hands. There is no redraw or action tree; mode choice is the whole strategy surface.
+Five independent monkey draws scored as multiplicity hands. There is no redraw or action tree; risk choice is the whole strategy surface.
 
-**Command:** `apechurch-cli play monkey-match <amount> [--mode <1-2>]`
+**Command:** `apechurch-cli play monkey-match <amount> [--risk <0-1|Low|High>]`
 
 ```bnf
 <amount> ::= <ape>
-<mode> ::= <integer>               ; value ∈ {1, 2}
+<risk> ::= <integer> | "Low" | "High"  ; value ∈ {0, 1}
 ```
 
 **Compare:**
-- Exact RTP: `97.99%` in Low Risk, `98.29%` in Normal Risk.
+- Exact RTP: `97.99%` in Low, `98.29%` in High.
 - Max payout: `50x` in both modes.
-- Operational note: `mode 2` has the better EV; `mode 1` is the lower-variance barrel mix.
+- Operational note: `risk 1` (`High`, on-chain mode `2`) has the better EV; `risk 0` (`Low`, on-chain mode `1`) is the lower-variance barrel mix.
 
 ## Primes ✔︎
 
@@ -415,20 +415,20 @@ Five independent monkey draws scored as multiplicity hands. There is no redraw o
 **Verification notes:** [PRIMES_CONTRACT.md](./verification/PRIMES_CONTRACT.md)
 **Analytics:** [PRIMES_ANALYTICS.md](./analytics/PRIMES_ANALYTICS.md)
 
-Batched prime-or-zero number game. Difficulty controls the numeric range and fixed multipliers; run count only changes variance and floor-division dust.
+Batched prime-or-zero number game. Risk controls the numeric range and fixed multipliers; run count only changes variance and floor-division dust.
 
-**Command:** `apechurch-cli play primes <amount> <difficulty> <runs>`
+**Command:** `apechurch-cli play primes <amount> <risk> <runs>`
 
 ```bnf
 <amount> ::= <ape>
-<difficulty> ::= <integer>         ; 0 <= value <= 3
+<risk> ::= <integer> | "Easy" | "Medium" | "Hard" | "Extreme"  ; 0 <= value <= 3
 <runs> ::= <integer>               ; 1 <= value <= 20
 ```
 
 **Compare:**
 - Exact RTP: `98.00%` on Easy/Medium/Hard and `98.04%` on Extreme.
 - Max fixed top payout: `500x` on Extreme via zero.
-- Operational note: the transparency running RTP can sit above `100%`, but the contract-backed long-run surface is still the fixed difficulty table in the verification note.
+- Operational note: the transparency running RTP can sit above `100%`, but the contract-backed long-run surface is still the fixed risk table in the verification note.
 
 ## Roulette ✔︎
 
@@ -608,8 +608,8 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Normal Risk | Yes | `98.29%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
-| Low Risk | Yes | `97.99%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
+| High | Yes | `98.29%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
+| Low | Yes | `97.99%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
 
 #### Video Poker ✔︎ / Gimboz Poker
 
@@ -631,11 +631,11 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Mode 0 / Safe | Yes | `98.00%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Mode 4 / Extreme | Yes | `97.99%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Mode 1 / Low | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Mode 2 / Medium | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Mode 3 / High | Yes | `97.94%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Risk 0 / Low | Yes | `98.00%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Risk 4 / Ultra Degen | Yes | `97.99%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Risk 1 / Moderate | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Risk 2 / High | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Risk 3 / Degen | Yes | `97.94%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
 
 #### Bear-A-Dice ✔︎
 
@@ -676,8 +676,8 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
 | Mode 2 / High | Yes | `97.80%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
-| Mode 1 / Modest | Yes | `97.76%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
-| Mode 0 / Low | Yes | `97.73%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
+| Risk 1 / Modest | Yes | `97.76%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
+| Risk 0 / Low | Yes | `97.73%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
 
 #### Geez Diggerz ✔︎
 

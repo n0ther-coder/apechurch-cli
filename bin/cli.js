@@ -194,6 +194,13 @@ import { configGetters, playGame, resolveGame } from '../lib/games/index.js';
 import { resolveBearDiceConfig } from '../lib/games/beardice.js';
 import { resolveSlotsConfig } from '../lib/games/slots.js';
 import {
+  getGameConfigCliName,
+  getGameConfigDisplayDefault,
+  getGameConfigDisplayRange,
+  getGameOptionLabel,
+  parseGameConfigValue,
+} from '../lib/game-config.js';
+import {
   GAME_REGISTRY,
   listGames,
   getGameDisplayName,
@@ -264,13 +271,12 @@ const GAME_TITLE_COLLATOR = new Intl.Collator('en', {
 const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<ape> ::= <number>                                 ; decimal APE amount; value > 0',
   '<points> ::= <number>                              ; decimal GP per APE rate; value > 0',
-  '<mode> ::= <integer>                               ; 0 <= value <= 4',
+  '<risk> ::= <integer> | <game-risk-label>           ; public risk surface for Bear Dice, Blocks, Plinko, Monkey Match, and Primes',
   '<balls> ::= <integer>                              ; 1 <= value <= 100',
   '<spins> ::= <integer>                              ; 1 <= value <= 15',
   '<range> ::= <integer>                              ; 5 <= value <= 95',
   '<picks> ::= <integer>                              ; 1 <= value <= 10 for Keno, 1 <= value <= 5 for Speed Keno',
   '<games> ::= <integer>                              ; 1 <= value <= 20',
-  '<difficulty> ::= <integer>                         ; 0 <= value <= 4 for Bear-A-Dice, 0 <= value <= 3 for Primes',
   '<runs> ::= <integer>                               ; 1 <= value <= 20 for Primes, 1 <= value <= 5 for Blocks',
   '<rolls> ::= <integer>                              ; 1 <= value <= 5',
   '<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*',
@@ -2281,7 +2287,7 @@ program
   .command('bet')
   .requiredOption('--game <type>', GAME_LIST)
   .requiredOption('--amount <ape>', 'Wager amount')
-  .option('--mode <mode>', 'Plinko / Blocks mode', '0')
+  .option('--risk <risk>', 'Risk level for Bear Dice, Blocks, Plinko, Monkey Match, and Primes', '0')
   .option('--balls <balls>', 'Plinko balls', '50')
   .option('--spins <spins>', 'Slots spins', '10')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
@@ -2289,7 +2295,6 @@ program
   .option('--picks <picks>', 'Keno pick count', '5')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--games <games>', 'Speed Keno game count (batching)')
-  .option('--difficulty <difficulty>', 'Bear-A-Dice / Primes difficulty')
   .option('--runs <runs>', 'Primes / Blocks run count (batching)')
   .option('--rolls <rolls>', 'Bear-A-Dice roll count')
   .option('--timeout <ms>', 'Max wait for result (0 = no wait)', '0')
@@ -2336,7 +2341,7 @@ program
         account,
         game: opts.game,
         amountApe: opts.amount,
-        mode: opts.mode,
+        risk: opts.risk,
         balls: opts.balls,
         spins: opts.spins,
         bet: opts.bet,
@@ -2344,7 +2349,6 @@ program
         picks: opts.picks,
         numbers: opts.numbers,
         games: opts.games,
-        difficulty: opts.difficulty,
         runs: opts.runs,
         rolls: opts.rolls,
         timeoutMs,
@@ -2370,7 +2374,7 @@ program
   .option('--auto', 'Opt into automatic random game/config selection when not specifying a game')
   .option('--game <name>', 'Game to play')
   .option('--amount <ape>', 'Amount to wager')
-  .option('--mode <mode>', 'Game mode / risk mode')
+  .option('--risk <risk>', 'Risk level for Bear Dice, Blocks, Plinko, Monkey Match, and Primes')
   .option('--balls <balls>', 'Plinko balls')
   .option('--spins <spins>', 'Slots spins')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
@@ -2378,7 +2382,6 @@ program
   .option('--picks <picks>', 'Keno pick count')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--games <games>', 'Speed Keno game count (batching)')
-  .option('--difficulty <difficulty>', 'Bear-A-Dice / Primes difficulty')
   .option('--runs <runs>', 'Primes / Blocks run count (batching)')
   .option('--rolls <rolls>', 'Bear-A-Dice roll count')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
@@ -2412,7 +2415,7 @@ program
       '--auto',
       '--game',
       '--amount',
-      '--mode',
+      '--risk',
       '--balls',
       '--spins',
       '--bet',
@@ -2420,7 +2423,6 @@ program
       '--picks',
       '--numbers',
       '--games',
-      '--difficulty',
       '--runs',
       '--rolls',
       '--strategy',
@@ -2520,7 +2522,7 @@ program
     let positionalConfig = {};
     if (fixedGame && configArgs && configArgs.length > 0) {
       if (fixedGame.type === 'plinko') {
-        if (configArgs[0]) positionalConfig.mode = parseInt(configArgs[0]);
+        if (configArgs[0]) positionalConfig.risk = configArgs[0];
         if (configArgs[1]) positionalConfig.balls = parseInt(configArgs[1]);
       } else if (fixedGame.type === 'slots') {
         if (configArgs[0]) positionalConfig.spins = parseInt(configArgs[0]);
@@ -2566,20 +2568,20 @@ program
           }
         }
       } else if (fixedGame.type === 'beardice') {
-        // For bear dice: configArgs can be [difficulty] or [difficulty, rolls]
-        if (configArgs[0]) positionalConfig.difficulty = parseInt(configArgs[0]);
+        // For bear dice: configArgs can be [risk] or [risk, rolls]
+        if (configArgs[0]) positionalConfig.risk = configArgs[0];
         if (configArgs[1]) positionalConfig.rolls = parseInt(configArgs[1]);
       } else if (fixedGame.type === 'blocks') {
-        // For blocks: configArgs can be [mode] or [mode, runs]
-        if (configArgs[0]) positionalConfig.mode = parseInt(configArgs[0]);
+        // For blocks: configArgs can be [risk] or [risk, runs]
+        if (configArgs[0]) positionalConfig.risk = configArgs[0];
         if (configArgs[1]) positionalConfig.runs = parseInt(configArgs[1]);
       } else if (fixedGame.type === 'primes') {
-        // For primes: configArgs can be [difficulty] or [difficulty, runs]
-        if (configArgs[0]) positionalConfig.difficulty = parseInt(configArgs[0]);
+        // For primes: configArgs can be [risk] or [risk, runs]
+        if (configArgs[0]) positionalConfig.risk = configArgs[0];
         if (configArgs[1]) positionalConfig.runs = parseInt(configArgs[1]);
       } else if (fixedGame.type === 'monkeymatch') {
-        // For monkey match: configArgs can be [mode] (1=Low Risk, 2=Normal Risk)
-        if (configArgs[0]) positionalConfig.mode = parseInt(configArgs[0]);
+        // For monkey match: configArgs can be [risk]
+        if (configArgs[0]) positionalConfig.risk = configArgs[0];
       }
     }
 
@@ -2779,17 +2781,9 @@ program
 
       // Apply CLI opts/positional/strategy defaults for loop/auto flows.
       if (!preferGameDefault && gameEntry.type === 'plinko') {
-        if (opts.mode !== undefined) gameConfig.mode = parseInt(opts.mode);
-        else if (positionalConfig.mode !== undefined) gameConfig.mode = positionalConfig.mode;
-        else if (gameConfig.mode === undefined) {
-          const [min, max] = clampRange(
-            strategyConfig.plinko?.mode?.[0] ?? gameEntry.config.mode.default,
-            strategyConfig.plinko?.mode?.[1] ?? gameEntry.config.mode.default,
-            gameEntry.config.mode.min,
-            gameEntry.config.mode.max
-          );
-          gameConfig.mode = randomIntInclusive(min, max);
-        }
+        if (opts.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', opts.risk, { numericKind: 'public' });
+        else if (positionalConfig.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', positionalConfig.risk, { numericKind: 'public' });
+        else if (gameConfig.mode === undefined) gameConfig.mode = gameEntry.config.mode.default;
         if (opts.balls !== undefined) gameConfig.balls = parseInt(opts.balls);
         else if (positionalConfig.balls !== undefined) gameConfig.balls = positionalConfig.balls;
         else if (gameConfig.balls === undefined) {
@@ -2881,31 +2875,17 @@ program
           opts,
           positionalConfig,
           strategyConfig,
-          randomIntInclusive
+          randomIntInclusive,
+          { gameEntry }
         );
       } else if (!preferGameDefault && gameEntry.type === 'monkeymatch') {
-        // Mode (1=Low Risk, 2=Normal Risk)
-        if (opts.mode !== undefined) gameConfig.mode = parseInt(opts.mode);
-        else if (positionalConfig.mode !== undefined) gameConfig.mode = positionalConfig.mode;
-        else if (gameConfig.mode === undefined) {
-          // 70% Low Risk, 30% Normal Risk for auto-play
-          gameConfig.mode = Math.random() < 0.7 ? 1 : 2;
-        }
-        // Clamp to valid range
-        if (gameConfig.mode < 1) gameConfig.mode = 1;
-        if (gameConfig.mode > 2) gameConfig.mode = 2;
+        if (opts.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', opts.risk, { numericKind: 'public' });
+        else if (positionalConfig.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', positionalConfig.risk, { numericKind: 'public' });
+        else if (gameConfig.mode === undefined) gameConfig.mode = gameEntry.config.mode.default;
       } else if (!preferGameDefault && gameEntry.type === 'blocks') {
-        if (opts.mode !== undefined) gameConfig.mode = parseInt(opts.mode);
-        else if (positionalConfig.mode !== undefined) gameConfig.mode = positionalConfig.mode;
-        else if (gameConfig.mode === undefined) {
-          const [min, max] = clampRange(
-            strategyConfig.blocks?.mode?.[0] ?? gameEntry.config.mode.default,
-            strategyConfig.blocks?.mode?.[1] ?? gameEntry.config.mode.default,
-            gameEntry.config.mode.min,
-            gameEntry.config.mode.max
-          );
-          gameConfig.mode = randomIntInclusive(min, max);
-        }
+        if (opts.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', opts.risk, { numericKind: 'public' });
+        else if (positionalConfig.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', positionalConfig.risk, { numericKind: 'public' });
+        else if (gameConfig.mode === undefined) gameConfig.mode = gameEntry.config.mode.default;
 
         if (opts.runs !== undefined) gameConfig.runs = parseInt(opts.runs);
         else if (positionalConfig.runs !== undefined) gameConfig.runs = positionalConfig.runs;
@@ -2919,17 +2899,9 @@ program
           gameConfig.runs = randomIntInclusive(min, max);
         }
       } else if (!preferGameDefault && gameEntry.type === 'primes') {
-        if (opts.difficulty !== undefined) gameConfig.difficulty = parseInt(opts.difficulty);
-        else if (positionalConfig.difficulty !== undefined) gameConfig.difficulty = positionalConfig.difficulty;
-        else if (gameConfig.difficulty === undefined) {
-          const [min, max] = clampRange(
-            strategyConfig.primes?.difficulty?.[0] ?? gameEntry.config.difficulty.default,
-            strategyConfig.primes?.difficulty?.[1] ?? gameEntry.config.difficulty.default,
-            gameEntry.config.difficulty.min,
-            gameEntry.config.difficulty.max
-          );
-          gameConfig.difficulty = randomIntInclusive(min, max);
-        }
+        if (opts.risk !== undefined) gameConfig.difficulty = parseGameConfigValue(gameEntry, 'difficulty', opts.risk, { numericKind: 'public' });
+        else if (positionalConfig.risk !== undefined) gameConfig.difficulty = parseGameConfigValue(gameEntry, 'difficulty', positionalConfig.risk, { numericKind: 'public' });
+        else if (gameConfig.difficulty === undefined) gameConfig.difficulty = gameEntry.config.difficulty.default;
 
         if (opts.runs !== undefined) gameConfig.runs = parseInt(opts.runs);
         else if (positionalConfig.runs !== undefined) gameConfig.runs = positionalConfig.runs;
@@ -2949,7 +2921,8 @@ program
       // Build description for human output
       let gameDesc = getGameDisplayName(gameEntry);
       if (gameEntry.type === 'plinko') {
-        gameDesc += ` (mode ${gameConfig.mode}, ${gameConfig.balls} balls)`;
+        const riskLabel = getGameOptionLabel(gameEntry, 'mode', gameConfig.mode, `Risk ${gameConfig.mode}`);
+        gameDesc += ` (${riskLabel}, ${gameConfig.balls} balls)`;
       } else if (gameEntry.type === 'slots') {
         gameDesc += ` (${gameConfig.spins} spins)`;
       } else if (gameEntry.type === 'roulette' || gameEntry.type === 'baccarat') {
@@ -2961,17 +2934,17 @@ program
       } else if (gameEntry.type === 'speedkeno') {
         gameDesc += ` (${gameConfig.games} games, ${gameConfig.picks} picks)`;
       } else if (gameEntry.type === 'beardice') {
-        const diffNames = ['Easy', 'Normal', 'Hard', 'Extreme', 'Master'];
-        gameDesc += ` (${diffNames[gameConfig.difficulty] || 'Easy'}, ${gameConfig.rolls} rolls)`;
+        const riskLabel = getGameOptionLabel(gameEntry, 'difficulty', gameConfig.difficulty, 'Easy');
+        gameDesc += ` (${riskLabel}, ${gameConfig.rolls} rolls)`;
       } else if (gameEntry.type === 'monkeymatch') {
-        const modeNames = { 1: 'Low Risk', 2: 'Normal Risk' };
-        gameDesc += ` (${modeNames[gameConfig.mode] || 'Low Risk'})`;
+        const riskLabel = getGameOptionLabel(gameEntry, 'mode', gameConfig.mode, 'Low');
+        gameDesc += ` (${riskLabel})`;
       } else if (gameEntry.type === 'blocks') {
-        const modeNames = ['Easy', 'Hard'];
-        gameDesc += ` (${modeNames[gameConfig.mode] || 'Easy'}, ${gameConfig.runs} runs)`;
+        const riskLabel = getGameOptionLabel(gameEntry, 'mode', gameConfig.mode, 'Low');
+        gameDesc += ` (${riskLabel}, ${gameConfig.runs} runs)`;
       } else if (gameEntry.type === 'primes') {
-        const difficultyNames = ['Easy', 'Medium', 'Hard', 'Extreme'];
-        gameDesc += ` (${difficultyNames[gameConfig.difficulty] || 'Easy'}, ${gameConfig.runs} runs)`;
+        const riskLabel = getGameOptionLabel(gameEntry, 'difficulty', gameConfig.difficulty, 'Easy');
+        gameDesc += ` (${riskLabel}, ${gameConfig.runs} runs)`;
       }
 
       // Human-friendly output: show what we're playing
@@ -3028,6 +3001,7 @@ program
           account,
           game: gameEntry.key,
           amountApe: wagerApeString,
+          risk: gameConfig.risk,
           mode: gameConfig.mode,
           balls: gameConfig.balls,
           spins: gameConfig.spins,
@@ -4256,9 +4230,13 @@ ${'═'.repeat(60)}
         console.log('  PARAMETERS');
         console.log(`${'─'.repeat(60)}\n`);
         for (const [param, cfg] of Object.entries(game.config)) {
-          console.log(`  --${param}`);
-          if (cfg.min !== undefined) console.log(`      Range:   ${cfg.min} - ${cfg.max}`);
-          if (cfg.default !== undefined) console.log(`      Default: ${cfg.default}`);
+          const cliName = getGameConfigCliName(game, param);
+          const range = getGameConfigDisplayRange(game, param);
+          const displayDefault = getGameConfigDisplayDefault(game, param);
+
+          console.log(`  --${cliName}`);
+          if (range.min !== undefined) console.log(`      Range:   ${range.min} - ${range.max}`);
+          if (displayDefault !== undefined) console.log(`      Default: ${displayDefault}`);
           if (cfg.description) console.log(`      ${cfg.description}`);
           printConfigBnf(cfg);
           if (cfg.examples) {

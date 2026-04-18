@@ -1,6 +1,6 @@
 # Jungle Plinko Contract Verification Notes
 
-> Summary: Contract-backed ball encoding, weighted-bucket model, and exact mode RTP notes used to keep Jungle Plinko marked `ABI verified`.
+> Summary: Contract-backed ball encoding, weighted-bucket model, and exact risk RTP notes used to keep Jungle Plinko marked `ABI verified`.
 
 ## Source Basis
 
@@ -16,7 +16,7 @@ This note consolidates the verified contract-facing behavior that was previously
 
 - Game name in the repo: `Jungle Plinko`
 - Aliases: `jungle`
-- Supported modes: `0..4`
+- Supported public risk levels: `0..4`
 - Supported ball counts: `1..100`
 
 ## Verified Write Path
@@ -61,7 +61,7 @@ The verified contract exposes the bucket surface via:
 - `getBucketWeights(mode)`
 - `getPayouts(mode)`
 
-Because settlement is bucket-based, exact RTP is mode-specific and ball-count invariant except for Solidity dust from `floor(totalBetAmount / numBalls)`.
+Because settlement is bucket-based, exact RTP is risk-specific and ball-count invariant except for Solidity dust from `floor(totalBetAmount / numBalls)`.
 
 ## Exact RTP by Mode
 
@@ -75,15 +75,15 @@ RTP_ball(mode) = sum_i(P(bucket_i | mode) * multiplier_i(mode))
 RTP_game(mode, B, N) = RTP_ball(mode) * floor(B / N) * N / B
 ```
 
-Verified exact mode references:
+Verified exact risk references:
 
 | Mode | Label | Exact RTP | Top Multiplier |
 |------|-------|-----------|----------------|
-| `0` | Safe | `98.00%` | `2.2x` |
-| `1` | Low | `97.97%` | `5x` |
-| `2` | Medium | `97.97%` | `15x` |
-| `3` | High | `97.94%` | `100x` |
-| `4` | Extreme | `97.99%` | `1000x` |
+| `0` | Low | `98.00%` | `2.2x` |
+| `1` | Moderate | `97.97%` | `5x` |
+| `2` | High | `97.97%` | `15x` |
+| `3` | Degen | `97.94%` | `100x` |
+| `4` | Ultra Degen | `97.99%` | `1000x` |
 
 Implications:
 

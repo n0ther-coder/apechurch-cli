@@ -247,7 +247,7 @@ Notes:
                   "--game" <simple-game>
                   "--amount" <ape>
                   <bet-option>*
-<bet-option> ::= "--mode" <integer>
+<bet-option> ::= "--risk" <token>
                | "--balls" <integer>
                | "--spins" <integer>
                | "--bet" <token>
@@ -255,7 +255,6 @@ Notes:
                | "--picks" <integer>
                | "--numbers" <token>
                | "--games" <count>
-               | "--difficulty" <integer>
                | "--runs" <count>
                | "--rolls" <count>
                | "--timeout" <integer>
@@ -266,7 +265,7 @@ Notes:
 |--------|---------|
 | `--game <type>` | Simple-game key |
 | `--amount <ape>` | Wager amount |
-| `--mode <mode>` | Game risk mode for Plinko, Monkey Match, or Blocks |
+| `--risk <risk>` | Public risk level for Bear-A-Dice, Blocks, Plinko, Monkey Match, or Primes |
 | `--balls <balls>` | Plinko ball count |
 | `--spins <spins>` | Slot spin count |
 | `--bet <bet>` | Roulette or baccarat bet payload |
@@ -274,7 +273,6 @@ Notes:
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token, for example `1,7,13,25,40` or `random` |
 | `--games <games>` | Speed Keno batch count |
-| `--difficulty <difficulty>` | Bear-A-Dice or Primes difficulty |
 | `--runs <runs>` | Primes or Blocks run count |
 | `--rolls <rolls>` | Bear-A-Dice roll count |
 | `--timeout <ms>` | Wait time for a result; `0` means no wait limit |
@@ -288,7 +286,7 @@ Notes:
 <play-option> ::= "--auto"
                 | "--game" <simple-game>
                 | "--amount" <ape>
-                | "--mode" <integer>
+                | "--risk" <token>
                 | "--balls" <integer>
                 | "--spins" <integer>
                 | "--bet" <token>
@@ -296,7 +294,6 @@ Notes:
                 | "--picks" <integer>
                 | "--numbers" <token>
                 | "--games" <count>
-                | "--difficulty" <integer>
                 | "--runs" <count>
                 | "--rolls" <count>
                 | "--strategy" <persona>
@@ -326,7 +323,7 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--auto` | Opt into automatic random game/config selection when no game is specified |
 | `--game <name>` | Simple-game key |
 | `--amount <ape>` | Wager amount |
-| `--mode <mode>` | Game risk mode for Plinko, Monkey Match, or Blocks |
+| `--risk <risk>` | Public risk level for Bear-A-Dice, Blocks, Plinko, Monkey Match, or Primes |
 | `--balls <balls>` | Plinko ball count |
 | `--spins <spins>` | Slot spin count |
 | `--bet <bet>` | Roulette or baccarat bet payload |
@@ -334,7 +331,6 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token |
 | `--games <games>` | Speed Keno batch count |
-| `--difficulty <difficulty>` | Bear-A-Dice or Primes difficulty |
 | `--runs <runs>` | Primes or Blocks run count |
 | `--rolls <rolls>` | Bear-A-Dice roll count |
 | `--strategy <name>` | Persona used when the CLI chooses a game/config |

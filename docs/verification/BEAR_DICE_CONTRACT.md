@@ -42,7 +42,7 @@ The verified behavior is:
 - `platformFee = 200 / 10000 = 2%` of `totalBetAmount`
 - the contract requests `numRuns * 2` random words, one for each die in every run
 
-This verification disproved the repo's old local assumption that Extreme and Master were capped at 3 rolls. The verified source contains non-zero payout tables for difficulty `3` and `4` at `4` and `5` rolls, so the local clamp was removed as part of the promotion.
+This verification disproved the repo's old local assumption that Expert and Master were capped at 3 rolls. The verified source contains non-zero payout tables for difficulty `3` and `4` at `4` and `5` rolls, so the local clamp was removed as part of the promotion.
 
 ## Fee Notes
 
@@ -104,9 +104,9 @@ Safe sums by difficulty:
 | Difficulty | Label | Losing sums | Safe sums |
 |------------|-------|-------------|-----------|
 | 0 | Easy | `7` | `2-6, 8-12` |
-| 1 | Normal | `6, 7, 8` | `2-5, 9-12` |
+| 1 | Medium | `6, 7, 8` | `2-5, 9-12` |
 | 2 | Hard | `5-9` | `2-4, 10-12` |
-| 3 | Extreme | `4-10` | `2-3, 11-12` |
+| 3 | Expert | `4-10` | `2-3, 11-12` |
 | 4 | Master | `3-11` | `2, 12` |
 
 Exact closed-form RTP used by the repo after promotion:
@@ -130,9 +130,9 @@ WinRate(d, n) = safeProb(d)^n * 100
 | Difficulty | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
 |------------|--------|---------|---------|---------|---------|
 | Easy | `97.89%` | `97.90%` | `97.85%` | `97.80%` | `97.80%` |
-| Normal | `97.94%` | `97.90%` | `97.52%` | `97.80%` | `97.25%` |
+| Medium | `97.94%` | `97.90%` | `97.52%` | `97.80%` | `97.25%` |
 | Hard | `97.83%` | `97.79%` | `97.85%` | `97.80%` | `97.80%` |
-| Extreme | `97.89%` | `97.79%` | `97.36%` | `97.80%` | `97.80%` |
+| Expert | `97.89%` | `97.79%` | `97.36%` | `97.80%` | `97.80%` |
 | Master | `97.89%` | `97.79%` | `97.85%` | `97.58%` | `97.80%` |
 
 ## Max Payout Matrix
@@ -140,9 +140,9 @@ WinRate(d, n) = safeProb(d)^n * 100
 | Difficulty | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
 |------------|--------|---------|---------|---------|---------|
 | Easy | `1.830x` | `3.349x` | `6.230x` | `12.228x` | `21.091x` |
-| Normal | `3.800x` | `14.746x` | `57.067x` | `219.707x` | `856.913x` |
+| Medium | `3.800x` | `14.746x` | `57.067x` | `219.707x` | `856.913x` |
 | Hard | `6.300x` | `40.577x` | `262.144x` | `1,709.401x` | `10,991.447x` |
-| Extreme | `9.720x` | `96.040x` | `946.966x` | `9,375.197x` | `93,193.275x` |
+| Expert | `9.720x` | `96.040x` | `946.966x` | `9,375.197x` | `93,193.275x` |
 | Master | `17.620x` | `316.840x` | `5,706.550x` | `102,433.347x` | `1,847,949.193x` |
 
 ## Exact Win Rate Matrix
@@ -150,9 +150,9 @@ WinRate(d, n) = safeProb(d)^n * 100
 | Difficulty | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
 |------------|--------|---------|---------|---------|---------|
 | Easy | `83.33%` | `69.44%` | `57.87%` | `48.23%` | `40.19%` |
-| Normal | `55.56%` | `30.86%` | `17.15%` | `9.53%` | `5.29%` |
+| Medium | `55.56%` | `30.86%` | `17.15%` | `9.53%` | `5.29%` |
 | Hard | `33.33%` | `11.11%` | `3.70%` | `1.23%` | `0.41%` |
-| Extreme | `16.67%` | `2.78%` | `0.46%` | `0.08%` | `0.01%` |
+| Expert | `16.67%` | `2.78%` | `0.46%` | `0.08%` | `0.01%` |
 | Master | `5.56%` | `0.31%` | `0.02%` | `0.00%` | `0.00%` |
 
 ## Promotion Outcome

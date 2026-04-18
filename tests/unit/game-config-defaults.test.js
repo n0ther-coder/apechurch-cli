@@ -47,7 +47,7 @@ describe('Manual fixed-game defaults', () => {
     const plinko = getPlinkoConfig(
       {},
       {},
-      { config: { mode: { default: 2, min: 0, max: 4 }, balls: { default: 50, min: 1, max: 100 } } },
+      { config: { mode: { default: 0, min: 0, max: 4 }, balls: { default: 50, min: 1, max: 100 } } },
       { plinko: { mode: [1, 3], balls: [20, 80] } },
       randomIntInclusive,
       { preferGameDefault: true }
@@ -69,7 +69,7 @@ describe('Manual fixed-game defaults', () => {
       { preferGameDefault: true }
     );
 
-    assert.deepStrictEqual(plinko, { mode: 2, balls: 50 });
+    assert.deepStrictEqual(plinko, { mode: 0, balls: 50 });
     assert.deepStrictEqual(blocks, { mode: 0, runs: 1 });
     assert.deepStrictEqual(primes, { difficulty: 0, runs: 10 });
   });
@@ -96,7 +96,7 @@ describe('Manual fixed-game defaults', () => {
     assert.deepStrictEqual(bear, { difficulty: 0, rolls: 1 });
   });
 
-  it('keeps strategy-driven randomness when game-default preference is disabled', () => {
+  it('keeps low-risk defaults even when game-default preference is disabled', () => {
     const apeStrong = getApestrongConfig(
       {},
       {},
@@ -115,6 +115,53 @@ describe('Manual fixed-game defaults', () => {
     );
 
     assert.deepStrictEqual(apeStrong, { range: 47 });
-    assert.ok(monkey.mode === 1 || monkey.mode === 2);
+    assert.deepStrictEqual(monkey, { mode: 1 });
+  });
+
+  it('parses public risk labels and public numeric aliases for fixed games', () => {
+    const monkey = getMonkeyMatchConfig(
+      { risk: 'high' },
+      {},
+      {
+        config: {
+          mode: {
+            min: 1,
+            max: 2,
+            default: 1,
+            options: [
+              { value: 1, publicValue: 0, label: 'Low' },
+              { value: 2, publicValue: 1, label: 'High' },
+            ],
+          },
+        },
+      },
+      {},
+      randomIntInclusive,
+    );
+    const bear = getBearDiceConfig(
+      { risk: 'Expert' },
+      {},
+      {
+        config: {
+          difficulty: {
+            default: 0,
+            options: [
+              { value: 0, label: 'Easy' },
+              { value: 1, label: 'Medium' },
+              { value: 2, label: 'Hard' },
+              { value: 3, label: 'Expert' },
+              { value: 4, label: 'Master' },
+            ],
+          },
+          rolls: { default: 1 },
+        },
+      },
+      {},
+      randomIntInclusive,
+      { preferGameDefault: true }
+    );
+
+    assert.deepStrictEqual(monkey, { mode: 2 });
+    assert.deepStrictEqual(bear, { difficulty: 3, rolls: 1 });
   });
 });

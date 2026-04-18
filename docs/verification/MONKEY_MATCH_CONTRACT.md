@@ -15,9 +15,9 @@ This note consolidates the verified contract-facing behavior that was previously
 
 - Game name in the repo: `Monkey Match`
 - Aliases: `monkey`, `mm`
-- Supported modes:
-  - `1 = Low Risk`
-  - `2 = Normal Risk`
+- Public risk surface:
+  - `0 = Low` maps to on-chain mode `1`
+  - `1 = High` maps to on-chain mode `2`
 
 ## Verified Runtime Surface
 
@@ -63,7 +63,7 @@ Live reads recorded on **2026-04-02**:
 
 ## Verified Paytable
 
-| Outcome | Low Risk (6 monkeys) | Exact Probability | Normal Risk (7 monkeys) | Exact Probability |
+| Outcome | Low (6 monkeys) | Exact Probability | High (7 monkeys) | Exact Probability |
 |---------|----------------------|-------------------|--------------------------|-------------------|
 | Five of a Kind | `50x` | `0.07716%` | `50x` | `0.04165%` |
 | Four of a Kind | `5x` | `1.92901%` | `5x` | `1.24948%` |
@@ -99,8 +99,8 @@ Verified exact references:
 
 | Mode | Exact RTP | Top Multiplier |
 |------|-----------|----------------|
-| Low Risk | `97.99%` | `50x` |
-| Normal Risk | `98.29%` | `50x` |
+| Low | `97.99%` | `50x` |
+| High | `98.29%` | `50x` |
 
 At displayed precision, the only omitted effect is negligible modulo bias from `% 6` and `% 7`.
 

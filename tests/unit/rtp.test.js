@@ -95,8 +95,8 @@ describe('RTP Helpers', () => {
       display: variant.calculated.display,
       maxPayout: variant.maxPayout.display,
     })), [
-      { variantLabel: 'Low Risk', display: '97.99%', maxPayout: '50x' },
-      { variantLabel: 'Normal Risk', display: '98.29%', maxPayout: '50x' },
+      { variantLabel: 'Low', display: '97.99%', maxPayout: '50x' },
+      { variantLabel: 'High', display: '98.29%', maxPayout: '50x' },
     ]);
   });
 
@@ -126,7 +126,7 @@ describe('RTP Helpers', () => {
 
     assert.strictEqual(variants.length, 25);
     assert.strictEqual(byLabel.get('Easy / 1 roll').calculated.display, '97.89%');
-    assert.strictEqual(byLabel.get('Normal / 5 rolls').calculated.display, '97.25%');
+    assert.strictEqual(byLabel.get('Medium / 5 rolls').calculated.display, '97.25%');
     assert.strictEqual(byLabel.get('Master / 5 rolls').maxPayout.display, '1,847,949.193x');
   });
 
@@ -241,7 +241,7 @@ describe('RTP Helpers', () => {
     assert.deepStrictEqual(jungle, {
       gameKey: 'jungle-plinko',
       variantKey: 'jungle-plinko:mode:0',
-      variantLabel: 'Safe',
+      variantLabel: 'Low',
       rtpGame: 'jungle-plinko',
       rtpConfig: { mode: 0 },
     });
@@ -336,11 +336,11 @@ describe('RTP Helpers', () => {
       display: variant.calculated.display,
       maxPayout: variant.maxPayout.display,
     })), [
-      { variantLabel: 'Safe', display: '98.00%', maxPayout: '2.2x' },
-      { variantLabel: 'Low', display: '97.97%', maxPayout: '5x' },
-      { variantLabel: 'Medium', display: '97.97%', maxPayout: '15x' },
-      { variantLabel: 'High', display: '97.94%', maxPayout: '100x' },
-      { variantLabel: 'Extreme', display: '97.99%', maxPayout: '1,000x' },
+      { variantLabel: 'Low', display: '98.00%', maxPayout: '2.2x' },
+      { variantLabel: 'Moderate', display: '97.97%', maxPayout: '5x' },
+      { variantLabel: 'High', display: '97.97%', maxPayout: '15x' },
+      { variantLabel: 'Degen', display: '97.94%', maxPayout: '100x' },
+      { variantLabel: 'Ultra Degen', display: '97.99%', maxPayout: '1,000x' },
     ]);
   });
 

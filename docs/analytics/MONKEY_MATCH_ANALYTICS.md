@@ -2,7 +2,7 @@
 
 > Summary: Exact five-draw payout distributions for both verified Monkey Match modes, derived from the contract-backed multiplicity model.
 
-This note summarizes the exact **hand-class payout distributions** for **Monkey Match** across the verified `Low Risk` and `Normal Risk` modes.
+This note summarizes the exact **hand-class payout distributions** for **Monkey Match** across the verified `Low` and `High` modes.
 
 ## How Monkey Match works
 
@@ -16,7 +16,7 @@ Monkey Match draws `5` independent monkeys. The final hand is then scored as one
 - One Pair
 - No Match
 
-There is no redraw phase and no further player choice after mode selection, so the entire exact distribution is closed-form.
+There is no redraw phase and no further player choice after risk selection, so the entire exact distribution is closed-form.
 
 ## How to read the table
 
@@ -25,7 +25,7 @@ There is no redraw phase and no further player choice after mode selection, so t
 - **Partial Return (0<x<1x)** isolates sub-stake payouts that are still better than a full whiff.
 - Each hand row shows its exact multiplier together with its unconditional probability.
 
-| Row | Low Risk | Normal Risk |
+| Row | Low | High |
 | --- | --- | --- |
 | RTP | `97.99%` | `98.29%` |
 | Positive Payout (>0x) | `90.74%` (49/54) | `85.01%` (2041/2401) |

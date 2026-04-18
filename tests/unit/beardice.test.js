@@ -6,13 +6,30 @@ import assert from 'node:assert';
 import { formatBearDiceSettledDetails, resolveBearDiceConfig } from '../../lib/games/beardice.js';
 
 describe('Bear-A-Dice helpers', () => {
-  it('keeps 5 rolls for Master difficulty when explicitly requested', () => {
+  it('keeps 5 rolls for Master risk when explicitly requested by label', () => {
     const config = resolveBearDiceConfig(
       {},
-      { difficulty: '4', rolls: '5' },
+      { risk: 'Master', rolls: '5' },
       {},
       { bearDice: { rolls: [1, 2] } },
-      () => 1
+      () => 1,
+      {
+        gameEntry: {
+          config: {
+            difficulty: {
+              default: 0,
+              options: [
+                { value: 0, label: 'Easy' },
+                { value: 1, label: 'Medium' },
+                { value: 2, label: 'Hard' },
+                { value: 3, label: 'Expert' },
+                { value: 4, label: 'Master' },
+              ],
+            },
+            rolls: { default: 1 },
+          },
+        },
+      }
     );
 
     assert.deepStrictEqual(config, {

@@ -1,12 +1,12 @@
 # Jungle Plinko Odds and Payouts
 
-> Summary: Exact per-ball payout distributions for every verified Jungle Plinko mode, derived from the contract-backed weighted-bucket tables.
+> Summary: Exact per-ball payout distributions for every verified Jungle Plinko risk level, derived from the contract-backed weighted-bucket tables.
 
-This note summarizes the exact **per-ball** payout distributions for **Jungle Plinko** across all verified modes.
+This note summarizes the exact **per-ball** payout distributions for **Jungle Plinko** across all verified risk levels.
 
 ## How Jungle Plinko works
 
-Jungle Plinko is not a peg-by-peg physics simulation in the contract. Each ball resolves as one weighted bucket draw against a fixed mode-specific cumulative table.
+Jungle Plinko is not a peg-by-peg physics simulation in the contract. Each ball resolves as one weighted bucket draw against a fixed risk-specific cumulative table.
 
 Ball count does **not** change the underlying per-ball distribution. It only changes variance and Solidity floor-division dust when the wager is split with `floor(totalBetAmount / numBalls)`.
 
@@ -17,7 +17,7 @@ Ball count does **not** change the underlying per-ball distribution. It only cha
 - **Partial Return (0<x<1x)** covers sub-stake buckets that still return something.
 - Each numbered row is one distinct final multiplier, aggregated across any mirrored buckets with the same payout.
 
-## Safe
+## Low
 
 | Rank | Outcome |
 | --- | --- |
@@ -31,7 +31,7 @@ Ball count does **not** change the underlying per-ball distribution. It only cha
 | 4 | `2.2x @ 15.24% (16/105)` |
 | 5 | `0.3x @ 8.57% (3/35)` |
 
-## Low
+## Moderate
 
 | Rank | Outcome |
 | --- | --- |
@@ -46,7 +46,7 @@ Ball count does **not** change the underlying per-ball distribution. It only cha
 | 5 | `2.5x @ 10.67% (8/75)` |
 | 6 | `5x @ 2.67% (2/75)` |
 
-## Medium
+## Degen
 
 | Rank | Outcome |
 | --- | --- |
@@ -62,7 +62,7 @@ Ball count does **not** change the underlying per-ball distribution. It only cha
 | 6 | `6.2x @ 3.39% (2/59)` |
 | 7 | `15x @ 0.34% (1/295)` |
 
-## High
+## Degen
 
 | Rank | Outcome |
 | --- | --- |
@@ -82,7 +82,7 @@ Ball count does **not** change the underlying per-ball distribution. It only cha
 | 10 | `33x @ 0.26% (4/1539)` |
 | 11 | `100x @ 0.06% (1/1539)` |
 
-## Extreme
+## Ultra Degen
 
 | Rank | Outcome |
 | --- | --- |
@@ -106,5 +106,5 @@ Ball count does **not** change the underlying per-ball distribution. It only cha
 
 ## Sources
 
-1. [docs/verification/JUNGLE_PLINKO_CONTRACT.md](../verification/JUNGLE_PLINKO_CONTRACT.md) — verified weighted-bucket model, mode tables, and exact RTP references.
+1. [docs/verification/JUNGLE_PLINKO_CONTRACT.md](../verification/JUNGLE_PLINKO_CONTRACT.md) — verified weighted-bucket model, risk tables, and exact RTP references.
 2. [lib/rtp.js](../../lib/rtp.js) — exact bucket-weight and payout tables used by the CLI.

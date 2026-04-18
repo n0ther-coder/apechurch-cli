@@ -2,7 +2,7 @@
 
 > Summary: Exact positive payout distributions for every verified Bear-A-Dice difficulty and roll-count pair, derived from the repo's contract-backed paytables.
 
-This note summarizes the exact **positive payout distributions** for **Bear-A-Dice** across all verified difficulties (`Easy`, `Normal`, `Hard`, `Extreme`, `Master`) and all verified roll counts (`1` to `5`).
+This note summarizes the exact **positive payout distributions** for **Bear-A-Dice** across all verified difficulties (`Easy`, `Medium`, `Hard`, `Expert`, `Master`) and all verified roll counts (`1` to `5`).
 
 ## How Bear-A-Dice works
 
@@ -27,9 +27,9 @@ Each difficulty has one matrix with five columns:
 | Difficulty | Losing numbers | Safe numbers |
 |---|---|---|
 | Easy | `7` | `2-6, 8-12` |
-| Normal | `6, 7, 8` | `2-5, 9-12` |
+| Medium | `6, 7, 8` | `2-5, 9-12` |
 | Hard | `5-9` | `2-4, 10-12` |
-| Extreme | `4-10` | `2-3, 11-12` |
+| Expert | `4-10` | `2-3, 11-12` |
 | Master | `3-11` | `2, 12 only` |
 
 ## Easy
@@ -169,7 +169,7 @@ Losing numbers: `7`
 | CXXV |  |  |  |  | `16.16x` @ `0.00%` (`5/944784`) |
 | CXXVI |  |  |  |  | `21.09x` @ `0.00%` (`1/1889568`) |
 
-## Normal
+## Medium
 
 Safe numbers: `2-5, 9-12`  
 Losing numbers: `6, 7, 8`
@@ -268,7 +268,7 @@ Losing numbers: `5-9`
 | XX |  |  |  |  | `5,230.77x` @ `0.00%` (`5/944784`) |
 | XXI |  |  |  |  | `10,991.45x` @ `0.00%` (`1/1889568`) |
 
-## Extreme
+## Expert
 
 Safe numbers: `2-3, 11-12`  
 Losing numbers: `4-10`

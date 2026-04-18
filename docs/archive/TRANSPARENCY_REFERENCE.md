@@ -487,7 +487,7 @@ The Transparency section header shows **97.5% Calculated RTP**.
 - Total Wagered: **2,487,239 APE**
 - Total Games Played: **68,239**
 
-### Low Risk
+### Low
 
 | Multiplier | Probability |
 | --- | --- |
@@ -500,7 +500,7 @@ The Transparency section header shows **97.5% Calculated RTP**.
 | 1.2x | 6.61% |
 | 0.4x | 82.80% |
 
-### Moderate Risk
+### Modest
 
 | Multiplier | Probability |
 | --- | --- |
@@ -513,7 +513,7 @@ The Transparency section header shows **97.5% Calculated RTP**.
 | 0.5x | 9.75% |
 | 0.3x | 80.37% |
 
-### High Risk
+### High
 
 | Multiplier | Probability |
 | --- | --- |
@@ -549,11 +549,11 @@ The Transparency section header shows **97.5% Calculated RTP**.
 ### Transparency rules
 
 - 5 monkeys are revealed each round.
-- Easy mode uses **6 monkey types**.
-- Hard mode uses **7 monkey types**.
+- Low mode uses **6 monkey types**.
+- High mode uses **7 monkey types**.
 - Live contract reads on **April 2, 2026** showed `platformFee = 200 (2%)` and `partnerFeeCut = 0`.
 
-| Outcome | Easy Mode (6 monkeys) | Probability | Hard Mode (7 monkeys) | Probability |
+| Outcome | Low Mode (6 monkeys) | Probability | High Mode (7 monkeys) | Probability |
 | --- | --- | --- | --- | --- |
 | All Match | 50x | 0.08% | 50x | 0.04% |
 | Four of a Kind | 5x | 1.93% | 5x | 1.25% |
@@ -650,7 +650,7 @@ The Transparency section header shows **97.5% Calculated RTP**.
 - 6 possible colors
 - payout depends on the **largest color cluster**
 
-| Largest Cluster | Easy Mode | Probability | Hard Mode | Probability |
+| Largest Cluster | Low Mode | Probability | High Mode | Probability |
 | --- | --- | --- | --- | --- |
 | 3 blocks | 1.01x | 55.8461% | no payout | 55.8461% |
 | 4 blocks | 1.2x | 23.0303% | 2.25x | 23.0303% |
@@ -904,10 +904,10 @@ The table below contains either direct Transparency-section theoretical RTP labe
 | Cosmic Plinko — Low | ~97.64% | sum of payout × probability | derived |
 | Cosmic Plinko — Moderate | ~98.30% | sum of payout × probability | derived |
 | Cosmic Plinko — High | ~99.29% | sum of payout × probability | derived |
-| Blocks — Easy | ~98.41% | sum of payout × probability | derived |
-| Blocks — Hard | ~98.55% | sum of payout × probability | derived |
-| Monkey Match — Easy | ~97.99% | exact combinatorial EV over 5 independent symbol draws | derived |
-| Monkey Match — Hard | ~98.29% | exact combinatorial EV over 5 independent symbol draws | derived |
+| Blocks — Low | ~98.41% | sum of payout × probability | derived |
+| Blocks — High | ~98.55% | sum of payout × probability | derived |
+| Monkey Match — Low | ~97.99% | exact combinatorial EV over 5 independent symbol draws | derived |
+| Monkey Match — High | ~98.29% | exact combinatorial EV over 5 independent symbol draws | derived |
 | Primes — Easy | 98.00% | sum of payout × probability | derived |
 | Primes — Medium | 98.00% | sum of payout × probability | derived |
 | Primes — Hard | ~98.00% | sum of payout × probability | derived |

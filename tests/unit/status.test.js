@@ -473,7 +473,7 @@ describe('Status Helpers', () => {
         rtp_config: entry.rtp_config,
       })), [
         {
-          game: 'Jungle Plinko ✔︎ (Safe)',
+          game: 'Jungle Plinko ✔︎ (Low)',
           group_key: 'jungle-plinko:mode:0',
           games_played: 2,
           rtp_config: { mode: 0 },

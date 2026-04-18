@@ -461,9 +461,9 @@ describe('Wallet History Analysis', () => {
         games: entry.games,
       })), [
         {
-          game: 'Jungle Plinko ✔︎ (Safe)',
+          game: 'Jungle Plinko ✔︎ (Low)',
           variant_key: 'jungle-plinko:mode:0',
-          variant_label: 'Safe',
+          variant_label: 'Low',
           rtp_config: { mode: 0 },
           games: 2,
         },
@@ -478,9 +478,9 @@ describe('Wallet History Analysis', () => {
             contract: BLOCKS_CONTRACT,
             game: 'Blocks ✔︎',
             game_key: 'blocks',
-            config: { mode: 0, modeName: 'Easy', runs: 1 },
+            config: { mode: 0, modeName: 'Low', runs: 1 },
             variant_key: 'blocks:mode:easy',
-            variant_label: 'Easy',
+            variant_label: 'Low',
             rtp_game: 'blocks',
             rtp_config: { mode: 0 },
             gameId: '1',
@@ -499,9 +499,9 @@ describe('Wallet History Analysis', () => {
             contract: BLOCKS_CONTRACT,
             game: 'Blocks ✔︎',
             game_key: 'blocks',
-            config: { mode: 0, modeName: 'Easy', runs: 1 },
+            config: { mode: 0, modeName: 'Low', runs: 1 },
             variant_key: 'blocks:mode:easy',
-            variant_label: 'Easy',
+            variant_label: 'Low',
             rtp_game: 'blocks',
             rtp_config: { mode: 0 },
             gameId: '2',
@@ -587,9 +587,9 @@ describe('Wallet History Analysis', () => {
           game_key: 'blocks',
           gameId: '1',
           tx: '0x' + 'd'.repeat(64),
-          config: { mode: 0, modeName: 'Easy', runs: 3 },
+          config: { mode: 0, modeName: 'Low', runs: 3 },
           variant_key: 'blocks:mode:easy',
-          variant_label: 'Easy',
+          variant_label: 'Low',
           rtp_game: 'blocks',
           rtp_config: { mode: 0 },
         },
@@ -935,22 +935,22 @@ describe('Wallet History Analysis', () => {
 
       assert.deepStrictEqual(result.games[4].config, {
         mode: 1,
-        modeName: 'Low',
+        modeName: 'Moderate',
         balls: 8,
       });
       assert.strictEqual(result.games[4].variant_key, 'jungle-plinko:mode:1');
-      assert.strictEqual(result.games[4].variant_label, 'Low');
+      assert.strictEqual(result.games[4].variant_label, 'Moderate');
       assert.deepStrictEqual(result.games[4].rtp_config, { mode: 1 });
 
       assert.deepStrictEqual(result.games[5].config, {
         mode: 2,
-        modeName: 'Normal Risk',
+        modeName: 'High',
       });
       assert.strictEqual(result.games[5].variant_key, 'monkey-match:mode:2');
-      assert.strictEqual(result.games[5].variant_label, 'Normal Risk');
+      assert.strictEqual(result.games[5].variant_label, 'High');
       assert.deepStrictEqual(result.games[5].rtp_config, {
         mode: 2,
-        modeName: 'Normal Risk',
+        modeName: 'High',
       });
 
       assert.deepStrictEqual(result.games[6].config, {
