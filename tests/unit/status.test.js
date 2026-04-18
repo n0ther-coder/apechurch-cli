@@ -481,6 +481,108 @@ describe('Status Helpers', () => {
       ]);
     });
 
+    it('canonicalizes legacy simple-game risk labels and richer run metadata', () => {
+      const summary = buildGameStatusSummary({
+        historyGames: [
+          {
+            gameId: '11',
+            game: 'Bear-A-Dice ✔︎',
+            game_key: 'bear-dice',
+            variant_key: 'bear-dice:difficulty:1:rolls:5',
+            variant_label: 'Normal / 5 rolls',
+            rtp_game: 'bear-dice',
+          },
+          {
+            gameId: '12',
+            game: 'Blocks ✔︎',
+            game_key: 'blocks',
+            config: { mode: 0, modeName: 'Easy', runs: 3 },
+            variant_key: 'blocks:mode:easy',
+            variant_label: 'Easy',
+            rtp_game: 'blocks',
+            rtp_config: { mode: 0 },
+          },
+          {
+            gameId: '13',
+            game: 'Monkey Match ✔︎',
+            game_key: 'monkey-match',
+            variant_key: 'monkey-match:mode:1',
+            variant_label: 'Low Risk',
+            rtp_game: 'monkey-match',
+          },
+        ],
+        historyEntries: [
+          {
+            game: 'Bear-A-Dice ✔︎',
+            game_key: 'bear-dice',
+            variant_key: 'bear-dice:difficulty:1:rolls:5',
+            variant_label: 'Normal / 5 rolls',
+            rtp_game: 'bear-dice',
+            pnl_ape: '5.0000',
+            wager_ape: '10',
+            payout_ape: '15',
+            won: true,
+            push: false,
+            settled: true,
+          },
+          {
+            game: 'Blocks ✔︎',
+            game_key: 'blocks',
+            config: { mode: 0, modeName: 'Easy', runs: 3 },
+            variant_key: 'blocks:mode:easy',
+            variant_label: 'Easy',
+            rtp_game: 'blocks',
+            rtp_config: { mode: 0 },
+            pnl_ape: '-10.0000',
+            wager_ape: '10',
+            payout_ape: '0',
+            won: false,
+            push: false,
+            settled: true,
+          },
+          {
+            game: 'Monkey Match ✔︎',
+            game_key: 'monkey-match',
+            variant_key: 'monkey-match:mode:1',
+            variant_label: 'Low Risk',
+            rtp_game: 'monkey-match',
+            pnl_ape: '-2.0000',
+            wager_ape: '10',
+            payout_ape: '8',
+            won: false,
+            push: false,
+            settled: true,
+          },
+        ],
+      });
+
+      assert.deepStrictEqual(summary.map((entry) => ({
+        game: entry.game,
+        group_key: entry.group_key,
+        variant_label: entry.variant_label,
+        rtp_config: entry.rtp_config,
+      })), [
+        {
+          game: 'Bear-A-Dice ✔︎ (Medium / 5 rolls)',
+          group_key: 'bear-dice:difficulty:1:rolls:5',
+          variant_label: 'Medium / 5 rolls',
+          rtp_config: { difficulty: 1, rolls: 5 },
+        },
+        {
+          game: 'Blocks ✔︎ (Low / 3 rolls)',
+          group_key: 'blocks:mode:easy:rolls:3',
+          variant_label: 'Low / 3 rolls',
+          rtp_config: { mode: 0, runs: 3 },
+        },
+        {
+          game: 'Monkey Match ✔︎ (Low)',
+          group_key: 'monkey-match:mode:1',
+          variant_label: 'Low',
+          rtp_config: { mode: 1 },
+        },
+      ]);
+    });
+
     it('can include catalog rows for unplayed games and modes', () => {
       const summary = buildHistoryGameStatusSummary({
         historyBreakdown: [

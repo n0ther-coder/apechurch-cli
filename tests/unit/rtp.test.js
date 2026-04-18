@@ -314,6 +314,34 @@ describe('RTP Helpers', () => {
     });
   });
 
+  it('canonicalizes legacy Bear-A-Dice and Monkey Match labels to the current public names', () => {
+    const bear = resolveConfiguredGameVariant({
+      game: 'bear-dice',
+      variantKey: 'bear-dice:difficulty:1:rolls:5',
+      variantLabel: 'Normal / 5 rolls',
+    });
+    const monkey = resolveConfiguredGameVariant({
+      game: 'monkey-match',
+      variantKey: 'monkey-match:mode:1',
+      variantLabel: 'Low Risk',
+    });
+
+    assert.deepStrictEqual(bear, {
+      gameKey: 'bear-dice',
+      variantKey: 'bear-dice:difficulty:1:rolls:5',
+      variantLabel: 'Medium / 5 rolls',
+      rtpGame: 'bear-dice',
+      rtpConfig: { difficulty: 1, rolls: 5 },
+    });
+    assert.deepStrictEqual(monkey, {
+      gameKey: 'monkey-match',
+      variantKey: 'monkey-match:mode:1',
+      variantLabel: 'Low',
+      rtpGame: 'monkey-match',
+      rtpConfig: { mode: 1 },
+    });
+  });
+
   it('exposes calculated RTP constants for each exact mode of a game', () => {
     const variants = getGameCalculatedVariantReferences('primes');
 

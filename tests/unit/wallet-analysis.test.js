@@ -470,6 +470,99 @@ describe('Wallet History Analysis', () => {
       ]);
     });
 
+    it('canonicalizes legacy Bear-A-Dice, Blocks, and Monkey Match risk labels in grouped stats', () => {
+      const breakdown = summarizeHistoryGamesByGame({
+        wallet: WALLET,
+        games: [
+          {
+            contract: BEAR_DICE_CONTRACT,
+            game: 'Bear-A-Dice ✔︎',
+            game_key: 'bear-dice',
+            variant_key: 'bear-dice:difficulty:1:rolls:5',
+            variant_label: 'Normal / 5 rolls',
+            rtp_game: 'bear-dice',
+            gameId: '1',
+            timestamp: 1_700_000_000_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('10').toString(),
+            payout_wei: parseEther('15').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: '0',
+            gp_received_raw: '0',
+            wape_received_wei: '0',
+            won: true,
+            push: false,
+          },
+          {
+            contract: BLOCKS_CONTRACT,
+            game: 'Blocks ✔︎',
+            game_key: 'blocks',
+            config: { mode: 0, modeName: 'Easy', runs: 3 },
+            variant_key: 'blocks:mode:easy',
+            variant_label: 'Easy',
+            rtp_game: 'blocks',
+            rtp_config: { mode: 0 },
+            gameId: '2',
+            timestamp: 1_700_000_050_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('10').toString(),
+            payout_wei: '0',
+            contract_fee_wei: '0',
+            gas_fee_wei: '0',
+            gp_received_raw: '0',
+            wape_received_wei: '0',
+            won: false,
+            push: false,
+          },
+          {
+            contract: MONKEY_MATCH_CONTRACT,
+            game: 'Monkey Match ✔︎',
+            game_key: 'monkey-match',
+            variant_key: 'monkey-match:mode:1',
+            variant_label: 'Low Risk',
+            rtp_game: 'monkey-match',
+            gameId: '3',
+            timestamp: 1_700_000_100_000,
+            last_sync_on: '2026-03-29T12:00:00.000Z',
+            wager_wei: parseEther('10').toString(),
+            payout_wei: parseEther('8').toString(),
+            contract_fee_wei: '0',
+            gas_fee_wei: '0',
+            gp_received_raw: '0',
+            wape_received_wei: '0',
+            won: false,
+            push: false,
+          },
+        ],
+      });
+
+      assert.deepStrictEqual(breakdown.map((entry) => ({
+        game: entry.game,
+        variant_key: entry.variant_key,
+        variant_label: entry.variant_label,
+        rtp_config: entry.rtp_config,
+      })), [
+        {
+          game: 'Bear-A-Dice ✔︎ (Medium / 5 rolls)',
+          variant_key: 'bear-dice:difficulty:1:rolls:5',
+          variant_label: 'Medium / 5 rolls',
+          rtp_config: { difficulty: 1, rolls: 5 },
+        },
+        {
+          game: 'Blocks ✔︎ (Low / 3 rolls)',
+          variant_key: 'blocks:mode:easy:rolls:3',
+          variant_label: 'Low / 3 rolls',
+          rtp_config: { mode: 0, runs: 3 },
+        },
+        {
+          game: 'Monkey Match ✔︎ (Low)',
+          variant_key: 'monkey-match:mode:1',
+          variant_label: 'Low',
+          rtp_config: { mode: 1 },
+        },
+      ]);
+    });
+
     it('drops execution-reverted records before grouping and counting per-variant history', () => {
       const breakdown = summarizeHistoryGamesByGame({
         wallet: WALLET,
@@ -513,7 +606,8 @@ describe('Wallet History Analysis', () => {
       });
 
       assert.strictEqual(breakdown.length, 1);
-      assert.strictEqual(breakdown[0].variant_key, 'blocks:mode:easy');
+      assert.strictEqual(breakdown[0].variant_key, 'blocks:mode:easy:rolls:1');
+      assert.strictEqual(breakdown[0].variant_label, 'Low / 1 roll');
       assert.strictEqual(breakdown[0].total_saved_games, 1);
       assert.strictEqual(breakdown[0].games, 1);
       assert.strictEqual(breakdown[0].unsynced_games, 0);
@@ -573,7 +667,7 @@ describe('Wallet History Analysis', () => {
       assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1, runs: 4 });
     });
 
-    it('skips lookups for saved records that already have canonical variant metadata', async () => {
+    it('normalizes saved records locally when config already contains the canonical risk metadata', async () => {
       let lookupCount = 0;
       const result = await inferSavedHistoryGameVariants({
         async getTransaction() {
@@ -596,9 +690,69 @@ describe('Wallet History Analysis', () => {
       ]);
 
       assert.strictEqual(lookupCount, 0);
-      assert.strictEqual(result.changed, false);
-      assert.strictEqual(result.inferred, 0);
-      assert.strictEqual(result.games[0].variant_key, 'blocks:mode:easy');
+      assert.strictEqual(result.changed, true);
+      assert.strictEqual(result.inferred, 1);
+      assert.strictEqual(result.games[0].variant_key, 'blocks:mode:easy:rolls:3');
+      assert.strictEqual(result.games[0].variant_label, 'Low / 3 rolls');
+      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 0, runs: 3 });
+    });
+
+    it('re-infers stale Blocks mode-only metadata when the saved config is incomplete', async () => {
+      let lookupCount = 0;
+      const gameId = 501n;
+      const playInput = encodeFunctionData({
+        abi: GAME_CONTRACT_ABI,
+        functionName: 'play',
+        args: [
+          WALLET,
+          encodeAbiParameters(
+            [
+              { name: 'riskMode', type: 'uint8' },
+              { name: 'numRuns', type: 'uint8' },
+              { name: 'gameId', type: 'uint256' },
+              { name: 'ref', type: 'address' },
+              { name: 'userRandomWord', type: 'bytes32' },
+            ],
+            [0, 2, gameId, ZERO_ADDRESS, '0x' + '33'.repeat(32)],
+          ),
+        ],
+      });
+
+      const result = await inferSavedHistoryGameVariants({
+        async getTransaction({ hash }) {
+          lookupCount += 1;
+          assert.strictEqual(hash, '0x' + 'f'.repeat(64));
+          return {
+            hash,
+            input: playInput,
+          };
+        },
+      }, [
+        {
+          contract: BLOCKS_CONTRACT,
+          game: 'Blocks ✔︎',
+          game_key: 'blocks',
+          gameId: gameId.toString(),
+          tx: '0x' + 'f'.repeat(64),
+          config: { mode: 0, modeName: 'Easy' },
+          variant_key: 'blocks:mode:easy',
+          variant_label: 'Easy',
+          rtp_game: 'blocks',
+          rtp_config: { mode: 0 },
+        },
+      ]);
+
+      assert.strictEqual(lookupCount, 1);
+      assert.strictEqual(result.changed, true);
+      assert.strictEqual(result.inferred, 1);
+      assert.deepStrictEqual(result.games[0].config, {
+        mode: 0,
+        modeName: 'Low',
+        runs: 2,
+      });
+      assert.strictEqual(result.games[0].variant_key, 'blocks:mode:easy:rolls:2');
+      assert.strictEqual(result.games[0].variant_label, 'Low / 2 rolls');
+      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 0, runs: 2 });
     });
 
     it('falls back to getGameInfo when the saved tx is not the original play calldata', async () => {
