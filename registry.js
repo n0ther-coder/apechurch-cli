@@ -334,14 +334,14 @@ export const GAME_REGISTRY = [
   },
 
   // ===========================================================================
-  // BLOCKS - 3x3 cluster board with batched runs
+  // BLOCKS - 3x3 cluster board with consecutive compounding rolls
   // ===========================================================================
   {
     key: 'blocks',
     name: 'Blocks',
     slug: 'blocks',
     type: 'blocks',
-    description: 'Fill a 3x3 board with random colors. Payout depends on the largest connected cluster; Hard mode drops the 3-block floor but pushes the top end to 5000x.',
+    description: 'All-or-nothing 3x3 cluster survival game. Choose Low or High and 1-5 consecutive rolls; each paying cluster compounds the current payout, while any dead roll ends the whole game at 0x.',
     contract: BLOCKS_CONTRACT,
     abiVerified: true,
     aliases: ['block'],
@@ -350,21 +350,21 @@ export const GAME_REGISTRY = [
         min: 0,
         max: 1,
         default: 0,
-        description: 'Risk level. 0=Easy/Low starts paying at 3 connected blocks; 1=Hard/High removes that floor and raises the top payout.',
+        description: 'Risk level. 0=Low starts paying at a 3-block cluster; 1=High removes that floor and raises the top payout.',
         bnf: [
           '<mode> ::= <integer>',
           '; semantic constraint: value ∈ {0, 1}',
         ],
         options: [
-          { value: 0, label: 'Easy', desc: 'Lower volatility; a 3-block cluster already pays 1.01x' },
-          { value: 1, label: 'Hard', desc: 'No payout at 3 blocks, but 9 blocks pays 5000x' },
+          { value: 0, label: 'Low', desc: 'Pays from cluster 3; every surviving roll compounds the payout' },
+          { value: 1, label: 'High', desc: 'Only cluster 4+ survives; the 9-cluster ceiling is 5000x per roll' },
         ],
       },
       runs: {
         min: 1,
         max: 5,
         default: 1,
-        description: 'Number of boards to batch (1-5). Wager is split evenly across all runs.',
+        description: 'Number of consecutive rolls (1-5). Each surviving roll compounds the current payout; any losing roll zeroes the whole game. No cash-out and no partial payout.',
         bnf: [
           '<runs> ::= <integer>',
           '; semantic constraint: 1 <= value <= 5',

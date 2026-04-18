@@ -78,7 +78,7 @@ Ordering: alphabetical by game title.
 | Baccarat ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF; `BANKER` commission is baked into the `1.95x` payout | In combined bets, explicit sub-amounts must sum to the total wager |
 | Bear-A-Dice ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with rolls + `2%` platform fee | Single total wager; volatility comes from difficulty and rolls |
 | Blackjack ✔︎ | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | Action-based VRF; `double` / `split` / `insurance` are extra stakes, not fees | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
-| Blocks ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with runs | Total wager is split across `1-5` runs |
+| Blocks ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with runs | Single total wager across `1-5` consecutive rolls; any dead roll zeroes the whole game |
 | Bubblegum Heist ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
 | Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF | Total wager is split across `1-30` balls |
 | Dino Dough ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
@@ -201,7 +201,7 @@ Stateful blackjack with interactive actions, optional player-side exposure, and 
 **Verification notes:** [BLOCKS_CONTRACT.md](./verification/BLOCKS_CONTRACT.md)
 **Analytics:** [BLOCKS_ANALYTICS.md](./analytics/BLOCKS_ANALYTICS.md)
 
-Batched 3x3 cluster game. Each run fills a 9-tile board, and the payout depends only on the largest connected color cluster. Mode changes the payout table, while run count only changes variance and floor-division dust.
+Consecutive-roll `3x3` cluster game. Each roll resolves a full `9`-tile board, and the payout depends only on the largest connected color cluster. For the chosen mode and roll count, every surviving roll compounds the current payout, while any dead cluster ends the whole game at `0x`.
 
 **Command:** `apechurch-cli play blocks <amount> <mode> <runs>`
 
@@ -212,9 +212,10 @@ Batched 3x3 cluster game. Each run fills a 9-tile board, and the payout depends 
 ```
 
 **Compare:**
-- Exact RTP: `98.41%` in Easy, `98.55%` in Hard.
-- Max fixed top payout: `2500x` in Easy, `5000x` in Hard.
-- Operational note: Easy pays from a 3-block cluster; Hard sacrifices that floor and keeps only the fatter tail.
+- Exact RTP: `Low / 1-5 rolls = 44.77%, 20.04%, 8.97%, 4.02%, 1.80%`.
+- Exact RTP: `High / 1-5 rolls = 42.37%, 17.96%, 7.61%, 3.22%, 1.37%`.
+- Max fixed top payout per surviving roll: `2500x` in Low, `5000x` in High.
+- Operational note: `Low` pays from cluster `3`; `High` pays only from cluster `4` upward. Blocks is all-or-nothing and has no cash-out path.
 
 ## Bubblegum Heist ✔︎
 
@@ -592,8 +593,16 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Hard | Yes | `98.55%` | Exact weighted sum over the verified write path plus the published largest-cluster probability table | `93.92%` |
-| Easy | Yes | `98.41%` | Exact weighted sum over the verified write path plus the published largest-cluster probability table | `93.92%` |
+| High / 1 roll | Yes | `42.37%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| High / 2 rolls | Yes | `17.96%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| High / 3 rolls | Yes | `7.61%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| High / 4 rolls | Yes | `3.22%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| High / 5 rolls | Yes | `1.37%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| Low / 1 roll | Yes | `44.77%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| Low / 2 rolls | Yes | `20.04%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| Low / 3 rolls | Yes | `8.97%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| Low / 4 rolls | Yes | `4.02%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| Low / 5 rolls | Yes | `1.80%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
 
 #### Monkey Match ✔︎
 

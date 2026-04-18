@@ -1,17 +1,15 @@
 # Blocks Contract Verification Notes
 
-> Summary: Verified tuple layout, batched-run fee path, and exact mode RTP notes used to promote Blocks to `ABI verified` on 2026-04-10.
+> Summary: Verified tuple layout, read path, official `Low` / `High` wording, and the repo's exact consecutive-roll Blocks model.
 
 ## Public Source Trail
 
 - Verified ApeScan contract page:
   - `https://apescan.io/address/0xA59CF828222EcD8aCe4b6195764d11F5Ea7f62A6#code`
-- Live game page:
-  - `https://www.ape.church/games/blocks`
 - Official original-games docs:
   - `https://docs.ape.church/games/player-vs-house/original-games.md`
-- Live frontend bundle used to confirm mode naming and fee wiring:
-  - `https://www.ape.church/_next/static/chunks/app/games/blocks/page-6ff774f0056513dd.js`
+- Live game page:
+  - `https://www.ape.church/games/blocks`
 
 ## Contract Identity
 
@@ -19,9 +17,9 @@
 - Contract used by the CLI: `0xA59CF828222EcD8aCe4b6195764d11F5Ea7f62A6`
 - Repo constant: `BLOCKS_CONTRACT`
 - Supported risk modes in the CLI:
-  - `0` = `Easy` / public UI `LOW`
-  - `1` = `Hard` / public UI `HIGH`
-- Supported run counts: `1..5`
+  - `0` = `Low`
+  - `1` = `High`
+- Supported roll counts: `1..5`
 
 ## Verified Write Path
 
@@ -30,28 +28,21 @@ The verified contract exposes:
 - `function play(address player, bytes calldata gameData) external payable`
 - `function getVRFFee(uint32 customGasLimit) public view returns (uint256)`
 
-Its `_playGame(...)` flow decodes:
+Its write path decodes:
 
 ```text
 (uint8 riskMode, uint8 numRuns, uint256 gameId, address ref, bytes32 userRandomWord)
 ```
 
-Verified runtime behavior:
+Verified runtime facts used by the CLI:
 
 - `numRuns` must be in `1..5`
-- the wager is split across runs on-chain via `floor(totalBetAmount / numRuns)`
 - `customGasLimit = BASE_GAS + (numRuns * GAS_PER_RUN)`
 - `BASE_GAS = 600000`
 - `GAS_PER_RUN = 200000`
-- the contract requests `numRuns * BOARD_SIZE` random words for settlement
+- settlement consumes `numRuns * BOARD_SIZE` random words
 
-The live frontend bundle matches that tuple order and fee path exactly, which is the shape now encoded by `lib/games/blocks.js`.
-
-## Fee Notes
-
-- The documented contract fee surface here is the dynamic `getVRFFee(customGasLimit)` path.
-- Fee overhead scales with `numRuns`, not with the stake size itself.
-- Any remaining house edge used by the repo's RTP references is already in the published payout table rather than modeled as a second explicit percentage fee here.
+The live CLI write path in [lib/games/blocks.js](../../lib/games/blocks.js) matches that tuple order and fee surface.
 
 ## Verified Read Path
 
@@ -78,67 +69,72 @@ The verified contract exposes:
 Important implications:
 
 - settlement stores every revealed board in `boards`
-- `maxCounts` stores the largest connected cluster for each run
+- `maxCounts` stores the largest connected cluster for each roll
+- the getter exposes only one `totalPayout` for the full game, not a per-roll payout array
 - `riskMode` and `numRuns` are persisted directly, so history and replay tooling can reconstruct the exact CLI variant
 
-## Published Cluster Table
+## Gameplay Model Used By The Repo
 
-The public docs and transparency material agree on the core gameplay surface:
+The official docs describe Blocks as:
 
-- 3x3 grid
-- 9 total blocks
-- 6 possible colors
-- payout depends only on the largest color cluster
+- a `3x3` tile game
+- a multiplier game where each flip reveals a number tied to a multiplier
+- a game with selectable `risk level`
+- a game with selectable `number of consecutive rolls`
 
-Published payout and probability table:
+Combined with the verified getter shape above (`maxCounts` per roll, but a single `totalPayout` for the whole game), the repo now models Blocks as:
 
-| Largest Cluster | Easy | Probability | Hard | Probability |
-|-----------------|------|-------------|------|-------------|
-| `3` blocks | `1.01x` | `55.8461%` | `0x` | `55.8461%` |
-| `4` blocks | `1.2x` | `23.0303%` | `2.25x` | `23.0303%` |
-| `5` blocks | `2x` | `4.6886%` | `6.6x` | `4.6886%` |
-| `6` blocks | `5x` | `0.6251%` | `15x` | `0.6251%` |
-| `7` blocks | `20x` | `0.0536%` | `80x` | `0.0536%` |
-| `8` blocks | `200x` | `0.0027%` | `600x` | `0.0027%` |
-| `9` blocks | `2500x` | `0.0001%` | `5000x` | `0.0001%` |
+- one consecutive-roll game, not a sum of independent mini-bets
+- each surviving roll compounding the current payout by that roll's cluster multiplier
+- any dead cluster ending the whole game at `0x`
+- no cash-out and no partial payout
 
-Easy pays nothing below a `3`-block cluster. Hard additionally zeroes the `3`-block case and concentrates the EV into the fatter tail.
+This final settlement interpretation is an inference from the official docs wording plus the verified read/write surface; it is no longer modeled as a wager-splitting batch.
+
+## Exact Single-Roll Cluster Distribution
+
+The public transparency material rounds the cluster table to four decimals. The repo now uses the exact cluster distribution obtained by exhaustive enumeration of all `6^9 = 10,077,696` boards; percentages below are shown to `3` decimals and the parenthetical ratio is written as `a / b E-n`, where the exponent applies to the whole ratio and is omitted when it would be `E0`:
+
+| Largest Cluster | Exact Boards | Probability | Low | High |
+|-----------------|-------------:|------------:|----:|-----:|
+| `1` | `1,166,910` | `11.579%` (`≈ 1.944 / 1.679 E-1`) | `0x` | `0x` |
+| `2` | `5,094,600` | `50.553%` (`≈ 2.122 / 4.199`) | `0x` | `0x` |
+| `3` | `2,760,840` | `27.396%` (`≈ 3.834 / 1.399 E-1`) | `1.01x` | `0x` |
+| `4` | `814,920` | `8.086%` (`≈ 3.395 / 4.199 E-1`) | `1.2x` | `2.25x` |
+| `5` | `198,750` | `1.972%` (`≈ 3.312 / 1.679 E-2`) | `2x` | `6.6x` |
+| `6` | `36,600` | `0.363%` (`≈ 1.525 / 4.199 E-2`) | `5x` | `15x` |
+| `7` | `4,800` | `0.048%` (`≈ 2.500 / 5.248 E-3`) | `20x` | `80x` |
+| `8` | `270` | `0.003%` (`≈ 5.000 / 1.866 E-5`) | `200x` | `600x` |
+| `9` | `6` | `0.000%` (`≈ 1.000 / 1.679 E-6`) | `2500x` | `5000x` |
 
 ## Exact RTP Model
 
-For mode `m`:
+For mode `m` and roll count `N`:
 
 ```text
-RTP_run(m) = Σ_cluster P(cluster) * payout(m, cluster)
-RTP_game(m, B, N) = RTP_run(m) * floor(B / N) * N / B
+EV_roll(m) = Σ_cluster P(cluster) * multiplier(m, cluster)
+RTP_game(m, N) = EV_roll(m)^N
 ```
 
-Implications:
+Because dead clusters already carry multiplier `0x`, the fail-fast all-or-nothing rule changes the path semantics but not the expected-value formula: the full-game EV is still the product of identical per-roll expectations.
 
-- mode controls the actual EV surface
-- run count changes only batching variance and floor-division dust
+Exact per-roll expectations used by the repo:
 
-Exact references used by the repo:
+- `Low`: `EV_roll = 3,759,877 / 8,398,080 ≈ 0.44770673773052`
+- `High`: `EV_roll = 3,295 / 7,776 ≈ 0.42373971193415`
 
-| Mode | Exact RTP | Max Payout |
-|------|-----------|------------|
-| Easy | `98.405621%` | `2500x` |
-| Hard | `98.547435%` | `5000x` |
+Exact RTP references:
 
-## Transparency Snapshot
-
-- House Profit: `13,910 APE`
-- Running RTP: `93.92%`
-- Total Wagered: `228,655 APE`
-- Total Games Played: `9,782`
-
-As with the other docs in this repo, the running RTP snapshot is descriptive only. It is not the contract-backed long-run expectation.
+| Mode | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
+|------|-------:|--------:|--------:|--------:|--------:|
+| Low | `44.770674%` | `20.044132%` | `8.973893%` | `4.017672%` | `1.798739%` |
+| High | `42.373971%` | `17.955534%` | `7.608473%` | `3.224012%` | `1.366142%` |
 
 ## Promotion Outcome
 
-Blocks now qualifies for `ABI verified` because:
+Blocks remains `ABI verified` because:
 
 - the live contract address is explorer-verified
-- the CLI tuple layout, fee path, and history getter surface match the verified source
-- the public docs and transparency material preserve the exact mode payout surface used by the repo's RTP references
-- the repo now stores dedicated verification and odds notes instead of leaving Blocks in the unsupported appendix
+- the CLI tuple layout and fee path match the verified source
+- the verified getter persists `riskMode`, `numRuns`, `boards`, `maxCounts`, and one final `totalPayout`
+- the repo now uses the official `Low` / `High` wording and a consecutive-roll model consistent with the public docs and verified storage surface

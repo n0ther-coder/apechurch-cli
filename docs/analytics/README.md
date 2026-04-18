@@ -17,7 +17,7 @@ These notes belong under `docs/analytics/` only when the repo already has a defe
 | Speed Keno ✔︎ | [SPEED_KENO_ANALYTICS.md](./SPEED_KENO_ANALYTICS.md) | Smaller hypergeometric state space than Keno, with exact hit-count tables by picks. |
 | Monkey Match ✔︎ | [MONKEY_MATCH_ANALYTICS.md](./MONKEY_MATCH_ANALYTICS.md) | Two verified modes and seven multiplicity classes make the full distribution compact. |
 | Bear-A-Dice ✔︎ | [BEAR_DICE_ANALYTICS.md](./BEAR_DICE_ANALYTICS.md) | Fully exact `2d6` survival distributions across `5 x 5` verified difficulty/roll variants. |
-| Blocks ✔︎ | [BLOCKS_ANALYTICS.md](./BLOCKS_ANALYTICS.md) | The published cluster table collapses the whole 3x3 board game to seven paying outcome classes per mode. |
+| Blocks ✔︎ | [BLOCKS_ANALYTICS.md](./BLOCKS_ANALYTICS.md) | Exhaustive `3x3` board enumeration plus consecutive-roll compounding gives exact `Low` / `High` survival matrices through `5` rolls. |
 | Primes ✔︎ | [PRIMES_ANALYTICS.md](./PRIMES_ANALYTICS.md) | Each difficulty has only three exact outcome classes: zero, prime, or dead run. |
 | Geez Diggerz ✔︎ | [GEEZ_DIGGERZ_ANALYTICS.md](./GEEZ_DIGGERZ_ANALYTICS.md) | The full live ordered-triple matrix compresses cleanly to `16` payout rows after the symmetric reel snapshot. |
 | Hi-Lo Nebula ✔︎ | [HI_LO_NEBULA_ANALYTICS.md](./HI_LO_NEBULA_ANALYTICS.md) | The verified rank-only paytable collapses to a compact per-rank branch table with exact hit rates and branch EV. |

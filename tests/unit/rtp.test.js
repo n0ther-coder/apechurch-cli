@@ -100,17 +100,15 @@ describe('RTP Helpers', () => {
     ]);
   });
 
-  it('exposes exact calculated RTP constants for each verified Blocks mode', () => {
+  it('exposes exact calculated RTP constants for each verified Blocks mode and roll count', () => {
     const variants = getGameCalculatedVariantReferences('blocks');
+    const byLabel = new Map(variants.map((variant) => [variant.variantLabel, variant]));
 
-    assert.deepStrictEqual(variants.map((variant) => ({
-      variantLabel: variant.variantLabel,
-      display: variant.calculated.display,
-      maxPayout: variant.maxPayout.display,
-    })), [
-      { variantLabel: 'Easy', display: '98.41%', maxPayout: '2,500x' },
-      { variantLabel: 'Hard', display: '98.55%', maxPayout: '5,000x' },
-    ]);
+    assert.strictEqual(variants.length, 10);
+    assert.strictEqual(byLabel.get('Low / 1 roll').calculated.display, '44.77%');
+    assert.strictEqual(byLabel.get('Low / 5 rolls').maxPayout.display, '97,656,250,000,000,000x');
+    assert.strictEqual(byLabel.get('High / 1 roll').calculated.display, '42.37%');
+    assert.strictEqual(byLabel.get('High / 5 rolls').maxPayout.display, '3,125,000,000,000,000,000x');
   });
 
   it('uses the lowest verified exact RTP when Bear-A-Dice has multiple difficulty/roll variants', () => {
@@ -196,7 +194,7 @@ describe('RTP Helpers', () => {
     assert.strictEqual(maxPayout.display, '250x');
   });
 
-  it('uses the verified Blocks mode table even when runs are specified', () => {
+  it('uses the verified Blocks mode and roll table when runs are specified', () => {
     const expected = getConfiguredGameExpectedRtpReference({
       game: 'blocks',
       config: { mode: 1, runs: 5 },
@@ -206,10 +204,10 @@ describe('RTP Helpers', () => {
       config: { mode: 1, runs: 5 },
     });
 
-    assert.strictEqual(expected.display, '98.55%');
+    assert.strictEqual(expected.display, '1.37%');
     assert.strictEqual(expected.referenceType, 'calculated');
     assert.strictEqual(expected.calculationKind, 'exact');
-    assert.strictEqual(maxPayout.display, '5,000x');
+    assert.strictEqual(maxPayout.display, '3,125,000,000,000,000,000x');
   });
 
   it('uses the verified Bear-A-Dice payout table for configured RTP and max payout', () => {
@@ -271,7 +269,7 @@ describe('RTP Helpers', () => {
     });
   });
 
-  it('canonicalizes Blocks variants to risk mode only, ignoring runs', () => {
+  it('canonicalizes Blocks variants by risk mode and runs', () => {
     const blocks = resolveConfiguredGameVariant({
       game: 'blocks',
       config: { mode: 1, runs: 5 },
@@ -279,10 +277,10 @@ describe('RTP Helpers', () => {
 
     assert.deepStrictEqual(blocks, {
       gameKey: 'blocks',
-      variantKey: 'blocks:mode:hard',
-      variantLabel: 'Hard',
+      variantKey: 'blocks:mode:hard:rolls:5',
+      variantLabel: 'High / 5 rolls',
       rtpGame: 'blocks',
-      rtpConfig: { mode: 1 },
+      rtpConfig: { mode: 1, runs: 5 },
     });
   });
 

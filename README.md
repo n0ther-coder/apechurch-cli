@@ -245,7 +245,7 @@ Coverage and limits:
 | Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | Slot machine |
 | Monkey Match ✔︎ | `play monkey-match 10` | Poker hands from barrels |
 | Bear-A-Dice ✔︎ | `play bear-dice 10` | Avoid unlucky numbers |
-| Blocks ✔︎ | `play blocks 10 1 5` | 3x3 cluster board with batched runs |
+| Blocks ✔︎ | `play blocks 10 1 5` | 3x3 cluster board with consecutive all-or-nothing rolls |
 | Primes ✔︎ | `play primes 10 0 20` | Prime-or-zero number draws with batched runs |
 | Blackjack ✔︎ | `blackjack 25 --side 1 --auto` | Card game with auto-play and optional player side bet |
 | Video Poker ✔︎ / Gimboz Poker | `video-poker 10 --auto` | Jacks or Better with auto-play and solver tools |

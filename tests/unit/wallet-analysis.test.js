@@ -565,12 +565,12 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(result.failedLookups, 0);
       assert.deepStrictEqual(result.games[0].config, {
         mode: 1,
-        modeName: 'Hard',
+        modeName: 'High',
         runs: 4,
       });
-      assert.strictEqual(result.games[0].variant_key, 'blocks:mode:hard');
-      assert.strictEqual(result.games[0].variant_label, 'Hard');
-      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1 });
+      assert.strictEqual(result.games[0].variant_key, 'blocks:mode:hard:rolls:4');
+      assert.strictEqual(result.games[0].variant_label, 'High / 4 rolls');
+      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1, runs: 4 });
     });
 
     it('skips lookups for saved records that already have canonical variant metadata', async () => {
@@ -726,12 +726,12 @@ describe('Wallet History Analysis', () => {
 
       assert.deepStrictEqual(result.games[0].config, {
         mode: 1,
-        modeName: 'Hard',
+        modeName: 'High',
         runs: 5,
       });
-      assert.strictEqual(result.games[0].variant_key, 'blocks:mode:hard');
-      assert.strictEqual(result.games[0].variant_label, 'Hard');
-      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1 });
+      assert.strictEqual(result.games[0].variant_key, 'blocks:mode:hard:rolls:5');
+      assert.strictEqual(result.games[0].variant_label, 'High / 5 rolls');
+      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1, runs: 5 });
 
       assert.deepStrictEqual(result.games[1].config, {
         difficulty: 3,
@@ -1543,12 +1543,12 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(analysis.recent_games.length, 1);
       assert.deepStrictEqual(analysis.recent_games[0].config, {
         mode: 0,
-        modeName: 'Easy',
+        modeName: 'Low',
         runs: 3,
       });
-      assert.strictEqual(analysis.recent_games[0].variant_key, 'blocks:mode:easy');
-      assert.strictEqual(analysis.recent_games[0].variant_label, 'Easy');
-      assert.deepStrictEqual(analysis.recent_games[0].rtp_config, { mode: 0 });
+      assert.strictEqual(analysis.recent_games[0].variant_key, 'blocks:mode:easy:rolls:3');
+      assert.strictEqual(analysis.recent_games[0].variant_label, 'Low / 3 rolls');
+      assert.deepStrictEqual(analysis.recent_games[0].rtp_config, { mode: 0, runs: 3 });
     });
   });
 });
