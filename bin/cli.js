@@ -5204,6 +5204,21 @@ ${'─'.repeat(70)}
   
   Your position value = Your HOUSE tokens × Current price
 
+${'─'.repeat(70)}
+  YIELD VS APY
+${'─'.repeat(70)}
+
+  • "House Yield" shown by apechurch-cli house is the current HOUSE token
+    price multiplier from calculatePrice(), displayed as gain/loss
+    since launch. It is NOT an annualized APY.
+  • For planning, this repo uses a working long-run blended house-edge
+    assumption of about 3%, with 2% and 5% as useful sensitivity bounds.
+  • Gross expected annual return is approximately:
+      annual wager volume / average house liquidity x house edge
+  • Example: 10x annual turnover on average house liquidity and a 3%
+    blended edge implies about 30% gross annual return before variance
+    and exit fees.
+
 ${'═'.repeat(70)}
 `,
 };

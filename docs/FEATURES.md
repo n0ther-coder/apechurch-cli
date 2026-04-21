@@ -14,6 +14,12 @@
 - Per-wallet history download with cached recent games, history stats, and per-game breakdowns
 - Wallet reset with safety warnings
 
+## The House
+- Deposit to The House and receive HOUSE tokens representing your share of pooled liquidity
+- Withdraw from The House against the current HOUSE token price
+- Live House status with total liquidity, max payout, position value, unlock timer, profit/loss, and `since launch` HOUSE yield
+- Decentralized bankroll model: games play against on-chain liquidity rather than hidden reserves
+
 ## Private Key Encryption (Optional)
 - **Password protection** — Encrypt your private key with scrypt + AES-256-GCM
 - **Encrypted-only local signer** — Private keys stay encrypted on disk in this hardened build
@@ -73,12 +79,6 @@
 ---
 
 ## 🚀 Coming Soon
-
-### The House
-- **Deposit to The House** — Become the house, earn when players lose
-- **Withdraw from The House** — Pull your liquidity anytime
-- **Decentralized bankroll** — The House is a smart contract, not a company
-- **Transparent odds** — Games play against on-chain liquidity, not hidden reserves
 
 ### NFT Features
 - Buy NFTs with GP (Scratch Cards, Loot Boxes, Runestones)

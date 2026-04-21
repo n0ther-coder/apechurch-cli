@@ -519,6 +519,8 @@ This command is intentionally compact in the terminal. The canonical reference s
 
 If no action is supplied, `house` shows status.
 
+The status view's `house_yield` field is the current HOUSE price multiplier `since launch`, not an annualized APY. For The House mechanics plus the repo's planning-grade APY model and sensitivity bounds, see [HOUSE_REFERENCE.md](./HOUSE_REFERENCE.md).
+
 ## Stateful Card Games
 
 ### `blackjack [action] [amount]`
