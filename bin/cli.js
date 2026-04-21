@@ -192,6 +192,7 @@ import {
 } from '../lib/strategy.js';
 import { configGetters, playGame, resolveGame } from '../lib/games/index.js';
 import { resolveBearDiceConfig } from '../lib/games/beardice.js';
+import { parseGimbozSmashInput } from '../lib/games/gimbozsmash.js';
 import { resolveSlotsConfig } from '../lib/games/slots.js';
 import {
   getGameConfigCliName,
@@ -274,7 +275,9 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<risk> ::= <integer> | <game-risk-label>           ; public risk surface for Bear Dice, Blocks, Plinko, Monkey Match, and Primes',
   '<balls> ::= <integer>                              ; 1 <= value <= 100',
   '<spins> ::= <integer>                              ; 1 <= value <= 15',
-  '<range> ::= <integer>                              ; 5 <= value <= 95',
+  '<range> ::= <integer> | <target-range> | <target-range> "," <target-range> ; ApeStrong uses 5..95, Gimboz Smash uses one or two inclusive target ranges on 1..100',
+  '<target-range> ::= <integer> [ "-" <integer> ]     ; each endpoint is within 1..100, each range is inclusive, total covered numbers across all ranges is within 1..95',
+  '<out-range> ::= <target-range>                     ; one excluded inclusive range for Gimboz Smash outside bets; excluded coverage must be within 5..95',
   '<picks> ::= <integer>                              ; 1 <= value <= 10 for Keno, 1 <= value <= 5 for Speed Keno',
   '<games> ::= <integer>                              ; 1 <= value <= 20',
   '<runs> ::= <integer>                               ; 1 <= value <= 20 for Primes, 1 <= value <= 5 for Blocks',
@@ -788,31 +791,15 @@ function formatScoreboardReport(scoreboard, { includeHeader = true, showUrls = f
   return lines.join('\n').trimEnd();
 }
 
-const HISTORY_BREAKDOWN_FILTER_ALIASES = new Map([
-  ['blackjack', 'blackjack'],
-  ['bj', 'blackjack'],
-  ['hi-lo-nebula', 'hi-lo-nebula'],
-  ['hi-lo nebula', 'hi-lo-nebula'],
-  ['hi-lo', 'hi-lo-nebula'],
-  ['hilo', 'hi-lo-nebula'],
-  ['hilo-nebula', 'hi-lo-nebula'],
-  ['nebula', 'hi-lo-nebula'],
-  ['video-poker', 'video-poker'],
-  ['video poker', 'video-poker'],
-  ['vp', 'video-poker'],
-  ['gimboz-poker', 'video-poker'],
-  ['gimboz poker', 'video-poker'],
-]);
-
 function createGameCatalogEntry(game) {
   return {
     key: game.key,
     name: game.name,
+    aliases: Array.isArray(game.aliases) ? [...game.aliases] : [],
     displayName: getGameDisplayName(game),
     type: game.type,
     description: game.description,
     abiVerified: Boolean(game.abiVerified),
-    aliases: game.aliases,
     contract: game.contract,
     config: game.config,
   };
@@ -829,6 +816,7 @@ function getBlackjackCatalogEntry() {
   return {
     key: 'blackjack',
     name: 'Blackjack',
+    aliases: ['bj'],
     displayName: resolveGameDisplayName({
       gameKey: 'blackjack',
       contract: BLACKJACK_CONTRACT,
@@ -837,7 +825,6 @@ function getBlackjackCatalogEntry() {
     type: 'stateful',
     description: 'Classic blackjack with simple and exact-EV auto-play',
     abiVerified: true,
-    aliases: ['bj'],
     contract: BLACKJACK_CONTRACT,
   };
 }
@@ -846,6 +833,7 @@ function getHiLoNebulaCatalogEntry() {
   return {
     key: 'hi-lo-nebula',
     name: 'Hi-Lo Nebula',
+    aliases: ['hilonebula', 'hilo'],
     displayName: resolveGameDisplayName({
       gameKey: 'hi-lo-nebula',
       contract: HI_LO_NEBULA_CONTRACT,
@@ -854,7 +842,6 @@ function getHiLoNebulaCatalogEntry() {
     type: 'stateful',
     description: 'Sequential higher/lower/same card-streak game with cashout and jackpot pathing',
     abiVerified: true,
-    aliases: ['hi-lo', 'hilo', 'hilo-nebula', 'nebula'],
     contract: HI_LO_NEBULA_CONTRACT,
   };
 }
@@ -863,6 +850,7 @@ function getVideoPokerCatalogEntry() {
   return {
     key: 'video-poker',
     name: 'Video Poker',
+    aliases: ['vp'],
     displayName: resolveGameDisplayName({
       gameKey: 'video-poker',
       contract: VIDEO_POKER_CONTRACT,
@@ -871,7 +859,6 @@ function getVideoPokerCatalogEntry() {
     type: 'stateful',
     description: 'Jacks or Better video poker with verified on-chain paytable, simple auto-play, and exact best-EV auto-play',
     abiVerified: true,
-    aliases: ['vp', 'gimboz-poker'],
     contract: VIDEO_POKER_CONTRACT,
   };
 }
@@ -887,6 +874,27 @@ function listSupportedGameCatalogEntries() {
 
 function listAllSupportedGameKeys() {
   return listSupportedGameCatalogEntries().map((game) => game.key);
+}
+
+function normalizeCatalogLookupInput(input) {
+  return stripAbiVerifiedSymbol(String(input || '').trim()).toLowerCase();
+}
+
+function getCatalogEntryLookupValues(game) {
+  return [
+    game?.key,
+    game?.name,
+    game?.displayName,
+    ...(Array.isArray(game?.aliases) ? game.aliases : []),
+  ];
+}
+
+function resolveCatalogGameEntry(input) {
+  if (!input) return null;
+  const requested = normalizeCatalogLookupInput(input);
+  return listSupportedGameCatalogEntries().find((game) => (
+    getCatalogEntryLookupValues(game).some((value) => normalizeCatalogLookupInput(value) === requested)
+  )) || null;
 }
 
 function formatAvailableGameGroups() {
@@ -915,8 +923,10 @@ function printGameCatalogGroup(title, games) {
 
   for (const game of games) {
     console.log(`   ${theme.gameName(game.displayName)} ${theme.dim(`(${game.key})`)}`);
+    if (Array.isArray(game.aliases) && game.aliases.length > 0) {
+      console.log(`      ${theme.dim(`Aliases: ${game.aliases.join(', ')}`)}`);
+    }
     console.log(`      ${theme.value(game.description)}`);
-    if (game.aliases?.length) console.log(`      ${theme.label('Aliases:')} ${theme.dim(game.aliases.join(', '))}`);
     console.log('');
   }
 }
@@ -946,24 +956,12 @@ function resolveHistoryBreakdownSelection(rawValue, historyBreakdown = []) {
 
   const requested = rawValue.trim();
   const normalized = normalizeHistoryBreakdownLookupInput(requested);
-  const resolvedGame = resolveGame(requested);
+  const resolvedGame = resolveCatalogGameEntry(requested);
   if (resolvedGame) {
     return {
       requested,
       gameKey: resolvedGame.key,
       displayName: getGameDisplayName(resolvedGame),
-    };
-  }
-
-  if (HISTORY_BREAKDOWN_FILTER_ALIASES.has(normalized)) {
-    const gameKey = HISTORY_BREAKDOWN_FILTER_ALIASES.get(normalized);
-    return {
-      requested,
-      gameKey,
-      displayName: resolveGameDisplayName({
-        gameKey,
-        fallbackName: requested,
-      }),
     };
   }
 
@@ -2291,7 +2289,8 @@ program
   .option('--balls <balls>', 'Plinko balls', '50')
   .option('--spins <spins>', 'Slots spins', '10')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
-  .option('--range <range>', 'ApeStrong range', '50')
+  .option('--range <range>', 'ApeStrong range or Gimboz Smash inside range', '50')
+  .option('--out-range <range>', 'Gimboz Smash outside range to exclude from the winning set (for example 45-50)')
   .option('--picks <picks>', 'Keno pick count', '5')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--games <games>', 'Speed Keno game count (batching)')
@@ -2301,6 +2300,21 @@ program
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .addHelpText('after', formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES))
   .action(async (opts) => {
+    const gameEntry = resolveGame(opts.game);
+    const rawCliArgs = process.argv.slice(2);
+    const explicitGimbozRange = rawCliArgs.includes('--range') ? opts.range : undefined;
+    if (gameEntry?.type === 'gimbozsmash' && (explicitGimbozRange !== undefined || opts.outRange !== undefined)) {
+      try {
+        parseGimbozSmashInput({
+          range: explicitGimbozRange,
+          outRange: opts.outRange,
+        });
+      } catch (error) {
+        console.error(JSON.stringify({ error: sanitizeError(error) }));
+        process.exit(1);
+      }
+    }
+
     const account = await getWalletWithPrompt({ json: true, gameplay: true, forceGameplayPrompt: true });
     const { publicClient } = createClients();
     
@@ -2345,7 +2359,8 @@ program
         balls: opts.balls,
         spins: opts.spins,
         bet: opts.bet,
-        range: opts.range,
+        range: gameEntry?.type === 'gimbozsmash' ? explicitGimbozRange : opts.range,
+        outRange: opts.outRange,
         picks: opts.picks,
         numbers: opts.numbers,
         games: opts.games,
@@ -2378,7 +2393,8 @@ program
   .option('--balls <balls>', 'Plinko balls')
   .option('--spins <spins>', 'Slots spins')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
-  .option('--range <range>', 'ApeStrong range')
+  .option('--range <range>', 'ApeStrong range or Gimboz Smash inside range')
+  .option('--out-range <range>', 'Gimboz Smash outside range to exclude from the winning set (for example 45-50)')
   .option('--picks <picks>', 'Keno pick count')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--games <games>', 'Speed Keno game count (batching)')
@@ -2420,6 +2436,7 @@ program
       '--spins',
       '--bet',
       '--range',
+      '--out-range',
       '--picks',
       '--numbers',
       '--games',
@@ -2530,6 +2547,8 @@ program
         positionalConfig.bet = configArgs.join(',');
       } else if (fixedGame.type === 'apestrong') {
         if (configArgs[0]) positionalConfig.range = parseInt(configArgs[0]);
+      } else if (fixedGame.type === 'gimbozsmash') {
+        positionalConfig.range = configArgs.join(',');
       } else if (fixedGame.type === 'keno') {
         // For keno: configArgs can be [picks] or [numbers] or [picks, numbers]
         // If first arg is a small number (1-10), treat as picks; otherwise as numbers
@@ -2598,6 +2617,24 @@ program
           positionalConfig.range = normalizedRange;
         } catch (error) {
           console.error(JSON.stringify({ error: sanitizeError(error) }));
+          process.exit(1);
+        }
+      }
+    }
+
+    if (fixedGame?.type === 'gimbozsmash') {
+      const explicitRange = opts.range ?? positionalConfig.range;
+      const explicitOutRange = opts.outRange ?? positionalConfig.outRange;
+      if (explicitRange !== undefined || explicitOutRange !== undefined) {
+        try {
+          parseGimbozSmashInput({
+            range: explicitRange,
+            outRange: explicitOutRange,
+          });
+        } catch (error) {
+          const message = sanitizeError(error);
+          if (opts.json) console.error(JSON.stringify({ error: message }));
+          else console.error(`\n❌ ${message}\n`);
           process.exit(1);
         }
       }
@@ -2751,169 +2788,198 @@ program
       let gameEntry;
       let gameConfig = {};
       const preferGameDefault = Boolean(fixedGame && !loopMode);
-      
-      if (fixedGame) {
-        gameEntry = fixedGame;
-        const getConfig = configGetters[gameEntry.type];
-        gameConfig = getConfig
-          ? getConfig(
-              opts,
-              positionalConfig,
-              gameEntry,
-              strategyConfig,
-              randomIntInclusive,
-              { preferGameDefault }
-            )
-          : { ...positionalConfig };
-      } else {
-        const selection = selectGameAndConfig(strategyConfig);
-        gameEntry = resolveGame(selection.game);
-        gameConfig = {
-          mode: selection.mode,
-          balls: selection.balls,
-          spins: selection.spins,
-          bet: selection.bet,
-          range: selection.range,
-          difficulty: selection.difficulty,
-          runs: selection.runs,
-        };
-      }
-
-      // Apply CLI opts/positional/strategy defaults for loop/auto flows.
-      if (!preferGameDefault && gameEntry.type === 'plinko') {
-        if (opts.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', opts.risk, { numericKind: 'public' });
-        else if (positionalConfig.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', positionalConfig.risk, { numericKind: 'public' });
-        else if (gameConfig.mode === undefined) gameConfig.mode = gameEntry.config.mode.default;
-        if (opts.balls !== undefined) gameConfig.balls = parseInt(opts.balls);
-        else if (positionalConfig.balls !== undefined) gameConfig.balls = positionalConfig.balls;
-        else if (gameConfig.balls === undefined) {
-          const [min, max] = clampRange(
-            strategyConfig.plinko?.balls?.[0] ?? gameEntry.config.balls.default,
-            strategyConfig.plinko?.balls?.[1] ?? gameEntry.config.balls.default,
-            gameEntry.config.balls.min,
-            gameEntry.config.balls.max
-          );
-          gameConfig.balls = randomIntInclusive(min, max);
-        }
-      } else if (!preferGameDefault && gameEntry.type === 'slots') {
-        if (gameConfig.spins === undefined) {
+      try {
+        if (fixedGame) {
+          gameEntry = fixedGame;
+          const getConfig = configGetters[gameEntry.type];
+          gameConfig = getConfig
+            ? getConfig(
+                opts,
+                positionalConfig,
+                gameEntry,
+                strategyConfig,
+                randomIntInclusive,
+                { preferGameDefault }
+              )
+            : { ...positionalConfig };
+        } else {
+          const selection = selectGameAndConfig(strategyConfig);
+          gameEntry = resolveGame(selection.game);
           gameConfig = {
-            ...gameConfig,
-            ...resolveSlotsConfig({
-              opts,
-              positionalConfig,
-              strategyConfig,
-              randomIntInclusive,
-              gameEntry,
-              preferGameDefault: Boolean(fixedGame && !loopMode),
-            }),
+            mode: selection.mode,
+            balls: selection.balls,
+            spins: selection.spins,
+            bet: selection.bet,
+            range: selection.range,
+            difficulty: selection.difficulty,
+            runs: selection.runs,
           };
         }
-      } else if (!preferGameDefault && gameEntry.type === 'roulette') {
-        if (opts.bet) gameConfig.bet = opts.bet;
-        else if (positionalConfig.bet) gameConfig.bet = positionalConfig.bet;
-        else if (!gameConfig.bet) {
-          const cfg = strategyConfig.roulette || { defaultBet: 'random' };
-          gameConfig.bet = cfg.defaultBet === 'random' ? (Math.random() < 0.5 ? 'RED' : 'BLACK') : cfg.defaultBet;
-        }
-      } else if (!preferGameDefault && gameEntry.type === 'baccarat') {
-        if (opts.bet) gameConfig.bet = opts.bet;
-        else if (positionalConfig.bet) gameConfig.bet = positionalConfig.bet;
-        else if (!gameConfig.bet) {
-          const cfg = strategyConfig.baccarat || { defaultBet: 'random' };
-          gameConfig.bet = cfg.defaultBet === 'random' ? (Math.random() < 0.5 ? 'PLAYER' : 'BANKER') : cfg.defaultBet;
-        }
-      } else if (!preferGameDefault && gameEntry.type === 'apestrong') {
-        if (opts.range !== undefined) gameConfig.range = parseInt(opts.range);
-        else if (positionalConfig.range !== undefined) gameConfig.range = positionalConfig.range;
-        else if (gameConfig.range === undefined) {
-          const [min, max] = strategyConfig.apestrong?.range || [40, 60];
-          gameConfig.range = randomIntInclusive(min, max);
-        }
-      } else if (!preferGameDefault && gameEntry.type === 'keno') {
-        // Numbers first (if provided, picks is inferred)
-        if (opts.numbers) gameConfig.numbers = opts.numbers;
-        else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
-        // Pick count - infer from numbers if provided, otherwise use --picks or random
-        if (gameConfig.numbers && gameConfig.numbers.toLowerCase() !== 'random') {
-          // Infer picks from number of values provided
-          gameConfig.picks = gameConfig.numbers.split(',').filter(s => s.trim()).length;
-        } else if (opts.picks !== undefined) {
-          gameConfig.picks = parseInt(opts.picks);
-        } else if (positionalConfig.picks !== undefined) {
-          gameConfig.picks = positionalConfig.picks;
-        } else if (gameConfig.picks === undefined) {
-          const [min, max] = strategyConfig.keno?.picks || [3, 6];
-          gameConfig.picks = randomIntInclusive(min, max);
-        }
-      } else if (!preferGameDefault && gameEntry.type === 'speedkeno') {
-        // Number of games (batching)
-        if (opts.games !== undefined) gameConfig.games = parseInt(opts.games);
-        else if (positionalConfig.games !== undefined) gameConfig.games = positionalConfig.games;
-        else if (gameConfig.games === undefined) {
-          const [min, max] = strategyConfig.speedKeno?.games || [5, 10];
-          gameConfig.games = randomIntInclusive(min, max);
-        }
-        // Numbers first (if provided, picks is inferred)
-        if (opts.numbers) gameConfig.numbers = opts.numbers;
-        else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
-        // Pick count - infer from numbers if provided, otherwise use --picks or random
-        if (gameConfig.numbers && gameConfig.numbers.toLowerCase() !== 'random') {
-          // Infer picks from number of values provided
-          gameConfig.picks = gameConfig.numbers.split(',').filter(s => s.trim()).length;
-        } else if (opts.picks !== undefined) {
-          gameConfig.picks = parseInt(opts.picks);
-        } else if (positionalConfig.picks !== undefined) {
-          gameConfig.picks = positionalConfig.picks;
-        } else if (gameConfig.picks === undefined) {
-          const [min, max] = strategyConfig.speedKeno?.picks || [2, 4];
-          gameConfig.picks = randomIntInclusive(min, max);
-        }
-      } else if (!preferGameDefault && gameEntry.type === 'beardice') {
-        gameConfig = resolveBearDiceConfig(
-          gameConfig,
-          opts,
-          positionalConfig,
-          strategyConfig,
-          randomIntInclusive,
-          { gameEntry }
-        );
-      } else if (!preferGameDefault && gameEntry.type === 'monkeymatch') {
-        if (opts.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', opts.risk, { numericKind: 'public' });
-        else if (positionalConfig.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', positionalConfig.risk, { numericKind: 'public' });
-        else if (gameConfig.mode === undefined) gameConfig.mode = gameEntry.config.mode.default;
-      } else if (!preferGameDefault && gameEntry.type === 'blocks') {
-        if (opts.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', opts.risk, { numericKind: 'public' });
-        else if (positionalConfig.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', positionalConfig.risk, { numericKind: 'public' });
-        else if (gameConfig.mode === undefined) gameConfig.mode = gameEntry.config.mode.default;
 
-        if (opts.runs !== undefined) gameConfig.runs = parseInt(opts.runs);
-        else if (positionalConfig.runs !== undefined) gameConfig.runs = positionalConfig.runs;
-        else if (gameConfig.runs === undefined) {
-          const [min, max] = clampRange(
-            strategyConfig.blocks?.runs?.[0] ?? gameEntry.config.runs.default,
-            strategyConfig.blocks?.runs?.[1] ?? gameEntry.config.runs.default,
-            gameEntry.config.runs.min,
-            gameEntry.config.runs.max
+        // Apply CLI opts/positional/strategy defaults for loop/auto flows.
+        if (!preferGameDefault && gameEntry.type === 'plinko') {
+          if (opts.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', opts.risk, { numericKind: 'public' });
+          else if (positionalConfig.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', positionalConfig.risk, { numericKind: 'public' });
+          else if (gameConfig.mode === undefined) gameConfig.mode = gameEntry.config.mode.default;
+          if (opts.balls !== undefined) gameConfig.balls = parseInt(opts.balls);
+          else if (positionalConfig.balls !== undefined) gameConfig.balls = positionalConfig.balls;
+          else if (gameConfig.balls === undefined) {
+            const [min, max] = clampRange(
+              strategyConfig.plinko?.balls?.[0] ?? gameEntry.config.balls.default,
+              strategyConfig.plinko?.balls?.[1] ?? gameEntry.config.balls.default,
+              gameEntry.config.balls.min,
+              gameEntry.config.balls.max
+            );
+            gameConfig.balls = randomIntInclusive(min, max);
+          }
+        } else if (!preferGameDefault && gameEntry.type === 'slots') {
+          if (gameConfig.spins === undefined) {
+            gameConfig = {
+              ...gameConfig,
+              ...resolveSlotsConfig({
+                opts,
+                positionalConfig,
+                strategyConfig,
+                randomIntInclusive,
+                gameEntry,
+                preferGameDefault: Boolean(fixedGame && !loopMode),
+              }),
+            };
+          }
+        } else if (!preferGameDefault && gameEntry.type === 'roulette') {
+          if (opts.bet) gameConfig.bet = opts.bet;
+          else if (positionalConfig.bet) gameConfig.bet = positionalConfig.bet;
+          else if (!gameConfig.bet) {
+            const cfg = strategyConfig.roulette || { defaultBet: 'random' };
+            gameConfig.bet = cfg.defaultBet === 'random' ? (Math.random() < 0.5 ? 'RED' : 'BLACK') : cfg.defaultBet;
+          }
+        } else if (!preferGameDefault && gameEntry.type === 'baccarat') {
+          if (opts.bet) gameConfig.bet = opts.bet;
+          else if (positionalConfig.bet) gameConfig.bet = positionalConfig.bet;
+          else if (!gameConfig.bet) {
+            const cfg = strategyConfig.baccarat || { defaultBet: 'random' };
+            gameConfig.bet = cfg.defaultBet === 'random' ? (Math.random() < 0.5 ? 'PLAYER' : 'BANKER') : cfg.defaultBet;
+          }
+        } else if (!preferGameDefault && gameEntry.type === 'apestrong') {
+          if (opts.range !== undefined) gameConfig.range = parseInt(opts.range);
+          else if (positionalConfig.range !== undefined) gameConfig.range = positionalConfig.range;
+          else if (gameConfig.range === undefined) {
+            const [min, max] = strategyConfig.apestrong?.range || [40, 60];
+            gameConfig.range = randomIntInclusive(min, max);
+          }
+        } else if (!preferGameDefault && gameEntry.type === 'gimbozsmash') {
+          if (
+            opts.range !== undefined
+            || opts.outRange !== undefined
+            || positionalConfig.range !== undefined
+            || positionalConfig.outRange !== undefined
+            || gameConfig.targets === undefined
+          ) {
+            const getConfig = configGetters[gameEntry.type];
+            gameConfig = getConfig
+              ? getConfig(
+                  opts,
+                  positionalConfig,
+                  gameEntry,
+                  strategyConfig,
+                  randomIntInclusive,
+                  { preferGameDefault: false }
+                )
+              : gameConfig;
+          }
+        } else if (!preferGameDefault && gameEntry.type === 'keno') {
+          if (opts.numbers) gameConfig.numbers = opts.numbers;
+          else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
+          if (gameConfig.numbers && gameConfig.numbers.toLowerCase() !== 'random') {
+            gameConfig.picks = gameConfig.numbers.split(',').filter(s => s.trim()).length;
+          } else if (opts.picks !== undefined) {
+            gameConfig.picks = parseInt(opts.picks);
+          } else if (positionalConfig.picks !== undefined) {
+            gameConfig.picks = positionalConfig.picks;
+          } else if (gameConfig.picks === undefined) {
+            const [min, max] = strategyConfig.keno?.picks || [3, 6];
+            gameConfig.picks = randomIntInclusive(min, max);
+          }
+        } else if (!preferGameDefault && gameEntry.type === 'speedkeno') {
+          if (opts.games !== undefined) gameConfig.games = parseInt(opts.games);
+          else if (positionalConfig.games !== undefined) gameConfig.games = positionalConfig.games;
+          else if (gameConfig.games === undefined) {
+            const [min, max] = strategyConfig.speedKeno?.games || [5, 10];
+            gameConfig.games = randomIntInclusive(min, max);
+          }
+          if (opts.numbers) gameConfig.numbers = opts.numbers;
+          else if (positionalConfig.numbers) gameConfig.numbers = positionalConfig.numbers;
+          if (gameConfig.numbers && gameConfig.numbers.toLowerCase() !== 'random') {
+            gameConfig.picks = gameConfig.numbers.split(',').filter(s => s.trim()).length;
+          } else if (opts.picks !== undefined) {
+            gameConfig.picks = parseInt(opts.picks);
+          } else if (positionalConfig.picks !== undefined) {
+            gameConfig.picks = positionalConfig.picks;
+          } else if (gameConfig.picks === undefined) {
+            const [min, max] = strategyConfig.speedKeno?.picks || [2, 4];
+            gameConfig.picks = randomIntInclusive(min, max);
+          }
+        } else if (!preferGameDefault && gameEntry.type === 'beardice') {
+          gameConfig = resolveBearDiceConfig(
+            gameConfig,
+            opts,
+            positionalConfig,
+            strategyConfig,
+            randomIntInclusive,
+            { gameEntry }
           );
-          gameConfig.runs = randomIntInclusive(min, max);
-        }
-      } else if (!preferGameDefault && gameEntry.type === 'primes') {
-        if (opts.risk !== undefined) gameConfig.difficulty = parseGameConfigValue(gameEntry, 'difficulty', opts.risk, { numericKind: 'public' });
-        else if (positionalConfig.risk !== undefined) gameConfig.difficulty = parseGameConfigValue(gameEntry, 'difficulty', positionalConfig.risk, { numericKind: 'public' });
-        else if (gameConfig.difficulty === undefined) gameConfig.difficulty = gameEntry.config.difficulty.default;
+        } else if (!preferGameDefault && gameEntry.type === 'monkeymatch') {
+          if (opts.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', opts.risk, { numericKind: 'public' });
+          else if (positionalConfig.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', positionalConfig.risk, { numericKind: 'public' });
+          else if (gameConfig.mode === undefined) gameConfig.mode = gameEntry.config.mode.default;
+        } else if (!preferGameDefault && gameEntry.type === 'blocks') {
+          if (opts.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', opts.risk, { numericKind: 'public' });
+          else if (positionalConfig.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', positionalConfig.risk, { numericKind: 'public' });
+          else if (gameConfig.mode === undefined) gameConfig.mode = gameEntry.config.mode.default;
 
-        if (opts.runs !== undefined) gameConfig.runs = parseInt(opts.runs);
-        else if (positionalConfig.runs !== undefined) gameConfig.runs = positionalConfig.runs;
-        else if (gameConfig.runs === undefined) {
-          const [min, max] = clampRange(
-            strategyConfig.primes?.runs?.[0] ?? gameEntry.config.runs.default,
-            strategyConfig.primes?.runs?.[1] ?? gameEntry.config.runs.default,
-            gameEntry.config.runs.min,
-            gameEntry.config.runs.max
-          );
-          gameConfig.runs = randomIntInclusive(min, max);
+          if (opts.runs !== undefined) gameConfig.runs = parseInt(opts.runs);
+          else if (positionalConfig.runs !== undefined) gameConfig.runs = positionalConfig.runs;
+          else if (gameConfig.runs === undefined) {
+            const [min, max] = clampRange(
+              strategyConfig.blocks?.runs?.[0] ?? gameEntry.config.runs.default,
+              strategyConfig.blocks?.runs?.[1] ?? gameEntry.config.runs.default,
+              gameEntry.config.runs.min,
+              gameEntry.config.runs.max
+            );
+            gameConfig.runs = randomIntInclusive(min, max);
+          }
+        } else if (!preferGameDefault && gameEntry.type === 'primes') {
+          if (opts.risk !== undefined) gameConfig.difficulty = parseGameConfigValue(gameEntry, 'difficulty', opts.risk, { numericKind: 'public' });
+          else if (positionalConfig.risk !== undefined) gameConfig.difficulty = parseGameConfigValue(gameEntry, 'difficulty', positionalConfig.risk, { numericKind: 'public' });
+          else if (gameConfig.difficulty === undefined) gameConfig.difficulty = gameEntry.config.difficulty.default;
+
+          if (opts.runs !== undefined) gameConfig.runs = parseInt(opts.runs);
+          else if (positionalConfig.runs !== undefined) gameConfig.runs = positionalConfig.runs;
+          else if (gameConfig.runs === undefined) {
+            const [min, max] = clampRange(
+              strategyConfig.primes?.runs?.[0] ?? gameEntry.config.runs.default,
+              strategyConfig.primes?.runs?.[1] ?? gameEntry.config.runs.default,
+              gameEntry.config.runs.min,
+              gameEntry.config.runs.max
+            );
+            gameConfig.runs = randomIntInclusive(min, max);
+          }
         }
+      } catch (error) {
+        const message = sanitizeError(error);
+        if (opts.json) console.error(JSON.stringify({ error: message }));
+        else console.error(`\n❌ ${message}\n`);
+        return {
+          shouldStop: true,
+          reason: 'invalid_config',
+          completed: false,
+          counted: false,
+          gameId: null,
+          gameResult: null,
+          error: false,
+          playedGameKey: null,
+          playedConfig: null,
+        };
       }
 
       const wagerApeString = formatApeAmount(wagerApe);
@@ -2929,6 +2995,8 @@ program
         gameDesc += ` — ${gameConfig.bet}`;
       } else if (gameEntry.type === 'apestrong') {
         gameDesc += ` (${gameConfig.range}% chance)`;
+      } else if (gameEntry.type === 'gimbozsmash') {
+        gameDesc += gameConfig.outRange ? ` (outside ${gameConfig.outRange})` : ` (${gameConfig.targets})`;
       } else if (gameEntry.type === 'keno') {
         gameDesc += ` (${gameConfig.picks} picks)`;
       } else if (gameEntry.type === 'speedkeno') {
@@ -3006,7 +3074,11 @@ program
           balls: gameConfig.balls,
           spins: gameConfig.spins,
           bet: gameConfig.bet,
-          range: gameConfig.range,
+          range: gameEntry.type === 'gimbozsmash'
+            ? (gameConfig.outRange ? undefined : gameConfig.targets)
+            : gameConfig.range,
+          targets: gameEntry.type === 'gimbozsmash' ? undefined : gameConfig.targets,
+          outRange: gameConfig.outRange,
           picks: gameConfig.picks,
           numbers: gameConfig.numbers,
           games: gameConfig.games,
@@ -3945,8 +4017,10 @@ program
   .command('game <name>')
   .option('--json', 'JSON output')
   .action((name, opts) => {
+    const matchedCatalogEntry = resolveCatalogGameEntry(name);
+
     // Handle blackjack specially (stateful game)
-    if (name.toLowerCase() === 'blackjack' || name.toLowerCase() === 'bj') {
+    if (matchedCatalogEntry?.key === 'blackjack') {
       const blackjack = getBlackjackCatalogEntry();
       if (opts.json) {
         console.log(JSON.stringify(blackjack));
@@ -3962,8 +4036,8 @@ ${'═'.repeat(60)}
 
   Type:     ${blackjack.type}
   Key:      ${blackjack.key}
-  ABI verified: ${blackjack.abiVerified}
   Aliases:  ${blackjack.aliases.join(', ')}
+  ABI verified: ${blackjack.abiVerified}
   Contract: ${blackjack.contract}
 
 ${'─'.repeat(60)}
@@ -4029,13 +4103,7 @@ ${'═'.repeat(60)}
       return;
     }
 
-    if (
-      name.toLowerCase() === 'hi-lo-nebula'
-      || name.toLowerCase() === 'hi-lo'
-      || name.toLowerCase() === 'hilo'
-      || name.toLowerCase() === 'hilo-nebula'
-      || name.toLowerCase() === 'nebula'
-    ) {
+    if (matchedCatalogEntry?.key === 'hi-lo-nebula') {
       const hiLoNebula = getHiLoNebulaCatalogEntry();
       if (opts.json) {
         console.log(JSON.stringify(hiLoNebula));
@@ -4053,8 +4121,8 @@ ${'═'.repeat(60)}
 
   Type:     ${hiLoNebula.type}
   Key:      ${hiLoNebula.key}
-  ABI verified: ${hiLoNebula.abiVerified}
   Aliases:  ${hiLoNebula.aliases.join(', ')}
+  ABI verified: ${hiLoNebula.abiVerified}
   Contract: ${hiLoNebula.contract}
 
 ${'─'.repeat(60)}
@@ -4117,7 +4185,7 @@ ${'═'.repeat(60)}
     }
     
     // Handle video-poker specially (stateful game)
-    if (name.toLowerCase() === 'video-poker' || name.toLowerCase() === 'vp' || name.toLowerCase() === 'gimboz-poker') {
+    if (matchedCatalogEntry?.key === 'video-poker') {
       const videoPoker = getVideoPokerCatalogEntry();
       if (opts.json) {
         console.log(JSON.stringify(videoPoker));
@@ -4134,8 +4202,8 @@ ${'═'.repeat(60)}
 
   Type:     ${videoPoker.type}
   Key:      ${videoPoker.key}
-  ABI verified: ${videoPoker.abiVerified}
   Aliases:  ${videoPoker.aliases.join(', ')}
+  ABI verified: ${videoPoker.abiVerified}
   Contract: ${videoPoker.contract}
 
 ${'─'.repeat(60)}
@@ -4199,9 +4267,10 @@ ${'═'.repeat(60)}
       return;
     }
     
-    const game = resolveGame(name);
+    const game = resolveGame(matchedCatalogEntry?.key || name);
     if (!game) {
       const error = { error: `Unknown game: ${name}`, available: listAllSupportedGameKeys() };
+      process.exitCode = 1;
       if (opts.json) console.log(JSON.stringify(error));
       else console.log(`\n❌ Unknown game: "${name}"\n${formatAvailableGameGroups()}\n`);
       return;
@@ -4221,8 +4290,10 @@ ${'═'.repeat(60)}
       console.log(`  ${game.description}\n`);
       console.log(`  Type:     ${game.type}`);
       console.log(`  Key:      ${game.key}`);
+      if (Array.isArray(game.aliases) && game.aliases.length > 0) {
+        console.log(`  Aliases:  ${game.aliases.join(', ')}`);
+      }
       console.log(`  ABI verified: ${Boolean(game.abiVerified)}`);
-      if (game.aliases?.length) console.log(`  Aliases:  ${game.aliases.join(', ')}`);
       console.log(`  Contract: ${game.contract}\n`);
       
       if (game.config) {
@@ -4271,7 +4342,7 @@ program
 🦍 APE CHURCH CLI - COMMAND INDEX
 
 CANONICAL REFERENCE
-  Full command, option, alias, and shared BNF reference:
+  Full command, option, and shared BNF reference:
   README.md
   docs/COMMAND_REFERENCE.md
   docs/GAMES_REFERENCE.md
@@ -4316,8 +4387,8 @@ PLAY
   ${BINARY_NAME} play --loop          Continuous play
   ${BINARY_NAME} bet --game X --amount Y   Manual bet
   ${BINARY_NAME} blackjack <amt>      Interactive blackjack (alias: bj)
-  ${BINARY_NAME} hi-lo-nebula <amt>   Interactive Hi-Lo Nebula (aliases: hi-lo, hilo, nebula)
-  ${BINARY_NAME} video-poker <amt>    Interactive video poker (aliases: vp, gimboz-poker)
+  ${BINARY_NAME} hi-lo-nebula <amt>   Interactive Hi-Lo Nebula (aliases: hilonebula, hilo)
+  ${BINARY_NAME} video-poker <amt>    Interactive video poker (alias: vp)
 
 CONTROL
   ${BINARY_NAME} pause                Stop autonomous play
@@ -4369,8 +4440,8 @@ BETTING STRATEGIES
   dalembert               +1 unit on loss, -1 on win
 
 EXAMPLES
-  ${BINARY_NAME} play jungle 10 2 50
-  ${BINARY_NAME} play cosmic 10 1 10
+  ${BINARY_NAME} play jungle-plinko 10 2 50
+  ${BINARY_NAME} play cosmic-plinko 10 1 10
   ${BINARY_NAME} play blocks 10 1 5
   ${BINARY_NAME} play primes 10 0 20
   ${BINARY_NAME} play roulette 50 RED
@@ -4391,6 +4462,22 @@ EXAMPLES
   ${BINARY_NAME} register --username my_bot_name
   ${BINARY_NAME} send APE 10 0x1234...abcd
   ${BINARY_NAME} wallet download 0x1234...abcd --json
+
+GAME ALIASES
+  ape-strong: apestrong, strong
+  bear-dice: bear, dice
+  bubblegum-heist: bubblegumheist, bubblegum, heist
+  cosmic-plinko: cosmic
+  dino-dough: dinodough, dino
+  geez-diggerz: geezdiggerz, geez
+  gimboz-smash: gimbozsmash, smash
+  jungle-plinko: jungleplinko, jungle
+  monkey-match: monkeymatch, monkey
+  speed-keno: speedkeno, skeno
+  sushi-showdown: sushishowdown, sushi
+  blackjack: bj
+  hi-lo-nebula: hilonebula, hilo
+  video-poker: vp
 
 ASSETS
   APE    Native currency (18 decimals)
@@ -4715,7 +4802,7 @@ ${'─'.repeat(70)}
   there are no mid-game decisions. Just use --loop for continuous play:
   
     ${BINARY_NAME} play roulette 10 RED --loop
-    ${BINARY_NAME} play jungle 10 2 50 --loop
+    ${BINARY_NAME} play jungle-plinko 10 2 50 --loop
 
 ${'─'.repeat(70)}
   COMBINING WITH STRATEGIES
@@ -5782,10 +5869,8 @@ program
 // ============================================================================
 program
   .command('hi-lo-nebula [action] [amount]')
-  .alias('hi-lo')
+  .alias('hilonebula')
   .alias('hilo')
-  .alias('hilo-nebula')
-  .alias('nebula')
   .description('Play Hi-Lo Nebula ✔︎ - sequential higher/lower/same card streaks')
   .option('--game <id>', 'Specify game ID (for resume/action)')
   .option('--display <mode>', 'Display mode: full, simple, json')
@@ -5860,7 +5945,6 @@ program
 program
   .command('video-poker [action] [amount]')
   .alias('vp')
-  .alias('gimboz-poker')
   .description('Play Video Poker ✔︎ (Gimboz Poker) - Jacks or Better')
   .option('--game <id>', 'Specify game ID (for resume)')
   .option('--display <mode>', 'Display mode: full, simple, json')

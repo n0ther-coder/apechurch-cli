@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { getApestrongConfig } from '../../lib/games/apestrong.js';
 import { getBearDiceConfig } from '../../lib/games/beardice.js';
 import { getBlocksConfig } from '../../lib/games/blocks.js';
+import { getGimbozSmashConfig } from '../../lib/games/gimbozsmash.js';
 import { getKenoConfig } from '../../lib/games/keno.js';
 import { getMonkeyMatchConfig } from '../../lib/games/monkeymatch.js';
 import { getPlinkoConfig } from '../../lib/games/plinko.js';
@@ -74,7 +75,7 @@ describe('Manual fixed-game defaults', () => {
     assert.deepStrictEqual(primes, { difficulty: 0, runs: 10 });
   });
 
-  it('uses the registry defaults for Monkey Match and Bear-A-Dice when requested', () => {
+  it('uses the registry defaults for Monkey Match, Bear-A-Dice, and Gimboz Smash when requested', () => {
     const monkey = getMonkeyMatchConfig(
       {},
       {},
@@ -91,9 +92,69 @@ describe('Manual fixed-game defaults', () => {
       randomIntInclusive,
       { preferGameDefault: true }
     );
+    const gimbozSmash = getGimbozSmashConfig(
+      {},
+      {},
+      { config: { range: { default: '1-50' } } },
+      {},
+      randomIntInclusive,
+      { preferGameDefault: true }
+    );
 
     assert.deepStrictEqual(monkey, { mode: 1 });
     assert.deepStrictEqual(bear, { difficulty: 0, rolls: 1 });
+    assert.deepStrictEqual(gimbozSmash, {
+      targets: '1-50',
+      intervals: [{ start: 1, end: 50 }],
+      numWinIntervals: 1,
+      winCount: 50,
+      winChance: '50%',
+      payout: '1.95x',
+    });
+  });
+
+  it('accepts Gimboz Smash outside-range input over explicit targets', () => {
+    const gimbozSmash = getGimbozSmashConfig(
+      { outRange: '45-50' },
+      {},
+      { config: { range: { default: '1-50' } } },
+      {},
+      randomIntInclusive,
+      { preferGameDefault: true }
+    );
+
+    assert.deepStrictEqual(gimbozSmash, {
+      targets: '1-44,51-100',
+      intervals: [
+        { start: 1, end: 44 },
+        { start: 51, end: 100 },
+      ],
+      numWinIntervals: 2,
+      winCount: 94,
+      winChance: '94%',
+      payout: '1.0372x',
+      outRange: '45-50',
+    });
+  });
+
+  it('accepts Gimboz Smash --range input as the primary inside-range surface', () => {
+    const gimbozSmash = getGimbozSmashConfig(
+      { range: '20-80' },
+      {},
+      { config: { range: { default: '1-50' } } },
+      {},
+      randomIntInclusive,
+      { preferGameDefault: true }
+    );
+
+    assert.deepStrictEqual(gimbozSmash, {
+      targets: '20-80',
+      intervals: [{ start: 20, end: 80 }],
+      numWinIntervals: 1,
+      winCount: 61,
+      winChance: '61%',
+      payout: '1.5983x',
+    });
   });
 
   it('keeps low-risk defaults even when game-default preference is disabled', () => {

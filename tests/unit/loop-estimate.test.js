@@ -151,6 +151,50 @@ describe('Loop Estimate Helpers', () => {
     );
   });
 
+  it('uses the configured Gimboz Smash target surface for pre-loop Monte Carlo estimates', () => {
+    const gameEntry = resolveGame('gimboz-smash');
+    const rolls = [0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6];
+    let index = 0;
+    const estimate = estimateConfiguredGameLoopRunout({
+      balanceApe: 40,
+      availableApe: 39,
+      gameEntry,
+      wagerApe: 10,
+      config: { targets: '1-50' },
+      vrfFeeApe: 0.093211589,
+      sessionCount: 4,
+      rng: () => rolls[index++ % rolls.length],
+    });
+
+    assert.equal(estimate.method, 'monte-carlo');
+    assert.match(
+      formatLoopRunoutEstimate(estimate),
+      /^Estimate games before wallet squandering: ~\d+ ⚠️\. On a lucky day, it could be \d+ 🍀; on a bad run, just \d+ 💀$/u
+    );
+  });
+
+  it('uses the configured Gimboz Smash outside-range surface for pre-loop Monte Carlo estimates', () => {
+    const gameEntry = resolveGame('gimboz-smash');
+    const rolls = [0.01, 0.99, 0.02, 0.98, 0.03, 0.97, 0.04, 0.96];
+    let index = 0;
+    const estimate = estimateConfiguredGameLoopRunout({
+      balanceApe: 40,
+      availableApe: 39,
+      gameEntry,
+      wagerApe: 10,
+      config: { outRange: '45-50' },
+      vrfFeeApe: 0.093211589,
+      sessionCount: 4,
+      rng: () => rolls[index++ % rolls.length],
+    });
+
+    assert.equal(estimate.method, 'monte-carlo');
+    assert.match(
+      formatLoopRunoutEstimate(estimate),
+      /^Estimate games before wallet squandering: ~\d+ ⚠️\. On a lucky day, it could be \d+ 🍀; on a bad run, just \d+ 💀$/u
+    );
+  });
+
   it('falls back to EV estimates when the full live payout matrix is not persisted locally', () => {
     const gameEntry = resolveGame('dino-dough');
     const estimate = estimateConfiguredGameLoopRunout({

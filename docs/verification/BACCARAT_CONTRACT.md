@@ -14,7 +14,6 @@ This note consolidates the contract-facing behavior that was previously embedded
 ## Contract Identity
 
 - Game name in the repo: `Baccarat`
-- Aliases: `bacc`
 - Supported contract-side betting lanes:
   - one main side: `PLAYER` or `BANKER`
   - optional `TIE`

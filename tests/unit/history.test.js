@@ -11,6 +11,7 @@ import {
   COSMIC_PLINKO_CONTRACT,
   DINO_DOUGH_CONTRACT,
   GEEZ_DIGGERZ_CONTRACT,
+  GIMBOZ_SMASH_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   ROULETTE_CONTRACT,
   SUSHI_SHOWDOWN_CONTRACT,
@@ -52,6 +53,7 @@ describe('History Helpers', () => {
       assert.strictEqual(resolveHistoryGameName(DINO_DOUGH_CONTRACT), 'Dino Dough ✔︎');
       assert.strictEqual(resolveHistoryGameName(BUBBLEGUM_HEIST_CONTRACT), 'Bubblegum Heist ✔︎');
       assert.strictEqual(resolveHistoryGameName(GEEZ_DIGGERZ_CONTRACT), 'Geez Diggerz ✔︎');
+      assert.strictEqual(resolveHistoryGameName(GIMBOZ_SMASH_CONTRACT), 'Gimboz Smash ✔︎');
       assert.strictEqual(resolveHistoryGameName(SUSHI_SHOWDOWN_CONTRACT), 'Sushi Showdown ✔︎');
       assert.strictEqual(resolveHistoryGameName(BEAR_DICE_CONTRACT), 'Bear-A-Dice ✔︎');
       assert.strictEqual(resolveHistoryGameName(BACCARAT_CONTRACT), 'Baccarat ✔︎');

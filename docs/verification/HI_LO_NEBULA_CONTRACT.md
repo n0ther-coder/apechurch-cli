@@ -21,7 +21,6 @@ Example transactions checked during verification:
 
 - Display name in the repo: `Hi-Lo Nebula`
 - Game family: stateful sequential card-prediction / cash-out streak game
-- Aliases in the CLI: `hi-lo`, `hilo-nebula`, `nebula`
 
 ## Verified Write Surface
 

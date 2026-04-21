@@ -15,7 +15,6 @@ This note consolidates the verified contract-facing behavior that was previously
 ## Contract Identity
 
 - Game name in the repo: `Speed Keno`
-- Aliases: `sk`, `speedk`
 - Supported picks: `1..5`
 - Supported batch counts: `1..20`
 - Number pool: `1..20`

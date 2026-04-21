@@ -435,6 +435,64 @@ describe('RTP Helpers', () => {
     assert.ok(Math.abs(maxPayout.value - 1.025) < 1e-12);
   });
 
+  it('uses the verified Gimboz Smash payout formula for configured RTP and max payout', () => {
+    const rtp = getConfiguredGameExpectedRtpReference({
+      game: 'gimboz-smash',
+      config: { targets: '1-75' },
+    });
+    const maxPayout = getConfiguredGameMaxPayoutReference({
+      game: 'gimboz-smash',
+      config: { targets: '100-100' },
+    });
+
+    assert.strictEqual(rtp.display, '97.50%');
+    assert.strictEqual(rtp.referenceType, 'calculated');
+    assert.strictEqual(rtp.calculationKind, 'exact');
+    assert.ok(Math.abs(rtp.value - 97.5) < 1e-12);
+    assert.strictEqual(maxPayout.display, '97.5x');
+    assert.ok(Math.abs(maxPayout.value - 97.5) < 1e-12);
+  });
+
+  it('exposes exact calculated RTP constants for each verified Gimboz Smash cover count', () => {
+    const variants = getGameCalculatedVariantReferences('gimboz-smash');
+    const byLabel = new Map(variants.map((variant) => [variant.variantLabel, variant]));
+
+    assert.strictEqual(variants.length, 95);
+    assert.strictEqual(byLabel.get('Cover 1').maxPayout.display, '97.5x');
+    assert.strictEqual(byLabel.get('Cover 75').calculated.display, '97.50%');
+    assert.ok(Math.abs(byLabel.get('Cover 95').calculated.value - 97.4985) < 1e-12);
+  });
+
+  it('canonicalizes Gimboz Smash variants to coverage count, ignoring interval placement', () => {
+    const gimboz = resolveConfiguredGameVariant({
+      game: 'gimboz-smash',
+      config: { targets: '1-20,80-100' },
+    });
+
+    assert.deepStrictEqual(gimboz, {
+      gameKey: 'gimboz-smash',
+      variantKey: 'gimboz-smash:count:41',
+      variantLabel: 'Cover 41',
+      rtpGame: 'gimboz-smash',
+      rtpConfig: { winCount: 41 },
+    });
+  });
+
+  it('resolves Gimboz Smash outside-range configs to the same coverage-count variant surface', () => {
+    const gimboz = resolveConfiguredGameVariant({
+      game: 'gimboz-smash',
+      config: { outRange: '45-50' },
+    });
+
+    assert.deepStrictEqual(gimboz, {
+      gameKey: 'gimboz-smash',
+      variantKey: 'gimboz-smash:count:94',
+      variantLabel: 'Cover 94',
+      rtpGame: 'gimboz-smash',
+      rtpConfig: { winCount: 94 },
+    });
+  });
+
   it('uses the verified live slot tables for all supported slot games', () => {
     const dino = getConfiguredGameExpectedRtpReference({
       game: 'dino-dough',
@@ -575,6 +633,7 @@ describe('RTP Helpers', () => {
   });
 
   it('marks verified slot RTP references as exact rather than merely documented', () => {
+    assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'gimboz-smash', currentRtp: null })), '97.49% 👌 / 97.70% / …');
     assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'bubblegum-heist', currentRtp: null })), '97.80% 👌 / 97.26% / …');
     assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'dino-dough', currentRtp: null })), '97.90% 👌 / 97.80% / …');
     assert.strictEqual(stripAnsi(formatRtpTripletValues({ game: 'geez-diggerz', currentRtp: null })), '97.69% 👌 / 97.25% / …');

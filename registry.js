@@ -5,7 +5,6 @@
  * - Contract addresses
  * - Game configuration (parameters, limits)
  * - VRF (Verifiable Random Function) settings
- * - Aliases for easy CLI access
  * - Multiplier/payout information
  *
  * Adding a New Game:
@@ -26,6 +25,7 @@ import {
   COSMIC_PLINKO_CONTRACT,
   DINO_DOUGH_CONTRACT,
   GEEZ_DIGGERZ_CONTRACT,
+  GIMBOZ_SMASH_CONTRACT,
   HI_LO_NEBULA_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   KENO_CONTRACT,
@@ -51,7 +51,6 @@ import {
  * - type: Game type for handler routing (plinko, slots, roulette, etc.)
  * - description: User-facing description
  * - contract: On-chain contract address
- * - aliases: Alternative names for CLI (e.g., 'jungle' → 'jungle-plinko')
  * - abiVerified: Whether the verified on-chain ABI/paytable logic has been checked locally
  * - config: Game-specific parameters and their limits
  * - vrf: VRF fee calculation settings
@@ -70,7 +69,6 @@ export const GAME_REGISTRY = [
     type: 'keno',
     description: 'Pick 1-10 unique numbers from 1-40. The contract draws 10 winning numbers without replacement; 5 picks has the best exact RTP, while 10/10 still reaches 1,000,000x.',
     contract: KENO_CONTRACT,
-    aliases: ['k'],
     abiVerified: true,
     config: {
       picks: {
@@ -104,11 +102,11 @@ export const GAME_REGISTRY = [
   {
     key: 'ape-strong',
     name: 'ApeStrong',
+    aliases: ['apestrong', 'strong'],
     slug: 'ape-strong',
     type: 'apestrong',
     description: 'Pick your odds! Choose a range (5-95) — roll under to win. Higher range = more likely to win, lower payout.',
     contract: APESTRONG_CONTRACT,
-    aliases: ['strong', 'dice', 'limbo'],
     abiVerified: true,
     config: {
       range: {
@@ -144,7 +142,6 @@ export const GAME_REGISTRY = [
     type: 'baccarat',
     description: 'Classic baccarat. Bet on Player (2x), Banker (1.95x), or Tie (9x).',
     contract: BACCARAT_CONTRACT,
-    aliases: ['bacc'],
     abiVerified: true,
     config: {
       bet: {
@@ -178,7 +175,6 @@ export const GAME_REGISTRY = [
     type: 'roulette',
     description: 'Classic roulette with American layout (0, 00, 1-36). Bet on numbers, colors, or sections.',
     contract: ROULETTE_CONTRACT,
-    aliases: ['rl'],
     abiVerified: true,
     config: {
       bet: {
@@ -241,12 +237,12 @@ export const GAME_REGISTRY = [
   {
     key: 'jungle-plinko',
     name: 'Jungle Plinko',
+    aliases: ['jungleplinko', 'jungle'],
     slug: 'jungle-plinko',
     type: 'plinko',
     description: 'Drop balls through pegs into multiplier buckets. Higher risk levels unlock wider payout swings and a fatter tail.',
     contract: JUNGLE_PLINKO_CONTRACT,
     abiVerified: true,
-    aliases: ['jungle'],
     config: {
       mode: {
         min: 0,
@@ -296,12 +292,12 @@ export const GAME_REGISTRY = [
   {
     key: 'cosmic-plinko',
     name: 'Cosmic Plinko',
+    aliases: ['cosmic'],
     slug: 'cosmic-plinko',
     type: 'plinko',
     description: 'Drop balls through pegs into asymmetric multiplier buckets. Higher modes = bigger volatility and top-end payouts.',
     contract: COSMIC_PLINKO_CONTRACT,
     abiVerified: true,
-    aliases: ['cosmic'],
     config: {
       mode: {
         min: 0,
@@ -346,7 +342,6 @@ export const GAME_REGISTRY = [
     description: 'All-or-nothing 3x3 cluster survival game. Choose Low or High and 1-5 consecutive rolls; each paying cluster compounds the current payout, while any dead roll ends the whole game at 0x.',
     contract: BLOCKS_CONTRACT,
     abiVerified: true,
-    aliases: ['block'],
     config: {
       mode: {
         min: 0,
@@ -387,11 +382,11 @@ export const GAME_REGISTRY = [
   {
     key: 'dino-dough',
     name: 'Dino Dough',
+    aliases: ['dinodough', 'dino'],
     slug: 'dino-dough',
     type: 'slots',
     description: 'Dinosaur-themed slot machine. Spin for matching symbols and multipliers.',
     contract: DINO_DOUGH_CONTRACT,
-    aliases: ['dino', 'slots'],
     abiVerified: true,
     config: {
       spins: {
@@ -416,11 +411,11 @@ export const GAME_REGISTRY = [
   {
     key: 'bubblegum-heist',
     name: 'Bubblegum Heist',
+    aliases: ['bubblegumheist', 'bubblegum', 'heist'],
     slug: 'bubblegum-heist',
     type: 'slots',
     description: 'Candy-themed slot machine. Spin for sweet multipliers and jackpots.',
     contract: BUBBLEGUM_HEIST_CONTRACT,
-    aliases: ['bubblegum', 'heist'],
     abiVerified: true,
     config: {
       spins: {
@@ -445,11 +440,11 @@ export const GAME_REGISTRY = [
   {
     key: 'geez-diggerz',
     name: 'Geez Diggerz',
+    aliases: ['geezdiggerz', 'geez'],
     slug: 'geez-diggerz',
     type: 'slots',
     description: 'Verified multi-spin slot with symmetric 6-symbol reels, a 50x top line, and a flatter rebate-heavy paytable than the other slots.',
     contract: GEEZ_DIGGERZ_CONTRACT,
-    aliases: ['geez', 'diggerz'],
     abiVerified: true,
     config: {
       spins: {
@@ -469,16 +464,63 @@ export const GAME_REGISTRY = [
   },
 
   // ===========================================================================
+  // GIMBOZ SMASH - One-or-two inclusive target intervals on a 1-100 board
+  // ===========================================================================
+  {
+    key: 'gimboz-smash',
+    name: 'Gimboz Smash',
+    aliases: ['gimbozsmash', 'smash'],
+    slug: 'gimboz-smash',
+    type: 'gimbozsmash',
+    description: 'Pick one or two inclusive target intervals on a 1-100 board, or express an outside bet via one excluded range. Exact payout depends only on the final covered numbers, not on where those intervals sit.',
+    contract: GIMBOZ_SMASH_CONTRACT,
+    abiVerified: true,
+    config: {
+      range: {
+        default: '1-50',
+        description: 'One or two inclusive target ranges on the public 1-100 board. Total covered numbers across all intervals must stay within 1-95.',
+        bnf: [
+          '<range> ::= <target-range> | <target-range> "," <target-range>',
+          '<target-range> ::= <integer> [ "-" <integer> ]',
+          '; semantic constraint: every endpoint is within 1..100, each range is inclusive, and total covered numbers across all ranges is within 1..95',
+        ],
+        examples: [
+          '1-50',
+          '20-80',
+          '1-20,81-100',
+          '1-6,94-100',
+        ],
+      },
+      outRange: {
+        cliName: 'out-range',
+        description: 'One excluded inclusive range for outside-style bets. The CLI rewrites it into explicit winning targets before encoding the contract payload.',
+        bnf: [
+          '<out-range> ::= <target-range>',
+          '; semantic constraint: every endpoint is within 1..100, the range is inclusive, and excluded coverage is within 5..95',
+        ],
+        examples: [
+          '45-50',
+          '1-50',
+          '41-95',
+        ],
+      },
+    },
+    vrf: {
+      type: 'static',
+    },
+  },
+
+  // ===========================================================================
   // SUSHI SHOWDOWN - High-ceiling multi-spin slot machine
   // ===========================================================================
   {
     key: 'sushi-showdown',
     name: 'Sushi Showdown',
+    aliases: ['sushishowdown', 'sushi'],
     slug: 'sushi-showdown',
     type: 'slots',
     description: 'Verified multi-spin slot with 7 live symbol indexes, a 500x top line, and a wider fractional mid-tier payout surface.',
     contract: SUSHI_SHOWDOWN_CONTRACT,
-    aliases: ['sushi', 'showdown'],
     abiVerified: true,
     config: {
       spins: {
@@ -503,11 +545,11 @@ export const GAME_REGISTRY = [
   {
     key: 'speed-keno',
     name: 'Speed Keno',
+    aliases: ['speedkeno', 'skeno'],
     slug: 'speed-keno',
     type: 'speedkeno',
     description: 'Fast batched Keno on a 20-number board. The contract draws 5 winners without replacement per game; 5 picks has the best exact RTP, while batching up to 20 games mainly changes variance and fee overhead.',
     contract: SPEED_KENO_CONTRACT,
-    aliases: ['sk', 'speedk'],
     abiVerified: true,
     config: {
       picks: {
@@ -567,12 +609,12 @@ export const GAME_REGISTRY = [
   {
     key: 'monkey-match',
     name: 'Monkey Match',
+    aliases: ['monkeymatch', 'monkey'],
     slug: 'monkey-match',
     type: 'monkeymatch',
     description: 'Five monkeys are drawn from 5 independent VRF words. Low uses 6 monkey types for easier matches; High uses 7 and leans into higher-volatility hands.',
     contract: MONKEY_MATCH_CONTRACT,
     abiVerified: true,
-    aliases: ['monkey', 'mm'],
     config: {
       mode: {
         min: 1,
@@ -604,11 +646,11 @@ export const GAME_REGISTRY = [
   {
     key: 'bear-dice',
     name: 'Bear-A-Dice',
+    aliases: ['bear', 'dice'],
     slug: 'bear-dice',
     type: 'beardice',
     description: 'All-or-nothing 2d6 survival game. Roll up to 5 times; the first losing sum ends the game and zeroes the payout.',
     contract: BEAR_DICE_CONTRACT,
-    aliases: ['bear', 'dice', 'bd'],
     abiVerified: true,
     config: {
       difficulty: {
@@ -663,7 +705,6 @@ export const GAME_REGISTRY = [
     description: 'Roll 1-4 digits with leading zeros. Prime numbers pay the base multiplier; zero is the fixed top-payout case.',
     contract: PRIMES_CONTRACT,
     abiVerified: true,
-    aliases: ['prime'],
     config: {
       difficulty: {
         min: 0,
@@ -711,23 +752,23 @@ const SUPPLEMENTAL_DISPLAY_GAMES = Object.freeze([
   Object.freeze({
     key: 'blackjack',
     name: 'Blackjack',
+    aliases: ['bj'],
     contract: BLACKJACK_CONTRACT,
     abiVerified: true,
-    aliases: ['bj'],
   }),
   Object.freeze({
     key: 'video-poker',
     name: 'Video Poker',
+    aliases: ['vp'],
     contract: VIDEO_POKER_CONTRACT,
     abiVerified: true,
-    aliases: ['vp', 'gimboz-poker', 'gimboz poker', 'Video Poker', 'Gimboz Poker'],
   }),
   Object.freeze({
     key: 'hi-lo-nebula',
     name: 'Hi-Lo Nebula',
+    aliases: ['hilonebula', 'hilo'],
     contract: HI_LO_NEBULA_CONTRACT,
     abiVerified: true,
-    aliases: ['hi-lo', 'hilo', 'hilo-nebula', 'nebula', 'Hi-Lo Nebula', 'hilo nebula'],
   }),
 ]);
 
@@ -763,10 +804,10 @@ export function getGameDisplayName(game) {
 }
 
 /**
- * Map for O(1) game lookup by key or alias
+ * Map for O(1) game lookup by canonical key, alias, or display name
  *
  * Populated at module load time from GAME_REGISTRY.
- * Maps both primary keys and aliases to game entries.
+ * Maps primary keys, aliases, and display names to game entries.
  *
  * @type {Map<string, Object>}
  */
@@ -783,26 +824,21 @@ for (const game of GAME_REGISTRY) {
   GAME_INDEX.set(normalizeGameLookupInput(game.key), game);
   GAME_INDEX.set(normalizeGameLookupInput(game.name), game);
   GAME_INDEX.set(normalizeGameLookupInput(displayName), game);
+  for (const alias of game.aliases || []) {
+    GAME_INDEX.set(normalizeGameLookupInput(alias), game);
+  }
   GAME_BY_CONTRACT.set(String(game.contract).toLowerCase(), game);
 
-  // Index by all aliases
-  if (Array.isArray(game.aliases)) {
-    for (const alias of game.aliases) {
-      GAME_INDEX.set(normalizeGameLookupInput(alias), game);
-    }
-  }
 }
 
 for (const game of SUPPLEMENTAL_DISPLAY_GAMES) {
   SUPPLEMENTAL_DISPLAY_GAME_INDEX.set(normalizeGameLookupInput(game.key), game);
   SUPPLEMENTAL_DISPLAY_GAME_INDEX.set(normalizeGameLookupInput(game.name), game);
+  for (const alias of game.aliases || []) {
+    SUPPLEMENTAL_DISPLAY_GAME_INDEX.set(normalizeGameLookupInput(alias), game);
+  }
   SUPPLEMENTAL_DISPLAY_GAME_BY_CONTRACT.set(String(game.contract).toLowerCase(), game);
 
-  if (Array.isArray(game.aliases)) {
-    for (const alias of game.aliases) {
-      SUPPLEMENTAL_DISPLAY_GAME_INDEX.set(normalizeGameLookupInput(alias), game);
-    }
-  }
 }
 
 // ============================================================================
@@ -810,17 +846,16 @@ for (const game of SUPPLEMENTAL_DISPLAY_GAMES) {
 // ============================================================================
 
 /**
- * Resolve a game by key or alias
+ * Resolve a game by canonical key, alias, or display name
  *
- * Case-insensitive lookup that works with primary keys and aliases.
+ * Case-insensitive lookup that works with primary keys, aliases, and display names.
  *
- * @param {string|null} input - Game key, alias, or null
+ * @param {string|null} input - Game key, alias, display name, or null
  * @returns {Object|null} Game entry object, or null if not found
  *
  * @example
- * resolveGame('jungle')      // Returns jungle-plinko entry
- * resolveGame('cosmic')      // Returns cosmic-plinko entry
  * resolveGame('jungle-plinko') // Returns jungle-plinko entry
+ * resolveGame('Jungle Plinko') // Returns jungle-plinko entry
  * resolveGame('ROULETTE')    // Returns roulette entry (case-insensitive)
  * resolveGame('invalid')     // Returns null
  */
@@ -862,7 +897,7 @@ function compareGamesByTitle(a, b) {
 /**
  * List all available game keys
  *
- * Returns primary keys only (not aliases), ordered alphabetically by game title.
+ * Returns primary keys only, ordered alphabetically by game title.
  * Useful for help text and validation.
  *
  * @returns {string[]} Array of game keys

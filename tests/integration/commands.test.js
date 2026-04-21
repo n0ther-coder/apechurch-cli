@@ -102,10 +102,12 @@ function stripVersionBanner(output) {
  * Run CLI command and return output
  */
 function cli(args, options = {}) {
+  const optionEnv = options.env || {};
   const env = {
     ...process.env,
-    HOME: NO_WALLET_HOME,
-    ...(options.env || {}),
+    ...optionEnv,
+    HOME: optionEnv.HOME || NO_WALLET_HOME,
+    FORCE_COLOR: '0',
   };
   const execOptions = {
     ...options,
@@ -359,6 +361,13 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('👌 exact formula'), 'Should explain exact-formula RTP values');
     });
 
+    it('shows the current alias set in the terminal catalog', () => {
+      const { stdout } = cli('games');
+      assert.ok(stdout.includes('Aliases: apestrong, strong'));
+      assert.ok(stdout.includes('Aliases: bj'));
+      assert.ok(stdout.includes('Aliases: hilonebula, hilo'));
+    });
+
     it('--json returns array of games', () => {
       const { stdout } = cli('games --json');
       const data = JSON.parse(stdout);
@@ -371,6 +380,7 @@ describe('CLI Commands Integration Tests', () => {
       const game = data.games[0];
       assert.ok('key' in game, 'Game should have key');
       assert.ok('name' in game, 'Game should have name');
+      assert.ok('aliases' in game, 'Game should have aliases');
       assert.ok('type' in game, 'Game should have type');
       assert.deepStrictEqual(
         data.games.map((entry) => entry.key),
@@ -384,6 +394,7 @@ describe('CLI Commands Integration Tests', () => {
           'cosmic-plinko',
           'dino-dough',
           'geez-diggerz',
+          'gimboz-smash',
           'hi-lo-nebula',
           'jungle-plinko',
           'keno',
@@ -415,7 +426,7 @@ describe('CLI Commands Integration Tests', () => {
 
     it('shows alphabetized available games when the name is invalid', () => {
       const { stdout } = cli('game nope');
-      assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | geez-diggerz | jungle-plinko | keno | monkey-match | primes | roulette | speed-keno | sushi-showdown'));
+      assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | geez-diggerz | gimboz-smash | jungle-plinko | keno | monkey-match | primes | roulette | speed-keno | sushi-showdown'));
       assert.ok(stdout.includes('Stateful: blackjack | hi-lo-nebula | video-poker'));
     });
 
@@ -433,6 +444,7 @@ describe('CLI Commands Integration Tests', () => {
         'cosmic-plinko',
         'dino-dough',
         'geez-diggerz',
+        'gimboz-smash',
         'hi-lo-nebula',
         'jungle-plinko',
         'keno',
@@ -452,16 +464,34 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('zeroes the payout'), 'Should explain that the first losing sum zeroes the payout');
     });
 
-    it('resolves the new plinko aliases', () => {
-      const jungle = cli('game jungle').stdout;
-      const cosmic = cli('game cosmic').stdout;
+    it('accepts the current simple-game aliases in the game helper', () => {
+      const jungle = cli('game jungle --json');
+      const cosmic = cli('game cosmic --json');
 
-      assert.ok(jungle.includes('Jungle Plinko ✔︎') || jungle.includes('jungle-plinko'), 'Should resolve jungle alias');
-      assert.ok(cosmic.includes('Cosmic Plinko ✔︎') || cosmic.includes('cosmic-plinko'), 'Should resolve cosmic alias');
+      assert.strictEqual(JSON.parse(jungle.stdout).key, 'jungle-plinko');
+      assert.strictEqual(JSON.parse(cosmic.stdout).key, 'cosmic-plinko');
+    });
+
+    it('accepts the current simple-game aliases in play mode', () => {
+      const smash = cli('play smash 10 --range 1-50');
+      const jungle = cli('play jungle 10 0 10');
+
+      assert.notStrictEqual(smash.code, 0);
+      assert.notStrictEqual(jungle.code, 0);
+      assert.ok(smash.stdout.includes('No wallet found'));
+      assert.ok(jungle.stdout.includes('No wallet found'));
+    });
+
+    it('rejects removed simple-game aliases', () => {
+      const diggerz = cli('game diggerz');
+      const speedk = cli('play speedk 10');
+
+      assert.ok(diggerz.stdout.includes('Unknown game'));
+      assert.ok(speedk.stdout.includes('Unknown game'));
     });
 
     it('exposes ABI verification metadata in JSON for verified games', () => {
-      const { stdout } = cli('game cosmic --json');
+      const { stdout } = cli('game cosmic-plinko --json');
       const data = JSON.parse(stdout);
 
       assert.strictEqual(data.abiVerified, true);
@@ -540,12 +570,62 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(data.displayName, 'Geez Diggerz ✔︎');
     });
 
+    it('exposes ABI verification metadata for verified Gimboz Smash', () => {
+      const { stdout } = cli('game gimboz-smash --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Gimboz Smash ✔︎');
+      assert.deepStrictEqual(data.aliases, ['gimbozsmash', 'smash']);
+    });
+
+    it('rejects unsupported Gimboz Smash ranges without crashing', () => {
+      const { stdout, code } = cli('play gimboz-smash 10 --range 1-96');
+
+      assert.notStrictEqual(code, 0);
+      assert.ok(stdout.includes('Invalid range: total covered numbers must be between 1 and 95.'));
+      assert.ok(!stdout.includes('No wallet found'));
+      assert.ok(!stdout.includes('file:///'));
+      assert.ok(!stdout.includes('Node.js v'));
+    });
+
+    it('rejects conflicting Gimboz Smash range and out-range input without crashing', () => {
+      const { stdout, code } = cli('play gimboz-smash 10 --range 1-50 --out-range 45-50');
+
+      assert.notStrictEqual(code, 0);
+      assert.ok(stdout.includes('Invalid Gimboz Smash config: choose either --range or --out-range, not both.'));
+      assert.ok(!stdout.includes('No wallet found'));
+      assert.ok(!stdout.includes('file:///'));
+      assert.ok(!stdout.includes('Node.js v'));
+    });
+
+    it('rejects unsupported Gimboz Smash outside ranges without crashing', () => {
+      const { stdout, code } = cli('play gimboz-smash 10 --out-range 50-50');
+
+      assert.notStrictEqual(code, 0);
+      assert.ok(stdout.includes('Invalid out-range: excluded coverage must be between 5 and 95 numbers'));
+      assert.ok(!stdout.includes('No wallet found'));
+      assert.ok(!stdout.includes('file:///'));
+      assert.ok(!stdout.includes('Node.js v'));
+    });
+
+    it('accepts valid Gimboz Smash outside ranges without tripping config conflicts', () => {
+      const { stdout, code } = cli('play gimboz-smash 10 --out-range 50-56');
+
+      assert.notStrictEqual(code, 0);
+      assert.ok(stdout.includes('No wallet found'));
+      assert.ok(!stdout.includes('Invalid Gimboz Smash config'));
+      assert.ok(!stdout.includes('file:///'));
+      assert.ok(!stdout.includes('Node.js v'));
+    });
+
     it('exposes ABI verification metadata for verified Sushi Showdown', () => {
       const { stdout } = cli('game sushi-showdown --json');
       const data = JSON.parse(stdout);
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Sushi Showdown ✔︎');
+      assert.deepStrictEqual(data.aliases, ['sushishowdown', 'sushi']);
     });
 
     it('exposes ABI verification metadata for verified stateful video poker', () => {
@@ -554,29 +634,58 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Video Poker ✔︎');
+      assert.deepStrictEqual(data.aliases, ['vp']);
     });
 
     it('exposes ABI verification metadata for verified Hi-Lo Nebula', () => {
-      const { stdout } = cli('game hilo --json');
+      const { stdout } = cli('game hi-lo-nebula --json');
       const data = JSON.parse(stdout);
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Hi-Lo Nebula ✔︎');
-      assert.ok(data.aliases.includes('hilo'));
+      assert.deepStrictEqual(data.aliases, ['hilonebula', 'hilo']);
     });
 
-    it('supports the standalone hilo alias for payout table output', () => {
+    it('shows the payout table through the current hi-lo alias', () => {
       const { stdout } = cli('hilo payouts');
       assert.ok(stdout.includes('Same'));
       assert.ok(stdout.includes('12.5000x'));
     });
 
+    it('shows the payout table through the canonical hi-lo command', () => {
+      const { stdout } = cli('hi-lo-nebula payouts');
+      assert.ok(stdout.includes('Same'));
+      assert.ok(stdout.includes('12.5000x'));
+    });
+
     it('documents Hi-Lo Nebula loop controls in command help', () => {
-      const { stdout, code } = cli('hilo --help');
+      const { stdout, code } = cli('hi-lo-nebula --help');
       assert.strictEqual(code, 0);
       assert.ok(stdout.includes('--loop'), 'Should expose loop mode in hi-lo help');
       assert.ok(stdout.includes('--max-games <count>'), 'Should expose max-games in hi-lo help');
       assert.ok(stdout.includes('--bet-strategy <name>'), 'Should expose betting strategies in hi-lo help');
+    });
+
+    it('accepts the current stateful aliases', () => {
+      const hilo = cli('game hilonebula --json');
+      const vp = cli('vp 10');
+      const bj = cli('bj 10');
+
+      assert.strictEqual(JSON.parse(hilo.stdout).key, 'hi-lo-nebula');
+      assert.notStrictEqual(vp.code, 0);
+      assert.notStrictEqual(bj.code, 0);
+      assert.ok(vp.stdout.includes('No wallet found'));
+      assert.ok(bj.stdout.includes('No wallet found'));
+    });
+
+    it('rejects removed stateful aliases', () => {
+      const hiLo = cli('hi-lo payouts');
+      const nebula = cli('game nebula');
+      const gimbozPoker = cli('gimboz-poker 10');
+
+      assert.notStrictEqual(hiLo.code, 0);
+      assert.notStrictEqual(nebula.code, 0);
+      assert.notStrictEqual(gimbozPoker.code, 0);
     });
 
     it('exposes ABI verification metadata for verified Roulette', () => {
@@ -601,6 +710,7 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Blackjack ✔︎');
+      assert.deepStrictEqual(data.aliases, ['bj']);
     });
 
     it('exposes ABI verification metadata for verified Bear-A-Dice', () => {
@@ -609,6 +719,7 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Bear-A-Dice ✔︎');
+      assert.deepStrictEqual(data.aliases, ['bear', 'dice']);
     });
 
     it('shows per-parameter BNF in game helpers', () => {

@@ -14,26 +14,27 @@ The `✔︎` marker means this repo has locally verified the game's ABI-facing b
 
 Ordering: alphabetical by game title.
 
-| Game | Positional Syntax | Flag Syntax |
-|------|------------------|-------------|
-| ApeStrong ✔︎ | `play ape-strong <amt> <range>` | `--game ape-strong --amount X --range Y` |
-| Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` |
-| Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --rolls Z` |
-| Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` |
-| Blocks ✔︎ | `play blocks <amt> <risk> <runs>` | `--game blocks --amount X --risk Y --runs Z` |
-| Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` |
-| Cosmic Plinko ✔︎ | `play cosmic <amt> <risk> <balls>` | `--game cosmic --amount X --risk Y --balls Z` |
-| Dino Dough ✔︎ | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` |
-| Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` |
-| Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` |
-| Jungle Plinko ✔︎ | `play jungle <amt> <risk> <balls>` | `--game jungle --amount X --risk Y --balls Z` |
-| Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` |
-| Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --risk Y` |
-| Primes ✔︎ | `play primes <amt> <risk> <runs>` | `--game primes --amount X --risk Y --runs Z` |
-| Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` |
-| Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` |
-| Sushi Showdown ✔︎ | `play sushi-showdown <amt> <spins>` | `--game sushi-showdown --amount X --spins Y` |
-| Video Poker ✔︎ / Gimboz Poker | `video-poker <amt>` | `video-poker <amt> --auto best` |
+| Game | Positional Syntax | Flag Syntax | Aliases |
+|------|------------------|-------------|---------|
+| ApeStrong ✔︎ | `play ape-strong <amt> <range>` | `--game ape-strong --amount X --range Y` | `apestrong`, `strong` |
+| Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` | - |
+| Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --rolls Z` | `bear`, `dice` |
+| Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` | `bj` |
+| Blocks ✔︎ | `play blocks <amt> <risk> <runs>` | `--game blocks --amount X --risk Y --runs Z` | - |
+| Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` | `bubblegumheist`, `bubblegum`, `heist` |
+| Cosmic Plinko ✔︎ | `play cosmic-plinko <amt> <risk> <balls>` | `--game cosmic-plinko --amount X --risk Y --balls Z` | `cosmic` |
+| Dino Dough ✔︎ | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` | `dinodough`, `dino` |
+| Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` | `geezdiggerz`, `geez` |
+| Gimboz Smash ✔︎ | `play gimboz-smash <amt> <range>` | `--game gimboz-smash --amount X --range Y` | `gimbozsmash`, `smash` |
+| Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` | `hilonebula`, `hilo` |
+| Jungle Plinko ✔︎ | `play jungle-plinko <amt> <risk> <balls>` | `--game jungle-plinko --amount X --risk Y --balls Z` | `jungleplinko`, `jungle` |
+| Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` | - |
+| Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --risk Y` | `monkeymatch`, `monkey` |
+| Primes ✔︎ | `play primes <amt> <risk> <runs>` | `--game primes --amount X --risk Y --runs Z` | - |
+| Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` | - |
+| Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` | `speedkeno`, `skeno` |
+| Sushi Showdown ✔︎ | `play sushi-showdown <amt> <spins>` | `--game sushi-showdown --amount X --spins Y` | `sushishowdown`, `sushi` |
+| Video Poker ✔︎ / Gimboz Poker | `video-poker <amt>` | `video-poker <amt> --auto best` | `vp` |
 
 ## Grammar Conventions
 
@@ -83,6 +84,7 @@ Ordering: alphabetical by game title.
 | Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF | Total wager is split across `1-30` balls |
 | Dino Dough ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
 | Geez Diggerz ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
+| Gimboz Smash ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF | Single total wager across one or two inclusive target intervals; total covered numbers must stay within `1-95` |
 | Hi-Lo Nebula ✔︎ | Any positive APE amount | CLI accepts `> 0` | No explicit CLI max besides wallet balance and contract-side liquidity constraints | VRF on start and each guess + `2.5%` platform + `0.5%` jackpot fee | `cashOut()` is non-payable |
 | Jungle Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with balls | Total wager is split across `1-100` balls |
 | Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF | Single total wager |
@@ -101,8 +103,8 @@ Ordering for supported game sections below: alphabetical by game title.
 
 **Type:** Dice / Limbo
 **Contract:** `0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600`
+**Aliases:** `apestrong`, `strong`
 **ABI verified:** `true`
-**Aliases:** `strong`, `dice`, `limbo`
 **Verification notes:** [APESTRONG_CONTRACT.md](./verification/APESTRONG_CONTRACT.md)
 **Analytics:** [APESTRONG_ANALYTICS.md](./analytics/APESTRONG_ANALYTICS.md)
 
@@ -125,7 +127,6 @@ Range-based one-word VRF game. You choose a win probability `5-95`; the contract
 **Type:** Table
 **Contract:** `0xB08C669dc0419151bA4e4920E80128802dB5497b`
 **ABI verified:** `true`
-**Aliases:** `bacc`
 **Verification notes:** [BACCARAT_CONTRACT.md](./verification/BACCARAT_CONTRACT.md)
 **Analytics:** [BACCARAT_ANALYTICS.md](./analytics/BACCARAT_ANALYTICS.md)
 
@@ -149,8 +150,8 @@ Classic baccarat with contract-backed combined bets. You can play `PLAYER`, `BAN
 
 **Type:** Dice
 **Contract:** `0x6a48A513A46955D8622C809Fce876d2f11142003`
+**Aliases:** `bear`, `dice`
 **ABI verified:** `true`
-**Aliases:** `bear`, `bd`
 **Verification notes:** [BEAR_DICE_CONTRACT.md](./verification/BEAR_DICE_CONTRACT.md)
 **Analytics:** [BEAR_DICE_ANALYTICS.md](./analytics/BEAR_DICE_ANALYTICS.md)
 
@@ -173,8 +174,8 @@ All-or-nothing compounded `2d6` survival game. You pick a risk level and `1-5` r
 
 **Type:** Cards
 **Contract:** `0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7`
-**ABI verified:** `true`
 **Aliases:** `bj`
+**ABI verified:** `true`
 **Verification notes:** [BLACKJACK_CONTRACT.md](./verification/BLACKJACK_CONTRACT.md)
 
 Stateful blackjack with interactive actions, optional player-side exposure, and `--auto` support. This repo's promoted surface is based on the public production ABI, not an explorer-verified Solidity source. See [SKILL.md](../SKILL.md#blackjack-) for the user-facing action flow.
@@ -197,7 +198,6 @@ Stateful blackjack with interactive actions, optional player-side exposure, and 
 **Type:** Board / VRF
 **Contract:** `0xA59CF828222EcD8aCe4b6195764d11F5Ea7f62A6`
 **ABI verified:** `true`
-**Aliases:** `block`
 **Verification notes:** [BLOCKS_CONTRACT.md](./verification/BLOCKS_CONTRACT.md)
 **Analytics:** [BLOCKS_ANALYTICS.md](./analytics/BLOCKS_ANALYTICS.md)
 
@@ -221,8 +221,8 @@ Consecutive-roll `3x3` cluster game. Each roll resolves a full `9`-tile board, a
 
 **Type:** Slots
 **Contract:** `0xB5Da735118e848130B92994Ee16377dB2AE31a4c`
+**Aliases:** `bubblegumheist`, `bubblegum`, `heist`
 **ABI verified:** `true`
-**Aliases:** `bubblegum`, `heist`
 **Verification notes:** [BUBBLEGUM_HEIST_CONTRACT.md](./verification/BUBBLEGUM_HEIST_CONTRACT.md)
 
 Same slots ABI family as Dino Dough, but with a different live reel and paytable snapshot. The current contract has `5` symbol indexes per reel and a lower top line.
@@ -243,14 +243,14 @@ Same slots ABI family as Dino Dough, but with a different live reel and paytable
 
 **Type:** Plinko
 **Contract:** `0x674Bd91adb41897fA780386E610168afBB05e694`
-**ABI verified:** `true`
 **Aliases:** `cosmic`
+**ABI verified:** `true`
 **Verification notes:** [COSMIC_PLINKO_CONTRACT.md](./verification/COSMIC_PLINKO_CONTRACT.md)
 **Analytics:** [COSMIC_PLINKO_ANALYTICS.md](./analytics/COSMIC_PLINKO_ANALYTICS.md)
 
 Asymmetric weighted-bucket Plinko with a narrower risk range than Jungle. Ball count `1-30` mainly changes variance; the exact EV surface is risk-driven.
 
-**Command:** `apechurch-cli play cosmic <amount> <risk> <balls>`
+**Command:** `apechurch-cli play cosmic-plinko <amount> <risk> <balls>`
 
 ```bnf
 <amount> ::= <ape>
@@ -267,8 +267,8 @@ Asymmetric weighted-bucket Plinko with a narrower risk range than Jungle. Ball c
 
 **Type:** Slots
 **Contract:** `0x9ebb4Df257B971582BAf096b62CA41DE7723F3CB`
+**Aliases:** `dinodough`, `dino`
 **ABI verified:** `true`
-**Aliases:** `dino`, `slots`
 **Verification notes:** [DINO_DOUGH_CONTRACT.md](./verification/DINO_DOUGH_CONTRACT.md)
 
 Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` spins per tx. Spin count only changes floor-division dust against the buy-in; the contract-backed per-spin EV is fixed by the live reel tables and ordered payout matrix.
@@ -289,8 +289,8 @@ Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` 
 
 **Type:** Slots
 **Contract:** `0xB02b13Adb8eAaFe1F41ec942612C4a4862b74d1D`
+**Aliases:** `geezdiggerz`, `geez`
 **ABI verified:** `true`
-**Aliases:** `geez`, `diggerz`
 **Verification notes:** [GEEZ_DIGGERZ_CONTRACT.md](./verification/GEEZ_DIGGERZ_CONTRACT.md)
 **Analytics:** [GEEZ_DIGGERZ_ANALYTICS.md](./analytics/GEEZ_DIGGERZ_ANALYTICS.md)
 
@@ -308,12 +308,39 @@ Verified ordered `3`-reel slot with `6` live symbol indexes and the same cumulat
 - Max payout: `50x`.
 - Operational note: flatter, rebate-heavy paytable than the other promoted slots; positive payout is about `41.02%`, while net-profit outcomes are about `30.00%`.
 
+## Gimboz Smash ✔︎
+
+**Type:** Range / Target
+**Contract:** `0x17e219844F25F3FED6E422DdaFfD2E6557eBCEd3`
+**Aliases:** `gimbozsmash`, `smash`
+**ABI verified:** `true`
+**Verification notes:** [GIMBOZ_SMASH_CONTRACT.md](./verification/GIMBOZ_SMASH_CONTRACT.md)
+**Analytics:** [GIMBOZ_SMASH_ANALYTICS.md](./analytics/GIMBOZ_SMASH_ANALYTICS.md)
+
+Verified one-or-two-interval target game on a public `1-100` board. The CLI accepts human-facing inclusive intervals such as `20-80` or `1-20,81-100`, and it also accepts outside-style input via `--out-range 45-50`, which it rewrites into explicit winning intervals before encoding the contract payload. Exact payout depends only on the total covered numbers across all declared intervals, not on where those intervals sit on the board.
+
+**Command:** `apechurch-cli play gimboz-smash <amount> <range>` or `apechurch-cli play gimboz-smash <amount> --out-range <range>`
+
+```bnf
+<amount> ::= <ape>
+<range> ::= <target-range> | <target-range> "," <target-range>
+<target-range> ::= <integer> [ "-" <integer> ]
+; semantic constraint: every endpoint is within 1..100, each range is inclusive, and total covered numbers across all ranges is within 1..95
+<out-range> ::= <target-range>
+; semantic constraint: the excluded outside range is inclusive and must cover between 5 and 95 numbers
+```
+
+**Compare:**
+- Exact RTP: `97.4918% - 97.50%` across every supported cover count.
+- Max payout: `97.5x` when you cover exactly `1` number.
+- Operational note: the live contract still stores winning intervals directly, so `--out-range` is a CLI convenience that rewrites outside bets into the explicit target ranges required by the contract.
+
 ## Hi-Lo Nebula ✔︎
 
 **Type:** Cards / Cash-out streak
 **Contract:** `0xa67d5CD51028cAaa367eEFcE90a5eA0b71c6cBE2`
+**Aliases:** `hilonebula`, `hilo`
 **ABI verified:** `true`
-**Aliases:** `hi-lo`, `hilo`, `hilo-nebula`, `nebula`
 **Verification notes:** [HI_LO_NEBULA_CONTRACT.md](./verification/HI_LO_NEBULA_CONTRACT.md)
 **Analytics:** [HI_LO_NEBULA_ANALYTICS.md](./analytics/HI_LO_NEBULA_ANALYTICS.md)
 
@@ -338,14 +365,14 @@ Stateful sequential card-prediction game with explicit `HIGHER`, `LOWER`, `SAME`
 
 **Type:** Plinko
 **Contract:** `0x88683B2F9E765E5b1eC2745178354C70A03531Ce`
+**Aliases:** `jungleplinko`, `jungle`
 **ABI verified:** `true`
-**Aliases:** `jungle`
 **Verification notes:** [JUNGLE_PLINKO_CONTRACT.md](./verification/JUNGLE_PLINKO_CONTRACT.md)
 **Analytics:** [JUNGLE_PLINKO_ANALYTICS.md](./analytics/JUNGLE_PLINKO_ANALYTICS.md)
 
 Weighted-bucket Plinko, not a peg-by-peg physics sim. Mode controls the bucket table; ball count mainly changes variance and the tiny floor-division dust from splitting the wager across `1-100` balls.
 
-**Command:** `apechurch-cli play jungle <amount> <risk> <balls>`
+**Command:** `apechurch-cli play jungle-plinko <amount> <risk> <balls>`
 
 ```bnf
 <amount> ::= <ape>
@@ -363,7 +390,6 @@ Weighted-bucket Plinko, not a peg-by-peg physics sim. Mode controls the bucket t
 **Type:** Keno
 **Contract:** `0xc936D6691737afe5240975622f0597fA2d122FAd`
 **ABI verified:** `true`
-**Aliases:** `k`
 **Verification notes:** [KENO_CONTRACT.md](./verification/KENO_CONTRACT.md)
 **Analytics:** [KENO_ANALYTICS.md](./analytics/KENO_ANALYTICS.md)
 
@@ -387,8 +413,8 @@ Classic `1-40` keno with `10` winning numbers drawn without replacement. Specifi
 
 **Type:** Matching
 **Contract:** `0x59EBd3406b76DCc74102AFa2cA5284E9AAB6bA28`
+**Aliases:** `monkeymatch`, `monkey`
 **ABI verified:** `true`
-**Aliases:** `monkey`, `mm`
 **Verification notes:** [MONKEY_MATCH_CONTRACT.md](./verification/MONKEY_MATCH_CONTRACT.md)
 **Analytics:** [MONKEY_MATCH_ANALYTICS.md](./analytics/MONKEY_MATCH_ANALYTICS.md)
 
@@ -411,7 +437,6 @@ Five independent monkey draws scored as multiplicity hands. There is no redraw o
 **Type:** Number / VRF
 **Contract:** `0xC1aCd12aA34dC33979871EF95c540D46A6566B4b`
 **ABI verified:** `true`
-**Aliases:** `prime`
 **Verification notes:** [PRIMES_CONTRACT.md](./verification/PRIMES_CONTRACT.md)
 **Analytics:** [PRIMES_ANALYTICS.md](./analytics/PRIMES_ANALYTICS.md)
 
@@ -435,7 +460,6 @@ Batched prime-or-zero number game. Risk controls the numeric range and fixed mul
 **Type:** Table
 **Contract:** `0x1f48A104C1808eb4107f3999999D36aeafEC56d5`
 **ABI verified:** `true`
-**Aliases:** `rl`
 **Verification notes:** [ROULETTE_CONTRACT.md](./verification/ROULETTE_CONTRACT.md)
 **Analytics:** [ROULETTE_ANALYTICS.md](./analytics/ROULETTE_ANALYTICS.md)
 
@@ -459,8 +483,8 @@ American roulette on a `38`-pocket wheel. The contract supports single numbers, 
 
 **Type:** Keno (Batched)
 **Contract:** `0x40EE3295035901e5Fd80703774E5A9FE7CE2B90C`
+**Aliases:** `speedkeno`, `skeno`
 **ABI verified:** `true`
-**Aliases:** `sk`, `speedk`
 **Verification notes:** [SPEED_KENO_CONTRACT.md](./verification/SPEED_KENO_CONTRACT.md)
 **Analytics:** [SPEED_KENO_ANALYTICS.md](./analytics/SPEED_KENO_ANALYTICS.md)
 
@@ -485,8 +509,8 @@ Fast batched keno on a `1-20` board. You choose `1-5` picks and batch `1-20` min
 
 **Type:** Slots
 **Contract:** `0x7B53Ec7A5e1C30D4b91D2c3Ec0472a6E4818a657`
+**Aliases:** `sushishowdown`, `sushi`
 **ABI verified:** `true`
-**Aliases:** `sushi`, `showdown`
 **Verification notes:** [SUSHI_SHOWDOWN_CONTRACT.md](./verification/SUSHI_SHOWDOWN_CONTRACT.md)
 **Analytics:** [SUSHI_SHOWDOWN_ANALYTICS.md](./analytics/SUSHI_SHOWDOWN_ANALYTICS.md)
 
@@ -508,8 +532,8 @@ Verified ordered `3`-reel slot in the same ABI family as Dino Dough, Bubblegum H
 
 **Type:** Cards
 **Contract:** `0x4f7D016704bC9A1d373E512e10CF86A0E7015D1D`
+**Aliases:** `vp`
 **ABI verified:** `true`
-**Aliases:** `vp`, `gimboz-poker`
 **Verification notes:** [VIDEO_POKER_CONTRACT.md](./verification/VIDEO_POKER_CONTRACT.md)
 
 Stateful Jacks or Better with one redraw, interactive play, and an exact hold-EV solver. `video-poker` is the CLI command; Ape Church calls the same game `Gimboz Poker`.
@@ -685,6 +709,12 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 |------|-------------|-----------|--------|--------------------|
 | Any spin count `1-15` | Yes | `97.69%` | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `97.25%` |
 
+#### Gimboz Smash ✔︎
+
+| Mode | CLI Support | Exact RTP | Method | Public Running RTP |
+|------|-------------|-----------|--------|--------------------|
+| Any supported cover count `1-95` | Yes | `97.4918% - 97.50%` | Exact EV from verified ABI + live `getPayoutFromRange(range)` getter snapshot read on `2026-04-20` | `97.70%` |
+
 #### ApeStrong ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
@@ -714,7 +744,7 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 ### Still Not Exactly Calculable from Local Sources
 
-The local source set is still insufficient for a defensible closed-form RTP on `Cash Dash`, `Cult Quest`, `Gimboz Smash`, `Glyde or Crash`, `Reel Pirates`, and `Rico's Revenge`.
+The local source set is still insufficient for a defensible closed-form RTP on `Cash Dash`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, and `Rico's Revenge`.
 
 For `Blackjack ✔︎`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables and the public rule surface now matches the repo solver assumptions.
 
@@ -838,7 +868,6 @@ Ordering: alphabetical by game title.
 |------|------------------------|-------------|----------|-------|
 | Cash Dash | ladder / cash-out tile game | 96.04% | aggregate only | Docs + transparency; each step raises multiplier and can bust the run |
 | Cult Quest | gem / trap grid cash-out game | 96.67% | aggregate only | Docs + transparency; fewer safe spots means higher risk |
-| Gimboz Smash | range-target risk game | 99.42% | aggregate only | Docs + transparency; not the same mechanic as the supported `ape-strong` command |
 | Glyde or Crash | crash / cash-out multiplier game | 105.59% | aggregate only | Docs + transparency; official docs also use the spelling `Glyder or Crash` |
 | Reel Pirates | undocumented in current official source set | 99.81% | aggregate only | Transparency only in the material archived here |
 | Rico's Revenge | undocumented in current official source set | 90.94% | aggregate only | Transparency only in the material archived here |

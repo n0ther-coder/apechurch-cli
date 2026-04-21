@@ -10,18 +10,18 @@ Private keys stay local, are stored on disk only in encrypted form in this harde
 
 ### Supported Games
 
-- **17 supported games:** `ApeStrong ✔︎`, `Roulette ✔︎`, `Baccarat ✔︎`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough ✔︎`, `Bubblegum Heist ✔︎`, `Geez Diggerz ✔︎`, `Sushi Showdown ✔︎`, `Monkey Match ✔︎`, `Bear-A-Dice ✔︎`, `Blocks ✔︎`, `Primes ✔︎`, `Blackjack ✔︎`, and `Video Poker ✔︎ / Gimboz Poker`
+- **19 supported games:** `ApeStrong ✔︎`, `Roulette ✔︎`, `Baccarat ✔︎`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough ✔︎`, `Bubblegum Heist ✔︎`, `Geez Diggerz ✔︎`, `Gimboz Smash ✔︎`, `Hi-Lo Nebula ✔︎`, `Sushi Showdown ✔︎`, `Monkey Match ✔︎`, `Bear-A-Dice ✔︎`, `Blocks ✔︎`, `Primes ✔︎`, `Blackjack ✔︎`, and `Video Poker ✔︎ / Gimboz Poker`
 - **Fully AI agents playable:** browserless CLI flows, local signing, JSON output, formal command grammar, and self-describing game metadata make it straightforward for coding agents and automations to use directly
-- **Improved auto gameplay:** `Blackjack ✔︎` and `Video Poker ✔︎ / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
+- **Improved auto gameplay:** `Blackjack ✔︎`, `Hi-Lo Nebula ✔︎`, and `Video Poker ✔︎ / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
 - **Fully on-chain settlement:** every wager is placed on ApeChain and resolved by the live contracts with their on-chain RNG integrations, including Chainlink VRF and Pyth V2 where applicable
 
 ### What This Fork Adds
 
 - **Encrypted-only local signer:** private keys stay encrypted on disk, plaintext wallet export is disabled, and signing happens locally without transmitting the key to Ape Church services
-- **AI-agent-first operator UX:** fully AI agents playable command surface with structured outputs, stable aliases, local history caches, and no browser dependency
-- **Better stateful automation:** stronger blackjack and video-poker auto gameplay, side-bet support, unfinished-game recovery, and EV / Monte Carlo helpers for loop planning
-- **Expanded Ape Church coverage:** explicit support for both `jungle` and `cosmic` Plinko instead of a single generic Plinko entry, plus supported `Blocks ✔︎` and `Primes ✔︎` gameplay and a broader maintained game registry
-- **ABI-verified game metadata:** verified contracts are marked with `✔︎` in CLI output, help, JSON payloads, and docs; ApeStrong ✔︎, Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Dino Dough ✔︎, Bubblegum Heist ✔︎, Geez Diggerz ✔︎, Sushi Showdown ✔︎, Monkey Match ✔︎, Bear-A-Dice ✔︎, Blocks ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎ use verified on-chain contract data
+- **AI-agent-first operator UX:** fully AI agents playable command surface with structured outputs, local history caches, and no browser dependency
+- **Better stateful automation:** stronger blackjack, hi-lo-nebula, and video-poker auto gameplay, side-bet support, unfinished-game recovery, and EV / Monte Carlo helpers for loop planning
+- **Expanded Ape Church coverage:** explicit support for both Jungle Plinko and Cosmic Plinko instead of a single generic Plinko entry, plus supported `Blocks ✔︎` and `Primes ✔︎` gameplay and a broader maintained game registry
+- **ABI-verified game metadata:** verified contracts are marked with `✔︎` in CLI output, help, JSON payloads, and docs; ApeStrong ✔︎, Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Dino Dough ✔︎, Bubblegum Heist ✔︎, Geez Diggerz ✔︎, Gimboz Smash ✔︎, Hi-Lo Nebula ✔︎, Sushi Showdown ✔︎, Monkey Match ✔︎, Bear-A-Dice ✔︎, Blocks ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎ use verified on-chain contract data
 - **RTP and payout modeling overhaul:** expected RTP, reported RTP, current RTP, and max-payout references across the game catalog, with exact/formula/statistical provenance markers where available
 - **Exact Plinko modeling:** Jungle and Cosmic Plinko mode RTP and top payouts are derived from the live on-chain bucket tables, and Plinko stats are grouped by risk level rather than by ball count
 - **Per-wallet history cache:** `wallet download` reconstructs supported on-chain history into a local cache, with incremental backfills and offline `history` reads
@@ -230,25 +230,27 @@ Coverage and limits:
 
 ## Games
 
-| Game | Command | Description |
-|------|---------|-------------|
-| ApeStrong ✔︎ | `play ape-strong 10 50` | Pick-your-odds dice |
-| Roulette ✔︎ | `play roulette 10 RED` | American roulette |
-| Baccarat ✔︎ | `play baccarat 10 BANKER` | Classic baccarat |
-| Jungle Plinko ✔︎ | `play jungle 10 2 50` | Drop balls for multipliers |
-| Cosmic Plinko ✔︎ | `play cosmic 10 1 10` | Asymmetric plinko with higher top-end payouts |
-| Keno ✔︎ | `play keno 10` | Pick numbers 1-40 |
-| Speed Keno ✔︎ | `play speed-keno 10` | Fast batched keno |
-| Dino Dough ✔︎ | `play dino-dough 10 10` | Slot machine |
-| Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | Slot machine |
-| Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | Slot machine |
-| Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | Slot machine |
-| Monkey Match ✔︎ | `play monkey-match 10` | Poker hands from barrels |
-| Bear-A-Dice ✔︎ | `play bear-dice 10` | Avoid unlucky numbers |
-| Blocks ✔︎ | `play blocks 10 1 5` | 3x3 cluster board with consecutive all-or-nothing rolls |
-| Primes ✔︎ | `play primes 10 0 20` | Prime-or-zero number draws with batched runs |
-| Blackjack ✔︎ | `blackjack 25 --side 1 --auto` | Card game with auto-play and optional player side bet |
-| Video Poker ✔︎ / Gimboz Poker | `video-poker 10 --auto` | Jacks or Better with auto-play and solver tools |
+| Game | Command | Aliases | Description |
+|------|---------|---------|-------------|
+| ApeStrong ✔︎ | `play ape-strong 10 50` | `apestrong`, `strong` | Pick-your-odds dice |
+| Roulette ✔︎ | `play roulette 10 RED` | - | American roulette |
+| Baccarat ✔︎ | `play baccarat 10 BANKER` | - | Classic baccarat |
+| Jungle Plinko ✔︎ | `play jungle-plinko 10 2 50` | `jungleplinko`, `jungle` | Drop balls for multipliers |
+| Cosmic Plinko ✔︎ | `play cosmic-plinko 10 1 10` | `cosmic` | Asymmetric plinko with higher top-end payouts |
+| Keno ✔︎ | `play keno 10` | - | Pick numbers 1-40 |
+| Speed Keno ✔︎ | `play speed-keno 10` | `speedkeno`, `skeno` | Fast batched keno |
+| Dino Dough ✔︎ | `play dino-dough 10 10` | `dinodough`, `dino` | Slot machine |
+| Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | `bubblegumheist`, `bubblegum`, `heist` | Slot machine |
+| Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | `geezdiggerz`, `geez` | Slot machine |
+| Gimboz Smash ✔︎ | `play gimboz-smash 10 1-50` or `play gimboz-smash 10 --out-range 45-50` | `gimbozsmash`, `smash` | One-or-two interval target game on a 1-100 board |
+| Hi-Lo Nebula ✔︎ | `hi-lo-nebula 10 --auto best` | `hilonebula`, `hilo` | Stateful higher/lower/same card streak game with cash-out |
+| Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | `sushishowdown`, `sushi` | Slot machine |
+| Monkey Match ✔︎ | `play monkey-match 10` | `monkeymatch`, `monkey` | Poker hands from barrels |
+| Bear-A-Dice ✔︎ | `play bear-dice 10` | `bear`, `dice` | Avoid unlucky numbers |
+| Blocks ✔︎ | `play blocks 10 1 5` | - | 3x3 cluster board with consecutive all-or-nothing rolls |
+| Primes ✔︎ | `play primes 10 0 20` | - | Prime-or-zero number draws with batched runs |
+| Blackjack ✔︎ | `blackjack 25 --side 1 --auto` | `bj` | Card game with auto-play and optional player side bet |
+| Video Poker ✔︎ / Gimboz Poker | `video-poker 10 --auto` | `vp` | Jacks or Better with auto-play and solver tools |
 
 ## Argument Grammar (BNF)
 
@@ -337,7 +339,6 @@ apechurch-cli play --loop --bet-strategy fibonacci
 
 ## Blackjack & Video Poker
 
-`blackjack` is also available through the alias `bj`.
 `video-poker` is the CLI command for Ape Church's `Gimboz Poker`.
 
 Interactive card games with auto-play support:
@@ -346,7 +347,6 @@ Interactive card games with auto-play support:
 # Auto-play
 apechurch-cli blackjack 10 --auto --loop
 apechurch-cli blackjack 25 --side 1 --auto
-apechurch-cli bj 10 --auto --loop          # Using alias
 apechurch-cli video-poker 10 --auto --loop
 apechurch-cli video-poker 10 --solver    # Interactive hold suggestion (best EV)
 
@@ -356,8 +356,6 @@ apechurch-cli blackjack 10
 
 - `--auto` enables automatic play for stateful card games
 - `blackjack --side <ape>` adds a player side bet to the opening deal without changing the in-hand EV solver
-- `blackjack` is also available through the alias `bj`
-- `video-poker` is also available through the alias `gimboz-poker`
 - `video-poker --solver` shows the same best-EV hold suggestion in interactive mode
 - `video-poker --display full` now uses the boxed ASCII table layout; `simple` keeps the compact text layout
 - `blackjack` and `video-poker` use `--delay 5` by default in loop mode
@@ -369,8 +367,9 @@ apechurch-cli blackjack 10
 ```bash
 apechurch-cli play --auto                        # Auto-select random game/config
 apechurch-cli play [game] [amount] [config...]  # Play a specific simple game
-apechurch-cli blackjack|bj <amount> [--auto] [--side <ape>]  # Blackjack
-apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker
+apechurch-cli hi-lo-nebula <amount> [--auto [simple|best]]  # Hi-Lo Nebula (aliases: hilonebula, hilo)
+apechurch-cli blackjack <amount> [--auto] [--side <ape>]  # Blackjack (alias: bj)
+apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker (alias: vp)
 apechurch-cli status                            # Check balance
 apechurch-cli wallet --list                     # List locally available wallet addresses
 apechurch-cli wallet download [address]         # Download supported on-chain history into local cache
@@ -383,6 +382,8 @@ apechurch-cli history [address] [--stats] [--breakdown] [--scoreboard] [--refres
 apechurch-cli scoreboard [address] [--url]     # Read cached leaderboard tables
 apechurch-cli commands                          # Full reference
 ```
+
+Use `apechurch-cli games` or `apechurch-cli game <name>` to see the current alias set in the terminal.
 
 ## For AI Agents
 

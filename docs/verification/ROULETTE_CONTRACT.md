@@ -15,7 +15,6 @@ This note consolidates the verified contract-facing behavior that was previously
 
 - Game name in the repo: `Roulette`
 - Game type: American roulette with `0`, `00`, and `1-36`
-- Aliases: `rl`
 - CLI contract entry and the docs point to the same deployed address
 
 ## Verified Write Path

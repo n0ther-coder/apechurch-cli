@@ -14,7 +14,6 @@ This note consolidates the verified contract-facing behavior that was previously
 ## Contract Identity
 
 - Game name in the repo: `Monkey Match`
-- Aliases: `monkey`, `mm`
 - Public risk surface:
   - `0 = Low` maps to on-chain mode `1`
   - `1 = High` maps to on-chain mode `2`

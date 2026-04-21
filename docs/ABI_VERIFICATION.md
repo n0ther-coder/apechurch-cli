@@ -104,11 +104,11 @@ Only after the checks above are complete:
 
 ## Current Backlog
 
-As of **2026-04-13**, there are no remaining supported games waiting on promotion to `ABI verified` in this repo.
+As of **2026-04-20**, there are no remaining supported games waiting on promotion to `ABI verified` in this repo.
 
 Ordering: alphabetical by game title.
 
-Currently promoted games are ApeStrong ✔︎, Baccarat ✔︎, Bear-A-Dice ✔︎, Blackjack ✔︎, Blocks ✔︎, Bubblegum Heist ✔︎, Cosmic Plinko ✔︎, Dino Dough ✔︎, Geez Diggerz ✔︎, Hi-Lo Nebula ✔︎, Jungle Plinko ✔︎, Keno ✔︎, Monkey Match ✔︎, Primes ✔︎, Roulette ✔︎, Speed Keno ✔︎, Sushi Showdown ✔︎, and Video Poker ✔︎.
+Currently promoted games are ApeStrong ✔︎, Baccarat ✔︎, Bear-A-Dice ✔︎, Blackjack ✔︎, Blocks ✔︎, Bubblegum Heist ✔︎, Cosmic Plinko ✔︎, Dino Dough ✔︎, Geez Diggerz ✔︎, Gimboz Smash ✔︎, Hi-Lo Nebula ✔︎, Jungle Plinko ✔︎, Keno ✔︎, Monkey Match ✔︎, Primes ✔︎, Roulette ✔︎, Speed Keno ✔︎, Sushi Showdown ✔︎, and Video Poker ✔︎.
 
 Every promoted game now has a dedicated verification note under `docs/verification/`:
 
@@ -123,6 +123,7 @@ Every promoted game now has a dedicated verification note under `docs/verificati
 | Cosmic Plinko | `docs/verification/COSMIC_PLINKO_CONTRACT.md` |
 | Dino Dough | `docs/verification/DINO_DOUGH_CONTRACT.md` |
 | Geez Diggerz | `docs/verification/GEEZ_DIGGERZ_CONTRACT.md` |
+| Gimboz Smash | `docs/verification/GIMBOZ_SMASH_CONTRACT.md` |
 | Hi-Lo Nebula | `docs/verification/HI_LO_NEBULA_CONTRACT.md` |
 | Jungle Plinko | `docs/verification/JUNGLE_PLINKO_CONTRACT.md` |
 | Keno | `docs/verification/KENO_CONTRACT.md` |

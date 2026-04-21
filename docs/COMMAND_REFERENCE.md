@@ -1,6 +1,6 @@
 # Command Reference
 
-> Summary: Canonical Ape Church CLI command surface. Lists every top-level command, alias, subaction, and parser-visible option, with generic BNF for the accepted syntax.
+> Summary: Current Ape Church CLI command surface. Lists every top-level command, subaction, parser-visible option, and supported alias with generic BNF for the accepted syntax.
 
 This file is the canonical command reference for the repo. `apechurch-cli commands` remains a compact terminal index; use this file when you need the full command surface, exact option names, or the shared BNF tokens accepted by the parser.
 
@@ -19,54 +19,28 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 
 | Command | Aliases | Purpose |
 |---------|---------|---------|
-| `install` | none | Install or reinstall the local encrypted wallet bundle |
-| `uninstall` | none | Remove local CLI data |
-| `wallet [action] [address]` | none | Wallet management, local wallet listing, and history download |
-| `status` | none | Show current wallet, balance, local state, and game stats |
-| `pause` | none | Pause autonomous play |
-| `continue` | none | Resume autonomous play |
-| `register` | none | Register or update the username/persona |
-| `profile <action>` | none | Show or update local profile preferences |
-| `bet` | none | Place one manual simple-game wager |
-| `play` | none | Play a selected simple game, or opt into random selection with `--auto` |
-| `contest [action]` | none | Contest info and registration |
-| `history [address]` | none | Read, refresh, or list cached per-wallet history |
-| `scoreboard [address]` | none | Read cached per-wallet leaderboards derived from history |
-| `games` | none | List supported games |
-| `game <name>` | none | Show metadata and grammar for one game |
-| `commands` | none | Show the compact terminal command index |
-| `help [topic]` | none | Show detailed topic help |
-| `send <asset> <amount> <destination>` | none | Send `APE` or `GP` |
-| `house [action] [amount]` | none | Show, deposit into, or withdraw from The House |
+| `install` | - | Install or reinstall the local encrypted wallet bundle |
+| `uninstall` | - | Remove local CLI data |
+| `wallet [action] [address]` | - | Wallet management, local wallet listing, and history download |
+| `status` | - | Show current wallet, balance, local state, and game stats |
+| `pause` | - | Pause autonomous play |
+| `continue` | - | Resume autonomous play |
+| `register` | - | Register or update the username/persona |
+| `profile <action>` | - | Show or update local profile preferences |
+| `bet` | - | Place one manual simple-game wager |
+| `play` | - | Play a selected simple game, or opt into random selection with `--auto` |
+| `contest [action]` | - | Contest info and registration |
+| `history [address]` | - | Read, refresh, or list cached per-wallet history |
+| `scoreboard [address]` | - | Read cached per-wallet leaderboards derived from history |
+| `games` | - | List supported games |
+| `game <name>` | - | Show metadata and grammar for one game |
+| `commands` | - | Show the compact terminal command index |
+| `help [topic]` | - | Show detailed topic help |
+| `send <asset> <amount> <destination>` | - | Send `APE` or `GP` |
+| `house [action] [amount]` | - | Show, deposit into, or withdraw from The House |
 | `blackjack [action] [amount]` | `bj` | Interactive/stateful blackjack |
-| `hi-lo-nebula [action] [amount]` | `hi-lo`, `hilo`, `hilo-nebula`, `nebula` | Interactive/stateful Hi-Lo Nebula |
-| `video-poker [action] [amount]` | `vp`, `gimboz-poker` | Interactive/stateful video poker |
-
-## Game Aliases
-
-These are the registered alias strings seen by the game resolver used by `play`, `game`, and related helpers. Alias matching is case-insensitive.
-
-The alias `dice` is currently registered on both `ape-strong` and `bear-dice`. The active resolver maps bare `dice` to `bear-dice`, because the later registry entry wins.
-
-| Canonical Key | Accepted Aliases |
-|---------------|------------------|
-| `keno` | `k` |
-| `ape-strong` | `strong`, `dice`, `limbo` |
-| `baccarat` | `bacc` |
-| `roulette` | `rl` |
-| `jungle-plinko` | `jungle` |
-| `cosmic-plinko` | `cosmic` |
-| `dino-dough` | `dino`, `slots` |
-| `bubblegum-heist` | `bubblegum`, `heist` |
-| `geez-diggerz` | `geez`, `diggerz` |
-| `speed-keno` | `sk`, `speedk` |
-| `sushi-showdown` | `sushi`, `showdown` |
-| `monkey-match` | `monkey`, `mm` |
-| `bear-dice` | `bear`, `dice`, `bd` |
-| `primes` | `prime` |
-| `blackjack` | `bj` |
-| `hi-lo-nebula` | `hi-lo`, `hilo`, `hilo-nebula`, `nebula`, `Hi-Lo Nebula`, `hilo nebula` |
-| `video-poker` | `vp`, `gimboz-poker`, `gimboz poker`, `Video Poker`, `Gimboz Poker` |
+| `hi-lo-nebula [action] [amount]` | `hilonebula`, `hilo` | Interactive/stateful Hi-Lo Nebula |
+| `video-poker [action] [amount]` | `vp` | Interactive/stateful video poker |
 
 ## Shared Grammar
 
@@ -89,23 +63,78 @@ The alias `dice` is currently registered on both `ape-strong` and `bear-dice`. T
 <help-topic> ::= "loop" | "strategies" | "auto" | "wallet" | "history" | "house"
 <asset> ::= "APE" | "GP"
 <game-id> ::= <token>                             ; local unfinished-game identifier
-<simple-game> ::= "ape-strong"
-                | "roulette"
-                | "baccarat"
-                | "jungle-plinko"
-                | "cosmic-plinko"
-                | "keno"
-                | "speed-keno"
-                | "dino-dough"
-                | "bubblegum-heist"
-                | "geez-diggerz"
-                | "monkey-match"
-                | "bear-dice"
-                | "primes"
-                | "sushi-showdown"
+<range> ::= <integer> | <target-range> | <target-range> "," <target-range>
+                                                ; ApeStrong uses 5..95, Gimboz Smash uses one or two inclusive target ranges on 1..100
+<target-range> ::= <integer> [ "-" <integer> ]    ; each endpoint is within 1..100, each range is inclusive, total covered numbers across all ranges is within 1..95
+<out-range> ::= <target-range>                    ; one excluded inclusive range for Gimboz Smash outside bets; excluded coverage is within 5..95
+<simple-game-key> ::= "ape-strong"
+                    | "roulette"
+                    | "baccarat"
+                    | "jungle-plinko"
+                    | "cosmic-plinko"
+                    | "gimboz-smash"
+                    | "keno"
+                    | "speed-keno"
+                    | "dino-dough"
+                    | "bubblegum-heist"
+                    | "geez-diggerz"
+                    | "monkey-match"
+                    | "bear-dice"
+                    | "primes"
+                    | "sushi-showdown"
+<simple-game-alias> ::= "apestrong"
+                      | "strong"
+                      | "jungleplinko"
+                      | "jungle"
+                      | "cosmic"
+                      | "gimbozsmash"
+                      | "smash"
+                      | "speedkeno"
+                      | "skeno"
+                      | "dinodough"
+                      | "dino"
+                      | "bubblegumheist"
+                      | "bubblegum"
+                      | "heist"
+                      | "geezdiggerz"
+                      | "geez"
+                      | "monkeymatch"
+                      | "monkey"
+                      | "bear"
+                      | "dice"
+                      | "sushishowdown"
+                      | "sushi"
+<simple-game> ::= <simple-game-key> | <simple-game-alias>
+<game-name> ::= <simple-game>
+              | "blackjack"
+              | "bj"
+              | "hi-lo-nebula"
+              | "hilonebula"
+              | "hilo"
+              | "video-poker"
+              | "vp"
 <video-poker-bet> ::= "1" | "5" | "10" | "25" | "50" | "100"
 <auto-mode> ::= "simple" | "best"
 ```
+
+## Game Aliases
+
+| Canonical | Supported Aliases |
+|-----------|-------------------|
+| `ape-strong` | `apestrong`, `strong` |
+| `bear-dice` | `bear`, `dice` |
+| `bubblegum-heist` | `bubblegumheist`, `bubblegum`, `heist` |
+| `cosmic-plinko` | `cosmic` |
+| `dino-dough` | `dinodough`, `dino` |
+| `geez-diggerz` | `geezdiggerz`, `geez` |
+| `gimboz-smash` | `gimbozsmash`, `smash` |
+| `jungle-plinko` | `jungleplinko`, `jungle` |
+| `monkey-match` | `monkeymatch`, `monkey` |
+| `speed-keno` | `speedkeno`, `skeno` |
+| `sushi-showdown` | `sushishowdown`, `sushi` |
+| `blackjack` | `bj` |
+| `hi-lo-nebula` | `hilonebula`, `hilo` |
+| `video-poker` | `vp` |
 
 ## Setup And Wallet
 
@@ -251,7 +280,8 @@ Notes:
                | "--balls" <integer>
                | "--spins" <integer>
                | "--bet" <token>
-               | "--range" <integer>
+               | "--range" <range>
+               | "--out-range" <out-range>
                | "--picks" <integer>
                | "--numbers" <token>
                | "--games" <count>
@@ -269,7 +299,8 @@ Notes:
 | `--balls <balls>` | Plinko ball count |
 | `--spins <spins>` | Slot spin count |
 | `--bet <bet>` | Roulette or baccarat bet payload |
-| `--range <range>` | ApeStrong range |
+| `--range <range>` | ApeStrong range, or Gimboz Smash one-or-two target intervals |
+| `--out-range <range>` | Gimboz Smash outside bet expressed as one excluded range |
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token, for example `1,7,13,25,40` or `random` |
 | `--games <games>` | Speed Keno batch count |
@@ -290,7 +321,8 @@ Notes:
                 | "--balls" <integer>
                 | "--spins" <integer>
                 | "--bet" <token>
-                | "--range" <integer>
+                | "--range" <range>
+                | "--out-range" <out-range>
                 | "--picks" <integer>
                 | "--numbers" <token>
                 | "--games" <count>
@@ -327,7 +359,8 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--balls <balls>` | Plinko ball count |
 | `--spins <spins>` | Slot spin count |
 | `--bet <bet>` | Roulette or baccarat bet payload |
-| `--range <range>` | ApeStrong range |
+| `--range <range>` | ApeStrong range, or Gimboz Smash one-or-two target intervals |
+| `--out-range <range>` | Gimboz Smash outside bet expressed as one excluded range |
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token |
 | `--games <games>` | Speed Keno batch count |
@@ -448,10 +481,10 @@ URLs stay hidden in terminal tables unless `--url` is passed. JSON output keeps 
 ### `game <name>`
 
 ```bnf
-<game-command> ::= "game" <token> [ "--json" ]
+<game-command> ::= "game" <game-name> [ "--json" ]
 ```
 
-`<name>` accepts supported game keys plus the aliases listed earlier in this file.
+`<name>` accepts supported canonical game keys and the alias set listed in [Game Aliases](#game-aliases).
 
 ### `commands`
 
@@ -489,6 +522,8 @@ If no action is supplied, `house` shows status.
 ## Stateful Card Games
 
 ### `blackjack [action] [amount]`
+
+Alias: `bj`
 
 ```bnf
 <blackjack-command> ::= ( "blackjack" | "bj" ) [ <blackjack-head> ] [ <ape> ] <blackjack-option>*
@@ -528,8 +563,10 @@ If the first positional token is numeric, the command starts a new hand with tha
 
 ### `hi-lo-nebula [action] [amount]`
 
+Aliases: `hilonebula`, `hilo`
+
 ```bnf
-<hi-lo-nebula-command> ::= ( "hi-lo-nebula" | "hi-lo" | "hilo" | "hilo-nebula" | "nebula" ) [ <hi-lo-nebula-head> ] [ <ape> ] <hi-lo-nebula-option>*
+<hi-lo-nebula-command> ::= ( "hi-lo-nebula" | "hilonebula" | "hilo" ) [ <hi-lo-nebula-head> ] [ <ape> ] <hi-lo-nebula-option>*
 <hi-lo-nebula-head> ::= <ape>
                        | "resume"
                        | "status"
@@ -574,8 +611,10 @@ If the first positional token is numeric, the command starts a new run. `--solve
 
 ### `video-poker [action] [amount]`
 
+Alias: `vp`
+
 ```bnf
-<video-poker-command> ::= ( "video-poker" | "vp" | "gimboz-poker" ) [ <video-poker-head> ] [ <video-poker-bet> ] <video-poker-option>*
+<video-poker-command> ::= ( "video-poker" | "vp" ) [ <video-poker-head> ] [ <video-poker-bet> ] <video-poker-option>*
 <video-poker-head> ::= <video-poker-bet>
                      | "resume"
                      | "status"

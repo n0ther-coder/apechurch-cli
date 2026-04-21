@@ -8,7 +8,7 @@ This guide documents everything needed to add or modify games in the `apechurch-
 
 | File | What to Change |
 |------|----------------|
-| `registry.js` | Game definition (contract, type, config, aliases) |
+| `registry.js` | Game definition (contract, type, config, and docs-facing metadata) |
 | `bin/cli.js` | Game type handler (encoding logic, VRF fee, strategy) |
 
 ## Files Overview
@@ -21,11 +21,11 @@ This is the source of truth for all games. Each game entry contains:
 {
   key: 'game-key',           // Unique identifier, used in CLI
   name: 'Display Name',      // Human-readable name
+  aliases: ['gamealias'],    // Optional extra accepted lookup names; keep this list explicit
   slug: 'url-slug',          // URL path on ape.church
   type: 'plinko|slots|roulette|...', // Game type (determines encoding logic)
   description: 'Description for help text',
   contract: '0x...',         // Contract address on ApeChain
-  aliases: ['alias1'],       // Alternative names for CLI
   abiVerified: false,        // Only set true after docs/ABI_VERIFICATION.md is complete
   config: { ... },           // Game-specific parameters (shown in help)
   vrf: { ... },              // VRF fee configuration
@@ -53,11 +53,11 @@ Add a new entry to `GAME_REGISTRY`:
 {
   key: 'new-game',
   name: 'New Game',
+  aliases: ['newgame'], // Optional; add only the aliases you want to support
   slug: 'new-game',
   type: 'new-type',  // or existing type if encoding matches
   description: 'Description here',
   contract: '0x...',
-  aliases: ['ng', 'newgame'],
   abiVerified: false, // Promote only after completing the ABI verification checklist
   config: {
     // Parameters shown in CLI help
@@ -251,6 +251,7 @@ vrfFee = await publicClient.readContract({
 ## Checklist
 
 - [ ] Added game to `GAME_REGISTRY` in `registry.js`
+- [ ] Added or updated the allowed alias list for the game, if needed
 - [ ] Left `abiVerified` unset/false unless the verification guide is complete
 - [ ] Added strategy config in `getStrategyConfig()`
 - [ ] Added game selection in `selectGameAndConfig()`
@@ -261,7 +262,7 @@ vrfFee = await publicClient.readContract({
 - [ ] Added CLI option if needed (e.g., `--bet`)
 - [ ] Updated `bet` command if it has unique params
 - [ ] Updated `heartbeat` command playGame call
-- [ ] Updated help text and examples
+- [ ] Updated help text, examples, and alias tables
 - [ ] Tested with `apechurch-cli games` and `apechurch-cli game <name>`
 - [ ] Tested actual gameplay
 - [ ] If promoting to `ABI verified`, completed [docs/ABI_VERIFICATION.md](./ABI_VERIFICATION.md)

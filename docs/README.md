@@ -17,7 +17,7 @@ Everything else lives under `docs/` or next to the code it explains.
 
 | File | Audience | Usefulness | Keep? | Notes |
 |------|----------|------------|-------|-------|
-| `docs/COMMAND_REFERENCE.md` | Users / maintainers | High | Yes | Canonical CLI command surface, including top-level commands, options, aliases, and shared BNF. |
+| `docs/COMMAND_REFERENCE.md` | Users / maintainers | High | Yes | Canonical CLI command surface, including top-level commands, supported aliases, options, and shared BNF. |
 | `docs/ADDING_GAMES.md` | Maintainers | High | Yes | Source of truth for extending the game registry and CLI handlers. |
 | `docs/ABI_VERIFICATION.md` | Maintainers | High | Yes | Promotion checklist for deciding when a supported game may be marked `ABI verified` and shown with `✔︎`. |
 | `docs/GAMES_REFERENCE.md` | Users / maintainers | High | Yes | Comparison-first syntax and RTP summary for supported games, with a compact appendix for public-but-unsupported titles. |

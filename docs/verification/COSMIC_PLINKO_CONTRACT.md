@@ -15,7 +15,6 @@ This note consolidates the verified contract-facing behavior that was previously
 ## Contract Identity
 
 - Game name in the repo: `Cosmic Plinko`
-- Aliases: `cosmic`
 - Supported modes: `0..2`
 - Supported ball counts: `1..30`
 

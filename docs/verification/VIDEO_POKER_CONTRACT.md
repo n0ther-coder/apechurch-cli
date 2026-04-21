@@ -16,7 +16,6 @@ This note consolidates the contract-facing behavior that was previously embedded
 
 - Display name in the repo: `Video Poker`
 - Ape Church naming: `Gimboz Poker`
-- Aliases: `vp`, `gimboz-poker`
 - Game family: stateful Jacks or Better with one optional redraw
 
 ## Verified Write and Action Surface

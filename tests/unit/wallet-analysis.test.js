@@ -13,6 +13,7 @@ import {
   ERC20_ABI,
   GAME_CONTRACT_ABI,
   GEEZ_DIGGERZ_CONTRACT,
+  GIMBOZ_SMASH_CONTRACT,
   GP_TOKEN_CONTRACT,
   HI_LO_NEBULA_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
@@ -806,6 +807,106 @@ describe('Wallet History Analysis', () => {
         difficultyName: 'Master',
         rolls: 5,
       });
+    });
+
+    it('reconstructs Gimboz Smash targets from cached play calldata', async () => {
+      const gameId = 700n;
+      const playInput = encodeFunctionData({
+        abi: GAME_CONTRACT_ABI,
+        functionName: 'play',
+        args: [
+          WALLET,
+          encodeAbiParameters(
+            [
+              { name: 'numWinIntervals', type: 'uint8' },
+              { name: 'winStarts', type: 'uint8[2]' },
+              { name: 'winEnds', type: 'uint8[2]' },
+              { name: 'gameId', type: 'uint256' },
+              { name: 'ref', type: 'address' },
+              { name: 'userRandomWord', type: 'bytes32' },
+            ],
+            [2, [0, 79], [19, 99], gameId, ZERO_ADDRESS, '0x' + '34'.repeat(32)],
+          ),
+        ],
+      });
+
+      const result = await inferSavedHistoryGameVariants({
+        async getTransaction({ hash }) {
+          assert.strictEqual(hash, '0x' + 'd'.repeat(64));
+          return {
+            hash,
+            input: playInput,
+          };
+        },
+      }, [
+        {
+          contract: GIMBOZ_SMASH_CONTRACT,
+          game: 'Gimboz Smash ✔︎',
+          game_key: 'gimboz-smash',
+          gameId: gameId.toString(),
+          tx: '0x' + 'd'.repeat(64),
+          timestamp: 1_700_000_000_000,
+        },
+      ]);
+
+      assert.strictEqual(result.changed, true);
+      assert.strictEqual(result.inferred, 1);
+      assert.strictEqual(result.failedLookups, 0);
+      assert.deepStrictEqual(result.games[0].config, {
+        targets: '1-20,80-100',
+        intervals: [
+          { start: 1, end: 20 },
+          { start: 80, end: 100 },
+        ],
+        numWinIntervals: 2,
+        winCount: 41,
+        winChance: '41%',
+        payout: '2.378x',
+      });
+      assert.strictEqual(result.games[0].variant_key, 'gimboz-smash:count:41');
+      assert.strictEqual(result.games[0].variant_label, 'Cover 41');
+      assert.deepStrictEqual(result.games[0].rtp_config, { winCount: 41 });
+    });
+
+    it('reconstructs Gimboz Smash targets from getGameInfo when tx calldata is unavailable', async () => {
+      const result = await inferSavedHistoryGameVariants({
+        async getTransaction() {
+          return { input: '0x3d30bc0e' };
+        },
+        async readContract(params) {
+          assert.strictEqual(params.address, GIMBOZ_SMASH_CONTRACT);
+          assert.strictEqual(params.functionName, 'getGameInfo');
+          assert.deepStrictEqual(params.args, [701n]);
+          return {
+            numWinIntervals: 1,
+            winStarts: [14, 0],
+            winEnds: [78, 0],
+          };
+        },
+      }, [
+        {
+          contract: GIMBOZ_SMASH_CONTRACT,
+          game: 'Gimboz Smash ✔︎',
+          game_key: 'gimboz-smash',
+          gameId: '701',
+          tx: '0x' + 'e'.repeat(64),
+        },
+      ]);
+
+      assert.strictEqual(result.changed, true);
+      assert.strictEqual(result.inferred, 1);
+      assert.strictEqual(result.failedLookups, 0);
+      assert.deepStrictEqual(result.games[0].config, {
+        targets: '15-79',
+        intervals: [{ start: 15, end: 79 }],
+        numWinIntervals: 1,
+        winCount: 65,
+        winChance: '65%',
+        payout: '1.5x',
+      });
+      assert.strictEqual(result.games[0].variant_key, 'gimboz-smash:count:65');
+      assert.strictEqual(result.games[0].variant_label, 'Cover 65');
+      assert.deepStrictEqual(result.games[0].rtp_config, { winCount: 65 });
     });
 
     it('reconstructs Blocks, Primes, Speed Keno, and Cosmic Plinko from getGameInfo', async () => {

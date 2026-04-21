@@ -15,7 +15,6 @@ This note consolidates the verified contract-facing behavior that was previously
 ## Contract Identity
 
 - Game name in the repo: `Jungle Plinko`
-- Aliases: `jungle`
 - Supported public risk levels: `0..4`
 - Supported ball counts: `1..100`
 

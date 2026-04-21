@@ -6,7 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Gimboz Smash ✔︎**: Full simple-game support with verified one-or-two interval targets, `--range` / `--out-range` CLI help, exact cover-count RTP modeling, and history reconstruction
+- **Gimboz Smash docs and verification trail**
+  - New contract note: `docs/verification/GIMBOZ_SMASH_CONTRACT.md`
+  - New analytics note: `docs/analytics/GIMBOZ_SMASH_ANALYTICS.md`
+  - Updated `ABI_VERIFICATION`, `COMMAND_REFERENCE`, and `GAMES_REFERENCE`
+
 ### Changed
+- `games`, `game <name>`, `play`, `bet`, RTP summaries, and wallet-history decoding now treat `gimboz-smash` as a supported `ABI verified` game
 - Hi-Lo Nebula dedicated command now accepts the shared stateful loop controls, including `--loop`, `--max-games`, session stop conditions, and betting strategies
 
 ## [8.2.2] - 2026-04-13
