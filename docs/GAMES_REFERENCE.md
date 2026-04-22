@@ -743,6 +743,42 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 | Picks 4 | Yes | `93.39%` | Exact hypergeometric EV | `86.35%` |
 | Picks 9 | Yes | `93.32%` | Exact hypergeometric EV | `86.35%` |
 
+### Win Rate vs Max Multiply Cross-Check
+
+These two tables are intentionally **game-level** and use **one single supported mode per row**. In the first table, each game is represented by the mode with its highest exact `win rate`; in the second, each game is represented by the mode with its highest exact `max multiply`. In both tables, `win rate`, `RTP`, and `max multiply` therefore refer to the **same game and the same mode**.
+
+`Win rate` here means **exact net-profit frequency** (`payout > 1x`), which matches the CLI's `win_rate` semantics rather than merely counting any positive payout. `RTP` is the exact expected return for that same selected mode, and `max multiply` is the exact gross multiplier for that same selected mode. Equivalent tied modes may be represented by one documented mode label. For `Video Poker`, the ordering uses the fixed `250x` royal-flush base and excludes the live progressive jackpot uplift. These tables exclude `Blackjack`, `Hi-Lo Nebula`, `Dino Dough`, and `Bubblegum Heist` because the local repo does not currently keep a comparable exact net-profit win-rate surface for them in reusable form.
+
+#### Top 10 Games by Win Rate, Ordered by Max Multiply
+
+| Game | Selected Mode | Win Rate | RTP | Max Multiply |
+|------|---------------|----------|-----|--------------|
+| Keno ✔︎ | `Picks 5` | `58.35%` | `94.68%` | `200x` |
+| Monkey Match ✔︎ | `Low` | `44.44%` | `97.99%` | `50x` |
+| Speed Keno ✔︎ | `Picks 2` | `44.74%` | `97.37%` | `5x` |
+| Jungle Plinko ✔︎ | `Risk 0 / Low` | `53.33%` | `98.00%` | `2.2x` |
+| Primes ✔︎ | `Easy` | `50.00%` | `98.00%` | `2.2x` |
+| Roulette ✔︎ | `Red / Black` | `47.37%` | `97.11%` | `2.05x` |
+| Baccarat ✔︎ | `BANKER` | `45.84%` | `98.94%` | `1.95x` |
+| Bear-A-Dice ✔︎ | `Easy / 1 roll` | `83.33%` | `97.89%` | `1.83x` |
+| Gimboz Smash ✔︎ | `Cover 95` | `95.00%` | `97.50%` | `1.0263x` |
+| ApeStrong ✔︎ | `Range 95` | `95.00%` | `97.38%` | `1.025x` |
+
+#### Top 10 Games by Max Multiply, Ordered by Win Rate
+
+| Game | Selected Mode | Win Rate | RTP | Max Multiply |
+|------|---------------|----------|-----|--------------|
+| Speed Keno ✔︎ | `Picks 5` | `26.63%` | `97.84%` | `2,000x` |
+| Video Poker ✔︎ / Gimboz Poker | `Base paytable` | `23.99%` | `98.16%` | `250x` |
+| Sushi Showdown ✔︎ | `Any spin count 1-15` | `23.91%` | `97.87%` | `500x` |
+| Keno ✔︎ | `Picks 10` | `23.23%` | `93.83%` | `1,000,000x` |
+| Jungle Plinko ✔︎ | `Risk 4 / Ultra Degen` | `22.18%` | `97.99%` | `1,000x` |
+| Cosmic Plinko ✔︎ | `Mode 2 / High` | `14.37%` | `97.80%` | `250x` |
+| Primes ✔︎ | `Extreme` | `12.30%` | `98.04%` | `500x` |
+| Gimboz Smash ✔︎ | `Cover 1` | `1.00%` | `97.50%` | `97.5x` |
+| Blocks ✔︎ | `High / 5 rolls` | `0.0013%` | `1.37%` | `3,125,000,000,000,000,000x` |
+| Bear-A-Dice ✔︎ | `Master / 5 rolls` | `0.000053%` | `97.80%` | `1,847,949.193x` |
+
 ### Still Not Exactly Calculable from Local Sources
 
 The local source set is still insufficient for a defensible closed-form RTP on `Cash Dash`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, and `Rico's Revenge`.
