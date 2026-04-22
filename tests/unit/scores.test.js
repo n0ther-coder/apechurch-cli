@@ -67,6 +67,7 @@ describe('Score Helpers', () => {
         game_mode: 'Range 5',
         bet: '1',
         payout: '19.50',
+        game_id: '101',
         datetime_utc: '2026-04-17T10:00:00.000Z',
         game_url: 'https://www.ape.church/games/ape-strong?id=101',
       });
@@ -76,6 +77,7 @@ describe('Score Helpers', () => {
         game_mode: 'Picks 5',
         bet: '10',
         payout: '150.00',
+        game_id: '102',
         datetime_utc: '2026-04-17T11:00:00.000Z',
         game_url: 'https://www.ape.church/games/keno?id=102',
       });
@@ -85,6 +87,7 @@ describe('Score Helpers', () => {
         game_mode: 'High',
         bet: '25',
         multiplier: '12.00',
+        game_id: '103',
         datetime_utc: '2026-04-17T12:00:00.000Z',
         game_url: 'https://www.ape.church/games/cosmic-plinko?id=103',
       });

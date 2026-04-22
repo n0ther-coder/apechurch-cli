@@ -297,6 +297,15 @@ Losing numbers: `3-11`
 | Loss | `0x` @ `94.44%` (`17/18`) | `0x` @ `99.69%` (`323/324`) | `0x` @ `99.98%` (`5831/5832`) | `0x` @ `100.00%` (`104975/104976`) | `0x` @ `100.00%` (`1889567/1889568`) |
 | I | `17.62x` @ `5.56%` (`1/18`) | `316.84x` @ `0.31%` (`1/324`) | `5,706.55x` @ `0.02%` (`1/5832`) | `102,433.35x` @ `0.00%` (`1/104976`) | `1,847,949.19x` @ `0.00%` (`1/1889568`) |
 
+## Scoreboard
+
+#### `play bear 10 --risk Master --rolls 2`
+
+| multiplier | game title    | game mode        |     bet |      payout | datetime UTC             |
+|------------|---------------|------------------|---------|-------------|--------------------------|
+|    316.84x | Bear-A-Dice   | Master / 2 rolls |  10 APE | 3168.40 APE | [2026-04-09T13:51:52.000Z](https://www.ape.church/games/bear-dice?id=85362939057228085925658060676410317158371505306587702769921913197717810997356) |
+
+
 ## Sources
 
 1. [docs/GAMES_REFERENCE.md](../GAMES_REFERENCE.md) — game rules, verified difficulty map, exact RTP, win-rate table, and verified max payouts.

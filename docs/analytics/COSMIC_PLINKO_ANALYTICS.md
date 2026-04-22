@@ -70,6 +70,14 @@ Ball count does **not** change the underlying per-ball distribution. It only cha
 | 9 | `100x @ 0.07% (1/1454)` |
 | 10 | `250x @ 0.03% (1/2908)` |
 
+## Scoreboard
+
+#### `play cosmic 120 --risk high --balls 30 --loop --max-games 100`
+
+|      payout | game title    | game mode        |     bet | multiplier | datetime UTC             |
+|-------------|---------------|------------------|---------|------------|--------------------------|
+| 1036.40 APE | Cosmic Plinko | High             | 120 APE |      8.64x | [2026-04-20T10:28:32.000Z](https://www.ape.church/games/cosmic-plinko?id=68560375314317493137151539550036327114428585860911247097385292306264852445280) |
+
 ## Sources
 
 1. [docs/verification/COSMIC_PLINKO_CONTRACT.md](../verification/COSMIC_PLINKO_CONTRACT.md) — verified weighted-bucket model, mode tables, and exact RTP references.

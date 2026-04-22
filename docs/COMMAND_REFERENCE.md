@@ -430,7 +430,7 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--list` | Show wallet addresses with local cached history files |
 | `--limit <n>` | Show at most N recent cached games |
 | `--all` | Show the full cached history instead of the recent slice |
-| `--ids` | Append local game IDs in the terminal renderer |
+| `--ids` | Append local game IDs in history lines and scoreboard tables |
 | `--stats` | Show stats only |
 | `--breakdown [game]` | Show per-game stats, optionally filtered to one game |
 | `--scoreboard` | Append the cached Highest Multipliers and Biggest Payouts tables |
@@ -441,13 +441,14 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--chunk-size <n>` | Block span per log query during refresh |
 | `--json` | Emit JSON output |
 
-`--url` only affects terminal scoreboard tables. JSON output keeps the `game_url` field.
+`--url` and `--ids` only affect terminal scoreboard tables. `--url` shows `game_url`, `--ids` shows `game_id`, and if both are passed the last option wins. JSON output keeps both fields.
 
 ### `scoreboard [address]`
 
 ```bnf
 <scoreboard-command> ::= "scoreboard" [ <address> ] <scoreboard-option>*
 <scoreboard-option> ::= "--list"
+                      | "--ids"
                       | "--url"
                       | "--refresh"
                       | "--from-block" <block>
@@ -459,6 +460,7 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | Option | Meaning |
 |--------|---------|
 | `--list` | Show wallet addresses with local cached scoreboards or history |
+| `--ids` | Show game IDs in terminal scoreboard tables |
 | `--url` | Show game URLs in terminal scoreboard tables |
 | `--refresh` | Download/refresh the history before rebuilding the scoreboard |
 | `--from-block <n>` | Start block for `--refresh` |
@@ -471,7 +473,7 @@ This command renders the same two cached Top 20 leaderboards used by `history --
 - `Highest Multipliers`: descending by total realized payout multiplier
 - `Biggest Payouts`: descending by total realized payout
 
-URLs stay hidden in terminal tables unless `--url` is passed. JSON output keeps `game_url`.
+Reference columns stay hidden in terminal tables unless `--url` or `--ids` is passed. If both are passed, the last option wins. JSON output keeps `game_url` and `game_id`.
 
 ### `games`
 

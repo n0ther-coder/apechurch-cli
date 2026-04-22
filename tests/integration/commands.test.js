@@ -839,6 +839,17 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(withUrls.includes('https://www.ape.church/games/'), 'Should show game URLs when --url is passed');
     });
 
+    it('--scoreboard --ids shows game IDs in the terminal report', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history --scoreboard --ids', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+
+      assert.ok(stdout.includes('game id'), 'Should render the game id column');
+      assert.ok(stdout.includes('| 2 '), 'Should include the roulette game ID in the scoreboard');
+      assert.ok(!stdout.includes('https://www.ape.church/games/'), 'Should keep URLs hidden when showing IDs');
+    });
+
     it('--scoreboard renders Game Stats net profit with two decimals', () => {
       setupHistoryFixtureHome();
       const { stdout } = cli('history --scoreboard', {
@@ -925,6 +936,32 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('https://www.ape.church/games/'), 'Should show game URLs when requested');
     });
 
+    it('--ids shows game IDs in the terminal scoreboard tables', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('scoreboard --ids', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+
+      assert.ok(stdout.includes('game id'), 'Should render the game id column');
+      assert.ok(stdout.includes('| 2 '), 'Should show the roulette game ID');
+      assert.ok(!stdout.includes('https://www.ape.church/games/'), 'Should keep URLs hidden when IDs are shown');
+    });
+
+    it('uses the last scoreboard reference flag when --url and --ids are both passed', () => {
+      setupHistoryFixtureHome();
+      const { stdout: idsLast } = cli('scoreboard --url --ids', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+      const { stdout: urlLast } = cli('scoreboard --ids --url', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+
+      assert.ok(idsLast.includes('game id'), 'Should prefer IDs when --ids is last');
+      assert.ok(!idsLast.includes('https://www.ape.church/games/'), 'Should hide URLs when --ids is last');
+      assert.ok(urlLast.includes('game url'), 'Should prefer URLs when --url is last');
+      assert.ok(urlLast.includes('https://www.ape.church/games/'), 'Should show URLs when --url is last');
+    });
+
     it('--json returns scoreboard metadata and rankings', () => {
       setupHistoryFixtureHome();
       const { stdout } = cli('scoreboard --json', {
@@ -937,7 +974,9 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(Array.isArray(data.highest_multipliers), 'Should include highest multipliers');
       assert.ok(Array.isArray(data.biggest_payouts), 'Should include biggest payouts');
       assert.strictEqual(data.highest_multipliers[0].game_title, 'Roulette');
+      assert.strictEqual(data.highest_multipliers[0].game_id, '2');
       assert.strictEqual(data.biggest_payouts[0].game_title, 'Roulette');
+      assert.strictEqual(data.biggest_payouts[0].game_id, '2');
     });
 
     it('--list shows wallets with cached scoreboards or derivable history', () => {
@@ -949,8 +988,9 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes(HISTORY_FIXTURE_WALLET.toLowerCase()), 'Should list scoreboard wallets');
     });
 
-    it('--help documents the --url toggle', () => {
+    it('--help documents the scoreboard reference toggles', () => {
       const { stdout } = cli('scoreboard --help');
+      assert.ok(stdout.includes('--ids'), 'Should expose the IDs toggle in help');
       assert.ok(stdout.includes('--url'), 'Should expose the URL toggle in help');
     });
   });
