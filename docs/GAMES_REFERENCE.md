@@ -561,9 +561,10 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `hi-lo-nebula`, and `vi
 --loop                    # Enable continuous play
 --delay <seconds>         # Fixed time between games
 --human                   # Add weighted 3-9s human-like delay on top of --delay
---target <ape>            # Stop at target balance
+--take-profit <ape>       # Stop at target balance
 --target-x <x>            # Stop after any single-game payout multiplier at or above X
 --target-profit <ape>     # Stop after any single-game payout amount at or above this APE
+--retrace <ape>           # Stop after any single-game loss at or above this APE
 --recover-loss <ape>      # Stop once a drawdown of at least this size gets back to break-even/profit
 --giveback-profit <ape>   # Stop once a run-up of at least this size falls back to break-even/loss
 --stop-loss <ape>         # Stop at loss limit
@@ -582,7 +583,7 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `hi-lo-nebula`, and `vi
 - VRF fees are automatically calculated and added; some games also expose percentage fees or payout-side commissions, so check `Accepted Wagers` and the per-game verification note before comparing raw stake sizes
 - Stateful games use `--auto simple` by default; `blackjack`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`
 - `hi-lo-nebula --display full` uses the boxed multi-panel layout with current card, action keys, and streak info
-- `hi-lo-nebula --loop` supports the common `--target`, `--stop-loss`, `--max-games`, `--bet-strategy`, and related session controls
+- `hi-lo-nebula --loop` supports the common `--take-profit`, `--stop-loss`, `--max-games`, `--bet-strategy`, and related session controls
 - `video-poker --solver` shows a best-EV hold suggestion in interactive mode
 - `video-poker --display full` uses the boxed ASCII table renderer; `simple` stays compact
 - Use `apechurch-cli game <name>` for detailed in-CLI help

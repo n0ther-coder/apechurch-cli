@@ -12,11 +12,12 @@ import {
 describe('Loop Terminal Conditions', () => {
   it('parses balance and single-game terminal options together', () => {
     assert.deepStrictEqual(parseLoopTerminalOptions({
-      target: '200',
+      takeProfit: '200',
       stopLoss: '50',
       maxGames: '25',
       targetX: '3.5',
       targetProfit: '150',
+      retrace: '30',
       recoverLoss: '20',
       givebackProfit: '35',
     }), {
@@ -25,6 +26,7 @@ describe('Loop Terminal Conditions', () => {
       maxGames: 25,
       targetX: 3.5,
       targetProfit: 150,
+      retrace: 30,
       recoverLoss: 20,
       givebackProfit: 35,
     });
@@ -75,6 +77,26 @@ describe('Loop Terminal Conditions', () => {
     });
   });
 
+  it('detects retrace hits from exact settled losses', () => {
+    const condition = getSingleGameLoopTerminalCondition({
+      gameResult: {
+        bet: 25,
+        payout: 5,
+        exactPayout: true,
+      },
+      retrace: 20,
+    });
+
+    assert.deepStrictEqual(condition, {
+      kind: 'retrace',
+      threshold: 20,
+      wagerApe: 25,
+      payoutApe: 5,
+      lossApe: 20,
+      multiplier: 0.2,
+    });
+  });
+
   it('ignores approximate fallback payouts', () => {
     const condition = getSingleGameLoopTerminalCondition({
       gameResult: {
@@ -103,6 +125,23 @@ describe('Loop Terminal Conditions', () => {
     assert.ok(message.includes('Target multiplier hit! 7.5x >= 5x'));
     assert.ok(message.includes('Payout: 75.00 APE on 10.00 APE wager'));
     assert.ok(message.includes('Games played: 4'));
+  });
+
+  it('formats human-readable retrace stop messages', () => {
+    const message = formatLoopTerminalConditionMessage({
+      kind: 'retrace',
+      threshold: 20,
+      wagerApe: 25,
+      payoutApe: 5,
+      lossApe: 20,
+      multiplier: 0.2,
+    }, {
+      gamesPlayed: 6,
+    });
+
+    assert.ok(message.includes('Retrace hit! Loss: 20.00 APE >= 20.00 APE'));
+    assert.ok(message.includes('Payout: 5.00 APE on 25.00 APE wager'));
+    assert.ok(message.includes('Games played: 6'));
   });
 
   it('arms recover-loss after a drawdown and stops on break-even recovery', () => {

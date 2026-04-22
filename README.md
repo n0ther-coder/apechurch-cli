@@ -26,7 +26,7 @@ Private keys stay local, are stored on disk only in encrypted form in this harde
 - **Exact Plinko modeling:** Jungle and Cosmic Plinko mode RTP and top payouts are derived from the live on-chain bucket tables, and Plinko stats are grouped by risk level rather than by ball count
 - **Per-wallet history cache:** `wallet download` reconstructs supported on-chain history into a local cache, with incremental backfills and offline `history` reads
 - **Richer reporting:** `Recent Games`, compact `Game Status`, and full `Game Stats` views show net profit, win rate, RTP, unfinished local games, and per-game breakdowns
-- **Better automation tooling:** loop mode supports `target`, `stop-loss`, `max-games`, machine-readable JSON output, and strategy-driven game/config selection
+- **Better automation tooling:** loop mode supports `take-profit`, `retrace`, `stop-loss`, `max-games`, machine-readable JSON output, and strategy-driven game/config selection
 - **Stateful UX improvements:** unfinished-game recovery, blackjack side bets, solver-backed auto decisions, and EV / Monte Carlo helpers for loop planning
 - **Documentation overhaul:** formal BNF argument grammar in CLI help, a bundled games reference, clearer examples, and explicit coverage / limitations for on-chain reporting
 
@@ -282,25 +282,27 @@ Play continuously with safety controls:
 apechurch-cli play --loop
 
 # With safety limits
-apechurch-cli play --loop --target 200 --stop-loss 50 --max-games 100
+apechurch-cli play --loop --take-profit 200 --stop-loss 50 --max-games 100
 
 # Stop after any big hit
 apechurch-cli play ape-strong 10 50 --loop --target-x 3.9
 apechurch-cli play ape-strong 10 50 --loop --target-profit 39
+apechurch-cli play roulette 10 RED --loop --retrace 10
 
 # Stop after recovering a drawdown or giving back a run-up
 apechurch-cli play roulette 10 RED --loop --recover-loss 25
 apechurch-cli play roulette 10 RED --loop --giveback-profit 40
 
 # Specific game
-apechurch-cli play ape-strong 10 50 --loop --target 150
+apechurch-cli play ape-strong 10 50 --loop --take-profit 150
 ```
 
 | Option | Description |
 |--------|-------------|
-| `--target <ape>` | Stop when balance reaches target |
+| `--take-profit <ape>` | Stop when balance reaches target |
 | `--target-x <x>` | Stop when one game pays at least this multiplier |
 | `--target-profit <ape>` | Stop when one game pays at least this payout |
+| `--retrace <ape>` | Stop when one game loses at least this amount |
 | `--recover-loss <ape>` | Stop when session P&L gets back to break-even/profit after a drawdown of at least this size |
 | `--giveback-profit <ape>` | Stop when session P&L falls back to break-even/loss after a run-up of at least this size |
 | `--stop-loss <ape>` | Stop when balance drops to limit |
