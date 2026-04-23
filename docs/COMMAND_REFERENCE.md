@@ -349,12 +349,14 @@ Notes:
                 | "--delay" <seconds>
                 | "--max-games" <count>
                 | "--take-profit" <ape>
+                | "--min-profit" <ape>
                 | "--target-x" <number>
                 | "--target-profit" <ape>
                 | "--retrace" <ape>
                 | "--recover-loss" <ape>
                 | "--giveback-profit" <ape>
                 | "--stop-loss" <ape-nonnegative>
+                | "--max-loss" <ape>
                 | "--bet-strategy" <bet-strategy>
                 | "--max-bet" <ape>
                 | "--gp-ape" <points>
@@ -391,12 +393,14 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--delay <seconds>` | Delay between looped games |
 | `--max-games <count>` | Stop loop after N games |
 | `--take-profit <ape>` | Stop loop when balance reaches the target |
+| `--min-profit <ape>` | Stop loop when session P&L reaches the target profit |
 | `--target-x <x>` | Stop loop when one game pays at least the target multiplier |
 | `--target-profit <ape>` | Stop loop when one game pays at least the target payout |
 | `--retrace <ape>` | Stop loop when one game loses at least this amount |
 | `--recover-loss <ape>` | Stop loop when session P&L returns to break-even/profit after a drawdown of at least this size |
 | `--giveback-profit <ape>` | Stop loop when session P&L returns to break-even/loss after a run-up of at least this size |
 | `--stop-loss <ape>` | Stop loop when balance drops to the threshold |
+| `--max-loss <ape>` | Stop loop when session P&L reaches the loss limit |
 | `--bet-strategy <name>` | Loop bet progression |
 | `--max-bet <ape>` | Loop safety cap for progressive strategies |
 | `--gp-ape <points>` | Override local GP estimation for this run |
@@ -574,12 +578,14 @@ Alias: `bj`
                      | "--loop"
                      | "--max-games" <count>
                      | "--take-profit" <ape>
+                     | "--min-profit" <ape>
                      | "--target-x" <number>
                      | "--target-profit" <ape>
                      | "--retrace" <ape>
                      | "--recover-loss" <ape>
                      | "--giveback-profit" <ape>
                      | "--stop-loss" <ape-nonnegative>
+                     | "--max-loss" <ape>
                      | "--bet-strategy" <bet-strategy>
                      | "--max-bet" <ape>
                      | "--gp-ape" <points>
@@ -623,12 +629,14 @@ Aliases: `hilonebula`, `hilo`
                         | "--loop"
                         | "--max-games" <count>
                         | "--take-profit" <ape>
+                        | "--min-profit" <ape>
                         | "--target-x" <number>
                         | "--target-profit" <ape>
                         | "--retrace" <ape>
                         | "--recover-loss" <ape>
                         | "--giveback-profit" <ape>
                         | "--stop-loss" <ape-nonnegative>
+                        | "--max-loss" <ape>
                         | "--bet-strategy" <bet-strategy>
                         | "--max-bet" <ape>
                         | "--gp-ape" <points>
@@ -660,12 +668,14 @@ Alias: `vp`
                        | "--loop"
                        | "--max-games" <count>
                        | "--take-profit" <ape>
+                       | "--min-profit" <ape>
                        | "--target-x" <number>
                        | "--target-profit" <ape>
                        | "--retrace" <ape>
                        | "--recover-loss" <ape>
                        | "--giveback-profit" <ape>
                        | "--stop-loss" <ape-nonnegative>
+                       | "--max-loss" <ape>
                        | "--bet-strategy" <bet-strategy>
                        | "--max-bet" <ape>
                        | "--gp-ape" <points>

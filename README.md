@@ -292,6 +292,10 @@ apechurch-cli play --loop
 # With safety limits
 apechurch-cli play --loop --take-profit 200 --stop-loss 50 --max-games 100
 
+# Stop on session P&L thresholds
+apechurch-cli play roulette 10 RED --loop --min-profit 25
+apechurch-cli play roulette 10 RED --loop --max-loss 20
+
 # Stop after any big hit
 apechurch-cli play ape-strong 10 50 --loop --target-x 3.9
 apechurch-cli play ape-strong 10 50 --loop --target-profit 39
@@ -308,12 +312,14 @@ apechurch-cli play ape-strong 10 50 --loop --take-profit 150
 | Option | Description |
 |--------|-------------|
 | `--take-profit <ape>` | Stop when balance reaches target |
+| `--min-profit <ape>` | Stop when session P&L reaches the target profit |
 | `--target-x <x>` | Stop when one game pays at least this multiplier |
 | `--target-profit <ape>` | Stop when one game pays at least this payout |
 | `--retrace <ape>` | Stop when one game loses at least this amount |
 | `--recover-loss <ape>` | Stop when session P&L gets back to break-even/profit after a drawdown of at least this size |
 | `--giveback-profit <ape>` | Stop when session P&L falls back to break-even/loss after a run-up of at least this size |
 | `--stop-loss <ape>` | Stop when balance drops to limit |
+| `--max-loss <ape>` | Stop when session P&L reaches the loss limit |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
 | `--gp-ape <points>` | Override the loop points conversion for this run |

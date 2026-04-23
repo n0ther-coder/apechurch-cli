@@ -13,7 +13,9 @@ describe('Loop Terminal Conditions', () => {
   it('parses balance and single-game terminal options together', () => {
     assert.deepStrictEqual(parseLoopTerminalOptions({
       takeProfit: '200',
+      minProfit: '30',
       stopLoss: '50',
+      maxLoss: '15',
       maxGames: '25',
       targetX: '3.5',
       targetProfit: '150',
@@ -22,7 +24,9 @@ describe('Loop Terminal Conditions', () => {
       givebackProfit: '35',
     }), {
       targetBalance: 200,
+      minProfit: 30,
       stopLoss: 50,
+      maxLoss: 15,
       maxGames: 25,
       targetX: 3.5,
       targetProfit: 150,
@@ -36,6 +40,13 @@ describe('Loop Terminal Conditions', () => {
     assert.throws(
       () => parseLoopTerminalOptions({ targetProfit: '0' }),
       /Invalid --target-profit value/
+    );
+  });
+
+  it('rejects invalid max-loss values', () => {
+    assert.throws(
+      () => parseLoopTerminalOptions({ maxLoss: '0' }),
+      /Invalid --max-loss value/
     );
   });
 
@@ -144,6 +155,36 @@ describe('Loop Terminal Conditions', () => {
     assert.ok(message.includes('Games played: 6'));
   });
 
+  it('detects min-profit hits from session P&L', () => {
+    const condition = getBalanceLoopTerminalCondition({
+      currentBalanceApe: 123,
+      startingBalanceApe: 100,
+      minProfit: 20,
+      gamesPlayed: 5,
+    });
+
+    assert.deepStrictEqual(condition, {
+      kind: 'min_profit',
+      threshold: 20,
+      sessionPnlApe: 23,
+    });
+  });
+
+  it('detects max-loss hits from session P&L', () => {
+    const condition = getBalanceLoopTerminalCondition({
+      currentBalanceApe: 79,
+      startingBalanceApe: 100,
+      maxLoss: 20,
+      gamesPlayed: 5,
+    });
+
+    assert.deepStrictEqual(condition, {
+      kind: 'max_loss',
+      threshold: 20,
+      sessionPnlApe: -21,
+    });
+  });
+
   it('arms recover-loss after a drawdown and stops on break-even recovery', () => {
     const terminalState = createLoopTerminalState();
 
@@ -226,5 +267,35 @@ describe('Loop Terminal Conditions', () => {
     assert.ok(message.includes('Loss recovered! Session P&L: +0.50 APE'));
     assert.ok(message.includes('Triggered after reaching -25.00 APE or worse'));
     assert.ok(message.includes('Games played: 9'));
+  });
+
+  it('formats human-readable min-profit stop messages', () => {
+    const message = formatLoopTerminalConditionMessage({
+      kind: 'min_profit',
+      threshold: 20,
+      sessionPnlApe: 23,
+    }, {
+      currentBalanceApe: 123,
+      startingBalanceApe: 100,
+      gamesPlayed: 5,
+    });
+
+    assert.ok(message.includes('Min-profit reached! Session P&L: +23.00 APE (target: +20.00 APE)'));
+    assert.ok(message.includes('Games played: 5'));
+  });
+
+  it('formats human-readable max-loss stop messages', () => {
+    const message = formatLoopTerminalConditionMessage({
+      kind: 'max_loss',
+      threshold: 20,
+      sessionPnlApe: -21,
+    }, {
+      currentBalanceApe: 79,
+      startingBalanceApe: 100,
+      gamesPlayed: 5,
+    });
+
+    assert.ok(message.includes('Max-loss hit! Session P&L: -21.00 APE (limit: -20.00 APE)'));
+    assert.ok(message.includes('Games played: 5'));
   });
 });

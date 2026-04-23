@@ -2474,12 +2474,14 @@ program
   .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
   .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
   .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
@@ -2520,12 +2522,14 @@ program
       '--human',
       '--max-games',
       '--take-profit',
+      '--min-profit',
       '--target-x',
       '--target-profit',
       '--retrace',
       '--recover-loss',
       '--giveback-profit',
       '--stop-loss',
+      '--max-loss',
       '--bet-strategy',
       '--max-bet',
       '--gp-ape',
@@ -2545,7 +2549,9 @@ program
 
     // Parse and validate loop parameters
     let targetBalance;
+    let minProfit;
     let stopLoss;
+    let maxLoss;
     let maxGames;
     let targetX;
     let targetPayoutApe;
@@ -2558,7 +2564,9 @@ program
     try {
       ({
         targetBalance,
+        minProfit,
         stopLoss,
+        maxLoss,
         maxGames,
         targetX,
         targetProfit: targetPayoutApe,
@@ -2743,12 +2751,14 @@ program
       const maxBetInfo = maxBet ? ` | Max bet: ${maxBet} APE` : '';
       console.log(`\n🔄 Loop mode: ${gameInfo} (${delayLabel}${strategyInfo}${maxBetInfo})`);
       if (targetBalance) console.log(`   🎯 Take-profit: ${targetBalance} APE`);
+      if (minProfit) console.log(`   💰 Min-profit: ${minProfit} APE session P&L`);
       if (targetX) console.log(`   🎯 Target multiplier: ${targetX}x`);
       if (targetPayoutApe) console.log(`   💰 Target payout: ${targetPayoutApe} APE`);
       if (retrace) console.log(`   📉 Retrace: ${retrace} APE single-game loss`);
       if (recoverLoss) console.log(`   🛟 Recover-loss: ${recoverLoss} APE drawdown`);
       if (givebackProfit) console.log(`   📉 Giveback-profit: ${givebackProfit} APE run-up`);
       if (stopLoss) console.log(`   🛑 Stop-loss: ${stopLoss} APE`);
+      if (maxLoss) console.log(`   🛑 Max-loss: ${maxLoss} APE session P&L`);
       if (maxGames) console.log(`   🏁 Max games: ${maxGames}`);
       console.log('─'.repeat(50));
     }
@@ -3099,11 +3109,15 @@ program
             gameEntry,
             config: gameConfig,
           });
+          const sessionStopLossApe = maxLoss !== null ? Math.max(balanceApe - maxLoss, 0) : null;
+          const estimateStopLossApe = stopLoss !== null && sessionStopLossApe !== null
+            ? Math.max(stopLoss, sessionStopLossApe)
+            : (stopLoss ?? sessionStopLossApe);
           const estimateLine = formatLoopRunoutEstimate(
             estimateConfiguredGameLoopRunout({
               balanceApe,
               availableApe,
-              stopLossApe: stopLoss,
+              stopLossApe: estimateStopLossApe,
               gameEntry,
               wagerApe,
               config: gameConfig,
@@ -3332,7 +3346,9 @@ program
           currentBalanceApe: balanceApe,
           startingBalanceApe: startingBalance,
           targetBalance,
+          minProfit,
           stopLoss,
+          maxLoss,
           maxGames,
           recoverLoss,
           givebackProfit,
@@ -3428,7 +3444,9 @@ program
           currentBalanceApe: currentApe,
           startingBalanceApe: startingBalance,
           targetBalance,
+          minProfit,
           stopLoss,
+          maxLoss,
           maxGames,
           recoverLoss,
           givebackProfit,
@@ -4139,12 +4157,14 @@ ${'─'.repeat(60)}
   --side <ape>    Player side bet amount
   --loop          Keep playing until balance runs out
   --take-profit <ape>  Stop when balance reaches this amount
+  --min-profit <ape>  Stop when session P&L reaches this profit
   --target-x <x>  Stop when a hand pays at least this multiplier
   --target-profit <ape>  Stop when a hand pays at least this payout
   --retrace <ape>  Stop when a hand loses at least this amount
   --recover-loss <ape>  Stop after a drawdown recovers to break-even/profit
   --giveback-profit <ape>  Stop after a run-up falls back to break-even/loss
   --stop-loss <ape>  Stop when balance drops to this amount
+  --max-loss <ape>  Stop when session P&L reaches this loss
 
 ${'─'.repeat(60)}
   GRAMMAR (BNF)
@@ -4181,6 +4201,8 @@ ${'─'.repeat(60)}
                                            Stop after any 2.5x-or-better hand
   ${BINARY_NAME} blackjack 10 --auto --loop --recover-loss 25
                                            Stop once a 25 APE drawdown gets recovered
+  ${BINARY_NAME} blackjack 10 --auto --loop --min-profit 40
+                                           Stop once session P&L reaches +40 APE
 
 ${'═'.repeat(60)}
 `);
@@ -4227,8 +4249,14 @@ ${'─'.repeat(60)}
   --loop          Keep starting new runs until a stop condition triggers
   --max-games <count> Stop after N runs in loop mode
   --take-profit <ape>  Stop when balance reaches this amount
+  --min-profit <ape> Stop when session P&L reaches this profit
+  --target-x <x> Stop when a run pays at least this multiplier
+  --target-profit <ape> Stop when a run pays at least this payout
   --stop-loss <ape> Stop when balance drops to this amount
+  --max-loss <ape> Stop when session P&L reaches this loss
   --retrace <ape> Stop when a run loses at least this amount
+  --recover-loss <ape> Stop after a drawdown recovers to break-even/profit
+  --giveback-profit <ape> Stop after a run-up falls back to break-even/loss
   --bet-strategy <name> Betting strategy for loop mode
   --max-bet <ape> Maximum bet amount for progressive strategies
   --display <mode> Display mode: full, simple, json
@@ -4261,6 +4289,8 @@ ${'─'.repeat(60)}
   ${BINARY_NAME} hi-lo-nebula 25 --auto best    Net-EV auto-play with VRF/jackpot snapshot
   ${BINARY_NAME} hi-lo-nebula 25 --auto best --loop --max-games 20
                                           Continuous Hi-Lo auto-play
+  ${BINARY_NAME} hi-lo-nebula 25 --auto best --loop --max-loss 20
+                                          Stop after a 20 APE session drawdown
   ${BINARY_NAME} hi-lo-nebula lower             Continue the current run with LOWER
   ${BINARY_NAME} hi-lo-nebula cashout           End the current run and collect
 
@@ -4307,12 +4337,14 @@ ${'─'.repeat(60)}
   --auto [mode]   Auto-play the hand
   --loop          Keep playing until balance runs out
   --take-profit <ape>  Stop when balance reaches this amount
+  --min-profit <ape>  Stop when session P&L reaches this profit
   --target-x <x>  Stop when a hand pays at least this multiplier
   --target-profit <ape>  Stop when a hand pays at least this payout
   --retrace <ape>  Stop when a hand loses at least this amount
   --recover-loss <ape>  Stop after a drawdown recovers to break-even/profit
   --giveback-profit <ape>  Stop after a run-up falls back to break-even/loss
   --stop-loss <ape>  Stop when balance drops to this amount
+  --max-loss <ape>  Stop when session P&L reaches this loss
 
 ${'─'.repeat(60)}
   GRAMMAR (BNF)
@@ -4347,6 +4379,8 @@ ${'─'.repeat(60)}
                                         Bot grinds until broke
   ${BINARY_NAME} video-poker 25 --auto --loop --giveback-profit 40
                                         Stop once a 40 APE run-up is given back
+  ${BINARY_NAME} video-poker 25 --auto --loop --min-profit 50
+                                        Stop once session P&L reaches +50 APE
 
 ${'═'.repeat(60)}
 `);
@@ -4512,12 +4546,14 @@ ENVIRONMENT
 LOOP OPTIONS
   --loop                  Play continuously
   --take-profit <ape>     Stop when balance reaches target
+  --min-profit <ape>      Stop when session P&L reaches the target profit
   --target-x <x>          Stop when one game pays at least Xx
   --target-profit <ape>   Stop when one game pays at least this payout
   --retrace <ape>         Stop when one game loses at least this amount
   --recover-loss <ape>    Stop at break-even/profit after a drawdown of at least this size
   --giveback-profit <ape> Stop at break-even/loss after a run-up of at least this size
   --stop-loss <ape>       Stop when balance drops to limit
+  --max-loss <ape>        Stop when session P&L reaches the loss limit
   --max-games <count>     Stop after N games
   --bet-strategy <name>   Betting strategy (flat, martingale, etc.)
   --max-bet <ape>         Maximum bet cap (for progressive strategies)
@@ -4540,6 +4576,9 @@ EXAMPLES
 
   # Loop with safety limits
   ${BINARY_NAME} play --loop --take-profit 200 --stop-loss 50
+
+  # Stop on session P&L thresholds
+  ${BINARY_NAME} play roulette 10 RED --loop --min-profit 25 --max-loss 20
 
   # Martingale: start at 10, double on loss, max 100
   ${BINARY_NAME} play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
@@ -4618,6 +4657,9 @@ ${'─'.repeat(70)}
   --take-profit <ape>  Stop when balance REACHES this amount
                        Example: --take-profit 200 (stop at 200 APE)
 
+  --min-profit <ape>   Stop when session P&L reaches +<ape> or better
+                       Example: --min-profit 25 (stop at +25 APE session P&L)
+
   --target-x <x>       Stop when a single game pays at least this multiplier
                        Example: --target-x 10 (stop on any 10x+ hit)
 
@@ -4637,6 +4679,9 @@ ${'─'.repeat(70)}
                        
   --stop-loss <ape>    Stop when balance DROPS to this amount
                        Example: --stop-loss 50 (stop if you hit 50 APE)
+
+  --max-loss <ape>     Stop when session P&L reaches -<ape> or worse
+                       Example: --max-loss 20 (stop at -20 APE session P&L)
                        
   --max-games <n>      Stop after exactly N games
                        Example: --max-games 100 (play 100 games then stop)
@@ -4650,7 +4695,7 @@ ${'─'.repeat(70)}
                        If --delay is also set, it is added on top
 
   These can be combined:
-    ${BINARY_NAME} play --loop --take-profit 200 --stop-loss 50 --max-games 500
+    ${BINARY_NAME} play --loop --take-profit 200 --min-profit 25 --stop-loss 50 --max-loss 20 --max-games 500
     ${BINARY_NAME} play roulette 10 RED --loop --recover-loss 25
     ${BINARY_NAME} play roulette 10 RED --loop --human
 
@@ -4691,12 +4736,14 @@ ${'─'.repeat(70)}
 
   Loop exits cleanly on:
     • Reaching --take-profit balance
+    • Reaching --min-profit session P&L
     • Hitting --target-x on a single game
     • Hitting --target-profit on a single game
     • Hitting --retrace on a single game loss
     • Recovering from a --recover-loss drawdown
     • Giving back a --giveback-profit run-up
     • Hitting --stop-loss floor
+    • Hitting --max-loss session P&L
     • Completing --max-games
     • Balance too low for minimum bet
     • Ctrl+C (manual interrupt)
@@ -5914,12 +5961,14 @@ program
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
   .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
   .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
@@ -6001,12 +6050,14 @@ program
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
   .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
   .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
@@ -6076,12 +6127,14 @@ program
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
   .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
   .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
