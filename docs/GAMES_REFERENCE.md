@@ -123,6 +123,7 @@ Range-based one-word VRF game. You choose a win probability `5-95`; the contract
 - Exact RTP: `97.38% - 97.50%` across the supported range surface.
 - Max supported multiplier: `19.5x` at `range 5`.
 - Operational note: `range 50` is the clean coin-flip baseline; `range 75` and `95` are slightly below the usual `97.5 / range` table due to live payout exceptions.
+- ApeStrong and Gimboz Smash are not identical across the whole shared surface: at `75`, ApeStrong is `1.2999x` / `97.4925%` RTP vs. Gimboz Smash `1.3x` / `97.5000%`; at `95`, ApeStrong is `1.025x` / `97.3750%` vs. Gimboz Smash `1.0263x` / `97.4985%`.
 
 ## Baccarat ✔︎
 
@@ -144,7 +145,7 @@ Classic baccarat with contract-backed combined bets. You can play `PLAYER`, `BAN
 ```
 
 **Compare:**
-- Exact RTP: `98.94%` on `BANKER`, `98.77%` on `PLAYER`, `85.88%` on `TIE`.
+- Exact RTP: **`98.94%`** on `BANKER`, **`98.77%`** on `PLAYER`, `85.88%` on `TIE`.
 - Max payout: `9x` on `TIE`.
 - Operational note: `BANKER` remains the best-EV simple bet; combo-bet RTP is just the wager-weighted average of the chosen legs.
 
@@ -191,7 +192,7 @@ Stateful blackjack with interactive actions, optional player-side exposure, and 
 ```
 
 **Compare:**
-- RTP references used by the repo: `100.05%` main-only model, `79.88%` player-side only, `82.02%` dealer-side only.
+- RTP references used by the repo: **`100.05%`** main-only model, `79.88%` player-side only, `82.02%` dealer-side only.
 - Core payouts: natural blackjack `2.5x`, normal win `2.0x`, surrender refund `0.5x`.
 - Operational note: the main game remains a statistical model; the note file now holds the full action-cost and state-layout trail.
 
@@ -237,7 +238,7 @@ Same slots ABI family as Dino Dough, but with a different live reel and paytable
 ```
 
 **Compare:**
-- Exact RTP: `97.79962375%` per spin.
+- Exact RTP: **`97.79962375%`** per spin.
 - Max payout: `100x`.
 - Operational note: lower ceiling than Dino, but still a contract-backed ordered slot rather than a generic three-of-a-kind toy model.
 
@@ -261,7 +262,7 @@ Asymmetric weighted-bucket Plinko with a narrower risk range than Jungle. Ball c
 ```
 
 **Compare:**
-- Exact RTP by risk: `97.73%`, `97.76%`, `97.80%`.
+- Exact RTP by risk: **`97.73%`**, **`97.76%`**, **`97.80%`**.
 - Top multipliers: `50x`, `100x`, `250x`.
 - Operational note: `risk 2` (`High`) has the best exact RTP and the highest tail risk.
 
@@ -283,7 +284,7 @@ Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` 
 ```
 
 **Compare:**
-- Exact RTP: `97.89751366817333%` per spin.
+- Exact RTP: **`97.89751366817333%`** per spin.
 - Max payout: `333x`.
 - Operational note: much deeper ordered paytable than the public crop suggests; use the verification note for the full reel and triple matrix.
 
@@ -306,7 +307,7 @@ Verified ordered `3`-reel slot with `6` live symbol indexes and the same cumulat
 ```
 
 **Compare:**
-- Exact RTP: `97.694552458612%` per spin.
+- Exact RTP: **`97.694552458612%`** per spin.
 - Max payout: `50x`.
 - Operational note: flatter, rebate-heavy paytable than the other promoted slots; positive payout is about `41.02%`, while net-profit outcomes are about `30.00%`.
 
@@ -336,6 +337,7 @@ Verified one-or-two-interval target game on a public `1-100` board. The CLI acce
 - Exact RTP: `97.4918% - 97.50%` across every supported cover count.
 - Max payout: `97.5x` when you cover exactly `1` number.
 - Operational note: the live contract still stores winning intervals directly, so `--out-range` is a CLI convenience that rewrites outside bets into the explicit target ranges required by the contract.
+- ApeStrong and Gimboz Smash are not identical across the whole shared surface: at `75`, Gimboz Smash is `1.3x` / `97.5000%` RTP vs. ApeStrong `1.2999x` / `97.4925%`; at `95`, Gimboz Smash is `1.0263x` / `97.4985%` vs. ApeStrong `1.025x` / `97.3750%`.
 
 ## Hi-Lo Nebula ✔︎
 
@@ -356,7 +358,7 @@ Stateful sequential card-prediction game with explicit `HIGHER`, `LOWER`, `SAME`
 ```
 
 **Compare:**
-- Public references still carried by the repo: `97.5%` calculated RTP and `97.84%` running RTP from the archived transparency snapshot.
+- Public references still carried by the repo: `97.5%` calculated RTP and **`97.84%`** running RTP from the archived transparency snapshot.
 - Verified mechanics: `play`, `makeGuess`, `cashOut`, live `getVRFFee`, verified `getGameInfo`, and a live `getJackpotAmount(betAmount)` getter.
 - `--auto best` uses a VRF-aware net-EV continuation solver on the verified branch model, with the live jackpot share treated as the terminal bonus snapshot.
 - `--solver` enables manual `Suggested action` hints from that same `best` engine.
@@ -430,7 +432,7 @@ Five independent monkey draws scored as multiplicity hands. There is no redraw o
 ```
 
 **Compare:**
-- Exact RTP: `97.99%` in Low, `98.29%` in High.
+- Exact RTP: **`97.99%`** in Low, **`98.29%`** in High.
 - Max payout: `50x` in both modes.
 - Operational note: `risk 1` (`High`, on-chain mode `2`) has the better EV; `risk 0` (`Low`, on-chain mode `1`) is the lower-variance barrel mix.
 
@@ -453,9 +455,9 @@ Batched prime-or-zero number game. Risk controls the numeric range and fixed mul
 ```
 
 **Compare:**
-- Exact RTP: `98.00%` on Easy/Medium/Hard and `98.04%` on Extreme.
+- Exact RTP: **`98.00%`** on Easy/Medium/Hard and **`98.04%`** on Extreme.
 - Max fixed top payout: `500x` on Extreme via zero.
-- Operational note: the transparency running RTP can sit above `100%`, but the contract-backed long-run surface is still the fixed risk table in the verification note.
+- Operational note: the transparency running RTP can sit above **`100%`**, but the contract-backed long-run surface is still the fixed risk table in the verification note.
 
 ## Reel Pirates
 
@@ -476,7 +478,7 @@ Pirate-themed match-anywhere cascade slot. The public docs describe regular-symb
 ```
 
 **Compare:**
-- Observed running RTP from the supplied analytics screenshot: `100.07%`.
+- Observed running RTP from the supplied analytics screenshot: **`100.07%`**.
 - Exact closed-form RTP: not published from the current local/public source set.
 - Operational note: playable via the observed `play(address,bytes)` payload, dynamic `getVRFFee(uint32)` path, and per-spin executor fee, but not promoted to `ABI verified` because the live contract is unverified on ApeScan.
 
@@ -549,7 +551,7 @@ Verified ordered `3`-reel slot in the same ABI family as Dino Dough, Bubblegum H
 ```
 
 **Compare:**
-- Exact RTP: `97.87165381190353%` per spin.
+- Exact RTP: **`97.87165381190353%`** per spin.
 - Max payout: `500x`.
 - Operational note: lower hit rate than Geez at about `31.19%`, but a much fatter top tail and many fractional mid-tier payouts from the live basis-point table.
 
@@ -571,7 +573,7 @@ Stateful Jacks or Better with one redraw, interactive play, and an exact hold-EV
 ```
 
 **Compare:**
-- Exact base RTP: `98.1649%` at any fixed denomination.
+- Exact base RTP: **`98.1649%`** at any fixed denomination.
 - Jackpot uplift: `98.1649% + jackpot_ape / 40,000` at `100 APE` only.
 - Operational note: redraw fee is `0` when standing pat; jackpot eligibility exists only at the max fixed bet.
 
@@ -627,7 +629,7 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Main Only | Yes | `100.05%` | Statistical main-game model from the repo simulator | `96.84%` |
+| Main Only | Yes | **`100.05%`** | Statistical main-game model from the repo simulator | `96.84%` |
 | Dealer Side Only | Yes | `82.02%` | Exact EV from the published dealer-side conditions | `96.84%` |
 | Side Only | Yes | `79.88%` | Exact EV from the published player-side table | `96.84%` |
 
@@ -635,9 +637,9 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| BANKER | Yes | `98.94%` | Exact weighted sum on the verified 6-rank draw tree | `98.12%` |
-| PLAYER | Yes | `98.77%` | Exact weighted sum on the verified 6-rank draw tree | `98.12%` |
-| TIE | Yes | `85.88%` | Exact weighted sum on the verified 6-rank draw tree | `98.12%` |
+| BANKER | Yes | **`98.94%`** | Exact weighted sum on the verified 6-rank draw tree | **`98.12%`** |
+| PLAYER | Yes | **`98.77%`** | Exact weighted sum on the verified 6-rank draw tree | **`98.12%`** |
+| TIE | Yes | `85.88%` | Exact weighted sum on the verified 6-rank draw tree | **`98.12%`** |
 
 #### Blocks ✔︎
 
@@ -658,65 +660,62 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| High | Yes | `98.29%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
-| Low | Yes | `97.99%` | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
+| High | Yes | **`98.29%`** | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
+| Low | Yes | **`97.99%`** | Exact combinatorial EV over the verified on-chain 5-draw paytable | `97.34%` |
 
 #### Video Poker ✔︎ / Gimboz Poker
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
 | `100 APE` bet with known jackpot pool | Yes | `98.16% + jackpot_ape / 40,000` | Exact parametric jackpot uplift from `jackpotTotal` | `89.53%` |
-| Base paytable at any fixed bet | Yes | `98.16%` | Exact weighted sum over verified on-chain paytable and final-hand odds | `89.53%` |
+| Base paytable at any fixed bet | Yes | **`98.16%`** | Exact weighted sum over verified on-chain paytable and final-hand odds | `89.53%` |
 
 #### Primes ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Extreme | Yes | `98.04%` | Exact weighted sum over verified on-chain `gameModes` and prime mapping | `105.64%` |
-| Easy | Yes | `98.00%` | Exact weighted sum over verified on-chain `gameModes` and prime mapping | `105.64%` |
-| Medium | Yes | `98.00%` | Exact weighted sum over verified on-chain `gameModes` and prime mapping | `105.64%` |
-| Hard | Yes | `98.00%` | Exact weighted sum over verified on-chain `gameModes` and prime mapping | `105.64%` |
+| Extreme | Yes | **`98.04%`** | Exact weighted sum over verified on-chain `gameModes` and prime mapping | **`105.64%`** |
+| `Easy` / `Medium` / `Hard` | Yes | **`98.00%`** | Exact weighted sum over verified on-chain `gameModes` and prime mapping | **`105.64%`** |
 
 #### Reel Pirates
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Any base spin count `1-15` | Yes | Not verified | Public docs + supplied gameplay tx confirm mechanics and play payload; exact symbol-frequency model is not available from verified source | `100.07%` |
+| Any base spin count `1-15` | Yes | Not verified | Public docs + supplied gameplay tx confirm mechanics and play payload; exact symbol-frequency model is not available from verified source | **`100.07%`** |
 
 #### Jungle Plinko ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Risk 0 / Low | Yes | `98.00%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Risk 4 / Ultra Degen | Yes | `97.99%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Risk 1 / Moderate | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Risk 2 / High | Yes | `97.97%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
-| Risk 3 / Degen | Yes | `97.94%` | Exact weighted sum over on-chain bucket tables | `98.42%` |
+| Risk 0 / Low | Yes | **`98.00%`** | Exact weighted sum over on-chain bucket tables | **`98.42%`** |
+| Risk 4 / Ultra Degen | Yes | **`97.99%`** | Exact weighted sum over on-chain bucket tables | **`98.42%`** |
+| `Risk 1 / Moderate` / `Risk 2 / High` | Yes | **`97.97%`** | Exact weighted sum over on-chain bucket tables | **`98.42%`** |
+| Risk 3 / Degen | Yes | **`97.94%`** | Exact weighted sum over on-chain bucket tables | **`98.42%`** |
 
 #### Bear-A-Dice ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Difficulty / roll matrix | Yes | `97.25% - 97.94%` | Exact weighted sum over verified on-chain `payouts[difficulty][numRuns][diceSum]` and the true 2d6 distribution | `97.56%` |
+| Difficulty / roll matrix | Yes | `97.25% - 97.94%` | Exact weighted sum over verified on-chain `payouts[difficulty][numRuns][diceSum]` and the true 2d6 distribution | **`97.56%`** |
 
 #### Dino Dough ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Any spin count `1-15` | Yes | `97.90%` | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `97.80%` |
+| Any spin count `1-15` | Yes | **`97.90%`** | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | **`97.80%`** |
 
 #### Sushi Showdown ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Any spin count `1-15` | Yes | `97.87%` | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `95.99%` |
+| Any spin count `1-15` | Yes | **`97.87%`** | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `95.99%` |
 
 #### Speed Keno ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Picks 5 | Yes | `97.84%` | Exact hypergeometric EV | `93.36%` |
-| Picks 3 | Yes | `97.81%` | Exact hypergeometric EV | `93.36%` |
+| Picks 5 | Yes | **`97.84%`** | Exact hypergeometric EV | `93.36%` |
+| Picks 3 | Yes | **`97.81%`** | Exact hypergeometric EV | `93.36%` |
 | Picks 1 | Yes | `97.50%` | Exact hypergeometric EV | `93.36%` |
 | Picks 4 | Yes | `97.42%` | Exact hypergeometric EV | `93.36%` |
 | Picks 2 | Yes | `97.37%` | Exact hypergeometric EV | `93.36%` |
@@ -725,33 +724,33 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Any spin count `1-15` | Yes | `97.80%` | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `97.26%` |
+| Any spin count `1-15` | Yes | **`97.80%`** | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `97.26%` |
 
 #### Cosmic Plinko ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Mode 2 / High | Yes | `97.80%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
-| Risk 1 / Modest | Yes | `97.76%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
-| Risk 0 / Low | Yes | `97.73%` | Exact weighted sum over on-chain bucket tables | `97.32%` |
+| Mode 2 / High | Yes | **`97.80%`** | Exact weighted sum over on-chain bucket tables | `97.32%` |
+| Risk 1 / Modest | Yes | **`97.76%`** | Exact weighted sum over on-chain bucket tables | `97.32%` |
+| Risk 0 / Low | Yes | **`97.73%`** | Exact weighted sum over on-chain bucket tables | `97.32%` |
 
 #### Geez Diggerz ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Any spin count `1-15` | Yes | `97.69%` | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `97.25%` |
+| Any spin count `1-15` | Yes | **`97.69%`** | Exact weighted sum over the verified live reel-stop tables and ordered paytable getters | `97.25%` |
 
 #### Gimboz Smash ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Any supported cover count `1-95` | Yes | `97.4918% - 97.50%` | Exact EV from verified ABI + live `getPayoutFromRange(range)` getter snapshot read on `2026-04-20` | `97.70%` |
+| Any supported cover count `1-95` | Yes | `97.4918% - 97.50%` | Exact EV from verified ABI + live `getPayoutFromRange(range)` getter snapshot read on `2026-04-20` | **`97.70%`** |
 
 #### ApeStrong ✔︎
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Any supported `range` (`5-95`) | Yes | `97.38% - 97.50%` | Exact EV from verified contract source + live `edgeFlipRangeToPayout(range)` table read on `2026-04-09` | `98.53%` |
+| Any supported `range` (`5-95`) | Yes | `97.38% - 97.50%` | Exact EV from verified contract source + live `edgeFlipRangeToPayout(range)` table read on `2026-04-09` | **`98.53%`** |
 
 #### Roulette ✔︎
 
@@ -768,47 +767,48 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 | Picks 8 | Yes | `94.19%` | Exact hypergeometric EV | `86.35%` |
 | Picks 6 | Yes | `93.90%` | Exact hypergeometric EV | `86.35%` |
 | Picks 10 | Yes | `93.83%` | Exact hypergeometric EV | `86.35%` |
-| Picks 1 | Yes | `93.75%` | Exact hypergeometric EV | `86.35%` |
-| Picks 2 | Yes | `93.75%` | Exact hypergeometric EV | `86.35%` |
+| `Picks 1` / `Picks 2` | Yes | `93.75%` | Exact hypergeometric EV | `86.35%` |
 | Picks 3 | Yes | `93.67%` | Exact hypergeometric EV | `86.35%` |
 | Picks 4 | Yes | `93.39%` | Exact hypergeometric EV | `86.35%` |
 | Picks 9 | Yes | `93.32%` | Exact hypergeometric EV | `86.35%` |
 
-### Win Rate vs Max Multiply Cross-Check
+### Win Rate vs Max X Cross-Check
 
-These two tables are intentionally **game-level** and use **one single supported mode per row**. In the first table, each game is represented by the mode with its highest exact `win rate`; in the second, each game is represented by the mode with its highest exact `max multiply`. In both tables, `win rate`, `RTP`, and `max multiply` therefore refer to the **same game and the same mode**.
+These two tables are intentionally **game-level** and use **one single supported mode per row**. In the first table, each game is represented by the mode with its highest exact `win rate`; in the second, each game is represented by the mode with its highest exact `max X`. In both tables, `win rate`, `RTP`, and `max X` therefore refer to the **same game and the same mode**.
 
-`Win rate` here means **exact net-profit frequency** (`payout > 1x`), which matches the CLI's `win_rate` semantics rather than merely counting any positive payout. `RTP` is the exact expected return for that same selected mode, and `max multiply` is the exact gross multiplier for that same selected mode. Equivalent tied modes may be represented by one documented mode label. For `Video Poker`, the ordering uses the fixed `250x` royal-flush base and excludes the live progressive jackpot uplift. These tables exclude `Blackjack`, `Hi-Lo Nebula`, `Dino Dough`, and `Bubblegum Heist` because the local repo does not currently keep a comparable exact net-profit win-rate surface for them in reusable form.
+`Win rate` here means **exact net-profit frequency** (`payout > 1x`), which matches the CLI's `win_rate` semantics rather than merely counting any positive payout. `RTP` is the exact expected return for that same selected mode, and `max X` is the exact gross multiplier for that same selected mode. Equivalent tied modes may be represented by one documented mode label. For `Video Poker`, the ordering uses the fixed `250x` royal-flush base and excludes the live progressive jackpot uplift. These tables exclude `Blackjack`, `Hi-Lo Nebula`, `Dino Dough`, and `Bubblegum Heist` because the local repo does not currently keep a comparable exact net-profit win-rate surface for them in reusable form.
 
-#### Top 10 Games by Win Rate, Ordered by Max Multiply
+For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODDS.md](./GAMES_PAYOUTS_VS_ODDS.md).
 
-| Game | Selected Mode | Win Rate | RTP | Max Multiply |
-|------|---------------|----------|-----|--------------|
-| Keno ✔︎ | `Picks 5` | `58.35%` | `94.68%` | `200x` |
-| Monkey Match ✔︎ | `Low` | `44.44%` | `97.99%` | `50x` |
-| Speed Keno ✔︎ | `Picks 2` | `44.74%` | `97.37%` | `5x` |
-| Jungle Plinko ✔︎ | `Risk 0 / Low` | `53.33%` | `98.00%` | `2.2x` |
-| Primes ✔︎ | `Easy` | `50.00%` | `98.00%` | `2.2x` |
-| Roulette ✔︎ | `Red / Black` | `47.37%` | `97.11%` | `2.05x` |
-| Baccarat ✔︎ | `BANKER` | `45.84%` | `98.94%` | `1.95x` |
-| Bear-A-Dice ✔︎ | `Easy / 1 roll` | `83.33%` | `97.89%` | `1.83x` |
-| Gimboz Smash ✔︎ | `Cover 95` | `95.00%` | `97.50%` | `1.0263x` |
-| ApeStrong ✔︎ | `Range 95` | `95.00%` | `97.38%` | `1.025x` |
+#### Top 10 Games by Win Rate, Ordered by Max X
 
-#### Top 10 Games by Max Multiply, Ordered by Win Rate
+| Game | Selected Mode | Win Rate | Min X | Mode X | Max X | RTP |
+|------|---------------|----------|-------|-------|-------|-----|
+| Keno ✔︎ | `Picks 5` | `58.35%` | `1.1x` @ `27.77%` | `1.1x` @ `27.77%` | `200x` @ `0.04%` | `94.68%` |
+| Monkey Match ✔︎ | `Low` | `44.44%` | `1.25x` @ `23.15%` | `1.25x` @ `23.15%` | `50x` @ `0.08%` | **`97.99%`** |
+| Speed Keno ✔︎ | `Picks 2` | `44.74%` | `1.45x` @ `39.47%` | `1.45x` @ `39.47%` | `5x` @ `5.26%` | `97.37%` |
+| Jungle Plinko ✔︎ | `Risk 0 / Low` | `53.33%` | `1.2x` @ `38.10%` | `1.2x` @ `38.10%` | `2.2x` @ `15.24%` | **`98.00%`** |
+| Primes ✔︎ | `Easy` | `50.00%` | `1.9x` @ `40.00%` | `1.9x` @ `40.00%` | `2.2x` @ `10.00%` | **`98.00%`** |
+| Roulette ✔︎ | `Red / Black` | `47.37%` | `2.05x` @ `47.37%` | `2.05x` @ `47.37%` | `2.05x` @ `47.37%` | `97.11%` |
+| Baccarat ✔︎ | `BANKER` | `45.84%` | `1.95x` @ `45.84%` | `1.95x` @ `45.84%` | `1.95x` @ `45.84%` | **`98.94%`** |
+| Bear-A-Dice ✔︎ | `Easy / 1 roll` | `83.33%` | `1.01x` @ `27.78%` | `1.01x` @ `27.78%` | `1.83x` @ `5.56%` | **`97.89%`** |
+| Gimboz Smash ✔︎ | `Cover 95` | `95.00%` | `1.0263x` @ `95.00%` | `1.0263x` @ `95.00%` | `1.0263x` @ `95.00%` | `97.50%` |
+| ApeStrong ✔︎ | `Range 95` | `95.00%` | `1.025x` @ `95.00%` | `1.025x` @ `95.00%` | `1.025x` @ `95.00%` | `97.38%` |
 
-| Game | Selected Mode | Win Rate | RTP | Max Multiply |
-|------|---------------|----------|-----|--------------|
-| Speed Keno ✔︎ | `Picks 5` | `26.63%` | `97.84%` | `2,000x` |
-| Video Poker ✔︎ / Gimboz Poker | `Base paytable` | `23.99%` | `98.16%` | `250x` |
-| Sushi Showdown ✔︎ | `Any spin count 1-15` | `23.91%` | `97.87%` | `500x` |
-| Keno ✔︎ | `Picks 10` | `23.23%` | `93.83%` | `1,000,000x` |
-| Jungle Plinko ✔︎ | `Risk 4 / Ultra Degen` | `22.18%` | `97.99%` | `1,000x` |
-| Cosmic Plinko ✔︎ | `Mode 2 / High` | `14.37%` | `97.80%` | `250x` |
-| Primes ✔︎ | `Extreme` | `12.30%` | `98.04%` | `500x` |
-| Gimboz Smash ✔︎ | `Cover 1` | `1.00%` | `97.50%` | `97.5x` |
-| Blocks ✔︎ | `High / 5 rolls` | `0.0013%` | `1.37%` | `3,125,000,000,000,000,000x` |
-| Bear-A-Dice ✔︎ | `Master / 5 rolls` | `0.000053%` | `97.80%` | `1,847,949.193x` |
+#### Top 10 Games by Max X, Ordered by Win Rate
+
+| Game | Selected Mode | Win Rate | Min X | Mode X | Max X | RTP |
+|------|---------------|----------|-------|-------|-------|-----|
+| Speed Keno ✔︎ | `Picks 5` | `26.63%` | `1.25x` @ `19.37%` | `1.25x` @ `19.37%` | `2000x` @ `0.01%` | **`97.84%`** |
+| Video Poker ✔︎ / Gimboz Poker | `Base paytable` | `23.99%` | `1x` @ `21.46%` | `1x` @ `21.46%` | `250x` @ `0.00%` | **`98.16%`** |
+| Sushi Showdown ✔︎ | `Any spin count 1-15` | `23.91%` | `1.25x` @ `3.97%` | `1.75x` @ `5.31%` | `500x` @ `0.01%` | **`97.87%`** |
+| Keno ✔︎ | `Picks 10` | `23.23%` | `1.2x` @ `14.71%` | `1.2x` @ `14.71%` | `1000000x` @ `0.00%` | `93.83%` |
+| Jungle Plinko ✔︎ | `Risk 4 / Ultra Degen` | `22.18%` | `1.4x` @ `9.87%` | `1.4x` @ `9.87%` | `1000x` @ `0.00%` | **`97.99%`** |
+| Cosmic Plinko ✔︎ | `Mode 2 / High` | `14.37%` | `1.5x` @ `6.19%` | `1.5x` @ `6.19%` | `250x` @ `0.03%` | **`97.80%`** |
+| Primes ✔︎ | `Extreme` | `12.30%` | `7.57x` @ `12.29%` | `7.57x` @ `12.29%` | `500x` @ `0.01%` | **`98.04%`** |
+| Gimboz Smash ✔︎ | `Cover 1` | `1.00%` | `97.5x` @ `1.00%` | `97.5x` @ `1.00%` | `97.5x` @ `1.00%` | `97.50%` |
+| Blocks ✔︎ | `High / 5 rolls` | `0.0013%` | `57.67x` @ `0.00%` | `57.67x` @ `0.00%` | `3125000000000000000.00x` @ `0.00%` | `1.37%` |
+| Bear-A-Dice ✔︎ | `Master / 5 rolls` | `0.000053%` | `1,847,949.19x` @ `0.00%` | `1,847,949.19x` @ `0.00%` | `1,847,949.19x` @ `0.00%` | **`97.80%`** |
 
 ### Still Not Exactly Calculable from Local Sources
 
@@ -841,7 +841,7 @@ Every `10,000 GP` equals `1 Level`, so GP optimization is also level-progression
 - Best-case RTP inputs used below are:
   - `ApeStrong ✔︎` at `range 75`: `97.49%` from the verified live `edgeFlipRangeToPayout[75] = 12,999` table entry
   - `Roulette ✔︎` hedge (`RED,BLACK`): `97.1%` from the public transparency header
-  - `Bubblegum Heist ✔︎`: `97.80%` from the verified live reel and ordered-paytable snapshot read on `2026-04-09`
+  - `Bubblegum Heist ✔︎`: **`97.80%`** from the verified live reel and ordered-paytable snapshot read on `2026-04-09`
 - The commands below omit `--stop-loss` so the wager-volume math stays exact. In real play, bankroll limits should still be imposed.
 
 ### Published Cumulative Wager Bonus Schedule
@@ -918,7 +918,7 @@ The ladder matters because the bonus GP is not small relative to the early level
 
 ### Interpretation
 
-These examples suggest a fairly stable conclusion. If the objective is **GP per unit of expected loss**, then high-RTP eligible games dominate, but the margin between a roughly `97.49%` ApeStrong baseline and a `97.8%` baseline is smaller than many players intuit. By contrast, volatility and bankroll path-dependence can differ substantially, which is why `ApeStrong ✔︎` at a relatively wide range or `Roulette ✔︎` with `RED,BLACK` remain attractive operational baselines even when a slot-like game has a slightly better published RTP.
+These examples suggest a fairly stable conclusion. If the objective is **GP per unit of expected loss**, then high-RTP eligible games dominate, but the margin between a roughly `97.49%` ApeStrong baseline and a **`97.8%`** baseline is smaller than many players intuit. By contrast, volatility and bankroll path-dependence can differ substantially, which is why `ApeStrong ✔︎` at a relatively wide range or `Roulette ✔︎` with `RED,BLACK` remain attractive operational baselines even when a slot-like game has a slightly better published RTP.
 
 Equally important, the cumulative bonus system means the relevant metric is not just raw RTP but **expected loss per effective GP** and, by extension, **expected loss per level**. Under the standard ratio, the bonus ladder shifts the effective return from `6.0 GP/APE` at `1,000 APE` volume to `7.25 GP/APE` at `1,000,000 APE` volume. On double weeks the same ladder becomes markedly more favorable, while on half weeks the economics deteriorate enough that conservative flat-volume loops become more important than promotional optimism.
 

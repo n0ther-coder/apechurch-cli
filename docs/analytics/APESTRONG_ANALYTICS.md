@@ -28,6 +28,11 @@ Current live exceptions recorded in this repo:
 - `75 -> 12999` (`1.2999x`)
 - `95 -> 10250` (`1.025x`)
 
+These two live overrides are also the exact places where ApeStrong does **not** match Gimboz Smash across the otherwise shared `5..95` surface:
+
+- At `75`, ApeStrong pays `1.2999x` for `97.4925%` RTP; Gimboz Smash pays `1.3x` for `97.5000%` RTP.
+- At `95`, ApeStrong pays `1.025x` for `97.3750%` RTP; Gimboz Smash pays `1.0263x` for `97.4985%` RTP.
+
 ## Exact Formula
 
 For any supported range `r`:

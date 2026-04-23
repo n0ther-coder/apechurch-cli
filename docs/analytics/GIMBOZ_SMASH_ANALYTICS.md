@@ -28,6 +28,11 @@ RTP(winCount) = winCount * floor(975000 / winCount) / 10000
 
 Important consequence: the game is almost, but not perfectly, flat-EV across cover counts. The live getter's floor division makes exact RTP range from `97.4918%` at `winCount = 83` up to `97.5000%`.
 
+Gimboz Smash matches ApeStrong across most shared `5..95` cover/range counts, but they are **not** identical over the whole surface. The exceptions are:
+
+- At `75`, Gimboz Smash pays `1.3x` for `97.5000%` RTP; ApeStrong pays `1.2999x` for `97.4925%` RTP.
+- At `95`, Gimboz Smash pays `1.0263x` for `97.4985%` RTP; ApeStrong pays `1.025x` for `97.3750%` RTP.
+
 The platform analytics screenshot captured on **2026-04-20** showed a public running RTP of `97.70%` over `33,758` games. That is a realized sample statistic, not the theoretical value from the verified payout getter.
 
 ## Representative Reference Points
