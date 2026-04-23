@@ -104,11 +104,17 @@ Only after the checks above are complete:
 
 ## Current Backlog
 
-As of **2026-04-20**, there are no remaining supported games waiting on promotion to `ABI verified` in this repo.
+As of **2026-04-23**, `Reel Pirates` is supported as a playable command but remains in the ABI-verification backlog because ApeScan shows the live contract as unverified.
 
 Ordering: alphabetical by game title.
 
 Currently promoted games are ApeStrong ✔︎, Baccarat ✔︎, Bear-A-Dice ✔︎, Blackjack ✔︎, Blocks ✔︎, Bubblegum Heist ✔︎, Cosmic Plinko ✔︎, Dino Dough ✔︎, Geez Diggerz ✔︎, Gimboz Smash ✔︎, Hi-Lo Nebula ✔︎, Jungle Plinko ✔︎, Keno ✔︎, Monkey Match ✔︎, Primes ✔︎, Roulette ✔︎, Speed Keno ✔︎, Sushi Showdown ✔︎, and Video Poker ✔︎.
+
+Supported but not promoted:
+
+| Game | Note | Missing evidence |
+|------|------|------------------|
+| Reel Pirates | `docs/verification/REEL_PIRATES_CONTRACT.md` | Verified Solidity source or enough live getter/source evidence to prove the cascade outcome model and exact odds |
 
 Every promoted game now has a dedicated verification note under `docs/verification/`:
 

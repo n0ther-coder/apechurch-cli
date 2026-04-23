@@ -408,6 +408,7 @@ describe('CLI Commands Integration Tests', () => {
           'keno',
           'monkey-match',
           'primes',
+          'reel-pirates',
           'roulette',
           'speed-keno',
           'sushi-showdown',
@@ -434,7 +435,7 @@ describe('CLI Commands Integration Tests', () => {
 
     it('shows alphabetized available games when the name is invalid', () => {
       const { stdout } = cli('game nope');
-      assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | geez-diggerz | gimboz-smash | jungle-plinko | keno | monkey-match | primes | roulette | speed-keno | sushi-showdown'));
+      assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | geez-diggerz | gimboz-smash | jungle-plinko | keno | monkey-match | primes | reel-pirates | roulette | speed-keno | sushi-showdown'));
       assert.ok(stdout.includes('Stateful: blackjack | hi-lo-nebula | video-poker'));
     });
 
@@ -458,6 +459,7 @@ describe('CLI Commands Integration Tests', () => {
         'keno',
         'monkey-match',
         'primes',
+        'reel-pirates',
         'roulette',
         'speed-keno',
         'sushi-showdown',
@@ -734,6 +736,13 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout } = cli('game keno');
       assert.ok(stdout.includes('BNF:'), 'Should show BNF in the parameter section');
       assert.ok(stdout.includes('<numbers> ::= "random" | <keno-number> ( "," <keno-number> )*'), 'Should show numbers grammar');
+    });
+
+    it('hides internal registry metadata from game helpers', () => {
+      const { stdout } = cli('game pirates');
+
+      assert.ok(stdout.includes('--spins'), 'Should still show the public spin parameter');
+      assert.ok(!stdout.includes('--gameDataOrder'), 'Should not show internal encoding metadata as a CLI option');
     });
 
     it('shows error for invalid game', () => {

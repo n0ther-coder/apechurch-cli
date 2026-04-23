@@ -31,6 +31,7 @@ Ordering: alphabetical by game title.
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` | - |
 | Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --risk Y` | `monkeymatch`, `monkey` |
 | Primes ✔︎ | `play primes <amt> <risk> <runs>` | `--game primes --amount X --risk Y --runs Z` | - |
+| Reel Pirates | `play reel-pirates <amt> <spins>` | `--game reel-pirates --amount X --spins Y` | `reelpirates`, `pirates`, `reel` |
 | Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` | - |
 | Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` | `speedkeno`, `skeno` |
 | Sushi Showdown ✔︎ | `play sushi-showdown <amt> <spins>` | `--game sushi-showdown --amount X --spins Y` | `sushishowdown`, `sushi` |
@@ -90,6 +91,7 @@ Ordering: alphabetical by game title.
 | Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF | Single total wager |
 | Monkey Match ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + live `2%` platform fee | Single total wager |
 | Primes ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with runs + live `2%` platform fee | Total wager is split across `1-20` runs |
+| Reel Pirates | At least `2.5 APE` per spin | `total wager >= spins * 2.5 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with paid base spins + `EXECUTOR_FEE()` per spin | Total wager is split across `1-15` base spins |
 | Roulette ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static live RNG fee; house edge is in the payout multipliers | Total wager is split evenly across comma-separated bets |
 | Speed Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with batched games | Total wager is split across `1-20` batched games |
 | Sushi Showdown ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
@@ -231,7 +233,7 @@ Same slots ABI family as Dino Dough, but with a different live reel and paytable
 
 ```bnf
 <amount> ::= <ape>
-<spins> ::= <integer>              ; 1 <= value <= 15
+<spins> ::= <integer>              ; 1 <= value <= 15; amount >= spins * 2.5 APE
 ```
 
 **Compare:**
@@ -455,6 +457,29 @@ Batched prime-or-zero number game. Risk controls the numeric range and fixed mul
 - Max fixed top payout: `500x` on Extreme via zero.
 - Operational note: the transparency running RTP can sit above `100%`, but the contract-backed long-run surface is still the fixed risk table in the verification note.
 
+## Reel Pirates
+
+**Type:** Slots / Cascade
+**Contract:** `0x5E405198B349d6522BbB614E7391bDC4F4F6f681`
+**Aliases:** `reelpirates`, `pirates`, `reel`
+**ABI verified:** `false`
+**Verification notes:** [REEL_PIRATES_CONTRACT.md](./verification/REEL_PIRATES_CONTRACT.md)
+**Analytics:** [REEL_PIRATES_ANALYTICS.md](./analytics/REEL_PIRATES_ANALYTICS.md)
+
+Pirate-themed match-anywhere cascade slot. The public docs describe regular-symbol pays at `8-9`, `10-11`, and `12+` identical symbols anywhere on the board; `4+` scatter chests trigger `5` free spins; bonus multipliers are additive and can reach `100x`.
+
+**Command:** `apechurch-cli play reel-pirates <amount> <spins>`
+
+```bnf
+<amount> ::= <ape>
+<spins> ::= <integer>              ; optional, default 5; 1 <= value <= 15; amount >= spins * 2.5 APE
+```
+
+**Compare:**
+- Observed running RTP from the supplied analytics screenshot: `100.07%`.
+- Exact closed-form RTP: not published from the current local/public source set.
+- Operational note: playable via the observed `play(address,bytes)` payload, dynamic `getVRFFee(uint32)` path, and per-spin executor fee, but not promoted to `ABI verified` because the live contract is unverified on ApeScan.
+
 ## Roulette ✔︎
 
 **Type:** Table
@@ -651,6 +676,12 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 | Easy | Yes | `98.00%` | Exact weighted sum over verified on-chain `gameModes` and prime mapping | `105.64%` |
 | Medium | Yes | `98.00%` | Exact weighted sum over verified on-chain `gameModes` and prime mapping | `105.64%` |
 | Hard | Yes | `98.00%` | Exact weighted sum over verified on-chain `gameModes` and prime mapping | `105.64%` |
+
+#### Reel Pirates
+
+| Mode | CLI Support | Exact RTP | Method | Public Running RTP |
+|------|-------------|-----------|--------|--------------------|
+| Any base spin count `1-15` | Yes | Not verified | Public docs + supplied gameplay tx confirm mechanics and play payload; exact symbol-frequency model is not available from verified source | `100.07%` |
 
 #### Jungle Plinko ✔︎
 
@@ -906,7 +937,7 @@ Ordering: alphabetical by game title.
 | Cash Dash | ladder / cash-out tile game | 96.04% | aggregate only | Docs + transparency; each step raises multiplier and can bust the run |
 | Cult Quest | gem / trap grid cash-out game | 96.67% | aggregate only | Docs + transparency; fewer safe spots means higher risk |
 | Glyde or Crash | crash / cash-out multiplier game | 105.59% | aggregate only | Docs + transparency; official docs also use the spelling `Glyder or Crash` |
-| Reel Pirates | undocumented in current official source set | 99.81% | aggregate only | Transparency only in the material archived here |
+| Reel Pirates | match-anywhere cascade slot | 100.07% | aggregate only | Now playable; exact odds remain unverified because the live contract source is not verified |
 | Rico's Revenge | undocumented in current official source set | 90.94% | aggregate only | Transparency only in the material archived here |
 
 ### Richer Public Mechanics

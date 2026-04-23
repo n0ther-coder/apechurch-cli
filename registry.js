@@ -31,6 +31,7 @@ import {
   KENO_CONTRACT,
   MONKEY_MATCH_CONTRACT,
   PRIMES_CONTRACT,
+  REEL_PIRATES_CONTRACT,
   ROULETTE_CONTRACT,
   SPEED_KENO_CONTRACT,
   SUSHI_SHOWDOWN_CONTRACT,
@@ -536,6 +537,40 @@ export const GAME_REGISTRY = [
     },
     vrf: {
       type: 'slots',
+    },
+  },
+
+  // ===========================================================================
+  // REEL PIRATES - Match-anywhere cascade slot
+  // ===========================================================================
+  {
+    key: 'reel-pirates',
+    name: 'Reel Pirates',
+    aliases: ['reelpirates', 'pirates', 'reel'],
+    slug: 'reel-pirates',
+    type: 'slots',
+    description: 'Pirate-themed match-anywhere cascade slot. Eight or more matching regular symbols can pay; four scatters trigger a 5-spin bonus with additive multipliers.',
+    contract: REEL_PIRATES_CONTRACT,
+    abiVerified: false,
+    config: {
+      spins: {
+        min: 1,
+        max: 15,
+        default: 5,
+        description: 'Number of paid base spins in the session. Wager is split across all base spins; total wager must be at least 2.5 APE per spin.',
+        bnf: [
+          '<spins> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 15',
+        ],
+      },
+      gameDataOrder: 'spins-first',
+      minBetPerSpinApe: 2.5,
+    },
+    vrf: {
+      type: 'slots-dynamic',
+      baseGas: 550000,
+      perUnitGas: 200000,
+      executorFee: 'per-spin',
     },
   },
 

@@ -23,6 +23,7 @@ These notes belong under `docs/analytics/` only when the repo already has a defe
 | Gimboz Smash ✔︎ | [GIMBOZ_SMASH_ANALYTICS.md](./GIMBOZ_SMASH_ANALYTICS.md) | Exact one-or-two interval play collapses to a compact cover-count table because interval placement does not change EV. |
 | Hi-Lo Nebula ✔︎ | [HI_LO_NEBULA_ANALYTICS.md](./HI_LO_NEBULA_ANALYTICS.md) | The verified rank-only paytable collapses to a compact per-rank branch table with exact hit rates and branch EV. |
 | Sushi Showdown ✔︎ | [SUSHI_SHOWDOWN_ANALYTICS.md](./SUSHI_SHOWDOWN_ANALYTICS.md) | The full live ordered-triple matrix still stays readable as a `45`-row exact per-spin distribution. |
+| Reel Pirates | [REEL_PIRATES_ANALYTICS.md](./REEL_PIRATES_ANALYTICS.md) | Public mechanics and observed running statistics are useful, but exact odds are intentionally not claimed. |
 
 ## Possible, But Only With Extra Snapshotting
 

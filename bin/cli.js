@@ -282,6 +282,8 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<games> ::= <integer>                              ; 1 <= value <= 20',
   '<runs> ::= <integer>                               ; 1 <= value <= 20 for Primes, 1 <= value <= 5 for Blocks',
   '<rolls> ::= <integer>                              ; 1 <= value <= 5',
+  '<uint256> ::= <integer> | "0x" <hex>               ; expert override for gameData gameId',
+  '<bytes32> ::= "0x" <64-hex-chars>                  ; expert override for gameData userRandomWord',
   '<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*',
   '<keno-number> ::= <integer>                        ; 1 <= value <= 40',
   '<speed-keno-numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*',
@@ -321,6 +323,23 @@ function printConfigBnf(cfg = {}) {
   for (const line of lines) {
     console.log(`        ${line}`);
   }
+}
+
+function isPublicGameConfigEntry(cfg) {
+  return Boolean(
+    cfg
+    && typeof cfg === 'object'
+    && (
+      cfg.description
+      || cfg.min !== undefined
+      || cfg.max !== undefined
+      || cfg.default !== undefined
+      || cfg.cliName
+      || Array.isArray(cfg.bnf)
+      || Array.isArray(cfg.examples)
+      || Array.isArray(cfg.options)
+    )
+  );
 }
 
 function formatBearDiceResultLines(details = {}) {
@@ -2337,6 +2356,9 @@ program
   .option('--runs <runs>', 'Primes / Blocks run count (batching)')
   .option('--rolls <rolls>', 'Bear-A-Dice roll count')
   .option('--timeout <ms>', 'Max wait for result (0 = no wait)', '0')
+  .option('--x-gameId <uint256>', 'Expert: override generated gameId in gameData')
+  .option('--x-ref <address>', 'Expert: override referral address in gameData')
+  .option('--x-userRandomWord <bytes32>', 'Expert: override generated userRandomWord in gameData')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .addHelpText('after', formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES))
   .action(async (opts) => {
@@ -2408,6 +2430,9 @@ program
         rolls: opts.rolls,
         timeoutMs,
         referral: profile.referral,
+        xGameId: opts.xGameId,
+        xRef: opts.xRef,
+        xUserRandomWord: opts.xUserRandomWord,
         gpPerApe,
       });
       console.log(JSON.stringify(response));
@@ -2440,6 +2465,9 @@ program
   .option('--games <games>', 'Speed Keno game count (batching)')
   .option('--runs <runs>', 'Primes / Blocks run count (batching)')
   .option('--rolls <rolls>', 'Bear-A-Dice roll count')
+  .option('--x-gameId <uint256>', 'Expert: override generated gameId in gameData')
+  .option('--x-ref <address>', 'Expert: override referral address in gameData')
+  .option('--x-userRandomWord <bytes32>', 'Expert: override generated userRandomWord in gameData')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
   .option('--delay <seconds>', 'Fixed delay between looped games')
@@ -2483,6 +2511,9 @@ program
       '--games',
       '--runs',
       '--rolls',
+      '--x-gameId',
+      '--x-ref',
+      '--x-userRandomWord',
       '--strategy',
       '--loop',
       '--delay',
@@ -3132,6 +3163,9 @@ program
           rolls: gameConfig.rolls,
           timeoutMs: 30000, // Wait up to 30s for result (usually 1-2s)
           referral: freshProfile.referral,
+          xGameId: opts.xGameId,
+          xRef: opts.xRef,
+          xUserRandomWord: opts.xUserRandomWord,
           gpPerApe,
         });
 
@@ -4352,7 +4386,7 @@ ${'═'.repeat(60)}
         console.log(`${'─'.repeat(60)}`);
         console.log('  PARAMETERS');
         console.log(`${'─'.repeat(60)}\n`);
-        for (const [param, cfg] of Object.entries(game.config)) {
+        for (const [param, cfg] of Object.entries(game.config).filter(([, entry]) => isPublicGameConfigEntry(entry))) {
           const cliName = getGameConfigCliName(game, param);
           const range = getGameConfigDisplayRange(game, param);
           const displayDefault = getGameConfigDisplayDefault(game, param);

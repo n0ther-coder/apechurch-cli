@@ -10,7 +10,7 @@ Private keys stay local, are stored on disk only in encrypted form in this harde
 
 ### Supported Games
 
-- **19 supported games:** `ApeStrong ✔︎`, `Roulette ✔︎`, `Baccarat ✔︎`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough ✔︎`, `Bubblegum Heist ✔︎`, `Geez Diggerz ✔︎`, `Gimboz Smash ✔︎`, `Hi-Lo Nebula ✔︎`, `Sushi Showdown ✔︎`, `Monkey Match ✔︎`, `Bear-A-Dice ✔︎`, `Blocks ✔︎`, `Primes ✔︎`, `Blackjack ✔︎`, and `Video Poker ✔︎ / Gimboz Poker`
+- **20 supported games:** `ApeStrong ✔︎`, `Roulette ✔︎`, `Baccarat ✔︎`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough ✔︎`, `Bubblegum Heist ✔︎`, `Geez Diggerz ✔︎`, `Gimboz Smash ✔︎`, `Reel Pirates`, `Hi-Lo Nebula ✔︎`, `Sushi Showdown ✔︎`, `Monkey Match ✔︎`, `Bear-A-Dice ✔︎`, `Blocks ✔︎`, `Primes ✔︎`, `Blackjack ✔︎`, and `Video Poker ✔︎ / Gimboz Poker`
 - **Fully AI agents playable:** browserless CLI flows, local signing, JSON output, formal command grammar, and self-describing game metadata make it straightforward for coding agents and automations to use directly
 - **Improved auto gameplay:** `Blackjack ✔︎`, `Hi-Lo Nebula ✔︎`, and `Video Poker ✔︎ / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
 - **Fully on-chain settlement:** every wager is placed on ApeChain and resolved by the live contracts with their on-chain RNG integrations, including Chainlink VRF and Pyth V2 where applicable
@@ -251,6 +251,7 @@ Coverage and limits:
 | Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | `bubblegumheist`, `bubblegum`, `heist` | Slot machine |
 | Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | `geezdiggerz`, `geez` | Slot machine |
 | Gimboz Smash ✔︎ | `play gimboz-smash 10 1-50` or `play gimboz-smash 10 --out-range 45-50` | `gimbozsmash`, `smash` | One-or-two interval target game on a 1-100 board |
+| Reel Pirates | `play reel-pirates 20` | `reelpirates`, `pirates`, `reel` | Match-anywhere cascade slot |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula 10 --auto best` | `hilonebula`, `hilo` | Stateful higher/lower/same card streak game with cash-out |
 | Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | `sushishowdown`, `sushi` | Slot machine |
 | Monkey Match ✔︎ | `play monkey-match 10` | `monkeymatch`, `monkey` | Poker hands from barrels |

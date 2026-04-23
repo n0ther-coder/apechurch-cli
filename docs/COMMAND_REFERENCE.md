@@ -46,6 +46,8 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 
 ```bnf
 <address> ::= "0x" <hex40>
+<uint256> ::= <integer> | "0x" <hex>             ; uint256 decimal or hex value
+<bytes32> ::= "0x" <hex64>
 <number> ::= ...                                  ; decimal number token accepted by the CLI
 <integer> ::= ...                                 ; base-10 integer token accepted by the CLI
 <token> ::= ...                                   ; one shell token
@@ -81,6 +83,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
                     | "monkey-match"
                     | "bear-dice"
                     | "primes"
+                    | "reel-pirates"
                     | "sushi-showdown"
 <simple-game-alias> ::= "apestrong"
                       | "strong"
@@ -102,6 +105,9 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
                       | "monkey"
                       | "bear"
                       | "dice"
+                      | "reelpirates"
+                      | "pirates"
+                      | "reel"
                       | "sushishowdown"
                       | "sushi"
 <simple-game> ::= <simple-game-key> | <simple-game-alias>
@@ -130,6 +136,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `gimboz-smash` | `gimbozsmash`, `smash` |
 | `jungle-plinko` | `jungleplinko`, `jungle` |
 | `monkey-match` | `monkeymatch`, `monkey` |
+| `reel-pirates` | `reelpirates`, `pirates`, `reel` |
 | `speed-keno` | `speedkeno`, `skeno` |
 | `sushi-showdown` | `sushishowdown`, `sushi` |
 | `blackjack` | `bj` |
@@ -288,6 +295,9 @@ Notes:
                | "--runs" <count>
                | "--rolls" <count>
                | "--timeout" <integer>
+               | "--x-gameId" <uint256>
+               | "--x-ref" <address>
+               | "--x-userRandomWord" <bytes32>
                | "--gp-ape" <points>
 ```
 
@@ -307,6 +317,9 @@ Notes:
 | `--runs <runs>` | Primes or Blocks run count |
 | `--rolls <rolls>` | Bear-A-Dice roll count |
 | `--timeout <ms>` | Wait time for a result; `0` means no wait limit |
+| `--x-gameId <uint256>` | Expert override for the generated `gameId` in `gameData` |
+| `--x-ref <address>` | Expert override for the referral address in `gameData` |
+| `--x-userRandomWord <bytes32>` | Expert override for the generated `userRandomWord` in `gameData` |
 | `--gp-ape <points>` | Override local GP estimation for this run |
 
 ### `play`
@@ -328,6 +341,9 @@ Notes:
                 | "--games" <count>
                 | "--runs" <count>
                 | "--rolls" <count>
+                | "--x-gameId" <uint256>
+                | "--x-ref" <address>
+                | "--x-userRandomWord" <bytes32>
                 | "--strategy" <persona>
                 | "--loop"
                 | "--delay" <seconds>
@@ -367,6 +383,9 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--games <games>` | Speed Keno batch count |
 | `--runs <runs>` | Primes or Blocks run count |
 | `--rolls <rolls>` | Bear-A-Dice roll count |
+| `--x-gameId <uint256>` | Expert override for the generated `gameId` in `gameData` |
+| `--x-ref <address>` | Expert override for the referral address in `gameData` |
+| `--x-userRandomWord <bytes32>` | Expert override for the generated `userRandomWord` in `gameData` |
 | `--strategy <name>` | Persona used when the CLI chooses a game/config |
 | `--loop` | Keep playing until a stop condition is hit |
 | `--delay <seconds>` | Delay between looped games |
