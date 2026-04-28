@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { getApestrongConfig } from '../../lib/games/apestrong.js';
 import { getBearDiceConfig } from '../../lib/games/beardice.js';
 import { getBlocksConfig } from '../../lib/games/blocks.js';
+import { getGlydeOrCrashConfig } from '../../lib/games/glydeorcrash.js';
 import { getGimbozSmashConfig } from '../../lib/games/gimbozsmash.js';
 import { getKenoConfig } from '../../lib/games/keno.js';
 import { getMonkeyMatchConfig } from '../../lib/games/monkeymatch.js';
@@ -110,6 +111,26 @@ describe('Manual fixed-game defaults', () => {
       winCount: 50,
       winChance: '50%',
       payout: '1.95x',
+    });
+  });
+
+  it('uses the registry default multiplier for Glyde or Crash when requested', () => {
+    const glydeOrCrash = getGlydeOrCrashConfig(
+      {},
+      {},
+      { config: { multiplier: { default: '2x' } } },
+      {},
+      randomIntInclusive,
+      { preferGameDefault: true }
+    );
+
+    assert.deepStrictEqual(glydeOrCrash, {
+      multiplier: '2x',
+      multiplierBasisPoints: 20000,
+      targetMultiplier: 20000,
+      winChance: '48.5%',
+      payout: '2x',
+      exactRtp: '97%',
     });
   });
 

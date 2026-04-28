@@ -26,6 +26,7 @@ Ordering: alphabetical by game title.
 | Dino Dough ✔︎ | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` | `dinodough`, `dino` |
 | Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` | `geezdiggerz`, `geez` |
 | Gimboz Smash ✔︎ | `play gimboz-smash <amt> <range>` | `--game gimboz-smash --amount X --range Y` | `gimbozsmash`, `smash` |
+| Glyde or Crash ✔︎ | `play glyde-or-crash <amt> <multiplier>` | `--game glyde-or-crash --amount X --multiplier Y` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` | `hilonebula`, `hilo` |
 | Jungle Plinko ✔︎ | `play jungle-plinko <amt> <risk> <balls>` | `--game jungle-plinko --amount X --risk Y --balls Z` | `jungleplinko`, `jungle` |
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` | - |
@@ -86,6 +87,7 @@ Ordering: alphabetical by game title.
 | Dino Dough ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
 | Geez Diggerz ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
 | Gimboz Smash ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF | Single total wager across one or two inclusive target intervals; total covered numbers must stay within `1-95` |
+| Glyde or Crash ✔︎ | Any positive APE amount | Public UI and CLI practice floor at `1 APE`; target must be `>= 1.01x` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + live `2.8%` platform fee | Single total wager; target multiplier must be within `1.01x .. 10000x` |
 | Hi-Lo Nebula ✔︎ | Any positive APE amount | CLI accepts `> 0` | No explicit CLI max besides wallet balance and contract-side liquidity constraints | VRF on start and each guess + `2.5%` platform + `0.5%` jackpot fee | `cashOut()` is non-payable |
 | Jungle Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with balls | Total wager is split across `1-100` balls |
 | Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF | Single total wager |
@@ -338,6 +340,32 @@ Verified one-or-two-interval target game on a public `1-100` board. The CLI acce
 - Max payout: `97.5x` when you cover exactly `1` number.
 - Operational note: the live contract still stores winning intervals directly, so `--out-range` is a CLI convenience that rewrites outside bets into the explicit target ranges required by the contract.
 - ApeStrong and Gimboz Smash are not identical across the whole shared surface: at `75`, Gimboz Smash is `1.3x` / `97.5000%` RTP vs. ApeStrong `1.2999x` / `97.4925%`; at `95`, Gimboz Smash is `1.0263x` / `97.4985%` vs. ApeStrong `1.025x` / `97.3750%`.
+
+## Glyde or Crash ✔︎
+
+**Type:** Crash / Fixed target
+**Contract:** `0x5b44ce34300d1b8d32b5a6119f192e3eda74e144`
+**Aliases:** `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash`
+**ABI verified:** `true`
+**Verification notes:** [GLYDE_OR_CRASH_CONTRACT.md](./verification/GLYDE_OR_CRASH_CONTRACT.md)
+**Analytics:** [GLYDE_OR_CRASH_ANALYTICS.md](./analytics/GLYDE_OR_CRASH_ANALYTICS.md)
+
+Verified fixed-target crash game. The player chooses a target multiplier, the contract reveals a final crash multiplier, and the wager wins only if `crashMultiplier >= targetMultiplier`. The public presets start at `1.5x`, but the verified contract and current numeric input surface allow `1.01x .. 10000x`.
+
+**Command:** `apechurch-cli play glyde-or-crash <amount> <multiplier>` or `apechurch-cli bet --game glyde-or-crash --amount <amount> --multiplier <multiplier>`
+
+```bnf
+<amount> ::= <ape>
+<multiplier> ::= <number> [ "x" ]
+; semantic constraint: 1.01 <= value <= 10000 and at most 4 decimal places
+```
+
+**Compare:**
+- Exact RTP surface: `96.01020424% - 97.00%` across the full supported target range.
+- Max payout: `10000x`.
+- Exact player win probability at target `T` is `floor(9_700_000_000 / T) / 1_000_000`, where `T` is the basis-point target multiplier from the verified contract.
+- Operational note: many round-number presets (`2x`, `5x`, `10x`, `50x`, `100x`, `1000x`, `10000x`) land exactly on `97.00%` RTP, while arbitrary near-ceiling targets can quantize lower.
+- Naming note: Ape Church public material also uses the spelling `Glyder or Crash`, but the verified contract name is `SpeedCrash`.
 
 ## Hi-Lo Nebula ✔︎
 
@@ -786,8 +814,8 @@ For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODD
 
 | Game | Selected Mode | Win Rate | Min X | Mode X | Max X | RTP |
 |------|---------------|----------|-------|-------|-------|-----|
+| Glyde or Crash ✔︎ | `Target 1.01x` | `96.04%` | `1.01x` @ `96.04%` | `1.01x` @ `96.04%` | `1.01x` @ `96.04%` | `97.00%` |
 | Keno ✔︎ | `Picks 5` | `58.35%` | `1.1x` @ `27.77%` | `1.1x` @ `27.77%` | `200x` @ `0.04%` | `94.68%` |
-| Monkey Match ✔︎ | `Low` | `44.44%` | `1.25x` @ `23.15%` | `1.25x` @ `23.15%` | `50x` @ `0.08%` | **`97.99%`** |
 | Speed Keno ✔︎ | `Picks 2` | `44.74%` | `1.45x` @ `39.47%` | `1.45x` @ `39.47%` | `5x` @ `5.26%` | `97.37%` |
 | Jungle Plinko ✔︎ | `Risk 0 / Low` | `53.33%` | `1.2x` @ `38.10%` | `1.2x` @ `38.10%` | `2.2x` @ `15.24%` | **`98.00%`** |
 | Primes ✔︎ | `Easy` | `50.00%` | `1.9x` @ `40.00%` | `1.9x` @ `40.00%` | `2.2x` @ `10.00%` | **`98.00%`** |
@@ -802,19 +830,19 @@ For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODD
 | Game | Selected Mode | Win Rate | Min X | Mode X | Max X | RTP |
 |------|---------------|----------|-------|-------|-------|-----|
 | Speed Keno ✔︎ | `Picks 5` | `26.63%` | `1.25x` @ `19.37%` | `1.25x` @ `19.37%` | `2000x` @ `0.01%` | **`97.84%`** |
+| Glyde or Crash ✔︎ | `Target 10000x` | `0.0097%` | `10000x` @ `0.0097%` | `10000x` @ `0.0097%` | `10000x` @ `0.0097%` | `97.00%` |
 | Video Poker ✔︎ / Gimboz Poker | `Base paytable` | `23.99%` | `1x` @ `21.46%` | `1x` @ `21.46%` | `250x` @ `0.00%` | **`98.16%`** |
 | Sushi Showdown ✔︎ | `Any spin count 1-15` | `23.91%` | `1.25x` @ `3.97%` | `1.75x` @ `5.31%` | `500x` @ `0.01%` | **`97.87%`** |
 | Keno ✔︎ | `Picks 10` | `23.23%` | `1.2x` @ `14.71%` | `1.2x` @ `14.71%` | `1000000x` @ `0.00%` | `93.83%` |
 | Jungle Plinko ✔︎ | `Risk 4 / Ultra Degen` | `22.18%` | `1.4x` @ `9.87%` | `1.4x` @ `9.87%` | `1000x` @ `0.00%` | **`97.99%`** |
 | Cosmic Plinko ✔︎ | `Mode 2 / High` | `14.37%` | `1.5x` @ `6.19%` | `1.5x` @ `6.19%` | `250x` @ `0.03%` | **`97.80%`** |
 | Primes ✔︎ | `Extreme` | `12.30%` | `7.57x` @ `12.29%` | `7.57x` @ `12.29%` | `500x` @ `0.01%` | **`98.04%`** |
-| Gimboz Smash ✔︎ | `Cover 1` | `1.00%` | `97.5x` @ `1.00%` | `97.5x` @ `1.00%` | `97.5x` @ `1.00%` | `97.50%` |
 | Blocks ✔︎ | `High / 5 rolls` | `0.0013%` | `57.67x` @ `0.00%` | `57.67x` @ `0.00%` | `3125000000000000000.00x` @ `0.00%` | `1.37%` |
 | Bear-A-Dice ✔︎ | `Master / 5 rolls` | `0.000053%` | `1,847,949.19x` @ `0.00%` | `1,847,949.19x` @ `0.00%` | `1,847,949.19x` @ `0.00%` | **`97.80%`** |
 
 ### Still Not Exactly Calculable from Local Sources
 
-The local source set is still insufficient for a defensible closed-form RTP on `Cash Dash`, `Cult Quest`, `Glyde or Crash`, `Reel Pirates`, and `Rico's Revenge`.
+The local source set is still insufficient for a defensible closed-form RTP on `Cash Dash`, `Cult Quest`, `Reel Pirates`, and `Rico's Revenge`.
 
 For `Blackjack ✔︎`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables and the public rule surface now matches the repo solver assumptions.
 
@@ -926,9 +954,9 @@ Equally important, the cumulative bonus system means the relevant metric is not 
 
 ---
 
-## Not Yet Supported in This CLI
+## Public Games Still Outside The Main Verified Catalog
 
-These titles appear in Ape Church public docs or the Transparency section, but this repo does not expose a playable CLI command for them yet. The numbers below are descriptive only. Running RTP values are public snapshots, not guaranteed long-run returns.
+These titles appear in Ape Church public docs or the Transparency section, but they are still outside the main exact-and-verified supported set discussed above. Some are not playable in this CLI yet; `Reel Pirates` is playable but still not promoted to `ABI verified`. The numbers below are descriptive only. Running RTP values are public snapshots, not guaranteed long-run returns.
 
 ### Public Overview
 
@@ -938,7 +966,6 @@ Ordering: alphabetical by game title.
 |------|------------------------|-------------|----------|-------|
 | Cash Dash | ladder / cash-out tile game | 96.04% | aggregate only | Docs + transparency; each step raises multiplier and can bust the run |
 | Cult Quest | gem / trap grid cash-out game | 96.67% | aggregate only | Docs + transparency; fewer safe spots means higher risk |
-| Glyde or Crash | crash / cash-out multiplier game | 105.59% | aggregate only | Docs + transparency; official docs also use the spelling `Glyder or Crash` |
 | Reel Pirates | match-anywhere cascade slot | 100.07% | aggregate only | Now playable; exact odds remain unverified because the live contract source is not verified |
 | Rico's Revenge | undocumented in current official source set | 90.94% | aggregate only | Transparency only in the material archived here |
 

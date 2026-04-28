@@ -13,6 +13,7 @@ import {
   ERC20_ABI,
   GAME_CONTRACT_ABI,
   GEEZ_DIGGERZ_CONTRACT,
+  GLYDE_OR_CRASH_CONTRACT,
   GIMBOZ_SMASH_CONTRACT,
   GP_TOKEN_CONTRACT,
   HI_LO_NEBULA_CONTRACT,
@@ -907,6 +908,104 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(result.games[0].variant_key, 'gimboz-smash:count:65');
       assert.strictEqual(result.games[0].variant_label, 'Cover 65');
       assert.deepStrictEqual(result.games[0].rtp_config, { winCount: 65 });
+    });
+
+    it('reconstructs Glyde or Crash multipliers from cached play calldata', async () => {
+      const gameId = 702n;
+      const playInput = encodeFunctionData({
+        abi: GAME_CONTRACT_ABI,
+        functionName: 'play',
+        args: [
+          WALLET,
+          encodeAbiParameters(
+            [
+              { name: 'targetMultiplier', type: 'uint256' },
+              { name: 'gameId', type: 'uint256' },
+              { name: 'ref', type: 'address' },
+              { name: 'userRandomWord', type: 'bytes32' },
+            ],
+            [20000n, gameId, ZERO_ADDRESS, '0x' + '35'.repeat(32)],
+          ),
+        ],
+      });
+
+      const result = await inferSavedHistoryGameVariants({
+        async getTransaction({ hash }) {
+          assert.strictEqual(hash, '0x' + '1'.repeat(64));
+          return {
+            hash,
+            input: playInput,
+          };
+        },
+      }, [
+        {
+          contract: GLYDE_OR_CRASH_CONTRACT,
+          game: 'Glyde or Crash ✔︎',
+          game_key: 'glyde-or-crash',
+          gameId: gameId.toString(),
+          tx: '0x' + '1'.repeat(64),
+        },
+      ]);
+
+      assert.strictEqual(result.changed, true);
+      assert.strictEqual(result.inferred, 1);
+      assert.strictEqual(result.failedLookups, 0);
+      assert.deepStrictEqual(result.games[0].config, {
+        multiplier: '2x',
+        multiplierBasisPoints: 20000,
+        targetMultiplier: 20000,
+        winChance: '48.5%',
+        payout: '2x',
+        exactRtp: '97%',
+      });
+      assert.strictEqual(result.games[0].variant_key, 'glyde-or-crash:target:20000');
+      assert.strictEqual(result.games[0].variant_label, 'Target 2x');
+      assert.deepStrictEqual(result.games[0].rtp_config, {
+        multiplierBasisPoints: 20000,
+        multiplier: '2x',
+      });
+    });
+
+    it('reconstructs Glyde or Crash multipliers from getGameInfo when tx calldata is unavailable', async () => {
+      const result = await inferSavedHistoryGameVariants({
+        async getTransaction() {
+          return { input: '0x3d30bc0e' };
+        },
+        async readContract(params) {
+          assert.strictEqual(params.address, GLYDE_OR_CRASH_CONTRACT);
+          assert.strictEqual(params.functionName, 'getGameInfo');
+          assert.deepStrictEqual(params.args, [703n]);
+          return {
+            targetMultiplier: 98979592n,
+          };
+        },
+      }, [
+        {
+          contract: GLYDE_OR_CRASH_CONTRACT,
+          game: 'Glyde or Crash ✔︎',
+          game_key: 'glyde-or-crash',
+          gameId: '703',
+          tx: '0x' + '2'.repeat(64),
+        },
+      ]);
+
+      assert.strictEqual(result.changed, true);
+      assert.strictEqual(result.inferred, 1);
+      assert.strictEqual(result.failedLookups, 0);
+      assert.deepStrictEqual(result.games[0].config, {
+        multiplier: '9,897.9592x',
+        multiplierBasisPoints: 98979592,
+        targetMultiplier: 98979592,
+        winChance: '0.0097%',
+        payout: '9,897.9592x',
+        exactRtp: '96.01020424%',
+      });
+      assert.strictEqual(result.games[0].variant_key, 'glyde-or-crash:target:98979592');
+      assert.strictEqual(result.games[0].variant_label, 'Target 9,897.9592x');
+      assert.deepStrictEqual(result.games[0].rtp_config, {
+        multiplierBasisPoints: 98979592,
+        multiplier: '9,897.9592x',
+      });
     });
 
     it('reconstructs Blocks, Primes, Speed Keno, and Cosmic Plinko from getGameInfo', async () => {

@@ -323,6 +323,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Dino Dough ✔︎'), 'Should list verified Dino Dough');
       assert.ok(stdout.includes('Bubblegum Heist ✔︎'), 'Should list verified Bubblegum Heist');
       assert.ok(stdout.includes('Geez Diggerz ✔︎'), 'Should list verified Geez Diggerz');
+      assert.ok(stdout.includes('Glyde or Crash ✔︎'), 'Should list verified Glyde or Crash');
       assert.ok(stdout.includes('Bear-A-Dice ✔︎'), 'Should list verified Bear-A-Dice');
       assert.ok(stdout.includes('Blocks ✔︎'), 'Should list verified Blocks');
       assert.ok(stdout.includes('Primes ✔︎'), 'Should list verified Primes');
@@ -336,6 +337,8 @@ describe('CLI Commands Integration Tests', () => {
         'Cosmic Plinko ✔︎',
         'Dino Dough ✔︎',
         'Geez Diggerz ✔︎',
+        'Gimboz Smash ✔︎',
+        'Glyde or Crash ✔︎',
         'Jungle Plinko ✔︎',
         'Keno ✔︎',
         'Monkey Match ✔︎',
@@ -380,6 +383,7 @@ describe('CLI Commands Integration Tests', () => {
     it('shows the current alias set in the terminal catalog', () => {
       const { stdout } = cli('games');
       assert.ok(stdout.includes('Aliases: apestrong, strong'));
+      assert.ok(stdout.includes('Aliases: glyde, glyde-crash, glydecrash, speed-crash, speedcrash, crash'));
       assert.ok(stdout.includes('Aliases: bj'));
       assert.ok(stdout.includes('Aliases: hilonebula, hilo'));
     });
@@ -411,6 +415,7 @@ describe('CLI Commands Integration Tests', () => {
           'dino-dough',
           'geez-diggerz',
           'gimboz-smash',
+          'glyde-or-crash',
           'hi-lo-nebula',
           'jungle-plinko',
           'keno',
@@ -443,7 +448,7 @@ describe('CLI Commands Integration Tests', () => {
 
     it('shows alphabetized available games when the name is invalid', () => {
       const { stdout } = cli('game nope');
-      assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | geez-diggerz | gimboz-smash | jungle-plinko | keno | monkey-match | primes | reel-pirates | roulette | speed-keno | sushi-showdown'));
+      assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | geez-diggerz | gimboz-smash | glyde-or-crash | jungle-plinko | keno | monkey-match | primes | reel-pirates | roulette | speed-keno | sushi-showdown'));
       assert.ok(stdout.includes('Stateful: blackjack | hi-lo-nebula | video-poker'));
     });
 
@@ -462,6 +467,7 @@ describe('CLI Commands Integration Tests', () => {
         'dino-dough',
         'geez-diggerz',
         'gimboz-smash',
+        'glyde-or-crash',
         'hi-lo-nebula',
         'jungle-plinko',
         'keno',
@@ -485,19 +491,24 @@ describe('CLI Commands Integration Tests', () => {
     it('accepts the current simple-game aliases in the game helper', () => {
       const jungle = cli('game jungle --json');
       const cosmic = cli('game cosmic --json');
+      const glyde = cli('game glyde --json');
 
       assert.strictEqual(JSON.parse(jungle.stdout).key, 'jungle-plinko');
       assert.strictEqual(JSON.parse(cosmic.stdout).key, 'cosmic-plinko');
+      assert.strictEqual(JSON.parse(glyde.stdout).key, 'glyde-or-crash');
     });
 
     it('accepts the current simple-game aliases in play mode', () => {
       const smash = cli('play smash 10 --range 1-50');
       const jungle = cli('play jungle 10 0 10');
+      const crash = cli('play crash 10 2x');
 
       assert.notStrictEqual(smash.code, 0);
       assert.notStrictEqual(jungle.code, 0);
+      assert.notStrictEqual(crash.code, 0);
       assert.ok(smash.stdout.includes('No wallet found'));
       assert.ok(jungle.stdout.includes('No wallet found'));
+      assert.ok(crash.stdout.includes('No wallet found'));
     });
 
     it('rejects removed simple-game aliases', () => {
@@ -538,6 +549,14 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Blocks ✔︎');
+    });
+
+    it('exposes ABI verification metadata for verified Glyde or Crash', () => {
+      const { stdout } = cli('game glyde-or-crash --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Glyde or Crash ✔︎');
     });
 
     it('exposes ABI verification metadata for verified Monkey Match', () => {

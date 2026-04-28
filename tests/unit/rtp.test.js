@@ -194,6 +194,39 @@ describe('RTP Helpers', () => {
     assert.strictEqual(maxPayout.display, '250x');
   });
 
+  it('uses the verified crash formula for configured Glyde or Crash targets', () => {
+    const floorRtp = getGameExpectedRtpReference('glyde-or-crash');
+    const twoX = getConfiguredGameExpectedRtpReference({
+      game: 'glyde-or-crash',
+      config: { multiplier: '2x' },
+    });
+    const nearWorst = getConfiguredGameExpectedRtpReference({
+      game: 'glyde-or-crash',
+      config: { multiplier: '9897.9592x' },
+    });
+    const maxPayout = getConfiguredGameMaxPayoutReference({
+      game: 'glyde-or-crash',
+      config: { multiplier: '10000x' },
+    });
+
+    assert.strictEqual(floorRtp.display, '96.01%');
+    assert.strictEqual(floorRtp.referenceType, 'calculated');
+    assert.strictEqual(floorRtp.calculationKind, 'exact');
+    assert.ok(Math.abs(floorRtp.value - 96.01020424) < 1e-12);
+
+    assert.strictEqual(twoX.display, '97.00%');
+    assert.strictEqual(twoX.referenceType, 'calculated');
+    assert.strictEqual(twoX.calculationKind, 'exact');
+    assert.ok(Math.abs(twoX.value - 97) < 1e-12);
+
+    assert.strictEqual(nearWorst.display, '96.01%');
+    assert.strictEqual(nearWorst.referenceType, 'calculated');
+    assert.strictEqual(nearWorst.calculationKind, 'exact');
+    assert.ok(Math.abs(nearWorst.value - 96.01020424) < 1e-12);
+
+    assert.strictEqual(maxPayout.display, '10,000x');
+  });
+
   it('uses the verified Blocks mode and roll table when runs are specified', () => {
     const expected = getConfiguredGameExpectedRtpReference({
       game: 'blocks',
@@ -281,6 +314,24 @@ describe('RTP Helpers', () => {
       variantLabel: 'High / 5 rolls',
       rtpGame: 'blocks',
       rtpConfig: { mode: 1, runs: 5 },
+    });
+  });
+
+  it('canonicalizes Glyde or Crash variants by exact target multiplier', () => {
+    const glyde = resolveConfiguredGameVariant({
+      game: 'glyde-or-crash',
+      config: { multiplier: '2x' },
+    });
+
+    assert.deepStrictEqual(glyde, {
+      gameKey: 'glyde-or-crash',
+      variantKey: 'glyde-or-crash:target:20000',
+      variantLabel: 'Target 2x',
+      rtpGame: 'glyde-or-crash',
+      rtpConfig: {
+        multiplierBasisPoints: 20000,
+        multiplier: '2x',
+      },
     });
   });
 

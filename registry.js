@@ -26,6 +26,7 @@ import {
   DINO_DOUGH_CONTRACT,
   GEEZ_DIGGERZ_CONTRACT,
   GIMBOZ_SMASH_CONTRACT,
+  GLYDE_OR_CRASH_CONTRACT,
   HI_LO_NEBULA_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   KENO_CONTRACT,
@@ -503,6 +504,41 @@ export const GAME_REGISTRY = [
           '45-50',
           '1-50',
           '41-95',
+        ],
+      },
+    },
+    vrf: {
+      type: 'static',
+    },
+  },
+
+  // ===========================================================================
+  // GLYDE OR CRASH - Fixed-target crash multiplier game
+  // ===========================================================================
+  {
+    key: 'glyde-or-crash',
+    name: 'Glyde or Crash',
+    aliases: ['glyde', 'glyde-crash', 'glydecrash', 'speed-crash', 'speedcrash', 'crash'],
+    slug: 'speed-crash',
+    type: 'speedcrash',
+    description: 'Fixed-target crash game. Pick a target multiplier, then win only if the revealed crash multiplier reaches or exceeds it. Common round-number targets stay near 97% exact RTP, while arbitrary targets near the 10,000x ceiling can quantize lower.',
+    contract: GLYDE_OR_CRASH_CONTRACT,
+    abiVerified: true,
+    config: {
+      multiplier: {
+        min: 1.01,
+        max: 10000,
+        default: '2x',
+        description: 'Target cash-out multiplier. The verified contract allows 1.01x-10,000x; the current public UI presets start at 1.5x.',
+        bnf: [
+          '<multiplier> ::= <number> [ "x" ]',
+          '; semantic constraint: 1.01 <= value <= 10000 and at most 4 decimal places',
+        ],
+        examples: [
+          { value: '1.5x', winChance: '64.6666%', payout: '1.5x' },
+          { value: '2x', winChance: '48.5%', payout: '2x' },
+          { value: '10x', winChance: '9.7%', payout: '10x' },
+          { value: '10000x', winChance: '0.0097%', payout: '10000x' },
         ],
       },
     },

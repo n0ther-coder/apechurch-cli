@@ -238,11 +238,13 @@ import {
 } from '../lib/theme.js';
 import { fitAnsiText, getVisibleWidth } from '../lib/ansi.js';
 import {
+  formatGlydeOrCrashTargetMultiplier,
   getGameCalculatedVariantReference,
   getConfiguredGameMaxPayoutReference,
   getGameMaxPayoutVariantReference,
   getUniformGameMaxPayoutReference,
   formatMaxPayoutReference,
+  parseGlydeOrCrashTargetMultiplierInput,
   formatRtpDetails,
   formatRtpTripletCells,
   formatRtpTripletLine,
@@ -276,6 +278,7 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<balls> ::= <integer>                              ; 1 <= value <= 100',
   '<spins> ::= <integer>                              ; 1 <= value <= 15',
   '<range> ::= <integer> | <target-range> | <target-range> "," <target-range> ; ApeStrong uses 5..95, Gimboz Smash uses one or two inclusive target ranges on 1..100',
+  '<multiplier> ::= <number> [ "x" ]                ; 1.01 <= value <= 10000 and at most 4 decimal places',
   '<target-range> ::= <integer> [ "-" <integer> ]     ; each endpoint is within 1..100, each range is inclusive, total covered numbers across all ranges is within 1..95',
   '<out-range> ::= <target-range>                     ; one excluded inclusive range for Gimboz Smash outside bets; excluded coverage must be within 5..95',
   '<picks> ::= <integer>                              ; 1 <= value <= 10 for Keno, 1 <= value <= 5 for Speed Keno',
@@ -361,6 +364,26 @@ function formatBearDiceResultLines(details = {}) {
 
   if (trailingZeroSlots > 0) {
     lines.push(`   Remaining ${trailingZeroSlots} roll(s): not executed after the first loss; getGameInfo leaves those slots at 0.`);
+  }
+
+  return lines;
+}
+
+function formatGlydeOrCrashResultLines(details = {}) {
+  const lines = [];
+
+  if (details?.target_multiplier) {
+    lines.push(`   Target: ${details.target_multiplier}`);
+  }
+
+  if (details?.crash_multiplier) {
+    lines.push(`   Crash: ${details.crash_multiplier}`);
+  }
+
+  if (details?.reached_target === true) {
+    lines.push('   Outcome: target reached before the crash.');
+  } else if (details?.reached_target === false) {
+    lines.push('   Outcome: crash happened before the target.');
   }
 
   return lines;
@@ -2349,6 +2372,7 @@ program
   .option('--spins <spins>', 'Slots spins', '10')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
   .option('--range <range>', 'ApeStrong range or Gimboz Smash inside range', '50')
+  .option('--multiplier <x>', 'Glyde or Crash target multiplier')
   .option('--out-range <range>', 'Gimboz Smash outside range to exclude from the winning set (for example 45-50)')
   .option('--picks <picks>', 'Keno pick count', '5')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
@@ -2371,6 +2395,16 @@ program
           range: explicitGimbozRange,
           outRange: opts.outRange,
         });
+      } catch (error) {
+        console.error(JSON.stringify({ error: sanitizeError(error) }));
+        process.exit(1);
+      }
+    }
+
+    if (gameEntry?.type === 'speedcrash' && opts.multiplier !== undefined) {
+      try {
+        const multiplierBasisPoints = parseGlydeOrCrashTargetMultiplierInput(opts.multiplier);
+        opts.multiplier = formatGlydeOrCrashTargetMultiplier(multiplierBasisPoints);
       } catch (error) {
         console.error(JSON.stringify({ error: sanitizeError(error) }));
         process.exit(1);
@@ -2422,6 +2456,7 @@ program
         spins: opts.spins,
         bet: opts.bet,
         range: gameEntry?.type === 'gimbozsmash' ? explicitGimbozRange : opts.range,
+        multiplier: opts.multiplier,
         outRange: opts.outRange,
         picks: opts.picks,
         numbers: opts.numbers,
@@ -2459,6 +2494,7 @@ program
   .option('--spins <spins>', 'Slots spins')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
   .option('--range <range>', 'ApeStrong range or Gimboz Smash inside range')
+  .option('--multiplier <x>', 'Glyde or Crash target multiplier')
   .option('--out-range <range>', 'Gimboz Smash outside range to exclude from the winning set (for example 45-50)')
   .option('--picks <picks>', 'Keno pick count')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
@@ -2507,6 +2543,7 @@ program
       '--spins',
       '--bet',
       '--range',
+      '--multiplier',
       '--out-range',
       '--picks',
       '--numbers',
@@ -2630,6 +2667,8 @@ program
         positionalConfig.bet = configArgs.join(',');
       } else if (fixedGame.type === 'apestrong') {
         if (configArgs[0]) positionalConfig.range = parseInt(configArgs[0]);
+      } else if (fixedGame.type === 'speedcrash') {
+        if (configArgs[0]) positionalConfig.multiplier = configArgs[0];
       } else if (fixedGame.type === 'gimbozsmash') {
         positionalConfig.range = configArgs.join(',');
       } else if (fixedGame.type === 'keno') {
@@ -2700,6 +2739,21 @@ program
           positionalConfig.range = normalizedRange;
         } catch (error) {
           console.error(JSON.stringify({ error: sanitizeError(error) }));
+          process.exit(1);
+        }
+      }
+    }
+
+    if (fixedGame?.type === 'speedcrash') {
+      const explicitMultiplier = opts.multiplier ?? positionalConfig.multiplier;
+      if (explicitMultiplier !== undefined) {
+        try {
+          const multiplierBasisPoints = parseGlydeOrCrashTargetMultiplierInput(explicitMultiplier);
+          positionalConfig.multiplier = formatGlydeOrCrashTargetMultiplier(multiplierBasisPoints);
+        } catch (error) {
+          const message = sanitizeError(error);
+          if (opts.json) console.error(JSON.stringify({ error: message }));
+          else console.error(`\n❌ ${message}\n`);
           process.exit(1);
         }
       }
@@ -2897,6 +2951,7 @@ program
             spins: selection.spins,
             bet: selection.bet,
             range: selection.range,
+            multiplier: selection.multiplier,
             difficulty: selection.difficulty,
             runs: selection.runs,
           };
@@ -2953,6 +3008,18 @@ program
             const [min, max] = strategyConfig.apestrong?.range || [40, 60];
             gameConfig.range = randomIntInclusive(min, max);
           }
+        } else if (!preferGameDefault && gameEntry.type === 'speedcrash') {
+          const getConfig = configGetters[gameEntry.type];
+          gameConfig = getConfig
+            ? getConfig(
+                opts,
+                positionalConfig,
+                gameEntry,
+                strategyConfig,
+                randomIntInclusive,
+                { preferGameDefault: false }
+              )
+            : gameConfig;
         } else if (!preferGameDefault && gameEntry.type === 'gimbozsmash') {
           if (
             opts.range !== undefined
@@ -3081,6 +3148,8 @@ program
         gameDesc += ` — ${gameConfig.bet}`;
       } else if (gameEntry.type === 'apestrong') {
         gameDesc += ` (${gameConfig.range}% chance)`;
+      } else if (gameEntry.type === 'speedcrash') {
+        gameDesc += ` (${gameConfig.multiplier})`;
       } else if (gameEntry.type === 'gimbozsmash') {
         gameDesc += gameConfig.outRange ? ` (outside ${gameConfig.outRange})` : ` (${gameConfig.targets})`;
       } else if (gameEntry.type === 'keno') {
@@ -3167,6 +3236,7 @@ program
           range: gameEntry.type === 'gimbozsmash'
             ? (gameConfig.outRange ? undefined : gameConfig.targets)
             : gameConfig.range,
+          multiplier: gameConfig.multiplier,
           targets: gameEntry.type === 'gimbozsmash' ? undefined : gameConfig.targets,
           outRange: gameConfig.outRange,
           picks: gameConfig.picks,
@@ -3240,7 +3310,9 @@ program
             const outcomeLine = `${outcomeIcon} ${outcomeLabel} ${theme.amount(`${wagerApeNum.toFixed(2)} APE`)} → ${theme.balance(`${payoutApe.toFixed(2)} APE`)} ${formatNetProfitLabel(pnlApe, 2)}`;
             const detailLines = playResponse.game === 'beardice'
               ? formatBearDiceResultLines(playResponse.result.details)
-              : [];
+              : (playResponse.game === 'glyde-or-crash'
+                  ? formatGlydeOrCrashResultLines(playResponse.result.details)
+                  : []);
 
             console.log(outcomeLine);
             for (const line of detailLines) {
@@ -4573,6 +4645,7 @@ EXAMPLES
   ${BINARY_NAME} play primes 10 0 20
   ${BINARY_NAME} play roulette 50 RED
   ${BINARY_NAME} play ape-strong 10 50
+  ${BINARY_NAME} play glyde-or-crash 10 2x
 
   # Loop with safety limits
   ${BINARY_NAME} play --loop --take-profit 200 --stop-loss 50
@@ -4601,6 +4674,7 @@ GAME ALIASES
   dino-dough: dinodough, dino
   geez-diggerz: geezdiggerz, geez
   gimboz-smash: gimbozsmash, smash
+  glyde-or-crash: glyde, glyde-crash, glydecrash, speed-crash, speedcrash, crash
   jungle-plinko: jungleplinko, jungle
   monkey-match: monkeymatch, monkey
   speed-keno: speedkeno, skeno

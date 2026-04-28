@@ -67,6 +67,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 <game-id> ::= <token>                             ; local unfinished-game identifier
 <range> ::= <integer> | <target-range> | <target-range> "," <target-range>
                                                 ; ApeStrong uses 5..95, Gimboz Smash uses one or two inclusive target ranges on 1..100
+<multiplier> ::= <number> [ "x" ]                ; 1.01 <= value <= 10000 and at most 4 decimal places
 <target-range> ::= <integer> [ "-" <integer> ]    ; each endpoint is within 1..100, each range is inclusive, total covered numbers across all ranges is within 1..95
 <out-range> ::= <target-range>                    ; one excluded inclusive range for Gimboz Smash outside bets; excluded coverage is within 5..95
 <simple-game-key> ::= "ape-strong"
@@ -75,6 +76,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
                     | "jungle-plinko"
                     | "cosmic-plinko"
                     | "gimboz-smash"
+                    | "glyde-or-crash"
                     | "keno"
                     | "speed-keno"
                     | "dino-dough"
@@ -92,6 +94,12 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
                       | "cosmic"
                       | "gimbozsmash"
                       | "smash"
+                      | "glyde"
+                      | "glyde-crash"
+                      | "glydecrash"
+                      | "speed-crash"
+                      | "speedcrash"
+                      | "crash"
                       | "speedkeno"
                       | "skeno"
                       | "dinodough"
@@ -134,6 +142,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `dino-dough` | `dinodough`, `dino` |
 | `geez-diggerz` | `geezdiggerz`, `geez` |
 | `gimboz-smash` | `gimbozsmash`, `smash` |
+| `glyde-or-crash` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` |
 | `jungle-plinko` | `jungleplinko`, `jungle` |
 | `monkey-match` | `monkeymatch`, `monkey` |
 | `reel-pirates` | `reelpirates`, `pirates`, `reel` |
@@ -288,6 +297,7 @@ Notes:
                | "--spins" <integer>
                | "--bet" <token>
                | "--range" <range>
+               | "--multiplier" <multiplier>
                | "--out-range" <out-range>
                | "--picks" <integer>
                | "--numbers" <token>
@@ -310,6 +320,7 @@ Notes:
 | `--spins <spins>` | Slot spin count |
 | `--bet <bet>` | Roulette or baccarat bet payload |
 | `--range <range>` | ApeStrong range, or Gimboz Smash one-or-two target intervals |
+| `--multiplier <x>` | Glyde or Crash target multiplier |
 | `--out-range <range>` | Gimboz Smash outside bet expressed as one excluded range |
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token, for example `1,7,13,25,40` or `random` |
@@ -335,6 +346,7 @@ Notes:
                 | "--spins" <integer>
                 | "--bet" <token>
                 | "--range" <range>
+                | "--multiplier" <multiplier>
                 | "--out-range" <out-range>
                 | "--picks" <integer>
                 | "--numbers" <token>
@@ -379,6 +391,7 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--spins <spins>` | Slot spin count |
 | `--bet <bet>` | Roulette or baccarat bet payload |
 | `--range <range>` | ApeStrong range, or Gimboz Smash one-or-two target intervals |
+| `--multiplier <x>` | Glyde or Crash target multiplier |
 | `--out-range <range>` | Gimboz Smash outside bet expressed as one excluded range |
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token |

@@ -25,7 +25,7 @@ This table is filtered to the efficient frontier of qualifying payouts. It start
 
 | Game | Mode | Win Rate | Min X | Mode X | Max X | RTP |
 |------|------|----------|-------|-------|-------|-----|
-| Gimboz Smash ✔︎ | `Cover 95` | `95.00%` | `1.0263x` @ `95.00%` | **`1.0263x` @ `95.00%`** | `1.0263x` @ `95.00%` | `97.50%` |
+| Gimboz Smash ✔︎ | `Cover 95` | `95.00%` | `1.0263x` @ `95.00%` | `1.0263x` @ `95.00%` | `1.0263x` @ `95.00%` | `97.50%` |
 | Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 94` | `94.00%` | `1.0372x` @ `94.00%` | `1.0372x` @ `94.00%` | `1.0372x` @ `94.00%` | `97.50%` |
 | Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 93` | `93.00%` | `1.0483x` @ `93.00%` | `1.0483x` @ `93.00%` | `1.0483x` @ `93.00%` | `97.49%` |
 | Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 92` | `92.00%` | `1.0597x` @ `92.00%` | `1.0597x` @ `92.00%` | `1.0597x` @ `92.00%` | `97.49%` |
