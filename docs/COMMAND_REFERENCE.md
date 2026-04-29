@@ -207,7 +207,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `-y`, `--yes` | Skip confirmation prompts | mainly `reset` |
 | `--list` | List locally available wallet addresses | command-level |
 | `--json` | Emit JSON output | `status`, `download`, `select`, `new`, `new-password` |
-| `--from-block <n>` | Start block for history download/backfill | `download` |
+| `--from-block <n>` | Start block for history download/backfill; `download --from-block 0` rebuilds the history file | `download` |
 | `--to-block <n>` | End block for history download | `download` |
 | `--chunk-size <n>` | Block span per log query | `download` |
 
@@ -452,6 +452,7 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
                    | "--ids"
                    | "--stats"
                    | "--breakdown" [ <token> ]
+                   | "--leaderboard"
                    | "--scoreboard"
                    | "--url"
                    | "--refresh"
@@ -469,6 +470,7 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--ids` | Append local game IDs in history lines and scoreboard tables |
 | `--stats` | Show stats only |
 | `--breakdown [game]` | Show per-game stats, optionally filtered to one game |
+| `--leaderboard` | Show global and weekly wAPE wagered, grouped from Monday 00:00 UTC |
 | `--scoreboard` | Append the cached Highest Multipliers and Biggest Payouts tables |
 | `--url` | Show game URLs in terminal scoreboard tables |
 | `--refresh` | Download/refresh the history before rendering |
@@ -476,6 +478,8 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--to-block <n>` | End block for `--refresh` |
 | `--chunk-size <n>` | Block span per log query during refresh |
 | `--json` | Emit JSON output |
+
+`history --refresh` merges newly fetched records into the existing cache. Use `wallet download --from-block 0` when you want to rewrite the history file from genesis.
 
 `--url` and `--ids` only affect terminal scoreboard tables. `--url` shows `game_url`, `--ids` shows `game_id`, and if both are passed the last option wins. JSON output keeps both fields.
 

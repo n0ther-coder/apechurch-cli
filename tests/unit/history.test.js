@@ -17,6 +17,7 @@ import {
   SUSHI_SHOWDOWN_CONTRACT,
 } from '../../lib/constants.js';
 import {
+  buildHistoryWapeLeaderboard,
   fetchSavedHistoryEntries,
   fetchHistoryEntriesForContract,
   resolveHistoryGameName,
@@ -34,6 +35,90 @@ describe('History Helpers', () => {
     it('returns all games when --all is requested', () => {
       const games = [{ id: 1 }, { id: 2 }, { id: 3 }];
       assert.deepStrictEqual(selectHistoryGames(games, { limit: 1, all: true }), games);
+    });
+  });
+
+  describe('buildHistoryWapeLeaderboard', () => {
+    it('groups wagered wAPE by UTC ISO week from newest to oldest', () => {
+      const syncedAt = '2026-04-02T00:00:00.000Z';
+      const mondayWeekOne = Date.UTC(2024, 0, 1, 0, 0, 0) / 1000;
+      const sundayWeekOne = Date.UTC(2024, 0, 7, 23, 59, 59) / 1000;
+      const mondayWeekTwo = Date.UTC(2024, 0, 8, 0, 0, 0) / 1000;
+      const leaderboard = buildHistoryWapeLeaderboard({
+        games: [
+          {
+            timestamp: sundayWeekOne * 1000,
+            chain_timestamp: sundayWeekOne,
+            wager_wei: parseEther('5').toString(),
+            payout_wei: '0',
+            wape_received_wei: '0',
+            last_sync_on: syncedAt,
+            last_sync_msg: 'ok',
+          },
+          {
+            timestamp: mondayWeekTwo * 1000,
+            chain_timestamp: mondayWeekTwo,
+            wager_wei: parseEther('2.5').toString(),
+            payout_wei: '0',
+            wape_received_wei: '0',
+            last_sync_on: syncedAt,
+            last_sync_msg: 'ok',
+          },
+          {
+            timestamp: mondayWeekOne * 1000,
+            chain_timestamp: mondayWeekOne,
+            wager_wei: parseEther('1').toString(),
+            payout_wei: '0',
+            wape_received_wei: '0',
+            last_sync_on: syncedAt,
+            last_sync_msg: 'ok',
+          },
+        ],
+      });
+
+      assert.strictEqual(leaderboard.total_wagered_ape, '8.5');
+      assert.strictEqual(leaderboard.total_games, 3);
+      assert.deepStrictEqual(
+        leaderboard.weeks.map((week) => [week.year, week.week, week.wagered_ape, week.games]),
+        [
+          [2024, 2, '2.5', 1],
+          [2024, 1, '6', 2],
+        ],
+      );
+      assert.strictEqual(leaderboard.weeks[0].week_start_utc, '2024-01-08T00:00:00.000Z');
+      assert.strictEqual(leaderboard.weeks[1].week_start_utc, '2024-01-01T00:00:00.000Z');
+    });
+
+    it('excludes unsynced and reverted games from the weekly leaderboard', () => {
+      const leaderboard = buildHistoryWapeLeaderboard({
+        games: [
+          {
+            timestamp: Date.UTC(2024, 0, 8, 12, 0, 0),
+            wager_wei: parseEther('10').toString(),
+            payout_wei: '0',
+            wape_received_wei: parseEther('10').toString(),
+            last_sync_on: '2026-04-02T00:00:00.000Z',
+            last_sync_msg: 'ok',
+          },
+          {
+            timestamp: Date.UTC(2024, 0, 8, 12, 0, 0),
+            wape_received_wei: parseEther('10').toString(),
+          },
+          {
+            timestamp: Date.UTC(2024, 0, 8, 12, 0, 0),
+            wager_wei: parseEther('10').toString(),
+            payout_wei: '0',
+            wape_received_wei: parseEther('10').toString(),
+            last_sync_on: '2026-04-02T00:00:00.000Z',
+            last_sync_msg: 'execution reverted',
+          },
+        ],
+      });
+
+      assert.strictEqual(leaderboard.total_wagered_ape, '10');
+      assert.strictEqual(leaderboard.total_games, 1);
+      assert.strictEqual(leaderboard.weeks.length, 1);
+      assert.strictEqual(leaderboard.weeks[0].wagered_ape, '10');
     });
   });
 

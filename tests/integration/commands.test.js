@@ -41,7 +41,7 @@ function setupHistoryFixtureHome() {
   fs.writeFileSync(
     path.join(historyDir, `${HISTORY_FIXTURE_WALLET.toLowerCase()}_history.json`),
     JSON.stringify({
-      version: 1,
+      version: 2,
       wallet: HISTORY_FIXTURE_WALLET.toLowerCase(),
       chain_id: 33139,
       last_synced_block: 1,
@@ -49,45 +49,31 @@ function setupHistoryFixtureHome() {
       games: [
         {
           contract: '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600',
-          gameId: '1',
-          timestamp: 1710000000,
-          game: 'ApeStrong',
+          game_id: '1',
+          timestamp: 1710000000000,
           game_key: 'ape-strong',
           config: { range: 50 },
-          variant_key: 'ape-strong:range:50',
-          variant_label: 'Range 50',
-          rtp_game: 'ape-strong',
-          rtp_config: { range: 50 },
           wager_wei: '5000000000000000000',
           payout_wei: '0',
           contract_fee_wei: '100000000000000000',
           gas_fee_wei: '10000000000000000',
           settled: true,
           gp_received_raw: '5',
-          wape_received_wei: '5000000000000000000',
           last_sync_on: '2026-04-02T00:00:00.000Z',
-          chain_timestamp: 1710000000,
         },
         {
           contract: '0x1f48A104C1808eb4107f3999999D36aeafEC56d5',
-          gameId: '2',
-          timestamp: 1710000100,
-          game: 'Roulette',
+          game_id: '2',
+          timestamp: 1710000100000,
           game_key: 'roulette',
           config: { bet: 'RED' },
-          variant_key: 'roulette:bet-type:red-black',
-          variant_label: 'Red/Black',
-          rtp_game: 'roulette',
-          rtp_config: { bet: 'RED' },
           wager_wei: '2000000000000000000',
           payout_wei: '4000000000000000000',
           contract_fee_wei: '0',
           gas_fee_wei: '10000000000000000',
           settled: true,
           gp_received_raw: '2',
-          wape_received_wei: '2000000000000000000',
           last_sync_on: '2026-04-02T00:00:00.000Z',
-          chain_timestamp: 1710000100,
         },
       ],
     }, null, 2)
@@ -900,6 +886,32 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(!stdout.includes('+1.9900 APE'), 'Should no longer show four-decimal positive net profit values');
     });
 
+    it('--leaderboard renders weekly wAPE totals only', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history --leaderboard', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+
+      assert.ok(stdout.includes('Global: 7.00 $APE wagered over 2 games'));
+      assert.ok(stdout.includes('2024 W10: 7.00 $APE wagered'));
+      assert.ok(!stdout.includes('Recent Games'), 'Should not render the default recent-games section');
+      assert.ok(!stdout.includes('History Stats'), 'Should not render aggregate stats in leaderboard mode');
+    });
+
+    it('--json --leaderboard includes weekly wAPE totals', () => {
+      setupHistoryFixtureHome();
+      const { stdout } = cli('history --json --leaderboard', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+      const data = JSON.parse(stdout);
+
+      assert.ok(data.leaderboard, 'Should include leaderboard data');
+      assert.strictEqual(data.leaderboard.total_wagered_ape, '7');
+      assert.strictEqual(data.leaderboard.total_games, 2);
+      assert.strictEqual(data.leaderboard.weeks[0].week_label, '2024 W10');
+      assert.strictEqual(data.leaderboard.weeks[0].wagered_ape, '7');
+    });
+
     it('shows GP earned in the human-readable history output', () => {
       setupHistoryFixtureHome();
       const { stdout } = cli('history', {
@@ -939,6 +951,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--list'), 'Should expose --list in help');
       assert.ok(stdout.includes('--all'), 'Should expose --all in help');
       assert.ok(stdout.includes('--scoreboard'), 'Should expose the scoreboard toggle in help');
+      assert.ok(stdout.includes('--leaderboard'), 'Should expose the weekly leaderboard toggle in help');
       assert.ok(stdout.includes('--url'), 'Should expose the scoreboard URL toggle in help');
       assert.ok(stdout.includes('--breakdown [game]'), 'Should expose the optional breakdown game filter in help');
     });

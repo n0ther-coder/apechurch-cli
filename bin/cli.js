@@ -209,7 +209,12 @@ import {
   stripAbiVerifiedSymbol,
 } from '../registry.js';
 import { getStrategy, listStrategies, getStrategyNames, calculateNextBet } from '../lib/strategies/index.js';
-import { fetchSavedHistoryEntries, resolveHistoryGameName, selectHistoryGames } from '../lib/history.js';
+import {
+  buildHistoryWapeLeaderboard,
+  fetchSavedHistoryEntries,
+  resolveHistoryGameName,
+  selectHistoryGames,
+} from '../lib/history.js';
 import {
   buildGameStatusSummary,
   buildHistoryGameStatusSummary,
@@ -744,6 +749,45 @@ function formatScoreUrlValue(value) {
 function formatScoreIdValue(value) {
   const normalized = String(value || '').trim();
   return normalized ? theme.value(normalized) : theme.warning('…');
+}
+
+function formatLeaderboardApeAmount(amount) {
+  const normalized = String(amount ?? '0').trim();
+  if (!normalized) {
+    return '0.00';
+  }
+
+  const sign = normalized.startsWith('-') ? '-' : '';
+  const unsigned = sign ? normalized.slice(1) : normalized;
+  const [wholeRaw, fractionRaw = ''] = unsigned.split('.');
+  const whole = wholeRaw.replace(/^0+(?=\d)/, '') || '0';
+  const paddedFraction = fractionRaw.padEnd(3, '0');
+  const roundUp = Number(paddedFraction[2] || '0') >= 5;
+  let cents = BigInt(`${whole}${paddedFraction.slice(0, 2)}`);
+
+  if (roundUp) {
+    cents += 1n;
+  }
+
+  const roundedWhole = cents / 100n;
+  const roundedFraction = cents % 100n;
+  return `${sign}${roundedWhole}.${roundedFraction.toString().padStart(2, '0')}`;
+}
+
+function formatHistoryWapeLeaderboardReport(leaderboard) {
+  const weeks = Array.isArray(leaderboard?.weeks) ? leaderboard.weeks : [];
+  const lines = [
+    `Global: ${formatLeaderboardApeAmount(leaderboard?.total_wagered_ape)} $APE wagered over ${Number(leaderboard?.total_games || 0)} games`,
+  ];
+
+  if (weeks.length > 0) {
+    lines.push('');
+    for (const week of weeks) {
+      lines.push(`${week.year} W${String(week.week).padStart(2, '0')}: ${formatLeaderboardApeAmount(week.wagered_ape)} $APE wagered`);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 function resolveScoreboardReferenceMode(command, opts = {}) {
@@ -1368,6 +1412,7 @@ async function downloadHistoryForCli(targetAddress, opts = {}) {
     fromBlock,
     toBlock,
     chunkSize,
+    rebuild: Boolean(opts.rebuildHistory && fromBlock === 0n),
     onTransactionProcessed: opts.json
       ? null
       : (progress) => {
@@ -1679,7 +1724,10 @@ program
           console.log(`\n📥 Downloading history for ${targetAddress}${opts.fromBlock !== undefined ? ` from block ${opts.fromBlock}` : ''}${opts.toBlock !== undefined ? ` to block ${opts.toBlock}` : ' to latest'}...\n`);
         }
 
-        const downloadResult = await downloadHistoryForCli(targetAddress, opts);
+        const downloadResult = await downloadHistoryForCli(targetAddress, {
+          ...opts,
+          rebuildHistory: true,
+        });
 
         if (opts.json) {
           console.log(JSON.stringify(downloadResult));
@@ -3833,6 +3881,7 @@ program
   .option('--ids', 'Show game IDs in history lines and scoreboard tables')
   .option('--stats', 'Show only history stats')
   .option('--breakdown [game]', 'Show history stats split by game, optionally filtered to one game')
+  .option('--leaderboard', 'Show weekly wAPE wagered leaderboard')
   .option('--scoreboard', 'Append the wallet scoreboard derived from cached history')
   .option('--url', 'Show scoreboard game URLs in terminal output')
   .option('--refresh', 'Refresh local history from chain before showing it')
@@ -3896,6 +3945,28 @@ program
       const message = `No downloaded history for this wallet. Run: ${BINARY_NAME} wallet download ${targetAddress}`;
       if (opts.json) console.log(JSON.stringify({ error: message }));
       else console.log(`\n${message}\n`);
+      return;
+    }
+
+    if (opts.leaderboard) {
+      const leaderboard = buildHistoryWapeLeaderboard(history);
+
+      if (opts.json) {
+        console.log(JSON.stringify({
+          wallet: targetAddress.toLowerCase(),
+          history_file: historyFilePath,
+          meta: {
+            version: history.version,
+            chain_id: history.chain_id,
+            last_synced_block: history.last_synced_block,
+            last_download_on: history.last_download_on,
+          },
+          sync: refreshResult?.sync || null,
+          leaderboard,
+        }));
+      } else {
+        console.log(`\n${formatHistoryWapeLeaderboardReport(leaderboard)}\n`);
+      }
       return;
     }
 
@@ -4592,6 +4663,8 @@ INFO
   ${BINARY_NAME} game <name>          Game details
   ${BINARY_NAME} history --list       List wallets with local cached history
   ${BINARY_NAME} history [address]    Read cached history, recent games, and history stats
+  ${BINARY_NAME} history [address] --leaderboard
+                                   Show weekly wAPE wagered totals
   ${BINARY_NAME} history [address] --scoreboard
                                    Append the cached wallet scoreboard to history output
   ${BINARY_NAME} history [address] --scoreboard --ids
@@ -5110,6 +5183,7 @@ ${'─'.repeat(70)}
     ${BINARY_NAME} history [address] --limit 25
     ${BINARY_NAME} history [address] --all
     ${BINARY_NAME} history [address] --stats
+    ${BINARY_NAME} history [address] --leaderboard
     ${BINARY_NAME} history [address] --scoreboard
     ${BINARY_NAME} history [address] --scoreboard --ids
     ${BINARY_NAME} history [address] --scoreboard --url
@@ -5138,6 +5212,7 @@ ${'─'.repeat(70)}
     --all                      Show all cached games in the local file
     --ids                      Show game IDs in history lines and scoreboard tables
     --stats                    Show only aggregate history stats
+    --leaderboard              Show weekly wAPE wagered totals
     --scoreboard               Append the cached wallet scoreboard
     --url                      Show scoreboard game URLs in terminal output
     --breakdown [game]         Show the same stats split by game, optionally filtered
@@ -5172,10 +5247,13 @@ ${'─'.repeat(70)}
      Use --url or --ids to add one reference column; if both are passed,
      the last option wins.
 
-  4. ${BINARY_NAME} history [address] --breakdown
+  4. ${BINARY_NAME} history [address] --leaderboard
+     Shows weekly wAPE wagered totals grouped by UTC ISO week.
+
+  5. ${BINARY_NAME} history [address] --breakdown
      Adds a per-game split of the same economic stats.
 
-  5. ${BINARY_NAME} history [address] --breakdown video-poker
+  6. ${BINARY_NAME} history [address] --breakdown video-poker
      Restricts that split to one game family.
 
 ${'─'.repeat(70)}
@@ -5261,6 +5339,7 @@ ${'─'.repeat(70)}
   ${BINARY_NAME} history --limit 25
   ${BINARY_NAME} history --all
   ${BINARY_NAME} history --stats
+  ${BINARY_NAME} history --leaderboard
   ${BINARY_NAME} history --scoreboard
   ${BINARY_NAME} history --scoreboard --ids
   ${BINARY_NAME} history --scoreboard --url
@@ -5294,6 +5373,10 @@ ${'─'.repeat(70)}
     • Shows Highest Multipliers and Biggest Payouts top-20 tables
     • --url shows game links, --ids shows game IDs
     • If both are passed, the last option wins
+
+  --leaderboard:
+    • Shows Global plus weekly wAPE wagered totals
+    • Weeks are grouped from Monday 00:00 UTC and listed newest first
 
   --breakdown:
     • Per-game split of the same stats

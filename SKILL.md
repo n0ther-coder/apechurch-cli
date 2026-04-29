@@ -107,6 +107,9 @@ apechurch-cli wallet download 0x1234...abcd
 # Scan only a recent block range
 apechurch-cli wallet download 0x1234...abcd --from-block 35000000 --to-block 35300000
 
+# Rebuild the local history file from genesis
+apechurch-cli wallet download 0x1234...abcd --from-block 0
+
 # JSON output for automation
 apechurch-cli wallet download 0x1234...abcd --json
 
@@ -125,19 +128,22 @@ apechurch-cli history 0x1234...abcd --stats
 # Stats split by game
 apechurch-cli history 0x1234...abcd --breakdown
 
+# Weekly wAPE wagered totals
+apechurch-cli history 0x1234...abcd --leaderboard
+
 # Refresh before reading
 apechurch-cli history 0x1234...abcd --refresh
 
-# Full backfill before reading
+# Merge a full-range refresh before reading
 apechurch-cli history 0x1234...abcd --refresh --from-block 0
 ```
 
 Sync and cache behavior:
 
 - `wallet download` is incremental by default. Without `--from-block`, it resumes from `last_synced_block + 1`.
-- Use `--from-block 0` for a full backfill, or pass an explicit historical range to fill older blocks.
-- Explicit backfills are merged into the local file and deduplicated by `contract + gameId`.
-- `history --refresh` runs the same sync path as `wallet download` before reading the local file.
+- Use `wallet download --from-block 0` to rebuild the local history file from scratch, or pass an explicit historical range to fill older blocks.
+- Explicit backfills and `history --refresh` are merged into the local file and deduplicated by `contract + game_id`.
+- `history --refresh` runs the same sync path before reading the local file, but it does not clear cached records first.
 - `history` shows `👀 Recent Games` plus `📜 History Stats` by default. `--stats` suppresses the game list, while `--breakdown` appends the same stats split by game.
 - Standard `history` output also includes a compact `🎮 Game Status` section with per-game `played`, `net`, `win rate`, `RTP`, and local `unfinished` counts when available.
 
@@ -151,14 +157,14 @@ Sync and cache behavior:
 | `Net result` | `payout - wager - contract fees - gas` |
 | `✌️ Win rate` | Wins divided by economically synced games |
 | `🎲 RTP` | `total payout / total wagered` |
-| `🎟️  APE Wagered (wAPE)` | Current on-chain balance / total received from synced games |
+| `🎟️  APE Wagered (wAPE)` | Current on-chain balance / total APE wagered by synced games |
 | `🧮 Gimbo Points (GP)` | Current on-chain balance / total received from synced games; every `10,000 GP` equals `1 Level` |
 
 ### Wallet Download Options
 
 | Option | Description |
 |------|---------|
-| `wallet download --from-block <n>` | Start block for the sync or explicit backfill |
+| `wallet download --from-block <n>` | Start block for the sync; `--from-block 0` rebuilds the history file |
 | `wallet download --to-block <n>` | End block for the sync (default: latest block) |
 | `wallet download --chunk-size <n>` | Block span per log query (default: `50000`) |
 | `wallet download --json` | Machine-readable download report |
@@ -171,7 +177,8 @@ Sync and cache behavior:
 | `history --all` | Show all cached games instead of the recent slice |
 | `history --stats` | Show only history stats |
 | `history --breakdown` | Show history stats split by game |
-| `history --refresh` | Refresh from chain before rendering |
+| `history --leaderboard` | Show global and weekly wAPE wagered totals |
+| `history --refresh` | Merge an on-chain sync before rendering |
 | `history --from-block <n>` | Start block for `--refresh` |
 | `history --to-block <n>` | End block for `--refresh` |
 | `history --chunk-size <n>` | Block span per log query for `--refresh` |
@@ -180,7 +187,7 @@ Sync and cache behavior:
 ### Coverage Limits
 
 - Downloaded histories live under `~/.apechurch-cli/history/<wallet>_history.json`.
-- Economic totals only include games whose wager, payout, fees, gas, GP, and wAPE can be reconstructed exactly from on-chain data.
+- Economic totals only include games whose wager, payout, fees, gas, and GP can be reconstructed exactly from on-chain data. Total wAPE wagered uses the canonical `wager_wei`.
 - Enumerates the supported single-transaction games in the local registry via indexed `GameEnded(user, ...)` logs.
 - `Blackjack` and `Video Poker` cannot yet be generically enumerated from raw RPC, so locally-known entries remain minimal until a reliable fetch path is implemented.
 - Sponsored transactions contribute `0` contract fees and `0` gas for the analyzed wallet.
@@ -803,23 +810,29 @@ All commands support `--json` for machine-readable output. Samples below are abr
 ```json
 {
   "history": {
-    "version": 1,
+    "version": 2,
     "wallet": "0x1234...abcd",
     "chain_id": 33139,
     "last_synced_block": "35300000",
     "last_download_on": "2026-03-29T12:00:00.000Z",
     "games": [
       {
-        "game": "Bear-A-Dice",
-        "gameId": "1137230...",
-        "tx": "0xabc123...",
+        "contract": "0x...",
+        "game_key": "bear-dice",
+        "game_id": "1137230...",
+        "play_tx": "0xabc123...",
         "settlement_tx": "0xdef456...",
-        "wager_ape": "5",
-        "payout_ape": "0",
-        "contract_fee_ape": "0.1",
-        "gas_fee_ape": "0.02",
-        "gp_received_display": "25",
-        "wape_received_ape": "5"
+        "block_number": "35299999",
+        "timestamp": 1710000000000,
+        "wager_wei": "5000000000000000000",
+        "payout_wei": "0",
+        "contract_fee_wei": "100000000000000000",
+        "gas_fee_wei": "20000000000000000",
+        "gp_received_raw": "25",
+        "gp_source": "receipt",
+        "settled": true,
+        "last_sync_on": "2026-03-29T12:00:00.000Z",
+        "last_sync_msg": "ok"
       }
     ]
   },
@@ -858,7 +871,7 @@ All commands support `--json` for machine-readable output. Samples below are abr
   "wallet": "0x1234...abcd",
   "history_file": "/Users/me/.apechurch-cli/history/0x1234...abcd_history.json",
   "meta": {
-    "version": 1,
+    "version": 2,
     "chain_id": 33139,
     "last_synced_block": "35300000",
     "last_download_on": "2026-03-29T12:00:00.000Z"

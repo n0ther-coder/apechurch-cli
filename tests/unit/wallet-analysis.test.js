@@ -1329,11 +1329,10 @@ describe('Wallet History Analysis', () => {
         [
           {
             contract: '0x6a48A513A46955D8622C809Fce876d2f11142003',
-            gameId: '42',
-            tx: '0xplay',
+            game_id: '42',
+            play_tx: '0xplay',
             settlement_tx: '0xsettle',
             transaction_from: WALLET,
-            sponsored_transaction: false,
             chain_timestamp: 1774786033,
             timestamp: 1774786033000,
             wager_wei: parseEther('5').toString(),
@@ -1359,11 +1358,10 @@ describe('Wallet History Analysis', () => {
         [
           {
             contract: '0x6a48A513A46955D8622C809Fce876d2f11142003',
-            gameId: '42',
-            tx: '0xsettle',
+            game_id: '42',
+            play_tx: '0xsettle',
             settlement_tx: '0xsettle',
             transaction_from: SPONSOR,
-            sponsored_transaction: true,
             chain_timestamp: 1774786034,
             timestamp: 1774786034000,
             wager_wei: parseEther('5').toString(),
@@ -1390,14 +1388,13 @@ describe('Wallet History Analysis', () => {
       );
 
       assert.strictEqual(merged.length, 1);
-      assert.strictEqual(merged[0].tx, '0xsettle');
+      assert.strictEqual(merged[0].play_tx, '0xplay');
       assert.strictEqual(merged[0].settlement_tx, '0xsettle');
       assert.strictEqual(merged[0].transaction_from, SPONSOR);
-      assert.strictEqual(merged[0].sponsored_transaction, true);
       assert.strictEqual(merged[0].contract_fee_ape, '0');
       assert.strictEqual(merged[0].gas_fee_ape, '0');
       assert.strictEqual(merged[0].gp_received_display, '0');
-      assert.strictEqual(merged[0].wape_received_ape, '0');
+      assert.strictEqual(merged[0].wape_received_ape, '5');
       assert.strictEqual(merged[0].chain_timestamp, 1774786034);
       assert.strictEqual(merged[0].timestamp, 1774786034000);
       assert.strictEqual(merged[0].net_result_ape, '1');
@@ -1813,7 +1810,7 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(analysis.recent_games[0].game, 'Roulette ✔︎');
       assert.strictEqual(analysis.recent_games[0].contract_fee_ape, '0');
       assert.strictEqual(analysis.recent_games[0].gas_fee_ape, '0');
-      assert.strictEqual(analysis.recent_games[0].sponsored_transaction, true);
+      assert.strictEqual(analysis.recent_games[0].transaction_from, SPONSOR);
       assert.strictEqual(analysis.recent_games[1].game, 'ApeStrong ✔︎');
       assert.strictEqual(analysis.recent_games[1].chain_timestamp, 1700000000);
       assert.strictEqual(analysis.recent_games[1].contract_fee_ape, '0.1');

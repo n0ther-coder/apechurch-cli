@@ -128,6 +128,9 @@ apechurch-cli wallet download 0x1234...abcd
 # Narrow the sync to a recent block range
 apechurch-cli wallet download 0x1234...abcd --from-block 35000000 --to-block 35300000
 
+# Rebuild the local history file from genesis
+apechurch-cli wallet download 0x1234...abcd --from-block 0
+
 # Read saved history plus history stats
 apechurch-cli history 0x1234...abcd
 
@@ -142,6 +145,9 @@ apechurch-cli history 0x1234...abcd --stats
 
 # Show history stats split by game
 apechurch-cli history 0x1234...abcd --breakdown
+
+# Show weekly wAPE wagered totals
+apechurch-cli history 0x1234...abcd --leaderboard
 
 # Append the cached wallet leaderboard to the history report
 apechurch-cli history 0x1234...abcd --scoreboard
@@ -164,7 +170,7 @@ apechurch-cli scoreboard 0x1234...abcd --url
 # Refresh from chain before showing
 apechurch-cli history 0x1234...abcd --refresh
 
-# Full backfill before showing
+# Merge a full-range refresh before showing
 apechurch-cli history 0x1234...abcd --refresh --from-block 0
 
 # Machine-readable output
@@ -174,10 +180,11 @@ apechurch-cli history 0x1234...abcd --json
 Sync and cache behavior:
 
 - `wallet download` is incremental by default. Without `--from-block`, it resumes from `last_synced_block + 1`.
-- Use `--from-block 0` for a full backfill, or pass an explicit historical range to fill older blocks.
-- Explicit backfills are merged into the local file and deduplicated by `contract + gameId`.
-- `history --refresh` runs the same on-chain sync path as `wallet download` before reading the local file.
+- Use `wallet download --from-block 0` to rebuild the local history file from scratch, or pass an explicit historical range to fill older blocks.
+- Explicit backfills and `history --refresh` are merged into the local file and deduplicated by `contract + game_id`.
+- `history --refresh` runs the same on-chain sync path before reading the local file, but it does not clear cached records first.
 - `history` shows `👀 Recent Games` plus `📜 History Stats` by default. `--stats` suppresses the game list, while `--breakdown` appends the same stats split by game.
+- `history --leaderboard` shows global and weekly wAPE wagered, grouped by UTC ISO week, and listed newest first. Terminal amounts are rounded to 2 decimals; JSON keeps exact cached values.
 - `history --scoreboard` appends two cached Top 20 tables: `Highest Multipliers` and `Biggest Payouts`.
 - Scoreboard terminal tables hide the reference column by default; pass `--url` to show `game_url` or `--ids` to show `game_id`. If both are passed, the last option wins. JSON output keeps both fields.
 - Standard `history` output also includes a compact `🎮 Game Status` section with per-game `played`, `net`, `win rate`, `RTP`, and local `unfinished` counts when available.
@@ -190,7 +197,7 @@ Text output includes:
 - `Net result`: `payout - wager - contract fees - gas`
 - `✌️ Win rate`: wins divided by economically synced games
 - `🎲 RTP`: `total payout / total wagered`
-- `🎟️  APE Wagered (wAPE)`: current on-chain balance / total wAPE received from synced games
+- `🎟️  APE Wagered (wAPE)`: current on-chain balance / total APE wagered by synced games
 - `🧮 Gimbo Points (GP)`: current on-chain balance / total GP received from synced games; every `10,000 GP` equals `1 Level`
 
 `wallet download` options:
@@ -198,7 +205,7 @@ Text output includes:
 | Option | Description |
 |--------|-------------|
 | `--list` | List locally available wallet addresses |
-| `--from-block <n>` | Start block for the sync or explicit backfill |
+| `--from-block <n>` | Start block for the sync; `wallet download --from-block 0` rebuilds the history file |
 | `--to-block <n>` | End block for the sync (default: latest block) |
 | `--chunk-size <n>` | Block span per log query (default: `50000`) |
 | `--json` | Emit the machine-readable download report |
@@ -213,9 +220,10 @@ Text output includes:
 | `--ids` | Show game IDs in history lines and scoreboard tables |
 | `--stats` | Show only history stats |
 | `--breakdown` | Append the same stats split by game |
+| `--leaderboard` | Show weekly wAPE wagered totals grouped from Monday 00:00 UTC |
 | `--scoreboard` | Append the cached wallet leaderboard derived from history |
 | `--url` | Show game URLs in terminal scoreboard tables |
-| `--refresh` | Run `wallet download` before rendering |
+| `--refresh` | Merge an on-chain sync before rendering |
 | `--from-block <n>` | Start block for `--refresh` |
 | `--to-block <n>` | End block for `--refresh` (default: latest block) |
 | `--chunk-size <n>` | Block span per log query for `--refresh` |
@@ -231,7 +239,7 @@ Text output includes:
 Coverage and limits:
 
 - Downloaded histories live under `~/.apechurch-cli/history/<wallet>_history.json`.
-- Economic totals only include games whose wager, payout, fees, gas, GP, and wAPE can be reconstructed exactly from on-chain data.
+- Economic totals only include games whose wager, payout, fees, gas, and GP can be reconstructed exactly from on-chain data. Total wAPE wagered uses canonical `wager_wei`.
 - The downloader enumerates supported single-transaction games in the local registry via indexed `GameEnded(user, ...)` logs.
 - `Blackjack` and `Video Poker` (`Gimboz Poker` in Ape Church naming) cannot yet be generically enumerated from raw RPC, so locally-known entries remain minimal until a reliable fetch path is implemented.
 - Sponsored transactions contribute `0` contract fees and `0` gas for the analyzed wallet.
@@ -395,7 +403,7 @@ apechurch-cli game <name>                       # Game details
 apechurch-cli pause                             # Stop autonomous play
 apechurch-cli continue                          # Continue play
 apechurch-cli history --list                    # List wallets with local cached history files
-apechurch-cli history [address] [--stats] [--breakdown] [--scoreboard] [--ids] [--url] [--refresh]  # Read cached history and reporting
+apechurch-cli history [address] [--stats] [--breakdown] [--leaderboard] [--scoreboard] [--ids] [--url] [--refresh]  # Read cached history and reporting
 apechurch-cli scoreboard [address] [--ids] [--url]     # Read cached leaderboard tables
 apechurch-cli commands                          # Full reference
 ```
