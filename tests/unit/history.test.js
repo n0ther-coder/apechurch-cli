@@ -7,12 +7,16 @@ import { parseEther } from 'viem';
 import {
   BEAR_DICE_CONTRACT,
   BACCARAT_CONTRACT,
+  BLIZZARD_BLITZ_CONTRACT,
   BUBBLEGUM_HEIST_CONTRACT,
   COSMIC_PLINKO_CONTRACT,
+  CULT_QUEST_CONTRACT,
   DINO_DOUGH_CONTRACT,
   GEEZ_DIGGERZ_CONTRACT,
+  GIMBOZ_GALAXY_CONTRACT,
   GIMBOZ_SMASH_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
+  RICOS_REVENGE_CONTRACT,
   ROULETTE_CONTRACT,
   SUSHI_SHOWDOWN_CONTRACT,
 } from '../../lib/constants.js';
@@ -145,6 +149,13 @@ describe('History Helpers', () => {
       assert.strictEqual(resolveHistoryGameName(JUNGLE_PLINKO_CONTRACT), 'Jungle Plinko ✔︎');
       assert.strictEqual(resolveHistoryGameName(COSMIC_PLINKO_CONTRACT), 'Cosmic Plinko ✔︎');
       assert.strictEqual(resolveHistoryGameName(ROULETTE_CONTRACT), 'Roulette ✔︎');
+    });
+
+    it('resolves history-only public game contract names without marking them playable', () => {
+      assert.strictEqual(resolveHistoryGameName(BLIZZARD_BLITZ_CONTRACT), 'Blizzard Blitz');
+      assert.strictEqual(resolveHistoryGameName(GIMBOZ_GALAXY_CONTRACT), 'Gimboz of the Galaxy');
+      assert.strictEqual(resolveHistoryGameName(RICOS_REVENGE_CONTRACT), "Rico's Revenge");
+      assert.strictEqual(resolveHistoryGameName(CULT_QUEST_CONTRACT), 'Cult Quest');
     });
   });
 

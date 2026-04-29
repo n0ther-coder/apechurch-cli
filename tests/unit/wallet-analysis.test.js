@@ -7,20 +7,25 @@ import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, parseEther 
 import {
   BACCARAT_CONTRACT,
   BEAR_DICE_CONTRACT,
+  BLIZZARD_BLITZ_CONTRACT,
   BLOCKS_CONTRACT,
   COSMIC_PLINKO_CONTRACT,
+  CULT_QUEST_CONTRACT,
   DINO_DOUGH_CONTRACT,
   ERC20_ABI,
   GAME_CONTRACT_ABI,
   GEEZ_DIGGERZ_CONTRACT,
+  GIMBOZ_GALAXY_CONTRACT,
   GLYDE_OR_CRASH_CONTRACT,
   GIMBOZ_SMASH_CONTRACT,
+  LEGACY_GP_TOKEN_CONTRACT,
   GP_TOKEN_CONTRACT,
   HI_LO_NEBULA_CONTRACT,
   JUNGLE_PLINKO_CONTRACT,
   KENO_CONTRACT,
   MONKEY_MATCH_CONTRACT,
   PRIMES_CONTRACT,
+  RICOS_REVENGE_CONTRACT,
   SPEED_KENO_CONTRACT,
   ZERO_ADDRESS,
 } from '../../lib/constants.js';
@@ -41,9 +46,9 @@ const SPONSOR = '0x2222222222222222222222222222222222222222';
 const APESTRONG = '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600';
 const ROULETTE = '0x1f48A104C1808eb4107f3999999D36aeafEC56d5';
 
-function buildGpTransferLog({ to, value }) {
+function buildGpTransferLog({ to, value, address = GP_TOKEN_CONTRACT }) {
   return {
-    address: GP_TOKEN_CONTRACT,
+    address,
     topics: encodeEventTopics({
       abi: ERC20_ABI,
       eventName: 'Transfer',
@@ -697,6 +702,151 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(result.games[0].variant_key, 'blocks:mode:easy:rolls:3');
       assert.strictEqual(result.games[0].variant_label, 'Low / 3 rolls');
       assert.deepStrictEqual(result.games[0].rtp_config, { mode: 0, runs: 3 });
+    });
+
+    it('reconstructs history-only game variant metadata from cached play calldata', async () => {
+      const blizzardGameId = 801n;
+      const ricoGameId = 802n;
+      const cultGameId = 803n;
+      const blizzardInput = encodeFunctionData({
+        abi: GAME_CONTRACT_ABI,
+        functionName: 'play',
+        args: [
+          WALLET,
+          encodeAbiParameters(
+            [
+              { name: 'numSpins', type: 'uint8' },
+              { name: 'gameId', type: 'uint256' },
+              { name: 'ref', type: 'address' },
+              { name: 'userRandomWord', type: 'bytes32' },
+              { name: 'mode', type: 'uint8' },
+            ],
+            [1, blizzardGameId, ZERO_ADDRESS, '0x' + '44'.repeat(32), 1],
+          ),
+        ],
+      });
+      const ricoInput = encodeFunctionData({
+        abi: GAME_CONTRACT_ABI,
+        functionName: 'play',
+        args: [
+          WALLET,
+          encodeAbiParameters(
+            [
+              { name: 'mode', type: 'uint8' },
+              { name: 'numSpins', type: 'uint8' },
+              { name: 'gameId', type: 'uint256' },
+              { name: 'ref', type: 'address' },
+              { name: 'userRandomWord', type: 'bytes32' },
+            ],
+            [0, 30, ricoGameId, ZERO_ADDRESS, '0x' + '45'.repeat(32)],
+          ),
+        ],
+      });
+      const cultInput = encodeFunctionData({
+        abi: GAME_CONTRACT_ABI,
+        functionName: 'play',
+        args: [
+          WALLET,
+          encodeAbiParameters(
+            [
+              { name: 'gems', type: 'uint8' },
+              { name: 'gameId', type: 'uint256' },
+              { name: 'ref', type: 'address' },
+              { name: 'userRandomWord', type: 'bytes32' },
+            ],
+            [12, cultGameId, ZERO_ADDRESS, '0x' + '46'.repeat(32)],
+          ),
+        ],
+      });
+      const txByHash = new Map([
+        ['0x' + '8'.repeat(64), { input: blizzardInput }],
+        ['0x' + '9'.repeat(64), { input: ricoInput }],
+        ['0x' + 'a'.repeat(64), { input: cultInput }],
+      ]);
+
+      const result = await inferSavedHistoryGameVariants({
+        async getTransaction({ hash }) {
+          return txByHash.get(hash);
+        },
+      }, [
+        {
+          contract: BLIZZARD_BLITZ_CONTRACT,
+          game: 'Blizzard Blitz',
+          game_key: 'blizzard-blitz',
+          gameId: blizzardGameId.toString(),
+          tx: '0x' + '8'.repeat(64),
+        },
+        {
+          contract: RICOS_REVENGE_CONTRACT,
+          game: "Rico's Revenge",
+          game_key: 'ricos-revenge',
+          gameId: ricoGameId.toString(),
+          tx: '0x' + '9'.repeat(64),
+        },
+        {
+          contract: CULT_QUEST_CONTRACT,
+          game: 'Cult Quest',
+          game_key: 'cult-quest',
+          gameId: cultGameId.toString(),
+          tx: '0x' + 'a'.repeat(64),
+        },
+      ]);
+
+      assert.strictEqual(result.changed, true);
+      assert.strictEqual(result.inferred, 3);
+      assert.deepStrictEqual(result.games.map((game) => ({
+        config: game.config,
+        variant_key: game.variant_key,
+        variant_label: game.variant_label,
+        rtp_config: game.rtp_config,
+      })), [
+        {
+          config: {
+            mode: 'bonus-round',
+            modeName: 'Bonus Round',
+            spins: 5,
+            rawSpins: 1,
+          },
+          variant_key: 'blizzard-blitz:mode:bonus-round',
+          variant_label: 'Bonus Round',
+          rtp_config: {
+            mode: 'bonus-round',
+            modeName: 'Bonus Round',
+            spins: 5,
+            rawSpins: 1,
+          },
+        },
+        {
+          config: {
+            mode: 'pump-n-dump',
+            modeValue: 0,
+            modeName: 'Pump N Dump',
+            spins: 30,
+            rawSpins: 30,
+          },
+          variant_key: 'ricos-revenge:mode:pump-n-dump:spins:30',
+          variant_label: 'Pump N Dump / 30 spins',
+          rtp_config: {
+            mode: 'pump-n-dump',
+            modeValue: 0,
+            modeName: 'Pump N Dump',
+            spins: 30,
+            rawSpins: 30,
+          },
+        },
+        {
+          config: {
+            gems: 12,
+            grid: '5x5',
+          },
+          variant_key: 'cult-quest:gems:12',
+          variant_label: '12 gems',
+          rtp_config: {
+            gems: 12,
+            grid: '5x5',
+          },
+        },
+      ]);
     });
 
     it('re-infers stale Blocks mode-only metadata when the saved config is incomplete', async () => {
@@ -1401,6 +1551,90 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(merged[0].last_sync_on, '2026-03-29T17:28:34.923Z');
     });
 
+    it('carries pending play transaction fees and rewards into a later settlement-only sync', () => {
+      const playTx = '0x' + '1'.repeat(64);
+      const settlementTx = '0x' + '2'.repeat(64);
+      const merged = mergeDownloadedHistoryGames(
+        [
+          {
+            contract: BLIZZARD_BLITZ_CONTRACT,
+            game_id: '91',
+            gameId: '91',
+            game: 'Blizzard Blitz',
+            game_key: 'blizzard-blitz',
+            play_tx: playTx,
+            tx: playTx,
+            settlement_tx: null,
+            transaction_from: WALLET,
+            settled: false,
+            pending_wager_wei: parseEther('10').toString(),
+            pending_wager_ape: '10',
+            contract_fee_wei: parseEther('0.5').toString(),
+            contract_fee_ape: '0.5',
+            gas_fee_wei: parseEther('0.01').toString(),
+            gas_fee_ape: '0.01',
+            gp_received_raw: '60',
+            gp_received_display: '60',
+            gp_source: 'receipt',
+            config: {
+              mode: 'base',
+              modeName: 'Base Game',
+              spins: 4,
+              rawSpins: 4,
+            },
+            variant_key: 'blizzard-blitz:mode:base:spins:4',
+            variant_label: '4 spins',
+            timestamp: 1_700_000_000_000,
+            last_sync_on: '2026-04-29T10:00:00.000Z',
+            last_sync_msg: 'game not settled',
+          },
+        ],
+        [
+          {
+            contract: BLIZZARD_BLITZ_CONTRACT,
+            game_id: '91',
+            gameId: '91',
+            game: 'Blizzard Blitz',
+            game_key: 'blizzard-blitz',
+            play_tx: settlementTx,
+            tx: settlementTx,
+            settlement_tx: settlementTx,
+            transaction_from: SPONSOR,
+            settled: true,
+            wager_wei: parseEther('10').toString(),
+            wager_ape: '10',
+            payout_wei: parseEther('12').toString(),
+            payout_ape: '12',
+            contract_fee_wei: '0',
+            contract_fee_ape: '0',
+            gas_fee_wei: '0',
+            gas_fee_ape: '0',
+            gp_received_raw: '0',
+            gp_received_display: '0',
+            gp_source: 'receipt',
+            timestamp: 1_700_000_100_000,
+            last_sync_on: '2026-04-29T10:01:00.000Z',
+            last_sync_msg: 'ok',
+          },
+        ],
+        '2026-04-29T10:01:00.000Z'
+      );
+
+      assert.strictEqual(merged.length, 1);
+      assert.strictEqual(merged[0].play_tx, playTx);
+      assert.strictEqual(merged[0].tx, playTx);
+      assert.strictEqual(merged[0].settlement_tx, settlementTx);
+      assert.strictEqual(merged[0].transaction_from, WALLET);
+      assert.strictEqual(merged[0].contract_fee_ape, '0.5');
+      assert.strictEqual(merged[0].gas_fee_ape, '0.01');
+      assert.strictEqual(merged[0].gp_received_display, '60');
+      assert.strictEqual(merged[0].wager_ape, '10');
+      assert.strictEqual(merged[0].payout_ape, '12');
+      assert.strictEqual(merged[0].net_result_ape, '1.49');
+      assert.strictEqual(merged[0].settled, true);
+      assert.strictEqual(merged[0].variant_key, 'blizzard-blitz:mode:base:spins:4');
+    });
+
     it('applies refresh diagnostics to supported local-only games that remain unsynced', () => {
       const diagnostics = new Map([
         ['0x1f48a104c1808eb4107f3999999d36aeafec56d5:7', {
@@ -1900,6 +2134,152 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(analysis.recent_games[0].variant_key, 'blocks:mode:easy:rolls:3');
       assert.strictEqual(analysis.recent_games[0].variant_label, 'Low / 3 rolls');
       assert.deepStrictEqual(analysis.recent_games[0].rtp_config, { mode: 0, runs: 3 });
+    });
+
+    it('reconstructs history-only games from play fallback logs and settlement logs', async () => {
+      const gameId = 901n;
+      const playTx = '0x' + '3'.repeat(64);
+      const settlementTx = '0x' + '4'.repeat(64);
+      const gameStartedTopic = '0xea32a03505fd9f04d664676d72295a86c5fb0465e69654751907ca305bc1d1c7';
+      const userTopic = `0x${'0'.repeat(24)}${WALLET.slice(2).toLowerCase()}`;
+      const blizzardGameData = encodeAbiParameters(
+        [
+          { name: 'numSpins', type: 'uint8' },
+          { name: 'gameId', type: 'uint256' },
+          { name: 'ref', type: 'address' },
+          { name: 'userRandomWord', type: 'bytes32' },
+          { name: 'mode', type: 'uint8' },
+        ],
+        [4, gameId, ZERO_ADDRESS, '0x' + '55'.repeat(32), 0],
+      );
+      const blizzardPlayInput = encodeFunctionData({
+        abi: GAME_CONTRACT_ABI,
+        functionName: 'play',
+        args: [WALLET, blizzardGameData],
+      });
+
+      const publicClient = {
+        async getBlockNumber() {
+          return 21n;
+        },
+        async getLogs(params) {
+          if (params.topics) {
+            if (String(params.address).toLowerCase() !== BLIZZARD_BLITZ_CONTRACT.toLowerCase()) {
+              return [];
+            }
+
+            return [
+              {
+                address: BLIZZARD_BLITZ_CONTRACT,
+                blockNumber: 20n,
+                logIndex: 0,
+                transactionHash: playTx,
+                removed: false,
+                topics: [gameStartedTopic, userTopic],
+                data: encodeAbiParameters([{ name: 'gameId', type: 'uint256' }], [gameId]),
+              },
+            ];
+          }
+
+          return [
+            {
+              address: BLIZZARD_BLITZ_CONTRACT,
+              blockNumber: 21n,
+              logIndex: 1,
+              transactionHash: settlementTx,
+              removed: false,
+              args: {
+                user: WALLET,
+                gameId,
+                buyIn: parseEther('10'),
+                payout: parseEther('12'),
+              },
+            },
+          ];
+        },
+        async getTransaction({ hash }) {
+          assert.strictEqual(hash, playTx);
+          return {
+            hash,
+            from: WALLET,
+            value: parseEther('10.5'),
+            gasPrice: parseEther('0.000000001'),
+            input: blizzardPlayInput,
+          };
+        },
+        async getTransactionReceipt({ hash }) {
+          assert.strictEqual(hash, playTx);
+          return {
+            logs: [
+              buildGpTransferLog({
+                to: WALLET,
+                value: 60n,
+                address: LEGACY_GP_TOKEN_CONTRACT,
+              }),
+            ],
+            gasUsed: 1_000n,
+            effectiveGasPrice: parseEther('0.000000001'),
+          };
+        },
+        async getBlock({ blockNumber }) {
+          assert.strictEqual(blockNumber, 21n);
+          return { timestamp: 1_700_000_021n };
+        },
+        async readContract(params) {
+          if (params.functionName === 'getEssentialGameInfo') {
+            assert.strictEqual(String(params.address).toLowerCase(), BLIZZARD_BLITZ_CONTRACT.toLowerCase());
+            assert.deepStrictEqual(params.args, [[gameId]]);
+            return [
+              [WALLET],
+              [parseEther('10')],
+              [parseEther('12')],
+              [1_700_000_021n],
+              [true],
+            ];
+          }
+
+          if (params.functionName === 'getCurrentEXP') {
+            return 0n;
+          }
+          if (params.functionName === 'balanceOf') {
+            return 0n;
+          }
+          throw new Error(`Unexpected contract read: ${params.functionName}`);
+        },
+      };
+
+      const analysis = await analyzeWalletHistory(publicClient, WALLET);
+
+      assert.strictEqual(analysis.stats.games, 1);
+      assert.strictEqual(analysis.stats.total_wagered_ape, '10');
+      assert.strictEqual(analysis.stats.total_payout_ape, '12');
+      assert.strictEqual(analysis.stats.contract_fees_paid_ape, '0.5');
+      assert.strictEqual(analysis.stats.gas_paid_ape, '0.000001');
+      assert.strictEqual(analysis.stats.net_result_ape, '1.499999');
+      assert.strictEqual(analysis.stats.total_gp_received_display, '60');
+      assert.strictEqual(analysis.recent_games.length, 1);
+      assert.strictEqual(analysis.recent_games[0].game, 'Blizzard Blitz');
+      assert.strictEqual(analysis.recent_games[0].play_tx, playTx);
+      assert.strictEqual(analysis.recent_games[0].tx, playTx);
+      assert.strictEqual(analysis.recent_games[0].settlement_tx, settlementTx);
+      assert.strictEqual(analysis.recent_games[0].transaction_from, WALLET);
+      assert.strictEqual(analysis.recent_games[0].contract_fee_ape, '0.5');
+      assert.strictEqual(analysis.recent_games[0].gas_fee_ape, '0.000001');
+      assert.strictEqual(analysis.recent_games[0].gp_received_display, '60');
+      assert.deepStrictEqual(analysis.recent_games[0].config, {
+        mode: 'base',
+        modeName: 'Base Game',
+        spins: 4,
+        rawSpins: 4,
+      });
+      assert.strictEqual(analysis.recent_games[0].variant_key, 'blizzard-blitz:mode:base:spins:4');
+      assert.strictEqual(analysis.recent_games[0].variant_label, '4 spins');
+      assert.deepStrictEqual(analysis.recent_games[0].rtp_config, {
+        mode: 'base',
+        modeName: 'Base Game',
+        spins: 4,
+        rawSpins: 4,
+      });
     });
   });
 });

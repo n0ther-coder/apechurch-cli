@@ -4,6 +4,8 @@
 
 Compact syntax and comparison notes for all Ape Church CLI games.
 
+The CLI currently implements 21 playable games. Of those, 20 are ABI-verified and marked with `✔︎`; `Reel Pirates` is playable but not ABI-verified. Wallet history tracks 25 distinct Ape Church games by also including history-only coverage for `Blizzard Blitz`, `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`; `Cash Dash` remains excluded from history totals until its stateful flow is implemented.
+
 Treat published running RTP values as observed snapshots, not guaranteed long-run returns. For ABI-backed tuple layouts, payout matrices, and maintainer-facing verification evidence, follow the per-game links in `docs/verification/`. For compact exact outcome distributions meant to help choose variants, see [docs/analytics/README.md](./analytics/README.md).
 
 The `✔︎` marker means this repo has locally verified the game's ABI-facing behavior against verified on-chain contract data. Supported games without the symbol are still playable in the CLI, but they have not yet been promoted to `ABI verified`; see [ABI_VERIFICATION.md](./ABI_VERIFICATION.md) for the maintainer checklist.
