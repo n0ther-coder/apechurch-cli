@@ -9,6 +9,7 @@ import {
   BEAR_DICE_CONTRACT,
   BLIZZARD_BLITZ_CONTRACT,
   BLOCKS_CONTRACT,
+  CASH_DASH_CONTRACT,
   COSMIC_PLINKO_CONTRACT,
   CULT_QUEST_CONTRACT,
   DINO_DOUGH_CONTRACT,
@@ -32,6 +33,7 @@ import {
 import {
   analyzeWalletHistory,
   diagnoseUnsyncedSupportedGames,
+  discoverStatefulHistoryGames,
   inferSavedHistoryGameVariants,
   mergeDownloadedHistoryGames,
   syncSavedStatefulHistoryGames,
@@ -1664,6 +1666,99 @@ describe('Wallet History Analysis', () => {
     });
   });
 
+  describe('discoverStatefulHistoryGames', () => {
+    it('finds completed frontend stateful games through used game ID pagination', async () => {
+      const calls = [];
+      const syncTimestamp = '2026-04-02T11:00:00.000Z';
+      const result = await discoverStatefulHistoryGames({
+        async readContract(params) {
+          calls.push({
+            address: params.address,
+            functionName: params.functionName,
+            args: params.args,
+          });
+
+          if (String(params.address).toLowerCase() !== VIDEO_POKER_CONTRACT.toLowerCase()) {
+            if (params.functionName === 'numUsedGameIDs') {
+              return 0n;
+            }
+            throw new Error(`unexpected ${params.functionName}`);
+          }
+
+          if (params.functionName === 'numUsedGameIDs') {
+            return 3n;
+          }
+          if (params.functionName === 'paginateUsedGameIDs') {
+            assert.deepStrictEqual(params.args, [0n, 3n]);
+            return [77n, 88n, 99n];
+          }
+          if (params.functionName === 'getEssentialGameInfo') {
+            assert.deepStrictEqual(params.args, [[77n, 88n, 99n]]);
+            return [
+              [WALLET, SPONSOR, WALLET],
+              [parseEther('25'), parseEther('10'), parseEther('50')],
+              [parseEther('50'), 0n, parseEther('100')],
+              [1_777_777_777n, 1_777_777_778n, 1_777_777_779n],
+              [true, true, false],
+            ];
+          }
+
+          throw new Error(`unexpected ${params.functionName}`);
+        },
+      }, WALLET, syncTimestamp);
+
+      assert.strictEqual(result.length, 1);
+      assert.strictEqual(result[0].contract, VIDEO_POKER_CONTRACT);
+      assert.strictEqual(result[0].game_key, 'video-poker');
+      assert.strictEqual(result[0].gameId, '77');
+      assert.strictEqual(result[0].player, WALLET);
+      assert.strictEqual(result[0].timestamp, 1_777_777_777_000);
+      assert.strictEqual(result[0].wager_wei, parseEther('25').toString());
+      assert.strictEqual(result[0].payout_wei, parseEther('50').toString());
+      assert.strictEqual(result[0].net_result_ape, '25');
+      assert.strictEqual(result[0].last_sync_on, syncTimestamp);
+      assert.strictEqual(result[0].last_sync_msg, 'ok');
+      assert.ok(calls.some((call) => call.functionName === 'paginateUsedGameIDs'));
+    });
+
+    it('supports inclusive paginateUsedGameIDs contracts by retrying the page end', async () => {
+      const result = await discoverStatefulHistoryGames({
+        async readContract(params) {
+          if (String(params.address).toLowerCase() !== HI_LO_NEBULA_CONTRACT.toLowerCase()) {
+            return 0n;
+          }
+
+          if (params.functionName === 'numUsedGameIDs') {
+            return 1n;
+          }
+          if (params.functionName === 'paginateUsedGameIDs') {
+            if (params.args[1] === 1n) {
+              throw new Error('out of bounds');
+            }
+            assert.deepStrictEqual(params.args, [0n, 0n]);
+            return [55n];
+          }
+          if (params.functionName === 'getEssentialGameInfo') {
+            return [
+              [WALLET],
+              [parseEther('10')],
+              [parseEther('12')],
+              [1_777_000_000n],
+              [true],
+            ];
+          }
+
+          throw new Error(`unexpected ${params.functionName}`);
+        },
+      }, WALLET);
+
+      assert.strictEqual(result.length, 1);
+      assert.strictEqual(result[0].contract, HI_LO_NEBULA_CONTRACT);
+      assert.strictEqual(result[0].game_key, 'hi-lo-nebula');
+      assert.strictEqual(result[0].gameId, '55');
+    });
+  });
+
   describe('syncSavedStatefulHistoryGames', () => {
     it('rebuilds completed video poker history entries from getGameInfo', async () => {
       const syncTimestamp = '2026-04-02T12:00:00.000Z';
@@ -1790,6 +1885,43 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(result.games[0].last_sync_msg, 'ok');
     });
 
+    it('rebuilds completed cash dash history entries from getGameInfo', async () => {
+      const syncTimestamp = '2026-04-02T12:00:00.000Z';
+      const result = await syncSavedStatefulHistoryGames({
+        async readContract(params) {
+          assert.strictEqual(params.functionName, 'getGameInfo');
+          assert.strictEqual(params.address, CASH_DASH_CONTRACT);
+          return {
+            initialBetAmount: parseEther('25'),
+            payout: parseEther('27.5'),
+            user: WALLET,
+            currentPayout: parseEther('27.5'),
+            rowGuesses: [0],
+            rowDeathHits: [5],
+            tilesetSeed: 0n,
+            hasEnded: true,
+            timestamp: 1_999_999_998n,
+          };
+        },
+      }, [
+        {
+          contract: CASH_DASH_CONTRACT,
+          gameId: '100',
+          timestamp: 0,
+        },
+      ], WALLET, syncTimestamp);
+
+      assert.strictEqual(result.games.length, 1);
+      assert.strictEqual(result.diagnosticsByGameKey.size, 0);
+      assert.strictEqual(result.games[0].game_key, 'cash-dash');
+      assert.strictEqual(result.games[0].variant_key, 'cash-dash');
+      assert.strictEqual(result.games[0].wager_wei, parseEther('25').toString());
+      assert.strictEqual(result.games[0].payout_wei, parseEther('27.5').toString());
+      assert.strictEqual(result.games[0].settled, true);
+      assert.strictEqual(result.games[0].timestamp, 1_999_999_998_000);
+      assert.strictEqual(result.games[0].last_sync_msg, 'ok');
+    });
+
     it('replaces local GP estimates with receipt-backed rewards for settled stateful games', async () => {
       const syncTimestamp = '2026-04-02T12:00:00.000Z';
       const txHash = '0x' + 'a'.repeat(64);
@@ -1893,6 +2025,9 @@ describe('Wallet History Analysis', () => {
         { contract: APESTRONG, gameId: '3' },
         { contract: APESTRONG, gameId: '4', tx: '0xmissing' },
         { contract: BLACKJACK_CONTRACT, gameId: '5' },
+        { contract: HI_LO_NEBULA_CONTRACT, gameId: '6' },
+        { contract: CASH_DASH_CONTRACT, gameId: '7' },
+        { contract: VIDEO_POKER_CONTRACT, gameId: '8' },
       ], [], '2026-03-29T18:30:00.000Z');
 
       assert.strictEqual(diagnostics.get(`${ROULETTE.toLowerCase()}:1`)?.last_sync_msg, 'execution reverted');
@@ -1900,6 +2035,9 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(diagnostics.get(`${APESTRONG.toLowerCase()}:3`)?.last_sync_msg, 'missing play transaction hash');
       assert.ok(diagnostics.get(`${APESTRONG.toLowerCase()}:4`)?.last_sync_msg.startsWith('transaction receipt unavailable'));
       assert.strictEqual(diagnostics.has(`${BLACKJACK_CONTRACT.toLowerCase()}:5`), false);
+      assert.strictEqual(diagnostics.has(`${HI_LO_NEBULA_CONTRACT.toLowerCase()}:6`), false);
+      assert.strictEqual(diagnostics.has(`${CASH_DASH_CONTRACT.toLowerCase()}:7`), false);
+      assert.strictEqual(diagnostics.has(`${VIDEO_POKER_CONTRACT.toLowerCase()}:8`), false);
     });
   });
 
@@ -2164,7 +2302,10 @@ describe('Wallet History Analysis', () => {
         },
         async getLogs(params) {
           if (params.topics) {
-            if (String(params.address).toLowerCase() !== BLIZZARD_BLITZ_CONTRACT.toLowerCase()) {
+            const addresses = Array.isArray(params.address)
+              ? params.address.map((address) => String(address).toLowerCase())
+              : [String(params.address).toLowerCase()];
+            if (!addresses.includes(BLIZZARD_BLITZ_CONTRACT.toLowerCase())) {
               return [];
             }
 

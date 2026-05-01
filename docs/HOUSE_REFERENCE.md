@@ -91,6 +91,7 @@ Treat that `3%` as an operator-friendly midpoint, not as a protocol guarantee or
 Two caveats matter:
 
 - `Blackjack ✔︎` main-only is still modeled statistically in this repo rather than as one fully closed-form long-run house edge.
+- `Cash Dash ✔︎` is policy-dependent because the player can stop after any safe row or continue into deeper rows.
 - `Hi-Lo Nebula ✔︎` is policy-dependent because the player can stop after any successful guess and the jackpot pool is live.
 
 For that reason, `3%` should be treated as a planning baseline, with `2%` and `5%` as useful sensitivity bounds.

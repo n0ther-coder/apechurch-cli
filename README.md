@@ -4,27 +4,27 @@
 
 Encrypted-only, fully AI agents playable gambling CLI for [Ape Church](https://ape.church) on ApeChain.
 
-Private keys stay local, are stored on disk only in encrypted form in this hardened build, and are never sent by the CLI to Ape Church services in plaintext. The fork also expands game coverage, improves auto gameplay for stateful card games, and adds deeper on-chain reporting and machine-friendly flows for AI agents and terminal-first users.
+Private keys stay local, are stored on disk only in encrypted form in this hardened build, and are never sent by the CLI to Ape Church services in plaintext. The fork also expands game coverage, improves auto gameplay for stateful games, and adds deeper on-chain reporting and machine-friendly flows for AI agents and terminal-first users.
 
 ## Features
 
 ### Supported Games
 
-- **21 implemented games:** `ApeStrong ✔︎`, `Roulette ✔︎`, `Baccarat ✔︎`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough ✔︎`, `Bubblegum Heist ✔︎`, `Geez Diggerz ✔︎`, `Gimboz Smash ✔︎`, `Glyde or Crash ✔︎`, `Reel Pirates`, `Hi-Lo Nebula ✔︎`, `Sushi Showdown ✔︎`, `Monkey Match ✔︎`, `Bear-A-Dice ✔︎`, `Blocks ✔︎`, `Primes ✔︎`, `Blackjack ✔︎`, and `Video Poker ✔︎ / Gimboz Poker`. Of these, 20 are ABI-verified; `Reel Pirates` is playable but not ABI-verified.
+- **22 implemented games:** `ApeStrong ✔︎`, `Roulette ✔︎`, `Baccarat ✔︎`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough ✔︎`, `Bubblegum Heist ✔︎`, `Geez Diggerz ✔︎`, `Gimboz Smash ✔︎`, `Glyde or Crash ✔︎`, `Reel Pirates`, `Cash Dash ✔︎`, `Hi-Lo Nebula ✔︎`, `Sushi Showdown ✔︎`, `Monkey Match ✔︎`, `Bear-A-Dice ✔︎`, `Blocks ✔︎`, `Primes ✔︎`, `Blackjack ✔︎`, and `Video Poker ✔︎ / Gimboz Poker`. Of these, 21 are ABI-verified; `Reel Pirates` is playable but not ABI-verified.
 - **Fully AI agents playable:** browserless CLI flows, local signing, JSON output, formal command grammar, and self-describing game metadata make it straightforward for coding agents and automations to use directly
-- **Improved auto gameplay:** `Blackjack ✔︎`, `Hi-Lo Nebula ✔︎`, and `Video Poker ✔︎ / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
+- **Improved auto gameplay:** `Blackjack ✔︎`, `Cash Dash ✔︎`, `Hi-Lo Nebula ✔︎`, and `Video Poker ✔︎ / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
 - **Fully on-chain settlement:** every wager is placed on ApeChain and resolved by the live contracts with their on-chain RNG integrations, including Chainlink VRF and Pyth V2 where applicable
 
 ### What This Fork Adds
 
 - **Encrypted-only local signer:** private keys stay encrypted on disk, plaintext wallet export is disabled, and signing happens locally without transmitting the key to Ape Church services
 - **AI-agent-first operator UX:** fully AI agents playable command surface with structured outputs, local history caches, and no browser dependency
-- **Better stateful automation:** stronger blackjack, hi-lo-nebula, and video-poker auto gameplay, side-bet support, unfinished-game recovery, and EV / Monte Carlo helpers for loop planning
+- **Better stateful automation:** stronger blackjack, cash-dash, hi-lo-nebula, and video-poker auto gameplay, side-bet support, unfinished-game recovery, and EV / Monte Carlo helpers for loop planning
 - **Expanded Ape Church coverage:** explicit support for both Jungle Plinko and Cosmic Plinko instead of a single generic Plinko entry, plus supported `Blocks ✔︎`, `Primes ✔︎`, and `Glyde or Crash ✔︎` gameplay and a broader maintained game registry
-- **ABI-verified game metadata:** verified contracts are marked with `✔︎` in CLI output, help, JSON payloads, and docs; ApeStrong ✔︎, Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Dino Dough ✔︎, Bubblegum Heist ✔︎, Geez Diggerz ✔︎, Gimboz Smash ✔︎, Glyde or Crash ✔︎, Hi-Lo Nebula ✔︎, Sushi Showdown ✔︎, Monkey Match ✔︎, Bear-A-Dice ✔︎, Blocks ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎ use verified on-chain contract data
+- **ABI-verified game metadata:** verified contracts are marked with `✔︎` in CLI output, help, JSON payloads, and docs; ApeStrong ✔︎, Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Dino Dough ✔︎, Bubblegum Heist ✔︎, Geez Diggerz ✔︎, Gimboz Smash ✔︎, Glyde or Crash ✔︎, Cash Dash ✔︎, Hi-Lo Nebula ✔︎, Sushi Showdown ✔︎, Monkey Match ✔︎, Bear-A-Dice ✔︎, Blocks ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎ use verified on-chain contract data
 - **RTP and payout modeling overhaul:** expected RTP, reported RTP, current RTP, and max-payout references across the game catalog, with exact/formula/statistical provenance markers where available
 - **Exact Plinko modeling:** Jungle and Cosmic Plinko mode RTP and top payouts are derived from the live on-chain bucket tables, and Plinko stats are grouped by risk level rather than by ball count
-- **Per-wallet history cache:** `wallet download` reconstructs supported on-chain history into a local cache, with incremental backfills and offline `history` reads across 25 tracked public game contracts
+- **Per-wallet history cache:** `wallet download` reconstructs supported on-chain history into a local cache, with incremental backfills and offline `history` reads across 26 tracked public game contracts
 - **Richer reporting:** `Recent Games`, compact `Game Status`, and full `Game Stats` views show net profit, win rate, RTP, unfinished local games, and per-game breakdowns
 - **Better automation tooling:** loop mode supports `take-profit`, `retrace`, `stop-loss`, `max-games`, machine-readable JSON output, and strategy-driven game/config selection
 - **Stateful UX improvements:** unfinished-game recovery, blackjack side bets, solver-backed auto decisions, and EV / Monte Carlo helpers for loop planning
@@ -113,7 +113,7 @@ Profile flags:
 
 Use `wallet download` to reconstruct supported gaming history from ApeChain into a per-wallet local file, then read that cache with `history` without rebuilding the chain view every time.
 
-The CLI currently implements 21 playable games, 20 of which are ABI-verified. Wallet history tracks 25 distinct Ape Church games: the 21 implemented games plus history-only support for `Blizzard Blitz`, `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`. `Cash Dash` is intentionally excluded from wallet-history totals for now because it is stateful and needs a dedicated history implementation.
+The CLI currently implements 22 playable games, 21 of which are ABI-verified. Wallet history tracks 26 distinct Ape Church games: the 22 implemented games plus history-only support for `Blizzard Blitz`, `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`. Locally started Cash Dash runs are tracked through the same unfinished-game and local-history flow as the other stateful commands.
 
 If `[address]` is omitted, both commands use the local wallet address.
 
@@ -242,7 +242,7 @@ Coverage and limits:
 
 - Downloaded histories live under `~/.apechurch-cli/history/<wallet>_history.json`.
 - Economic totals only include games whose wager, payout, fees, gas, and GP can be reconstructed exactly from on-chain data. Total wAPE wagered uses canonical `wager_wei`.
-- The downloader tracks 25 distinct public games. Stateless implemented and history-only contracts are reconstructed from settlement logs, fallback play logs, and `getEssentialGameInfo`; locally-known stateful entries are refreshed through their game-specific getters.
+- The downloader tracks 26 distinct public games. Stateless implemented and history-only contracts are reconstructed from settlement logs, fallback play logs, and `getEssentialGameInfo`; locally-known stateful entries are refreshed through their game-specific getters.
 - `Blackjack` and `Video Poker` (`Gimboz Poker` in Ape Church naming) cannot yet be generically enumerated from raw RPC, so locally-known entries remain minimal until a reliable fetch path is implemented.
 - Sponsored transactions contribute `0` contract fees and `0` gas for the analyzed wallet.
 
@@ -259,6 +259,7 @@ Coverage and limits:
 | Speed Keno ✔︎ | `play speed-keno 10` | `speedkeno`, `skeno` | Fast batched keno |
 | Dino Dough ✔︎ | `play dino-dough 10 10` | `dinodough`, `dino` | Slot machine |
 | Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | `bubblegumheist`, `bubblegum`, `heist` | Slot machine |
+| Cash Dash ✔︎ | `cash-dash 10 --auto` | `cashdash`, `dash` | Stateful death-tile ladder game with cash-out |
 | Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | `geezdiggerz`, `geez` | Slot machine |
 | Gimboz Smash ✔︎ | `play gimboz-smash 10 1-50` or `play gimboz-smash 10 --out-range 45-50` | `gimbozsmash`, `smash` | One-or-two interval target game on a 1-100 board |
 | Glyde or Crash ✔︎ | `play glyde-or-crash 10 2x` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` | Target a crash multiplier |
@@ -341,7 +342,7 @@ Loop summaries now assume a base rate of `5 GP/APE`. Use `--gp-ape <points>` for
 
 Local loop summaries and local-only GP estimates use a base rate of `5 GP/APE`.
 
-- One-off override for a single run: `--gp-ape <points>` on `bet`, `play`, `blackjack`, and `video-poker`
+- One-off override for a single run: `--gp-ape <points>` on `bet`, `play`, `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video-poker`
 - Wallet-specific current override: `apechurch-cli profile set --gp-ape <points>`
 - Clear the wallet-specific current override: `apechurch-cli profile set --no-gp-ape`
 
@@ -365,25 +366,30 @@ apechurch-cli play --loop --bet-strategy fibonacci
 | `fibonacci` | Fibonacci sequence on losses |
 | `dalembert` | +1 unit on loss, -1 on win |
 
-## Blackjack & Video Poker
+## Stateful Games
 
 `video-poker` is the CLI command for Ape Church's `Gimboz Poker`.
 
-Interactive card games with auto-play support:
+Interactive multi-transaction games with auto-play support:
 
 ```bash
 # Auto-play
 apechurch-cli blackjack 10 --auto --loop
+apechurch-cli cash-dash 10 --auto --cashout-after 1
 apechurch-cli blackjack 25 --side 1 --auto
+apechurch-cli cash-dash 10 --solver     # Interactive tile suggestion (best EV)
 apechurch-cli video-poker 10 --auto --loop
 apechurch-cli video-poker 10 --solver    # Interactive hold suggestion (best EV)
 
 # Interactive mode
 apechurch-cli blackjack 10
+apechurch-cli cash-dash 10              # Prompts for the opening tile
 ```
 
-- `--auto` enables automatic play for stateful card games
+- `--auto` enables automatic play for stateful games
 - `blackjack --side <ape>` adds a player side bet to the opening deal without changing the in-hand EV solver
+- `cash-dash` shows the opening row and prompts for the first tile when `--tile` is omitted in manual mode
+- `cash-dash --cashout-after <rows>` lets auto-play target deeper rows before cashing out
 - `video-poker --solver` shows the same best-EV hold suggestion in interactive mode
 - `video-poker --display full` now uses the boxed ASCII table layout; `simple` keeps the compact text layout
 - `blackjack` and `video-poker` use `--delay 5` by default in loop mode
@@ -395,6 +401,7 @@ apechurch-cli blackjack 10
 ```bash
 apechurch-cli play --auto                        # Auto-select random game/config
 apechurch-cli play [game] [amount] [config...]  # Play a specific simple game
+apechurch-cli cash-dash <amount> [--auto [simple|best]]  # Cash Dash (aliases: cashdash, dash)
 apechurch-cli hi-lo-nebula <amount> [--auto [simple|best]]  # Hi-Lo Nebula (aliases: hilonebula, hilo)
 apechurch-cli blackjack <amount> [--auto] [--side <ape>]  # Blackjack (alias: bj)
 apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker (alias: vp)

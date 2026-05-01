@@ -7,6 +7,13 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Cash Dash ✔︎**: Full stateful command with verified start / guess / cashout flow
+  - `apechurch-cli cash-dash <amount>` starts a new run with aliases `cashdash` and `dash`
+  - `resume`, `status`, `payouts`, `clear`, `guess <tile>`, and `cashout` actions
+  - `--tile`, `--cashout-after`, `--auto simple|best`, `--solver`, loop controls, and betting strategies
+- **Cash Dash docs and verification trail**
+  - New contract note: `docs/verification/CASH_DASH_CONTRACT.md`
+  - Updated `COMMAND_REFERENCE`, `GAMES_REFERENCE`, and README game coverage
 - **Gimboz Smash ✔︎**: Full simple-game support with verified one-or-two interval targets, `--range` / `--out-range` CLI help, exact cover-count RTP modeling, and history reconstruction
 - **Gimboz Smash docs and verification trail**
   - New contract note: `docs/verification/GIMBOZ_SMASH_CONTRACT.md`
@@ -14,6 +21,8 @@ All notable changes to this project will be documented in this file.
   - Updated `ABI_VERIFICATION`, `COMMAND_REFERENCE`, and `GAMES_REFERENCE`
 
 ### Changed
+- `games`, `game <name>`, `status`, history/status helpers, and stateful queue hints now treat `cash-dash` as a supported `ABI verified` game
+- Cash Dash manual starts now render the opening row and prompt for the first guess when `--tile` is omitted; the full board displays newest rows first with cash/death icons
 - `games`, `game <name>`, `play`, `bet`, RTP summaries, and wallet-history decoding now treat `gimboz-smash` as a supported `ABI verified` game
 - Hi-Lo Nebula dedicated command now accepts the shared stateful loop controls, including `--loop`, `--max-games`, session stop conditions, and betting strategies
 

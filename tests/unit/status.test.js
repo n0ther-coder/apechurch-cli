@@ -19,6 +19,7 @@ describe('Status Helpers', () => {
   describe('resolveActiveGameName', () => {
     it('maps known stateful games to their display names', () => {
       assert.strictEqual(resolveActiveGameName('blackjack'), 'Blackjack ✔︎');
+      assert.strictEqual(resolveActiveGameName('cash-dash'), 'Cash Dash ✔︎');
       assert.strictEqual(resolveActiveGameName('hi-lo-nebula'), 'Hi-Lo Nebula ✔︎');
       assert.strictEqual(resolveActiveGameName('video-poker'), 'Video Poker ✔︎');
     });
@@ -32,6 +33,7 @@ describe('Status Helpers', () => {
     it('returns sorted unfinished summaries and ignores empty lists', () => {
       const summaries = summarizeUnfinishedGames({
         blackjack: ['7'],
+        'cash-dash': ['33'],
         'hi-lo-nebula': ['22'],
         'video-poker': ['11', '12'],
         empty: [],
@@ -55,6 +57,14 @@ describe('Status Helpers', () => {
           clear_command: 'apechurch-cli blackjack clear',
         },
         {
+          key: 'cash-dash',
+          game: 'Cash Dash ✔︎',
+          unfinished_games: 1,
+          game_ids: ['33'],
+          resume_command: 'apechurch-cli cash-dash resume [--game <id>][--auto [best] | --solver]',
+          clear_command: 'apechurch-cli cash-dash clear',
+        },
+        {
           key: 'hi-lo-nebula',
           game: 'Hi-Lo Nebula ✔︎',
           unfinished_games: 1,
@@ -73,6 +83,10 @@ describe('Status Helpers', () => {
       assert.strictEqual(
         resolveActiveGameResumeCommand('blackjack'),
         'apechurch-cli blackjack resume [--game <id>][--auto [best]]'
+      );
+      assert.strictEqual(
+        resolveActiveGameResumeCommand('cash-dash'),
+        'apechurch-cli cash-dash resume [--game <id>][--auto [best] | --solver]'
       );
       assert.strictEqual(
         resolveActiveGameResumeCommand('hi-lo-nebula'),

@@ -3,6 +3,7 @@ import assert from 'node:assert';
 
 import {
   createLoopStats,
+  formatBalanceSnapshot,
   formatLoopGameCompletion,
   formatLoopProgress,
   formatSessionStats,
@@ -11,6 +12,17 @@ import {
 import { stripAnsi } from '../../lib/ansi.js';
 
 describe('Loop Stats', () => {
+  it('formats standalone balance snapshots with optional session delta', () => {
+    assert.strictEqual(
+      formatBalanceSnapshot({ label: 'Balance before game', currentBalanceApe: 150 }),
+      '⚖️  Balance before game: 150.00 APE'
+    );
+    assert.strictEqual(
+      formatBalanceSnapshot({ label: 'Balance after game', currentBalanceApe: 173.4, startingBalanceApe: 150 }),
+      '⚖️  Balance after game: 173.40 APE (+23.40)'
+    );
+  });
+
   it('formats a standalone loop completion line with the gray game id suffix', () => {
     const output = formatLoopGameCompletion({
       currentGame: 7,

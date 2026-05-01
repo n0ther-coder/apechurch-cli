@@ -4,7 +4,7 @@
 
 Compact syntax and comparison notes for all Ape Church CLI games.
 
-The CLI currently implements 21 playable games. Of those, 20 are ABI-verified and marked with `✔︎`; `Reel Pirates` is playable but not ABI-verified. Wallet history tracks 25 distinct Ape Church games by also including history-only coverage for `Blizzard Blitz`, `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`; `Cash Dash` remains excluded from history totals until its stateful flow is implemented.
+The CLI currently implements 22 playable games. Of those, 21 are ABI-verified and marked with `✔︎`; `Reel Pirates` is playable but not ABI-verified. Wallet history tracks 26 distinct Ape Church games by also including history-only coverage for `Blizzard Blitz`, `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`.
 
 Treat published running RTP values as observed snapshots, not guaranteed long-run returns. For ABI-backed tuple layouts, payout matrices, and maintainer-facing verification evidence, follow the per-game links in `docs/verification/`. For compact exact outcome distributions meant to help choose variants, see [docs/analytics/README.md](./analytics/README.md).
 
@@ -24,6 +24,7 @@ Ordering: alphabetical by game title.
 | Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` | `bj` |
 | Blocks ✔︎ | `play blocks <amt> <risk> <runs>` | `--game blocks --amount X --risk Y --runs Z` | - |
 | Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` | `bubblegumheist`, `bubblegum`, `heist` |
+| Cash Dash ✔︎ | `cash-dash <amt>` | `cash-dash <amt> --auto --cashout-after N` | `cashdash`, `dash` |
 | Cosmic Plinko ✔︎ | `play cosmic-plinko <amt> <risk> <balls>` | `--game cosmic-plinko --amount X --risk Y --balls Z` | `cosmic` |
 | Dino Dough ✔︎ | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` | `dinodough`, `dino` |
 | Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` | `geezdiggerz`, `geez` |
@@ -85,6 +86,7 @@ Ordering: alphabetical by game title.
 | Blackjack ✔︎ | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | Action-based VRF; `double` / `split` / `insurance` are extra stakes, not fees | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
 | Blocks ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with runs | Single total wager across `1-5` consecutive rolls; any dead roll zeroes the whole game |
 | Bubblegum Heist ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
+| Cash Dash ✔︎ | Any positive APE amount | CLI accepts `> 0` | No explicit CLI max besides wallet balance and contract-side liquidity constraints | VRF on start and each guess + live `2.5%` platform fee on each compounded row wager | `cashOut()` is non-payable; continuing registers the current cashout as the next wager |
 | Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF | Total wager is split across `1-30` balls |
 | Dino Dough ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
 | Geez Diggerz ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
@@ -245,6 +247,33 @@ Same slots ABI family as Dino Dough, but with a different live reel and paytable
 - Exact RTP: **`97.79962375%`** per spin.
 - Max payout: `100x`.
 - Operational note: lower ceiling than Dino, but still a contract-backed ordered slot rather than a generic three-of-a-kind toy model.
+
+## Cash Dash ✔︎
+
+**Type:** Stateful ladder / death-tile cash-out
+**Contract:** `0xbcfA645D79F4ccF2B5448aC67309DCd15Bc94035`
+**Aliases:** `cashdash`, `dash`
+**ABI verified:** `true`
+**Verification notes:** [CASH_DASH_CONTRACT.md](./verification/CASH_DASH_CONTRACT.md)
+
+Stateful row-by-row tile ladder. Starting a run places the first tile guess immediately. Each resolved safe row compounds the current cashout value; the next `makeGuess` registers that cashout value as the next wager. A death tile ends the run with zero payout, while `cashOut()` settles the current cashout after any resolved safe row.
+
+**Command:** `apechurch-cli cash-dash <amount> [--tile <tile>] [--auto [simple|best]] [--cashout-after <rows>] [--solver] [--loop]`
+
+```bnf
+<amount> ::= <ape>
+<tile> ::= "random" | <integer>       ; opening tile 1-7, later rows use the active row size
+<auto-mode> ::= "simple" | "best"
+```
+
+**Compare:**
+- Verified row payouts by tile count: `7 -> 1.10x`, `6 -> 1.15x`, `5 -> 1.20x`, `4 -> 1.28x`, `3 -> 1.44x`, `2 -> 1.92x`.
+- Seed `0` row order starts `7, 6, 5, 4, 3`, then repeats, with every 20th resolved row using `2` tiles.
+- Manual starts without `--tile` render the opening row and prompt for the first guess before sending `play`; auto/JSON starts use tile `1` unless `--tile` is supplied.
+- The full board renders newest rows first, with 💵 for selected safe tiles and 💀 for revealed death tiles.
+- `--auto` defaults to cashing out after the first safe row; `--cashout-after N` intentionally targets deeper rows.
+- `--auto best` and `--solver` treat continuation as negative-EV once a cashout is available, while still honoring `--cashout-after` as an explicit risk target.
+- Operational note: whole-run RTP is policy-dependent because the player can cash out after any safe row.
 
 ## Cosmic Plinko ✔︎
 
@@ -612,7 +641,7 @@ Stateful Jacks or Better with one redraw, interactive play, and an exact hold-EV
 ## Common Loop Options
 
 All games support these with `--loop`.
-Note: `play` defaults to `--delay 3`, while `blackjack`, `hi-lo-nebula`, and `video-poker` default to `--delay 5`.
+Note: `play` defaults to `--delay 3`, while `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video-poker` default to `--delay 5`.
 
 ```bash
 --loop                    # Enable continuous play
@@ -640,7 +669,7 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `hi-lo-nebula`, and `vi
 - All amounts are in APE
 - Manual `play` for simple games accepts any positive APE amount; built-in strategy presets usually floor auto-sized bets at `1 APE`
 - VRF fees are automatically calculated and added; some games also expose percentage fees or payout-side commissions, so check `Accepted Wagers` and the per-game verification note before comparing raw stake sizes
-- Stateful games use `--auto simple` by default; `blackjack`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`
+- Stateful games use `--auto simple` by default; `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`
 - `hi-lo-nebula --display full` uses the boxed multi-panel layout with current card, action keys, and streak info
 - `hi-lo-nebula --loop` supports the common `--take-profit`, `--stop-loss`, `--max-games`, `--bet-strategy`, and related session controls
 - `video-poker --solver` shows a best-EV hold suggestion in interactive mode
@@ -808,7 +837,7 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 These two tables are intentionally **game-level** and use **one single supported mode per row**. In the first table, each game is represented by the mode with its highest exact `win rate`; in the second, each game is represented by the mode with its highest exact `max X`. In both tables, `win rate`, `RTP`, and `max X` therefore refer to the **same game and the same mode**.
 
-`Win rate` here means **exact net-profit frequency** (`payout > 1x`), which matches the CLI's `win_rate` semantics rather than merely counting any positive payout. `RTP` is the exact expected return for that same selected mode, and `max X` is the exact gross multiplier for that same selected mode. Equivalent tied modes may be represented by one documented mode label. For `Video Poker`, the ordering uses the fixed `250x` royal-flush base and excludes the live progressive jackpot uplift. These tables exclude `Blackjack`, `Hi-Lo Nebula`, `Dino Dough`, and `Bubblegum Heist` because the local repo does not currently keep a comparable exact net-profit win-rate surface for them in reusable form.
+`Win rate` here means **exact net-profit frequency** (`payout > 1x`), which matches the CLI's `win_rate` semantics rather than merely counting any positive payout. `RTP` is the exact expected return for that same selected mode, and `max X` is the exact gross multiplier for that same selected mode. Equivalent tied modes may be represented by one documented mode label. For `Video Poker`, the ordering uses the fixed `250x` royal-flush base and excludes the live progressive jackpot uplift. These tables exclude `Blackjack`, `Cash Dash`, `Hi-Lo Nebula`, `Dino Dough`, and `Bubblegum Heist` because the local repo does not currently keep a comparable exact net-profit win-rate surface for them in reusable form.
 
 For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODDS.md](./GAMES_PAYOUTS_VS_ODDS.md).
 
@@ -844,9 +873,11 @@ For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODD
 
 ### Still Not Exactly Calculable from Local Sources
 
-The local source set is still insufficient for a defensible closed-form RTP on `Cash Dash`, `Cult Quest`, `Reel Pirates`, and `Rico's Revenge`.
+The local source set is still insufficient for a defensible closed-form RTP on `Cult Quest`, `Reel Pirates`, and `Rico's Revenge`.
 
 For `Blackjack ✔︎`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables and the public rule surface now matches the repo solver assumptions.
+
+For `Cash Dash ✔︎`, the row sizes, row payout table, and state transitions are verified, but whole-run RTP is policy-dependent because the player can cash out after any safe row or intentionally continue into deeper rows.
 
 For `Hi-Lo Nebula ✔︎`, the contract-backed rank model, paytable, and jackpot getter are now verified, but the repo still treats whole-run RTP as policy-dependent because the player can cash out after any winning guess and the jackpot pool is live.
 
@@ -966,7 +997,6 @@ Ordering: alphabetical by game title.
 
 | Game | Publicly described as | Running RTP | Coverage | Notes |
 |------|------------------------|-------------|----------|-------|
-| Cash Dash | ladder / cash-out tile game | 96.04% | aggregate only | Docs + transparency; each step raises multiplier and can bust the run |
 | Cult Quest | gem / trap grid cash-out game | 96.67% | aggregate only | Docs + transparency; fewer safe spots means higher risk |
 | Reel Pirates | match-anywhere cascade slot | 100.07% | aggregate only | Now playable; exact odds remain unverified because the live contract source is not verified |
 | Rico's Revenge | undocumented in current official source set | 90.94% | aggregate only | Transparency only in the material archived here |

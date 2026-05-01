@@ -11,7 +11,7 @@
 - Send APE (native currency) to any address
 - Send GP (Gimbo Points / cashback rewards; every 10,000 GP equals 1 level)
 - Real-time balance checking (APE + GP)
-- Per-wallet history download with cached recent games, history stats, and per-game breakdowns across 25 tracked Ape Church games
+- Per-wallet history download with cached recent games, history stats, and per-game breakdowns across 26 tracked Ape Church games
 - Wallet reset with safety warnings
 
 ## The House
@@ -36,13 +36,13 @@
   - `wallet hints` — View or update password hints
   - `wallet status` — Check encrypted-wallet status
 
-## Gaming (21 Implemented Games, 20 ABI-Verified)
+## Gaming (22 Implemented Games, 21 ABI-Verified)
 - **Plinko / Boards:** Jungle Plinko, Cosmic Plinko, Blocks
 - **Slots:** Dino Dough, Bubblegum Heist, Geez Diggerz, Sushi Showdown, Reel Pirates
 - **Table / Cards:** Roulette, Baccarat, Blackjack, Hi-Lo Nebula, Video Poker / Gimboz Poker
 - **Keno:** Standard Keno, Speed Keno (batched games)
 - **Dice / Number / Crash:** ApeStrong, Bear-A-Dice, Primes, Glyde or Crash
-- **Other:** Gimboz Smash, Monkey Match
+- **Other:** Cash Dash, Gimboz Smash, Monkey Match
 - **History-only wallet tracking:** Blizzard Blitz, Gimboz of the Galaxy, Rico's Revenge, Cult Quest
 - Full game customization (difficulty, risk, runs, picks, rolls, bets)
 - Single plays or continuous loop mode

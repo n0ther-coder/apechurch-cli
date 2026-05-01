@@ -568,6 +568,7 @@ The following supported games are not included because the local repo does not c
 | Game | Reason |
 |------|--------|
 | Blackjack ✔︎ | Main game is statistical/policy-dependent and side-bet win-rate surfaces are not represented as reusable exact mode rows. |
+| Cash Dash ✔︎ | Whole-run results depend on cash-out policy and the chosen target depth. |
 | Hi-Lo Nebula ✔︎ | Whole-run results depend on cash-out policy, current-rank decisions, and live jackpot state. |
 | Dino Dough ✔︎ | Exact RTP and max payout are documented, but a reusable exact net-profit win-rate distribution is not currently persisted locally. |
 | Bubblegum Heist ✔︎ | Exact RTP and max payout are documented, but a reusable exact net-profit win-rate distribution is not currently persisted locally. |

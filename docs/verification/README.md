@@ -15,6 +15,7 @@ Each `*_CONTRACT.md` file below is the maintainer-facing evidence bundle for one
 | Speed Keno | `SPEED_KENO_CONTRACT.md` | Batched draw model, custom gas limit, and exact RTPs |
 | Dino Dough | `DINO_DOUGH_CONTRACT.md` | Exact-match slots source trail, live reels, ordered paytable, and exact RTP |
 | Bubblegum Heist | `BUBBLEGUM_HEIST_CONTRACT.md` | Similar-match slots trail, live reels, ordered paytable, and exact RTP |
+| Cash Dash | `CASH_DASH_CONTRACT.md` | Stateful death-tile ladder, row sizes, row payout table, and cashout flow |
 | Geez Diggerz | `GEEZ_DIGGERZ_CONTRACT.md` | Exact-match slots source trail, symmetric reels, ordered paytable, and exact RTP |
 | Gimboz Smash | `GIMBOZ_SMASH_CONTRACT.md` | One-or-two interval ABI surface, live cover-count getters, and exact payout / RTP formula |
 | Glyde or Crash | `GLYDE_OR_CRASH_CONTRACT.md` | Fixed-target crash tuple, live getter snapshot, exact settlement formula, and quantized RTP surface |

@@ -301,6 +301,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Roulette ✔︎'), 'Should list verified Roulette');
       assert.ok(stdout.includes('Baccarat ✔︎'), 'Should list verified Baccarat');
       assert.ok(stdout.includes('Blackjack ✔︎'), 'Should list verified Blackjack');
+      assert.ok(stdout.includes('Cash Dash ✔︎'), 'Should list verified Cash Dash');
       assert.ok(stdout.includes('Hi-Lo Nebula ✔︎'), 'Should list verified Hi-Lo Nebula');
       assert.ok(stdout.includes('Jungle Plinko ✔︎'), 'Should list verified Jungle Plinko');
       assert.ok(stdout.includes('Cosmic Plinko ✔︎'), 'Should list verified Cosmic Plinko');
@@ -342,10 +343,12 @@ describe('CLI Commands Integration Tests', () => {
 
       const statefulHeaderIndex = stdout.indexOf('Stateful Games:');
       const blackjackIndex = stdout.indexOf('Blackjack ✔︎');
+      const cashDashIndex = stdout.indexOf('Cash Dash ✔︎');
       const hiLoNebulaIndex = stdout.indexOf('Hi-Lo Nebula ✔︎');
       const videoPokerIndex = stdout.indexOf('Video Poker ✔︎');
       assert.ok(blackjackIndex > statefulHeaderIndex, 'Blackjack should appear in the stateful section');
-      assert.ok(hiLoNebulaIndex > blackjackIndex, 'Hi-Lo Nebula should appear after Blackjack');
+      assert.ok(cashDashIndex > blackjackIndex, 'Cash Dash should appear after Blackjack');
+      assert.ok(hiLoNebulaIndex > cashDashIndex, 'Hi-Lo Nebula should appear after Cash Dash');
       assert.ok(videoPokerIndex > hiLoNebulaIndex, 'Stateful games should be ordered alphabetically');
     });
 
@@ -371,6 +374,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Aliases: apestrong, strong'));
       assert.ok(stdout.includes('Aliases: glyde, glyde-crash, glydecrash, speed-crash, speedcrash, crash'));
       assert.ok(stdout.includes('Aliases: bj'));
+      assert.ok(stdout.includes('Aliases: cashdash, dash'));
       assert.ok(stdout.includes('Aliases: hilonebula, hilo'));
     });
 
@@ -397,6 +401,7 @@ describe('CLI Commands Integration Tests', () => {
           'blackjack',
           'blocks',
           'bubblegum-heist',
+          'cash-dash',
           'cosmic-plinko',
           'dino-dough',
           'geez-diggerz',
@@ -435,7 +440,7 @@ describe('CLI Commands Integration Tests', () => {
     it('shows alphabetized available games when the name is invalid', () => {
       const { stdout } = cli('game nope');
       assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | geez-diggerz | gimboz-smash | glyde-or-crash | jungle-plinko | keno | monkey-match | primes | reel-pirates | roulette | speed-keno | sushi-showdown'));
-      assert.ok(stdout.includes('Stateful: blackjack | hi-lo-nebula | video-poker'));
+      assert.ok(stdout.includes('Stateful: blackjack | cash-dash | hi-lo-nebula | video-poker'));
     });
 
     it('returns the full alphabetized available catalog in JSON when the name is invalid', () => {
@@ -449,6 +454,7 @@ describe('CLI Commands Integration Tests', () => {
         'blackjack',
         'blocks',
         'bubblegum-heist',
+        'cash-dash',
         'cosmic-plinko',
         'dino-dough',
         'geez-diggerz',
@@ -669,6 +675,27 @@ describe('CLI Commands Integration Tests', () => {
       assert.deepStrictEqual(data.aliases, ['hilonebula', 'hilo']);
     });
 
+    it('exposes ABI verification metadata for verified Cash Dash', () => {
+      const { stdout } = cli('game cash-dash --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(data.abiVerified, true);
+      assert.strictEqual(data.displayName, 'Cash Dash ✔︎');
+      assert.deepStrictEqual(data.aliases, ['cashdash', 'dash']);
+    });
+
+    it('shows the payout table through the current cash-dash alias', () => {
+      const { stdout } = cli('dash payouts');
+      assert.ok(stdout.includes('Tiles'));
+      assert.ok(stdout.includes('1.9200x'));
+    });
+
+    it('shows the payout table through the canonical cash-dash command', () => {
+      const { stdout } = cli('cash-dash payouts');
+      assert.ok(stdout.includes('Tiles'));
+      assert.ok(stdout.includes('1.9200x'));
+    });
+
     it('shows the payout table through the current hi-lo alias', () => {
       const { stdout } = cli('hilo payouts');
       assert.ok(stdout.includes('Same'));
@@ -691,12 +718,29 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--bet-strategy <name>'), 'Should expose betting strategies in hi-lo help');
     });
 
+    it('documents Cash Dash loop controls in command help', () => {
+      const { stdout, code } = cli('cash-dash --help');
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('--tile <tile>'), 'Should expose opening tile in cash-dash help');
+      assert.ok(stdout.includes('--cashout-after <rows>'), 'Should expose cashout-after in cash-dash help');
+      assert.ok(stdout.includes('--loop'), 'Should expose loop mode in cash-dash help');
+      assert.ok(stdout.includes('--max-games <count>'), 'Should expose max-games in cash-dash help');
+      assert.ok(stdout.includes('--min-profit <ape>'), 'Should expose min-profit in cash-dash help');
+      assert.ok(stdout.includes('--max-loss <ape>'), 'Should expose max-loss in cash-dash help');
+      assert.ok(stdout.includes('--bet-strategy <name>'), 'Should expose betting strategies in cash-dash help');
+    });
+
     it('accepts the current stateful aliases', () => {
       const hilo = cli('game hilonebula --json');
+      const cashDash = cli('game cashdash --json');
+      const dash = cli('dash payouts');
       const vp = cli('vp 10');
       const bj = cli('bj 10');
 
       assert.strictEqual(JSON.parse(hilo.stdout).key, 'hi-lo-nebula');
+      assert.strictEqual(JSON.parse(cashDash.stdout).key, 'cash-dash');
+      assert.strictEqual(dash.code, 0);
+      assert.ok(dash.stdout.includes('Tiles'));
       assert.notStrictEqual(vp.code, 0);
       assert.notStrictEqual(bj.code, 0);
       assert.ok(vp.stdout.includes('No wallet found'));

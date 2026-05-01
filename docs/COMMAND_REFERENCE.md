@@ -39,6 +39,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `send <asset> <amount> <destination>` | - | Send `APE` or `GP` |
 | `house [action] [amount]` | - | Show, deposit into, or withdraw from The House |
 | `blackjack [action] [amount]` | `bj` | Interactive/stateful blackjack |
+| `cash-dash [action] [amount]` | `cashdash`, `dash` | Interactive/stateful Cash Dash |
 | `hi-lo-nebula [action] [amount]` | `hilonebula`, `hilo` | Interactive/stateful Hi-Lo Nebula |
 | `video-poker [action] [amount]` | `vp` | Interactive/stateful video poker |
 
@@ -429,7 +430,7 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 ```
 
 - Base local rate: `5 GP/APE`
-- Per-run override: `bet`, `play`, `blackjack`, `hi-lo-nebula`, `video-poker`
+- Per-run override: `bet`, `play`, `blackjack`, `cash-dash`, `hi-lo-nebula`, `video-poker`
 - Wallet-specific current override: `profile set --gp-ape <points>`
 - Wallet-specific reset to base default: `profile set --no-gp-ape`
 - On-chain GP precedence: when a settled game includes on-chain GP, reports use that value instead of a local estimate
@@ -609,6 +610,56 @@ Alias: `bj`
 ```
 
 If the first positional token is numeric, the command starts a new hand with that amount. `--human` is a supported advanced option but intentionally hidden from standard `--help`.
+
+### `cash-dash [action] [amount]`
+
+Aliases: `cashdash`, `dash`
+
+```bnf
+<cash-dash-command> ::= ( "cash-dash" | "cashdash" | "dash" ) [ <cash-dash-head> ] [ <cash-dash-tile> ] <cash-dash-option>*
+<cash-dash-head> ::= <ape>
+                   | "resume"
+                   | "status"
+                   | "payouts"
+                   | "table"
+                   | "clear"
+                   | "guess"
+                   | "tile"
+                   | "pick"
+                   | "random"
+                   | "r"
+                   | "cashout"
+                   | "cash"
+                   | "c"
+<cash-dash-tile> ::= "random" | "r" | <integer>
+<cash-dash-option> ::= "--game" <game-id>
+                     | "--display" <display>
+                     | "--json"
+                     | "-v"
+                     | "--verbose"
+                     | "--auto" [ <auto-mode> ]
+                     | "--solver"
+                     | "--tile" <cash-dash-tile>
+                     | "--cashout-after" <count>
+                     | "--delay" <seconds>
+                     | "--human"
+                     | "--loop"
+                     | "--max-games" <count>
+                     | "--take-profit" <ape>
+                     | "--min-profit" <ape>
+                     | "--target-x" <number>
+                     | "--target-profit" <ape>
+                     | "--retrace" <ape>
+                     | "--recover-loss" <ape>
+                     | "--giveback-profit" <ape>
+                     | "--stop-loss" <ape-nonnegative>
+                     | "--max-loss" <ape>
+                     | "--bet-strategy" <bet-strategy>
+                     | "--max-bet" <ape>
+                     | "--gp-ape" <points>
+```
+
+If the first positional token is numeric, the command starts a new run. During an active run, use `guess <tile>` / `tile <tile>` / `pick <tile>` for the next row, or `cashout` / `c` to settle. `--tile` chooses the opening tile (`1-7` or `random`); when omitted in manual mode, the CLI renders the opening row and prompts before sending `play`. Auto/JSON starts use tile `1` unless `--tile` is supplied. `--cashout-after` controls how many safe rows auto-play targets before cashing out. `--human` is supported but hidden from standard `--help`.
 
 ### `hi-lo-nebula [action] [amount]`
 

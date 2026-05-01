@@ -23,6 +23,7 @@ import {
   BLIZZARD_BLITZ_CONTRACT,
   BLOCKS_CONTRACT,
   BUBBLEGUM_HEIST_CONTRACT,
+  CASH_DASH_CONTRACT,
   COSMIC_PLINKO_CONTRACT,
   CULT_QUEST_CONTRACT,
   DINO_DOUGH_CONTRACT,
@@ -843,6 +844,13 @@ const SUPPLEMENTAL_DISPLAY_GAMES = Object.freeze([
     name: 'Hi-Lo Nebula',
     aliases: ['hilonebula', 'hilo'],
     contract: HI_LO_NEBULA_CONTRACT,
+    abiVerified: true,
+  }),
+  Object.freeze({
+    key: 'cash-dash',
+    name: 'Cash Dash',
+    aliases: ['cashdash', 'dash'],
+    contract: CASH_DASH_CONTRACT,
     abiVerified: true,
   }),
   Object.freeze({

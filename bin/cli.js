@@ -25,6 +25,7 @@
  * │ play [game] [amt] Play games (auto or manual, supports --loop)          │
  * │ bet              Quick manual bet on a specific simple game             │
  * │ blackjack <amt>   Interactive blackjack (stateful, multi-step)          │
+ * │ cash-dash <amt>   Interactive Cash Dash (stateful, multi-step)          │
  * │ hi-lo-nebula <amt> Interactive Hi-Lo Nebula (stateful, multi-step)      │
  * │ video-poker <amt> Interactive video poker (stateful, multi-step)        │
  * ├──────────────────────────────────────────────────────────────────────────┤
@@ -102,6 +103,7 @@ import {
   HOUSE_LOCK_TIME,
   HOUSE_WITHDRAW_FEE,
   BLACKJACK_CONTRACT,
+  CASH_DASH_CONTRACT,
   HI_LO_NEBULA_CONTRACT,
   PACKAGE_NAME,
   BINARY_NAME,
@@ -124,6 +126,7 @@ import {
 import { queueWinChimeFromWei } from '../lib/chime.js';
 import {
   createLoopStats,
+  formatBalanceSnapshot,
   formatLoopGameCompletion,
   formatLoopProgress,
   recordLoopGame,
@@ -972,6 +975,23 @@ function getHiLoNebulaCatalogEntry() {
   };
 }
 
+function getCashDashCatalogEntry() {
+  return {
+    key: 'cash-dash',
+    name: 'Cash Dash',
+    aliases: ['cashdash', 'dash'],
+    displayName: resolveGameDisplayName({
+      gameKey: 'cash-dash',
+      contract: CASH_DASH_CONTRACT,
+      fallbackName: 'Cash Dash',
+    }),
+    type: 'stateful',
+    description: 'Stateful death-tile ladder game with compounding rows and cashout decisions',
+    abiVerified: true,
+    contract: CASH_DASH_CONTRACT,
+  };
+}
+
 function getVideoPokerCatalogEntry() {
   return {
     key: 'video-poker',
@@ -993,6 +1013,7 @@ function listSupportedGameCatalogEntries() {
   return [
     ...GAME_REGISTRY.map((game) => createGameCatalogEntry(game)),
     getBlackjackCatalogEntry(),
+    getCashDashCatalogEntry(),
     getHiLoNebulaCatalogEntry(),
     getVideoPokerCatalogEntry(),
   ].sort(compareCatalogEntriesByTitle);
@@ -3262,6 +3283,10 @@ program
       if (!opts.json) {
         if (!loopMode) {
           console.log(`${formatGpPerApeNotice({ info: gpPerApeInfo })}\n`);
+          console.log(formatBalanceSnapshot({
+            label: 'Balance before game',
+            currentBalanceApe: balanceApe,
+          }));
         }
         console.log(`\n🎰 ${gameDesc}`);
         console.log(`   Betting ${parseFloat(wagerApeString).toFixed(2)} APE\n`);
@@ -3377,6 +3402,21 @@ program
           } else {
             // Result pending (rare - if event didn't fire in time)
             console.log(`${theme.pending('⏳ Pending')} — watch result: ${theme.command(playResponse.game_url)}\n`);
+          }
+        }
+
+        if (!loopMode && !opts.json) {
+          try {
+            const endingBalance = await getBalanceWithRetry(publicClient, account.address);
+            const endingBalanceApe = parseFloat(formatEther(endingBalance));
+            console.log(formatBalanceSnapshot({
+              label: 'Balance after game',
+              currentBalanceApe: endingBalanceApe,
+              startingBalanceApe: balanceApe,
+            }));
+            console.log('');
+          } catch (balanceError) {
+            console.error(`   ⚠️  Failed to fetch final balance: ${sanitizeError(balanceError)}`);
           }
         }
 
@@ -4352,6 +4392,99 @@ ${'═'.repeat(60)}
       return;
     }
 
+    if (matchedCatalogEntry?.key === 'cash-dash') {
+      const cashDash = getCashDashCatalogEntry();
+      if (opts.json) {
+        console.log(JSON.stringify(cashDash));
+        return;
+      }
+      console.log(`
+${'═'.repeat(60)}
+  ${cashDash.displayName.toUpperCase()}
+${'═'.repeat(60)}
+
+  Stateful ladder game. Each row has one hidden death tile.
+  A safe pick advances the run and compounds the available payout;
+  a death tile ends the run. Cash out after any resolved safe row.
+
+  Type:     ${cashDash.type}
+  Key:      ${cashDash.key}
+  Aliases:  ${cashDash.aliases.join(', ')}
+  ABI verified: ${cashDash.abiVerified}
+  Contract: ${cashDash.contract}
+
+${'─'.repeat(60)}
+  COMMANDS
+${'─'.repeat(60)}
+
+  ${BINARY_NAME} cash-dash <amount>    Start new run with bet
+  ${BINARY_NAME} cash-dash resume      Resume unfinished games in queue
+  ${BINARY_NAME} cash-dash status      Check current game state
+  ${BINARY_NAME} cash-dash payouts     Show verified row payout table
+  ${BINARY_NAME} cash-dash cashout     End the current run and collect
+  ${BINARY_NAME} cash-dash guess <tile> Continue with a tile pick
+
+${'─'.repeat(60)}
+  OPTIONS
+${'─'.repeat(60)}
+
+  --tile <tile>   Opening tile: 1-7 or random; manual mode prompts when omitted
+  --auto [mode]   Auto-play the run
+  --cashout-after <rows> Auto-play cashes out after N safe rows
+  --solver        Show the best continuation suggestion in manual mode
+  --loop          Keep starting new runs until a stop condition triggers
+  --max-games <count> Stop after N runs in loop mode
+  --take-profit <ape> Stop when balance reaches this amount
+  --min-profit <ape> Stop when session P&L reaches this profit
+  --target-x <x> Stop when a run pays at least this multiplier
+  --target-profit <ape> Stop when a run pays at least this payout
+  --stop-loss <ape> Stop when balance drops to this amount
+  --max-loss <ape> Stop when session P&L reaches this loss
+  --retrace <ape> Stop when a run loses at least this amount
+  --recover-loss <ape> Stop after a drawdown recovers to break-even/profit
+  --giveback-profit <ape> Stop after a run-up falls back to break-even/loss
+  --bet-strategy <name> Betting strategy for loop mode
+  --max-bet <ape> Maximum bet amount for progressive strategies
+  --display <mode> Display mode: full, simple, json
+  --game <id>     Specify game ID (for resume/action)
+
+${'─'.repeat(60)}
+  GRAMMAR (BNF)
+${'─'.repeat(60)}
+
+  <amount> ::= <ape>
+  <ape> ::= <number>            ; decimal APE amount; value > 0
+  <tile> ::= "random" | <integer>
+  <auto-mode> ::= "simple" | "best"
+
+${'─'.repeat(60)}
+  ACTIONS (during game)
+${'─'.repeat(60)}
+
+  1..N / guess N  Pick a tile in the active row
+  r / random      Pick a random tile
+  c / cashout     Bank current winnings and end the run
+
+${'─'.repeat(60)}
+  EXAMPLES
+${'─'.repeat(60)}
+
+  ${BINARY_NAME} cash-dash 25                  Play one run, prompts for opening tile
+  ${BINARY_NAME} cash-dash 25 --tile 3         Open with tile 3
+  ${BINARY_NAME} cash-dash 25 --solver         Manual play with best suggestion
+  ${BINARY_NAME} cash-dash 25 --auto           Auto cashes first safe row
+  ${BINARY_NAME} cash-dash 25 --auto --cashout-after 3
+                                        Auto targets three safe rows
+  ${BINARY_NAME} cash-dash 25 --auto best --loop --max-games 20
+                                        Continuous Cash Dash auto-play
+  ${BINARY_NAME} cash-dash guess 2             Continue the current run with tile 2
+  ${BINARY_NAME} cash-dash cashout             End the current run and collect
+
+${'═'.repeat(60)}
+`);
+      return;
+    }
+
     if (matchedCatalogEntry?.key === 'hi-lo-nebula') {
       const hiLoNebula = getHiLoNebulaCatalogEntry();
       if (opts.json) {
@@ -4650,6 +4783,7 @@ PLAY
   ${BINARY_NAME} play --loop          Continuous play
   ${BINARY_NAME} bet --game X --amount Y   Manual bet
   ${BINARY_NAME} blackjack <amt>      Interactive blackjack (alias: bj)
+  ${BINARY_NAME} cash-dash <amt>      Interactive Cash Dash (aliases: cashdash, dash)
   ${BINARY_NAME} hi-lo-nebula <amt>   Interactive Hi-Lo Nebula (aliases: hilonebula, hilo)
   ${BINARY_NAME} video-poker <amt>    Interactive video poker (alias: vp)
 
@@ -4753,6 +4887,7 @@ GAME ALIASES
   speed-keno: speedkeno, skeno
   sushi-showdown: sushishowdown, sushi
   blackjack: bj
+  cash-dash: cashdash, dash
   hi-lo-nebula: hilonebula, hilo
   video-poker: vp
 
@@ -4901,6 +5036,7 @@ ${'─'.repeat(70)}
 
   • All simple games (play command)
   • Blackjack (${BINARY_NAME} blackjack <amt> --loop --auto)
+  • Cash Dash (${BINARY_NAME} cash-dash <amt> --loop --auto)
   • Hi-Lo Nebula (${BINARY_NAME} hi-lo-nebula <amt> --loop --auto)
   • Video Poker (${BINARY_NAME} video-poker <amt> --loop --auto)
 
@@ -5012,7 +5148,7 @@ ${'═'.repeat(70)}
 ${'═'.repeat(70)}
 
   The --auto flag lets the CLI play without human input.
-  Available on games that require decisions (Blackjack, Hi-Lo Nebula, Video Poker).
+  Available on games that require decisions (Blackjack, Cash Dash, Hi-Lo Nebula, Video Poker).
 
   Modes:
     • simple   Fast heuristic mode (default)
@@ -5064,6 +5200,26 @@ ${'─'.repeat(70)}
     ${BINARY_NAME} hi-lo-nebula 10 --auto best       # Net-EV solver
     ${BINARY_NAME} hi-lo-nebula 10 --auto --loop     # Continuous auto-play
     ${BINARY_NAME} hi-lo-nebula 10 --solver          # Manual play with suggestions
+
+${'─'.repeat(70)}
+  CASH DASH --auto
+${'─'.repeat(70)}
+
+  simple:
+    • Cashes out after the configured safe-row target
+    • Otherwise picks a tile; hidden tiles are symmetric before reveal
+
+  best:
+    • Cashes out whenever continuation EV is dominated
+    • Honors --cashout-after when you intentionally target deeper rows
+    • Subtracts future VRF fees from continuation value
+
+  Commands:
+    ${BINARY_NAME} cash-dash 10 --auto                # One run, cash first safe row
+    ${BINARY_NAME} cash-dash 10 --auto best           # Net-EV solver
+    ${BINARY_NAME} cash-dash 10 --auto --cashout-after 3
+    ${BINARY_NAME} cash-dash 10 --auto --loop         # Continuous auto-play
+    ${BINARY_NAME} cash-dash 10 --solver              # Manual play with suggestions
 
 ${'─'.repeat(70)}
   VIDEO POKER --auto
@@ -6185,6 +6341,96 @@ program
         console.error(`\n❌ Unknown action: ${action}`);
         console.error('   Valid actions: hit, stand, double, split, insurance, surrender');
         console.error('   Or: resume, status, clear\n');
+    }
+  });
+
+// ============================================================================
+// COMMAND: CASH DASH (Stateful game)
+// ============================================================================
+program
+  .command('cash-dash [action] [amount]')
+  .alias('cashdash')
+  .alias('dash')
+  .description('Play Cash Dash ✔︎ - stateful death-tile ladder with cashout')
+  .option('--game <id>', 'Specify game ID (for resume/action)')
+  .option('--display <mode>', 'Display mode: full, simple, json')
+  .option('--json', 'JSON output only')
+  .option('-v, --verbose', 'Show technical progress logs')
+  .option('--auto [mode]', 'Auto-play the run')
+  .option('--solver', 'Show the best continuation suggestion in manual mode')
+  .option('--tile <tile>', 'Opening tile: 1-7 or random; manual mode prompts when omitted')
+  .option('--cashout-after <rows>', 'Auto-play cashes out after N safe rows')
+  .option('--delay <seconds>', 'Fixed delay between looped games')
+  .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
+  .option('--loop', 'Keep playing until balance runs out')
+  .option('--max-games <count>', 'Stop after N games (use with --loop)')
+  .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
+  .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
+  .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
+  .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
+  .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
+  .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
+  .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
+  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
+  .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
+  .option('--gp-ape <points>', 'Override GP earned per APE for this run')
+  .action(async (action, amount, opts) => {
+    const cashDash = await import('../lib/stateful/cash-dash/index.js');
+
+    if (!action || !isNaN(parseFloat(action))) {
+      const betAmount = action || amount;
+      if (!betAmount) {
+        console.error('\n❌ Bet amount required');
+        console.error(`   Usage: ${BINARY_NAME} cash-dash <amount>\n`);
+        console.error(`   Example: ${BINARY_NAME} cash-dash 25\n`);
+        return;
+      }
+      await getWalletWithPrompt({ json: opts.json, gameplay: true });
+      return cashDash.start(betAmount, opts);
+    }
+
+    const actionLower = action.toLowerCase();
+    switch (actionLower) {
+      case 'resume':
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
+        return cashDash.resume(opts.game, opts);
+
+      case 'status':
+        return cashDash.status(opts.game, opts);
+
+      case 'payouts':
+      case 'table':
+        return cashDash.payouts();
+
+      case 'clear': {
+        const games = loadActiveGames();
+        const cashDashGames = games['cash-dash'] || [];
+        if (cashDashGames.length === 0) {
+          console.log('\n✅ No active Cash Dash games to clear.\n');
+        } else {
+          console.log(`\n🗑️  Clearing ${cashDashGames.length} stored Cash Dash game(s)...`);
+          games['cash-dash'] = [];
+          saveActiveGames(games);
+          console.log('✅ Done.\n');
+        }
+        return;
+      }
+
+      case 'guess':
+      case 'tile':
+      case 'pick':
+        if (!amount) {
+          console.error(`\n❌ Tile required. Usage: ${BINARY_NAME} cash-dash ${actionLower} <tile>\n`);
+          return;
+        }
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
+        return cashDash.action(amount, opts);
+
+      default:
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
+        return cashDash.action(actionLower, opts);
     }
   });
 
