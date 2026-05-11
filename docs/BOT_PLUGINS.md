@@ -94,6 +94,7 @@ The runtime context passed to a bot is intentionally narrow:
 
 - `args`: positional arguments passed after the bot name
 - `play(tokens)`: reruns the public `apechurch-cli play ...` surface
+- `playJson(tokens)`: reruns `apechurch-cli play ... --json` and returns the parsed response
 - `bot`: manifest metadata such as `command`, `name`, and filesystem paths
 
 ## Important Security Note

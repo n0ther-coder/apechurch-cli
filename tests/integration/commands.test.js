@@ -185,6 +185,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Shared play / loop options'), 'Should group shared play options');
       assert.ok(stdout.includes('<points> ::= <number>'), 'Should document GP rate grammar');
       assert.ok(stdout.includes('--auto'), 'Should document explicit automatic random play');
+      assert.ok(stdout.includes('--timeout <ms>'), 'Should document stateless result timeout');
       assert.ok(stdout.includes('<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*'), 'Should document Keno numbers grammar');
       assert.ok(stdout.includes('<runs> ::= <integer>'), 'Should document Primes run grammar');
       assert.ok(stdout.includes('<rolls> ::= <integer>                              ; 1 <= value <= 5'), 'Should document the verified 1-5 Bear-A-Dice roll range');
@@ -939,6 +940,31 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(code, 0);
       assert.ok(stdout.includes('["--base","10","--stop-loss","50"]'));
+    });
+
+    it('exposes a playJson helper for parsed play responses', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'json-bot',
+        script: `export default async function ({ playJson }) {
+  try {
+    await playJson(['ape-strong', '1', '60']);
+  } catch (error) {
+    console.log(JSON.stringify({ code: error.code, message: error.message }));
+    return 0;
+  }
+  return 1;
+}
+`,
+      });
+
+      const { stdout, code } = cli('bot json-bot');
+      const payload = JSON.parse(stdout.trim());
+
+      assert.strictEqual(code, 0);
+      assert.strictEqual(payload.code, 1);
+      assert.ok(payload.message.includes('No wallet found'));
     });
 
     it('prefers APECHURCH_CLI_PLUGINS as the bot base directory', () => {

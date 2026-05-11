@@ -335,6 +335,7 @@ const PLAY_STATELESS_OPTION_LINES = Object.freeze([
   '--games <games>         Speed Keno batch count',
   '--runs <runs>           Primes / Blocks run count',
   '--rolls <rolls>         Bear-A-Dice roll count',
+  '--timeout <ms>          Max wait for a stateless game result; 0 returns pending',
   '--x-gameId <uint256>    Expert stateless gameData override',
   '--x-ref <address>       Expert stateless referral override',
   '--x-userRandomWord <bytes32> Expert stateless randomness override',
@@ -2933,6 +2934,7 @@ program
   .option('--games <games>', 'Speed Keno game count (batching)')
   .option('--runs <runs>', 'Primes / Blocks run count (batching)')
   .option('--rolls <rolls>', 'Bear-A-Dice roll count')
+  .option('--timeout <ms>', 'Max wait for a stateless game result (0 = no wait)', '30000')
   .option('--x-gameId <uint256>', 'Expert: override generated gameId in gameData')
   .option('--x-ref <address>', 'Expert: override referral address in gameData')
   .option('--x-userRandomWord <bytes32>', 'Expert: override generated userRandomWord in gameData')
@@ -3051,6 +3053,7 @@ program
     let givebackProfit;
     const maxBet = opts.maxBet ? parseFloat(opts.maxBet) : null;
     let cliGpPerApe = null;
+    let playTimeoutMs;
 
     try {
       ({
@@ -3065,6 +3068,7 @@ program
         recoverLoss,
         givebackProfit,
       } = parseLoopTerminalOptions(opts));
+      playTimeoutMs = parseNonNegativeInt(opts.timeout, 'timeout');
     } catch (error) {
       console.error(JSON.stringify({ error: error.message }));
       process.exit(1);
@@ -3314,6 +3318,28 @@ program
 
       const balanceApe = parseFloat(formatEther(balance));
       const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
+
+      if (stopLoss !== null && balanceApe <= stopLoss) {
+        const response = {
+          action: 'play',
+          status: 'skipped',
+          reason: 'stop_loss',
+          balance_ape: balanceApe.toFixed(6),
+          stop_loss_ape: stopLoss.toFixed(6),
+        };
+        if (opts.json) console.log(JSON.stringify(response));
+        else console.log(JSON.stringify(response, null, 2));
+        return {
+          shouldStop: true,
+          reason: 'stop_loss',
+          gameId: null,
+          gameResult: null,
+          playedGameKey: null,
+          playedConfig: null,
+          counted: false,
+          completed: false,
+        };
+      }
 
       if (availableApe <= 0 || availableApe < strategyConfig.minBetApe) {
         const response = {
@@ -3703,7 +3729,7 @@ program
           difficulty: gameConfig.difficulty,
           runs: gameConfig.runs,
           rolls: gameConfig.rolls,
-          timeoutMs: 30000, // Wait up to 30s for result (usually 1-2s)
+          timeoutMs: playTimeoutMs,
           referral: freshProfile.referral,
           xGameId: opts.xGameId,
           xRef: opts.xRef,

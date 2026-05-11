@@ -365,6 +365,7 @@ Notes:
                           | "--games" <count>
                           | "--runs" <count>
                           | "--rolls" <count>
+                          | "--timeout" <integer>
                           | "--x-gameId" <uint256>
                           | "--x-ref" <address>
                           | "--x-userRandomWord" <bytes32>
@@ -423,6 +424,7 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--games <games>` | Speed Keno batch count |
 | `--runs <runs>` | Primes or Blocks run count |
 | `--rolls <rolls>` | Bear-A-Dice roll count |
+| `--timeout <ms>` | Wait time for a stateless result; `0` returns the pending play response |
 | `--x-gameId <uint256>` | Expert override for the generated `gameId` in `gameData` |
 | `--x-ref <address>` | Expert override for the referral address in `gameData` |
 | `--x-userRandomWord <bytes32>` | Expert override for the generated `userRandomWord` in `gameData` |
@@ -460,7 +462,7 @@ These options are accepted by the `play` command for both stateless and stateful
 | `--retrace <ape>` | Stop loop when one game loses at least this amount |
 | `--recover-loss <ape>` | Stop loop when session P&L returns to break-even/profit after a drawdown of at least this size |
 | `--giveback-profit <ape>` | Stop loop when session P&L returns to break-even/loss after a run-up of at least this size |
-| `--stop-loss <ape>` | Stop loop when balance drops to the threshold |
+| `--stop-loss <ape>` | Stop before a play/loop iteration when wallet balance is at or below the threshold |
 | `--max-loss <ape>` | Stop loop when session P&L reaches the loss limit |
 | `--bet-strategy <name>` | Loop bet progression |
 | `--max-bet <ape>` | Loop safety cap for progressive strategies |
