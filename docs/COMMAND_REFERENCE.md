@@ -27,8 +27,8 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `continue` | - | Resume autonomous play |
 | `register` | - | Register or update the username/persona |
 | `profile <action>` | - | Show or update local profile preferences |
-| `bet` | - | Place one manual simple-game wager |
-| `play` | - | Play a selected simple game, or opt into random selection with `--auto` |
+| `bet` | - | Place one manual stateless-game wager |
+| `play` | - | Play a selected stateless or stateful game, or opt into random stateless-game selection with `--auto` |
 | `contest [action]` | - | Contest info and registration |
 | `history [address]` | - | Read, refresh, or list cached per-wallet history |
 | `scoreboard [address]` | - | Read cached per-wallet leaderboards derived from history |
@@ -36,6 +36,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `game <name>` | - | Show metadata and grammar for one game |
 | `commands` | - | Show the compact terminal command index |
 | `help [topic]` | - | Show detailed topic help |
+| `bot [name] [args...]` | - | Run a private bot discovered from the external bots directory |
 | `send <asset> <amount> <destination>` | - | Send `APE` or `GP` |
 | `house [action] [amount]` | - | Show, deposit into, or withdraw from The House |
 | `blackjack [action] [amount]` | `bj` | Interactive/stateful blackjack |
@@ -120,14 +121,22 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
                       | "sushishowdown"
                       | "sushi"
 <simple-game> ::= <simple-game-key> | <simple-game-alias>
-<game-name> ::= <simple-game>
+<stateless-game> ::= <simple-game>
+<game-name> ::= <stateless-game>
               | "blackjack"
               | "bj"
+              | "cash-dash"
+              | "cashdash"
+              | "dash"
               | "hi-lo-nebula"
               | "hilonebula"
               | "hilo"
               | "video-poker"
               | "vp"
+<stateful-game> ::= "blackjack" | "bj"
+                  | "cash-dash" | "cashdash" | "dash"
+                  | "hi-lo-nebula" | "hilonebula" | "hilo"
+                  | "video-poker" | "vp"
 <video-poker-bet> ::= "1" | "5" | "10" | "25" | "50" | "100"
 <auto-mode> ::= "simple" | "best"
 ```
@@ -150,6 +159,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `speed-keno` | `speedkeno`, `skeno` |
 | `sushi-showdown` | `sushishowdown`, `sushi` |
 | `blackjack` | `bj` |
+| `cash-dash` | `cashdash`, `dash` |
 | `hi-lo-nebula` | `hilonebula`, `hilo` |
 | `video-poker` | `vp` |
 
@@ -284,13 +294,13 @@ Notes:
 - Mutating flags require the explicit `profile set` action.
 - `--referral` is local-only. It is attached to future game transactions, not to SIWE username registration, and it does not affect past plays.
 
-## Simple-Game Gameplay
+## Stateless Gameplay
 
 ### `bet`
 
 ```bnf
 <bet-command> ::= "bet"
-                  "--game" <simple-game>
+                  "--game" <stateless-game>
                   "--amount" <ape>
                   <bet-option>*
 <bet-option> ::= "--risk" <token>
@@ -314,7 +324,7 @@ Notes:
 
 | Option | Meaning |
 |--------|---------|
-| `--game <type>` | Simple-game key |
+| `--game <type>` | Stateless game key |
 | `--amount <ape>` | Wager amount |
 | `--risk <risk>` | Public risk level for Bear-A-Dice, Blocks, Plinko, Monkey Match, or Primes |
 | `--balls <balls>` | Plinko ball count |
@@ -338,55 +348,69 @@ Notes:
 
 ```bnf
 <play-command> ::= "play" [ <play-positional> ] <play-option>*
-<play-positional> ::= <simple-game> [ <ape> <token>* ]
-<play-option> ::= "--auto"
-                | "--game" <simple-game>
-                | "--amount" <ape>
-                | "--risk" <token>
-                | "--balls" <integer>
-                | "--spins" <integer>
-                | "--bet" <token>
-                | "--range" <range>
-                | "--multiplier" <multiplier>
-                | "--out-range" <out-range>
-                | "--picks" <integer>
-                | "--numbers" <token>
-                | "--games" <count>
-                | "--runs" <count>
-                | "--rolls" <count>
-                | "--x-gameId" <uint256>
-                | "--x-ref" <address>
-                | "--x-userRandomWord" <bytes32>
-                | "--strategy" <persona>
-                | "--loop"
-                | "--delay" <seconds>
-                | "--max-games" <count>
-                | "--take-profit" <ape>
-                | "--min-profit" <ape>
-                | "--target-x" <number>
-                | "--target-profit" <ape>
-                | "--retrace" <ape>
-                | "--recover-loss" <ape>
-                | "--giveback-profit" <ape>
-                | "--stop-loss" <ape-nonnegative>
-                | "--max-loss" <ape>
-                | "--bet-strategy" <bet-strategy>
-                | "--max-bet" <ape>
-                | "--gp-ape" <points>
-                | "-v"
-                | "--verbose"
-                | "--json"
+<play-positional> ::= <stateless-game> [ <ape> <token>* ]
+                    | <stateful-game> [ <stateful-head> ] [ <token> ]
+<stateful-head> ::= <ape> | "resume" | "status" | "clear" | "payouts" | "table" | <token>
+<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>
+<play-stateless-option> ::= "--auto"
+                          | "--risk" <token>
+                          | "--balls" <integer>
+                          | "--spins" <integer>
+                          | "--bet" <token>
+                          | "--range" <range>
+                          | "--multiplier" <multiplier>
+                          | "--out-range" <out-range>
+                          | "--picks" <integer>
+                          | "--numbers" <token>
+                          | "--games" <count>
+                          | "--runs" <count>
+                          | "--rolls" <count>
+                          | "--x-gameId" <uint256>
+                          | "--x-ref" <address>
+                          | "--x-userRandomWord" <bytes32>
+<play-stateful-option> ::= "--auto" [ <auto-mode> ]
+                         | "--game-id" <game-id>
+                         | "--display" <display>
+                         | "--side" <ape>
+                         | "--solver"
+                         | "--tile" <token>
+                         | "--cashout-after" <count>
+<play-shared-option> ::= "--game" ( <stateless-game> | <stateful-game> )
+                       | "--amount" <ape>
+                       | "--strategy" <persona>
+                       | "--loop"
+                       | "--delay" <seconds>
+                       | "--max-games" <count>
+                       | "--take-profit" <ape>
+                       | "--min-profit" <ape>
+                       | "--target-x" <number>
+                       | "--target-profit" <ape>
+                       | "--retrace" <ape>
+                       | "--recover-loss" <ape>
+                       | "--giveback-profit" <ape>
+                       | "--stop-loss" <ape-nonnegative>
+                       | "--max-loss" <ape>
+                       | "--bet-strategy" <bet-strategy>
+                       | "--max-bet" <ape>
+                       | "--gp-ape" <points>
+                       | "-v"
+                       | "--verbose"
+                       | "--json"
 ```
 
-The positional tail after `<ape>` is game-specific. See [GAMES_REFERENCE.md](./GAMES_REFERENCE.md) or `apechurch-cli game <name>` for the exact grammar per simple game.
+The positional tail after `<ape>` is game-specific. See [GAMES_REFERENCE.md](./GAMES_REFERENCE.md) or `apechurch-cli game <name>` for the exact grammar per stateless game.
+
+Stateful games can also be routed through `play`, for example `apechurch-cli play blackjack 10 --auto`, `apechurch-cli play cash-dash 10 --tile 3`, or `apechurch-cli play video-poker 10 --auto best`. Direct commands such as `apechurch-cli blackjack 10` remain supported. When a stateful action needs an unfinished-game id through `play`, prefer `--game-id <id>` because `--game <name>` is already used for selecting the target game.
 
 Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli play --auto` for the old automatic random-selection behavior, or pass an explicit game/amount.
 
+#### Stateless Game Options
+
+These options apply only to fire-and-forget games handled by the stateless game router.
+
 | Option | Meaning |
 |--------|---------|
-| `--auto` | Opt into automatic random game/config selection when no game is specified |
-| `--game <name>` | Simple-game key |
-| `--amount <ape>` | Wager amount |
+| `--auto` | Opt into automatic random stateless game/config selection when no game is specified |
 | `--risk <risk>` | Public risk level for Bear-A-Dice, Blocks, Plinko, Monkey Match, or Primes |
 | `--balls <balls>` | Plinko ball count |
 | `--spins <spins>` | Slot spin count |
@@ -402,6 +426,29 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 | `--x-gameId <uint256>` | Expert override for the generated `gameId` in `gameData` |
 | `--x-ref <address>` | Expert override for the referral address in `gameData` |
 | `--x-userRandomWord <bytes32>` | Expert override for the generated `userRandomWord` in `gameData` |
+
+#### Stateful Game Options
+
+These options apply only to `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video-poker` when routed through `play`.
+
+| Option | Meaning |
+|--------|---------|
+| `--auto [mode]` | Stateful auto-play mode where supported (`simple` or `best`) |
+| `--game-id <id>` | Stateful unfinished-game id for resume/action when using `play <stateful-game>` |
+| `--display <mode>` | Stateful display mode |
+| `--side <ape>` | Blackjack player side bet |
+| `--solver` | Show solver suggestions in supported stateful games |
+| `--tile <tile>` | Cash Dash opening tile |
+| `--cashout-after <rows>` | Cash Dash auto-play cashout depth |
+
+#### Shared Play And Loop Options
+
+These options are accepted by the `play` command for both stateless and stateful gameplay, subject to each game's normal behavior.
+
+| Option | Meaning |
+|--------|---------|
+| `--game <name>` | Stateless or stateful game key |
+| `--amount <ape>` | Wager amount |
 | `--strategy <name>` | Persona used when the CLI chooses a game/config |
 | `--loop` | Keep playing until a stop condition is hit |
 | `--delay <seconds>` | Delay between looped games |
@@ -434,6 +481,17 @@ Bare `apechurch-cli play` no longer auto-runs a random game. Use `apechurch-cli 
 - Wallet-specific current override: `profile set --gp-ape <points>`
 - Wallet-specific reset to base default: `profile set --no-gp-ape`
 - On-chain GP precedence: when a settled game includes on-chain GP, reports use that value instead of a local estimate
+
+### `bot [name] [args...]`
+
+```bnf
+<bot-command> ::= "bot" [ <bot-name> ] [ <token>* ] [ "--list" ]
+<bot-name> ::= <token>
+```
+
+`bot` discovers external bot folders from `~/.apechurch-cli/bots` by default, or from `${APECHURCH_CLI_PLUGINS}/bots` when that environment variable is set. Each bot is defined by `bot.json` plus an entry module. Use `bot --list` to inspect discovery, then `bot <name> ...` to execute one bot.
+
+The runtime surface is intentionally narrow: bots receive positional args plus a `play(tokens)` helper that reruns the public `apechurch-cli play ...` interface. See [BOT_PLUGINS.md](./BOT_PLUGINS.md) for the manifest format, examples, and the security note.
 
 ## History, Catalog, And Help
 

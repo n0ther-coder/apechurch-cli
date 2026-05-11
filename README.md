@@ -70,12 +70,14 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 
 - `APECHURCH_CLI_PK`: optional fallback for non-interactive fresh install/reinstall
 - `APECHURCH_CLI_PASS`: required for non-interactive install/signing; optional otherwise
+- `APECHURCH_CLI_PLUGINS`: optional base-directory override for external bots; bots are loaded from `${APECHURCH_CLI_PLUGINS}/bots`
 - `APECHURCH_CLI_PROFILE_URL`: optional override for the username/profile API endpoint
 
 ## Reference Docs
 
 - Full CLI command, option, alias, and shared BNF reference: [docs/COMMAND_REFERENCE.md](./docs/COMMAND_REFERENCE.md)
 - Per-game syntax and game-specific grammar: [docs/GAMES_REFERENCE.md](./docs/GAMES_REFERENCE.md)
+- Private bot loader boundary, directory layout, and security note: [docs/BOT_PLUGINS.md](./docs/BOT_PLUGINS.md)
 - The House mechanics, current `House Yield` semantics, and planning-grade APY model: [docs/HOUSE_REFERENCE.md](./docs/HOUSE_REFERENCE.md)
 
 ## Profile
@@ -375,7 +377,9 @@ Interactive multi-transaction games with auto-play support:
 ```bash
 # Auto-play
 apechurch-cli blackjack 10 --auto --loop
+apechurch-cli play blackjack 10 --auto --loop
 apechurch-cli cash-dash 10 --auto --cashout-after 1
+apechurch-cli play cash-dash 10 --auto --cashout-after 1
 apechurch-cli blackjack 25 --side 1 --auto
 apechurch-cli cash-dash 10 --solver     # Interactive tile suggestion (best EV)
 apechurch-cli video-poker 10 --auto --loop
@@ -387,6 +391,7 @@ apechurch-cli cash-dash 10              # Prompts for the opening tile
 ```
 
 - `--auto` enables automatic play for stateful games
+- stateful games can be routed through `play`, which is the intended surface for private bot automation
 - `blackjack --side <ape>` adds a player side bet to the opening deal without changing the in-hand EV solver
 - `cash-dash` shows the opening row and prompts for the first tile when `--tile` is omitted in manual mode
 - `cash-dash --cashout-after <rows>` lets auto-play target deeper rows before cashing out
@@ -399,15 +404,23 @@ apechurch-cli cash-dash 10              # Prompts for the opening tile
 ## Commands
 
 ```bash
-apechurch-cli play --auto                        # Auto-select random game/config
-apechurch-cli play [game] [amount] [config...]  # Play a specific simple game
+# Stateless games
+apechurch-cli play --auto                        # Auto-select random stateless game/config
+apechurch-cli play [game] [amount] [config...]  # Play a specific stateless game
+
+# Stateful games
+apechurch-cli play blackjack <amount> [--auto [simple|best]]
+apechurch-cli play cash-dash <amount> [--auto [simple|best]]
 apechurch-cli cash-dash <amount> [--auto [simple|best]]  # Cash Dash (aliases: cashdash, dash)
 apechurch-cli hi-lo-nebula <amount> [--auto [simple|best]]  # Hi-Lo Nebula (aliases: hilonebula, hilo)
 apechurch-cli blackjack <amount> [--auto] [--side <ape>]  # Blackjack (alias: bj)
 apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker (alias: vp)
+
+# Shared helpers
 apechurch-cli status                            # Check balance
 apechurch-cli wallet --list                     # List locally available wallet addresses
 apechurch-cli wallet download [address]         # Download supported on-chain history into local cache
+apechurch-cli bot [name] [args...]             # Run a private external bot or list discovered bots
 apechurch-cli games                             # List all games
 apechurch-cli game <name>                       # Game details
 apechurch-cli pause                             # Stop autonomous play

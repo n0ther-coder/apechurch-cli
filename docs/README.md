@@ -23,6 +23,7 @@ Everything else lives under `docs/` or next to the code it explains.
 | `docs/GAMES_REFERENCE.md` | Users / maintainers | High | Yes | Comparison-first syntax and RTP summary for supported games, with a compact appendix for public-but-unsupported titles. |
 | `docs/HOUSE_REFERENCE.md` | Users / maintainers | High | Yes | The House mechanics, meaning of `House Yield`, and the repo's planning-grade APY model and sensitivity bounds. |
 | `docs/PUBLISHING.md` | Maintainers | High | Yes | Release and packaging checklist. |
+| `docs/BOT_PLUGINS.md` | Maintainers / private-bot authors | Medium | Yes | Naming, directory, play-only boundary, and security note for private bot-plugin work. |
 | `docs/FEATURES.md` | Marketing / product | Medium | Maybe | Useful as a product snapshot, but some sections overlap with `README.md`. |
 | `docs/THESIS.md` | Marketing / narrative | Low | Maybe | Positioning document, not operational documentation. |
 | `docs/verification/README.md` | Maintainers | High | Yes | Index of the canonical per-game ABI verification notes. |

@@ -667,8 +667,9 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `cash-dash`, `hi-lo-neb
 ## Notes
 
 - All amounts are in APE
-- Manual `play` for simple games accepts any positive APE amount; built-in strategy presets usually floor auto-sized bets at `1 APE`
+- Manual `play` for stateless games accepts any positive APE amount; built-in strategy presets usually floor auto-sized bets at `1 APE`
 - VRF fees are automatically calculated and added; some games also expose percentage fees or payout-side commissions, so check `Accepted Wagers` and the per-game verification note before comparing raw stake sizes
+- Stateful games can be called directly or through `play`; `apechurch-cli play --help` separates stateless game options from stateful game options
 - Stateful games use `--auto simple` by default; `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`
 - `hi-lo-nebula --display full` uses the boxed multi-panel layout with current card, action keys, and streak info
 - `hi-lo-nebula --loop` supports the common `--take-profit`, `--stop-loss`, `--max-games`, `--bet-strategy`, and related session controls

@@ -22,8 +22,9 @@
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ GAMEPLAY                                                                │
  * ├──────────────────────────────────────────────────────────────────────────┤
- * │ play [game] [amt] Play games (auto or manual, supports --loop)          │
- * │ bet              Quick manual bet on a specific simple game             │
+ * │ play [game] [amt] Play stateless/stateful games (supports --loop)       │
+ * │ bot [name] [args] Run a private gameplay bot via external files         │
+ * │ bet              Quick manual bet on a specific stateless game          │
  * │ blackjack <amt>   Interactive blackjack (stateful, multi-step)          │
  * │ cash-dash <amt>   Interactive Cash Dash (stateful, multi-step)          │
  * │ hi-lo-nebula <amt> Interactive Hi-Lo Nebula (stateful, multi-step)      │
@@ -82,6 +83,7 @@ import { formatEther, isAddress, parseEther } from 'viem';
 // --- Local modules ---
 import {
   APECHURCH_DIR,
+  BOTS_DIR,
   SKILL_TARGET_DIR,
   WALLET_FILE,
   GAS_RESERVE_APE,
@@ -108,8 +110,10 @@ import {
   PACKAGE_NAME,
   BINARY_NAME,
   PASS_ENV_VAR,
+  PLUGINS_DIR_ENV_VAR,
   PROFILE_URL_ENV_VAR,
   PRIVATE_KEY_ENV_VAR,
+  SUPPRESS_VERSION_BANNER_ENV_VAR,
   VIDEO_POKER_CONTRACT,
   ZERO_ADDRESS,
 } from '../lib/constants.js';
@@ -268,6 +272,10 @@ import {
   resolveLoopDelaySeconds,
   sleep,
 } from '../lib/stateful/timing.js';
+import {
+  discoverBotDefinitions,
+  runBot,
+} from '../lib/bots.js';
 
 // --- CLI Setup ---
 const program = new Command();
@@ -275,6 +283,13 @@ const PACKAGE_VERSION = pkg.version || '0.0.0';
 
 program.name(BINARY_NAME).version(PACKAGE_VERSION, '-v, --version', 'output the current version');
 const GAME_LIST = listGames().join(' | ');
+const cliPath = path.join(__dirname, 'cli.js');
+const discoveredBots = discoverBotDefinitions();
+const BOT_HELP_EXAMPLES = Object.freeze([
+  `${BINARY_NAME} bot`,
+  `${BINARY_NAME} bot martingale-recovery`,
+  `${BINARY_NAME} bot martingale-recovery --base 10 --stop-loss 50`,
+]);
 const GAME_TITLE_COLLATOR = new Intl.Collator('en', {
   sensitivity: 'base',
   numeric: true,
@@ -306,8 +321,59 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<combo-baccarat-bet> ::= <ape> <baccarat-side> <ape> "TIE"',
   '<baccarat-side> ::= "PLAYER" | "BANKER"',
 ]);
+const PLAY_STATELESS_OPTION_LINES = Object.freeze([
+  '--auto                  Random stateless game selection when no game is specified',
+  '--risk <risk>           Bear Dice, Blocks, Plinko, Monkey Match, and Primes risk',
+  '--balls <balls>         Plinko ball count',
+  '--spins <spins>         Slot spin count',
+  '--bet <bet>             Roulette/Baccarat bet payload',
+  '--range <range>         ApeStrong range or Gimboz Smash inside range',
+  '--multiplier <x>        Glyde or Crash target multiplier',
+  '--out-range <range>     Gimboz Smash outside range to exclude',
+  '--picks <picks>         Keno / Speed Keno pick count',
+  '--numbers <numbers>     Keno / Speed Keno numbers as one token',
+  '--games <games>         Speed Keno batch count',
+  '--runs <runs>           Primes / Blocks run count',
+  '--rolls <rolls>         Bear-A-Dice roll count',
+  '--x-gameId <uint256>    Expert stateless gameData override',
+  '--x-ref <address>       Expert stateless referral override',
+  '--x-userRandomWord <bytes32> Expert stateless randomness override',
+]);
+const PLAY_STATEFUL_OPTION_LINES = Object.freeze([
+  '--auto [mode]           Stateful auto-play mode where supported',
+  '--game-id <id>          Stateful unfinished-game id for resume/action',
+  '--display <mode>        Stateful display mode: full, simple, json',
+  '--side <ape>            Blackjack player side bet',
+  '--solver                Solver suggestions for supported stateful games',
+  '--tile <tile>           Cash Dash opening tile: 1-7 or random',
+  '--cashout-after <rows>  Cash Dash auto-play cashout depth',
+]);
+const PLAY_SHARED_OPTION_LINES = Object.freeze([
+  '--game <name>           Stateless or stateful game key',
+  '--amount <ape>          Wager amount',
+  '--loop                  Repeat the selected gameplay surface until stopped',
+  '--delay <seconds>       Delay between looped games',
+  '--max-games <count>     Stop after N games',
+  '--take-profit <ape>     Stop when balance reaches the target',
+  '--min-profit <ape>      Stop when session P&L reaches target profit',
+  '--target-x <x>          Stop when one game pays at least this multiplier',
+  '--target-profit <ape>   Stop when one game pays at least this payout',
+  '--retrace <ape>         Stop when one game loses at least this amount',
+  '--recover-loss <ape>    Stop after drawdown recovers to break-even/profit',
+  '--giveback-profit <ape> Stop after run-up falls back to break-even/loss',
+  '--stop-loss <ape>       Stop when balance drops to the threshold',
+  '--max-loss <ape>        Stop when session P&L reaches the loss limit',
+  '--bet-strategy <name>   Loop bet progression',
+  '--max-bet <ape>         Loop safety cap for progressive strategies',
+  '--gp-ape <points>       Override local GP estimation for this run',
+  '-v, --verbose           Show technical logs',
+  '--json                  Emit JSON output only',
+]);
 
 function printInvocationVersion() {
+  if (process.env[SUPPRESS_VERSION_BANNER_ENV_VAR] === '1') {
+    return;
+  }
   console.error(`${BINARY_NAME} v${PACKAGE_VERSION}`);
 }
 
@@ -319,6 +385,70 @@ Grammar (BNF):
 Notes:
   - Pass \`--numbers\` as a single CLI token, for example \`--numbers 1,7,13,25,40\`.
   - Run \`${BINARY_NAME} game <name>\` for per-game grammar and constraints.
+`;
+}
+
+function formatHelpOptionGroup(title, lines = []) {
+  if (!Array.isArray(lines) || lines.length === 0) return '';
+  return `${title}:\n  ${lines.join('\n  ')}`;
+}
+
+function formatBotDirectoryNotice() {
+  const overrideDir = process.env[PLUGINS_DIR_ENV_VAR];
+  const effectiveDir = discoveredBots.botsDir;
+  if (!overrideDir) {
+    return `Bot directory: ${BOTS_DIR}`;
+  }
+
+  return `Bot directory: ${effectiveDir} (${PLUGINS_DIR_ENV_VAR}=${overrideDir})`;
+}
+
+function formatBotLoadErrors() {
+  if (discoveredBots.errors.length === 0) return '';
+
+  const lines = ['Load errors:'];
+  for (const error of discoveredBots.errors) {
+    lines.push(`  - ${path.basename(error.botDirectory)}: ${error.message}`);
+  }
+  return lines.join('\n');
+}
+
+function findBotByCommand(input) {
+  const requested = String(input || '').trim().toLowerCase();
+  return discoveredBots.bots.find((bot) => bot.command === requested) || null;
+}
+
+function printBotList() {
+  const lines = [formatBotDirectoryNotice(), ''];
+  if (discoveredBots.bots.length === 0) {
+    lines.push(`No bots discovered under ${discoveredBots.botsDir}.`);
+  } else {
+    lines.push('Discovered bots:');
+    for (const bot of discoveredBots.bots) {
+      const suffix = bot.description ? ` - ${bot.description}` : '';
+      lines.push(`  ${bot.command}${suffix}`);
+    }
+  }
+
+  const loadErrors = formatBotLoadErrors();
+  if (loadErrors) {
+    lines.push('', loadErrors);
+  }
+
+  console.log(lines.join('\n'));
+}
+
+function formatPlayHelpAppendix() {
+  return `${formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES)}
+Option groups:
+  Stateless game options apply only to fire-and-forget games routed through the stateless game handlers.
+  Stateful game options apply only to blackjack, cash-dash, hi-lo-nebula, and video-poker when routed through play.
+
+${formatHelpOptionGroup('Stateless game options', PLAY_STATELESS_OPTION_LINES)}
+
+${formatHelpOptionGroup('Stateful game options', PLAY_STATEFUL_OPTION_LINES)}
+
+${formatHelpOptionGroup('Shared play / loop options', PLAY_SHARED_OPTION_LINES)}
 `;
 }
 
@@ -1042,6 +1172,239 @@ function resolveCatalogGameEntry(input) {
   return listSupportedGameCatalogEntries().find((game) => (
     getCatalogEntryLookupValues(game).some((value) => normalizeCatalogLookupInput(value) === requested)
   )) || null;
+}
+
+function resolveStatefulPlayGame(input) {
+  const entry = resolveCatalogGameEntry(input);
+  return entry?.type === 'stateful' ? entry : null;
+}
+
+function isStatefulStartAction(action) {
+  return !action || !isNaN(parseFloat(action));
+}
+
+function clearStatefulGames(gameKey, displayLabel) {
+  const games = loadActiveGames();
+  const activeGames = games[gameKey] || [];
+  if (activeGames.length === 0) {
+    console.log(`\n✅ No active ${displayLabel} games to clear.\n`);
+  } else {
+    console.log(`\n🗑️  Clearing ${activeGames.length} stored ${displayLabel} game(s)...`);
+    games[gameKey] = [];
+    saveActiveGames(games);
+    console.log('✅ Done.\n');
+  }
+}
+
+async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
+  switch (gameKey) {
+    case 'blackjack': {
+      const blackjack = await import('../lib/stateful/blackjack/index.js');
+
+      if (isStatefulStartAction(action)) {
+        const betAmount = action || amount;
+        if (!betAmount) {
+          console.error('\n❌ Bet amount required');
+          console.error(`   Usage: ${BINARY_NAME} blackjack <amount>\n`);
+          console.error(`   Example: ${BINARY_NAME} blackjack 10\n`);
+          return;
+        }
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
+        return blackjack.start(betAmount, opts);
+      }
+
+      const actionLower = action.toLowerCase();
+
+      switch (actionLower) {
+        case 'resume':
+          await getWalletWithPrompt({ json: opts.json, gameplay: true });
+          return blackjack.resume(opts.game, opts);
+
+        case 'status':
+          return blackjack.status(opts.game, opts);
+
+        case 'hit':
+        case 'stand':
+        case 'double':
+        case 'split':
+        case 'insurance':
+        case 'surrender':
+          await getWalletWithPrompt({ json: opts.json, gameplay: true });
+          return blackjack.action(actionLower, opts);
+
+        case 'clear':
+          return clearStatefulGames('blackjack', 'blackjack');
+
+        default:
+          console.error(`\n❌ Unknown action: ${action}`);
+          console.error('   Valid actions: hit, stand, double, split, insurance, surrender');
+          console.error('   Or: resume, status, clear\n');
+      }
+      return;
+    }
+
+    case 'cash-dash': {
+      const cashDash = await import('../lib/stateful/cash-dash/index.js');
+
+      if (isStatefulStartAction(action)) {
+        const betAmount = action || amount;
+        if (!betAmount) {
+          console.error('\n❌ Bet amount required');
+          console.error(`   Usage: ${BINARY_NAME} cash-dash <amount>\n`);
+          console.error(`   Example: ${BINARY_NAME} cash-dash 25\n`);
+          return;
+        }
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
+        return cashDash.start(betAmount, opts);
+      }
+
+      const actionLower = action.toLowerCase();
+      switch (actionLower) {
+        case 'resume':
+          await getWalletWithPrompt({ json: opts.json, gameplay: true });
+          return cashDash.resume(opts.game, opts);
+
+        case 'status':
+          return cashDash.status(opts.game, opts);
+
+        case 'payouts':
+        case 'table':
+          return cashDash.payouts();
+
+        case 'clear':
+          return clearStatefulGames('cash-dash', 'Cash Dash');
+
+        case 'guess':
+        case 'tile':
+        case 'pick':
+          if (!amount) {
+            console.error(`\n❌ Tile required. Usage: ${BINARY_NAME} cash-dash ${actionLower} <tile>\n`);
+            return;
+          }
+          await getWalletWithPrompt({ json: opts.json, gameplay: true });
+          return cashDash.action(amount, opts);
+
+        default:
+          await getWalletWithPrompt({ json: opts.json, gameplay: true });
+          return cashDash.action(actionLower, opts);
+      }
+    }
+
+    case 'hi-lo-nebula': {
+      const hiLoNebula = await import('../lib/stateful/hi-lo-nebula/index.js');
+
+      if (isStatefulStartAction(action)) {
+        const betAmount = action || amount;
+        if (!betAmount) {
+          console.error('\n❌ Bet amount required');
+          console.error(`   Usage: ${BINARY_NAME} hi-lo-nebula <amount>\n`);
+          console.error(`   Example: ${BINARY_NAME} hi-lo-nebula 25\n`);
+          return;
+        }
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
+        return hiLoNebula.start(betAmount, opts);
+      }
+
+      const actionLower = action.toLowerCase();
+      switch (actionLower) {
+        case 'resume':
+          await getWalletWithPrompt({ json: opts.json, gameplay: true });
+          return hiLoNebula.resume(opts.game, opts);
+
+        case 'status':
+          return hiLoNebula.status(opts.game, opts);
+
+        case 'payouts':
+        case 'table':
+          return hiLoNebula.payouts();
+
+        case 'clear':
+          return clearStatefulGames('hi-lo-nebula', 'Hi-Lo Nebula');
+
+        default:
+          await getWalletWithPrompt({ json: opts.json, gameplay: true });
+          return hiLoNebula.action(actionLower, opts);
+      }
+    }
+
+    case 'video-poker': {
+      const videoPoker = await import('../lib/stateful/video-poker/index.js');
+
+      if (isStatefulStartAction(action)) {
+        const betAmount = action || amount;
+        if (!betAmount) {
+          console.error('\n❌ Bet amount required');
+          console.error('   Valid bets: 1, 5, 10, 25, 50, 100 APE');
+          console.error(`   Usage: ${BINARY_NAME} video-poker <amount>\n`);
+          console.error(`   Example: ${BINARY_NAME} video-poker 10\n`);
+          return;
+        }
+        await getWalletWithPrompt({ json: opts.json, gameplay: true });
+        return videoPoker.start(betAmount, opts);
+      }
+
+      const actionLower = action.toLowerCase();
+
+      switch (actionLower) {
+        case 'resume':
+          await getWalletWithPrompt({ json: opts.json, gameplay: true });
+          return videoPoker.resume(opts.game, opts);
+
+        case 'status':
+          return videoPoker.status(opts.game, opts);
+
+        case 'payouts':
+        case 'table':
+          return videoPoker.payouts();
+
+        case 'clear':
+          return clearStatefulGames('video-poker', 'video poker');
+
+        default:
+          console.error(`\n❌ Unknown action: ${action}`);
+          console.error('   Valid actions: resume, status, payouts, clear');
+          console.error('   Or provide a bet amount: 1, 5, 10, 25, 50, 100\n');
+      }
+      return;
+    }
+
+    default:
+      throw new Error(`Unsupported stateful game: ${gameKey}`);
+  }
+}
+
+function buildStatefulPlayOptions(opts, { selectedFromGameOption = false } = {}) {
+  const playOpts = { ...opts };
+  if (playOpts.gameId !== undefined) {
+    playOpts.game = playOpts.gameId;
+  } else if (selectedFromGameOption) {
+    delete playOpts.game;
+  }
+  return playOpts;
+}
+
+function resolveStatefulPlayDispatch({ gameArg, amountArg, configArgs, opts }) {
+  const positionalGame = resolveStatefulPlayGame(gameArg);
+  if (positionalGame) {
+    return {
+      game: positionalGame,
+      action: amountArg || opts.amount,
+      amount: configArgs?.[0],
+      opts: buildStatefulPlayOptions(opts),
+    };
+  }
+
+  const optionGame = resolveStatefulPlayGame(opts.game);
+  if (optionGame) {
+    return {
+      game: optionGame,
+      action: amountArg || opts.amount,
+      amount: configArgs?.[0],
+      opts: buildStatefulPlayOptions(opts, { selectedFromGameOption: true }),
+    };
+  }
+
+  return null;
 }
 
 function formatAvailableGameGroups() {
@@ -2554,8 +2917,8 @@ program
   .argument('[game]', 'Game to play (optional)')
   .argument('[amount]', 'Amount to wager (optional)')
   .argument('[config...]', 'Game-specific config (optional)')
-  .description('Play a game (random or specified)')
-  .option('--auto', 'Opt into automatic random game/config selection when not specifying a game')
+  .description('Play a stateless or stateful game (random stateless selection with --auto)')
+  .option('--auto [mode]', 'Stateless random selection, or stateful auto-play mode')
   .option('--game <name>', 'Game to play')
   .option('--amount <ape>', 'Amount to wager')
   .option('--risk <risk>', 'Risk level for Bear Dice, Blocks, Plinko, Monkey Match, and Primes')
@@ -2573,6 +2936,12 @@ program
   .option('--x-gameId <uint256>', 'Expert: override generated gameId in gameData')
   .option('--x-ref <address>', 'Expert: override referral address in gameData')
   .option('--x-userRandomWord <bytes32>', 'Expert: override generated userRandomWord in gameData')
+  .option('--game-id <id>', 'Stateful game ID for resume/action when using play <stateful-game>')
+  .option('--display <mode>', 'Stateful display mode: full, simple, json')
+  .option('--side <ape>', 'Blackjack player side bet amount')
+  .option('--solver', 'Show solver suggestions in supported stateful games')
+  .option('--tile <tile>', 'Cash Dash opening tile: 1-7 or random')
+  .option('--cashout-after <rows>', 'Cash Dash auto-play cashes out after N safe rows')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
   .option('--delay <seconds>', 'Fixed delay between looped games')
@@ -2592,7 +2961,7 @@ program
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--json', 'JSON output only')
-  .addHelpText('after', formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES))
+  .addHelpText('after', formatPlayHelpAppendix())
   .action(async (gameArg, amountArg, configArgs, opts) => {
     const loopMode = Boolean(opts.loop);
     const humanTiming = Boolean(opts.human);
@@ -2622,6 +2991,12 @@ program
       '--x-gameId',
       '--x-ref',
       '--x-userRandomWord',
+      '--game-id',
+      '--display',
+      '--side',
+      '--solver',
+      '--tile',
+      '--cashout-after',
       '--strategy',
       '--loop',
       '--delay',
@@ -2651,6 +3026,16 @@ program
         console.log(playCommand.helpInformation());
       }
       return;
+    }
+
+    const statefulDispatch = resolveStatefulPlayDispatch({ gameArg, amountArg, configArgs, opts });
+    if (statefulDispatch) {
+      return runStatefulGameCommand(
+        statefulDispatch.game.key,
+        statefulDispatch.action,
+        statefulDispatch.amount,
+        statefulDispatch.opts
+      );
     }
 
     // Parse and validate loop parameters
@@ -3653,6 +4038,48 @@ program
       }
     } else {
       await playOnce();
+    }
+  });
+
+// ============================================================================
+// COMMAND: BOT (Private bot loader)
+// ============================================================================
+program
+  .command('bot [name] [args...]')
+  .description('Run a private bot from the external bots directory')
+  .allowUnknownOption(true)
+  .option('--list', 'List discovered bots')
+  .addHelpText('after', `
+Examples:
+  ${BOT_HELP_EXAMPLES.join('\n  ')}
+
+${formatBotDirectoryNotice()}
+`)
+  .action(async (name, args, opts) => {
+    if (opts.list || !name) {
+      printBotList();
+      return;
+    }
+
+    const bot = findBotByCommand(name);
+    if (!bot) {
+      process.exitCode = 1;
+      console.error(`\n❌ Unknown bot: ${name}\n`);
+      printBotList();
+      return;
+    }
+
+    try {
+      const exitCode = await runBot(bot, {
+        cliPath,
+        rawArgs: Array.isArray(args) ? args : [],
+      });
+      if (exitCode !== 0) {
+        process.exitCode = exitCode;
+      }
+    } catch (error) {
+      process.exitCode = 1;
+      console.error(`\n❌ Bot "${bot.command}" failed: ${sanitizeError(error)}\n`);
     }
   });
 
@@ -4777,15 +5204,26 @@ STATUS
   ${BINARY_NAME} profile set --no-gp-ape
                                    Clear the wallet-specific current GP/APE override
 
-PLAY
-  ${BINARY_NAME} play --auto          Play a random game/config automatically
-  ${BINARY_NAME} play <game> <amt>    Play specific game
-  ${BINARY_NAME} play --loop          Continuous play
-  ${BINARY_NAME} bet --game X --amount Y   Manual bet
+PLAY - STATELESS
+  ${BINARY_NAME} play --auto          Play a random stateless game/config automatically
+  ${BINARY_NAME} play <game> <amt>    Play a specific stateless game
+  ${BINARY_NAME} bet --game X --amount Y   Manual stateless bet
+
+PLAY - STATEFUL
+  ${BINARY_NAME} play blackjack <amt> Stateful play surface for bots
+  ${BINARY_NAME} play cash-dash <amt> Stateful play surface for bots
   ${BINARY_NAME} blackjack <amt>      Interactive blackjack (alias: bj)
   ${BINARY_NAME} cash-dash <amt>      Interactive Cash Dash (aliases: cashdash, dash)
   ${BINARY_NAME} hi-lo-nebula <amt>   Interactive Hi-Lo Nebula (aliases: hilonebula, hilo)
   ${BINARY_NAME} video-poker <amt>    Interactive video poker (alias: vp)
+
+PLAY - SHARED LOOP CONTROLS
+  ${BINARY_NAME} play <game> <amt> --loop
+                                   Continuous play for selected stateless/stateful game
+
+PRIVATE BOTS
+  ${BINARY_NAME} bot                List discovered bots and the active bots directory
+  ${BINARY_NAME} bot <name> [args...]   Run one external bot through the play-only surface
 
 CONTROL
   ${BINARY_NAME} pause                Stop autonomous play
@@ -4820,6 +5258,7 @@ CONTEST
 ENVIRONMENT
   ${PRIVATE_KEY_ENV_VAR}   Optional fallback for non-interactive install/reinstall
   ${PASS_ENV_VAR}          Required for non-interactive install/signing; optional otherwise
+  ${PLUGINS_DIR_ENV_VAR}   Optional base-directory override for external bots
   ${PROFILE_URL_ENV_VAR}   Optional override for the username/profile API
 
 LOOP OPTIONS
@@ -5034,11 +5473,15 @@ ${'─'.repeat(70)}
   WORKS WITH
 ${'─'.repeat(70)}
 
-  • All simple games (play command)
-  • Blackjack (${BINARY_NAME} blackjack <amt> --loop --auto)
-  • Cash Dash (${BINARY_NAME} cash-dash <amt> --loop --auto)
-  • Hi-Lo Nebula (${BINARY_NAME} hi-lo-nebula <amt> --loop --auto)
-  • Video Poker (${BINARY_NAME} video-poker <amt> --loop --auto)
+  Stateless games:
+    • ${BINARY_NAME} play roulette 10 RED --loop
+    • ${BINARY_NAME} play jungle-plinko 10 2 50 --loop
+
+  Stateful games:
+    • ${BINARY_NAME} play blackjack 10 --loop --auto
+    • ${BINARY_NAME} play cash-dash 10 --loop --auto
+    • ${BINARY_NAME} play hi-lo-nebula 10 --loop --auto
+    • ${BINARY_NAME} play video-poker 10 --loop --auto
 
 ${'═'.repeat(70)}
 `,
@@ -5240,14 +5683,18 @@ ${'─'.repeat(70)}
     ${BINARY_NAME} video-poker 10 --auto --loop     # Continuous auto-play
 
 ${'─'.repeat(70)}
-  SIMPLE GAMES
+  STATELESS GAMES
 ${'─'.repeat(70)}
 
-  Games like Roulette, Plinko, etc. don't need --auto because
+  Stateless games like Roulette, Plinko, etc. don't need stateful --auto because
   there are no mid-game decisions. Just use --loop for continuous play:
   
     ${BINARY_NAME} play roulette 10 RED --loop
     ${BINARY_NAME} play jungle-plinko 10 2 50 --loop
+
+  The stateless use of --auto only selects a random stateless game/config:
+
+    ${BINARY_NAME} play --auto
 
 ${'─'.repeat(70)}
   COMBINING WITH STRATEGIES
@@ -6286,62 +6733,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .action(async (action, amount, opts) => {
-    // Dynamic import to avoid loading stateful game code when not needed
-    const blackjack = await import('../lib/stateful/blackjack/index.js');
-    
-    // Determine what to do based on action
-    if (!action || !isNaN(parseFloat(action))) {
-      // No action or amount = start new game
-      const betAmount = action || amount;
-      if (!betAmount) {
-        console.error('\n❌ Bet amount required');
-        console.error(`   Usage: ${BINARY_NAME} blackjack <amount>\n`);
-        console.error(`   Example: ${BINARY_NAME} blackjack 10\n`);
-        return;
-      }
-      await getWalletWithPrompt({ json: opts.json, gameplay: true });
-      return blackjack.start(betAmount, opts);
-    }
-    
-    // Named actions
-    const actionLower = action.toLowerCase();
-    
-    switch (actionLower) {
-      case 'resume':
-        await getWalletWithPrompt({ json: opts.json, gameplay: true });
-        return blackjack.resume(opts.game, opts);
-        
-      case 'status':
-        return blackjack.status(opts.game, opts);
-        
-      case 'hit':
-      case 'stand':
-      case 'double':
-      case 'split':
-      case 'insurance':
-      case 'surrender':
-        await getWalletWithPrompt({ json: opts.json, gameplay: true });
-        return blackjack.action(actionLower, opts);
-      
-      case 'clear': {
-        const games = loadActiveGames();
-        const bjGames = games['blackjack'] || [];
-        if (bjGames.length === 0) {
-          console.log('\n✅ No active blackjack games to clear.\n');
-        } else {
-          console.log(`\n🗑️  Clearing ${bjGames.length} stored blackjack game(s)...`);
-          games['blackjack'] = [];
-          saveActiveGames(games);
-          console.log('✅ Done.\n');
-        }
-        return;
-      }
-        
-      default:
-        console.error(`\n❌ Unknown action: ${action}`);
-        console.error('   Valid actions: hit, stand, double, split, insurance, surrender');
-        console.error('   Or: resume, status, clear\n');
-    }
+    return runStatefulGameCommand('blackjack', action, amount, opts);
   });
 
 // ============================================================================
@@ -6377,61 +6769,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .action(async (action, amount, opts) => {
-    const cashDash = await import('../lib/stateful/cash-dash/index.js');
-
-    if (!action || !isNaN(parseFloat(action))) {
-      const betAmount = action || amount;
-      if (!betAmount) {
-        console.error('\n❌ Bet amount required');
-        console.error(`   Usage: ${BINARY_NAME} cash-dash <amount>\n`);
-        console.error(`   Example: ${BINARY_NAME} cash-dash 25\n`);
-        return;
-      }
-      await getWalletWithPrompt({ json: opts.json, gameplay: true });
-      return cashDash.start(betAmount, opts);
-    }
-
-    const actionLower = action.toLowerCase();
-    switch (actionLower) {
-      case 'resume':
-        await getWalletWithPrompt({ json: opts.json, gameplay: true });
-        return cashDash.resume(opts.game, opts);
-
-      case 'status':
-        return cashDash.status(opts.game, opts);
-
-      case 'payouts':
-      case 'table':
-        return cashDash.payouts();
-
-      case 'clear': {
-        const games = loadActiveGames();
-        const cashDashGames = games['cash-dash'] || [];
-        if (cashDashGames.length === 0) {
-          console.log('\n✅ No active Cash Dash games to clear.\n');
-        } else {
-          console.log(`\n🗑️  Clearing ${cashDashGames.length} stored Cash Dash game(s)...`);
-          games['cash-dash'] = [];
-          saveActiveGames(games);
-          console.log('✅ Done.\n');
-        }
-        return;
-      }
-
-      case 'guess':
-      case 'tile':
-      case 'pick':
-        if (!amount) {
-          console.error(`\n❌ Tile required. Usage: ${BINARY_NAME} cash-dash ${actionLower} <tile>\n`);
-          return;
-        }
-        await getWalletWithPrompt({ json: opts.json, gameplay: true });
-        return cashDash.action(amount, opts);
-
-      default:
-        await getWalletWithPrompt({ json: opts.json, gameplay: true });
-        return cashDash.action(actionLower, opts);
-    }
+    return runStatefulGameCommand('cash-dash', action, amount, opts);
   });
 
 // ============================================================================
@@ -6465,51 +6803,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .action(async (action, amount, opts) => {
-    const hiLoNebula = await import('../lib/stateful/hi-lo-nebula/index.js');
-
-    if (!action || !isNaN(parseFloat(action))) {
-      const betAmount = action || amount;
-      if (!betAmount) {
-        console.error('\n❌ Bet amount required');
-        console.error(`   Usage: ${BINARY_NAME} hi-lo-nebula <amount>\n`);
-        console.error(`   Example: ${BINARY_NAME} hi-lo-nebula 25\n`);
-        return;
-      }
-      await getWalletWithPrompt({ json: opts.json, gameplay: true });
-      return hiLoNebula.start(betAmount, opts);
-    }
-
-    const actionLower = action.toLowerCase();
-    switch (actionLower) {
-      case 'resume':
-        await getWalletWithPrompt({ json: opts.json, gameplay: true });
-        return hiLoNebula.resume(opts.game, opts);
-
-      case 'status':
-        return hiLoNebula.status(opts.game, opts);
-
-      case 'payouts':
-      case 'table':
-        return hiLoNebula.payouts();
-
-      case 'clear': {
-        const games = loadActiveGames();
-        const hiLoGames = games['hi-lo-nebula'] || [];
-        if (hiLoGames.length === 0) {
-          console.log('\n✅ No active Hi-Lo Nebula games to clear.\n');
-        } else {
-          console.log(`\n🗑️  Clearing ${hiLoGames.length} stored Hi-Lo Nebula game(s)...`);
-          games['hi-lo-nebula'] = [];
-          saveActiveGames(games);
-          console.log('✅ Done.\n');
-        }
-        return;
-      }
-
-      default:
-        await getWalletWithPrompt({ json: opts.json, gameplay: true });
-        return hiLoNebula.action(actionLower, opts);
-    }
+    return runStatefulGameCommand('hi-lo-nebula', action, amount, opts);
   });
 
 // ============================================================================
@@ -6542,62 +6836,14 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .action(async (action, amount, opts) => {
-    const videoPoker = await import('../lib/stateful/video-poker/index.js');
-    
-    // If action is a number, treat it as bet amount
-    if (!action || !isNaN(parseFloat(action))) {
-      const betAmount = action || amount;
-      if (!betAmount) {
-        console.error('\n❌ Bet amount required');
-        console.error('   Valid bets: 1, 5, 10, 25, 50, 100 APE');
-        console.error(`   Usage: ${BINARY_NAME} video-poker <amount>\n`);
-        console.error(`   Example: ${BINARY_NAME} video-poker 10\n`);
-        return;
-      }
-      await getWalletWithPrompt({ json: opts.json, gameplay: true });
-      return videoPoker.start(betAmount, opts);
-    }
-    
-    const actionLower = action.toLowerCase();
-    
-    switch (actionLower) {
-      case 'resume':
-        await getWalletWithPrompt({ json: opts.json, gameplay: true });
-        return videoPoker.resume(opts.game, opts);
-        
-      case 'status':
-        return videoPoker.status(opts.game, opts);
-        
-      case 'payouts':
-      case 'table':
-        return videoPoker.payouts();
-      
-      case 'clear': {
-        const games = loadActiveGames();
-        const vpGames = games['video-poker'] || [];
-        if (vpGames.length === 0) {
-          console.log('\n✅ No active video poker games to clear.\n');
-        } else {
-          console.log(`\n🗑️  Clearing ${vpGames.length} stored video poker game(s)...`);
-          games['video-poker'] = [];
-          saveActiveGames(games);
-          console.log('✅ Done.\n');
-        }
-        return;
-      }
-        
-      default:
-        console.error(`\n❌ Unknown action: ${action}`);
-        console.error('   Valid actions: resume, status, payouts, clear');
-        console.error('   Or provide a bet amount: 1, 5, 10, 25, 50, 100\n');
-    }
+    return runStatefulGameCommand('video-poker', action, amount, opts);
   });
 
 // ============================================================================
 // PARSE
 // ============================================================================
 printInvocationVersion();
-program.parse(process.argv);
+await program.parseAsync(process.argv);
 
 // Show update notification if available (after command completes)
 if (notifier) {

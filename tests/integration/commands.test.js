@@ -15,6 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_PATH = path.join(__dirname, '../../bin/cli.js');
 const NO_WALLET_HOME = path.join(__dirname, '../tmp-no-wallet-home');
 const HISTORY_FIXTURE_HOME = path.join(__dirname, '../tmp-history-home');
+const PLUGIN_OVERRIDE_ROOT = path.join(__dirname, '../tmp-plugin-root');
 const HISTORY_FIXTURE_WALLET = '0x1111111111111111111111111111111111111111';
 
 function setupNoWalletHome() {
@@ -80,6 +81,43 @@ function setupHistoryFixtureHome() {
   );
 }
 
+function resetBotFixtures() {
+  fs.rmSync(path.join(NO_WALLET_HOME, '.apechurch-cli', 'bots'), { recursive: true, force: true });
+  fs.rmSync(PLUGIN_OVERRIDE_ROOT, { recursive: true, force: true });
+}
+
+function writeBotFixture({
+  baseDir,
+  folderName,
+  command = folderName,
+  description = 'Test bot fixture',
+  script = null,
+}) {
+  const botsDir = path.join(baseDir, 'bots');
+  const botDir = path.join(botsDir, folderName);
+  fs.mkdirSync(botDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(botDir, 'bot.json'),
+    JSON.stringify({
+      name: folderName,
+      command,
+      description,
+      entry: './index.js',
+    }, null, 2)
+  );
+  fs.writeFileSync(
+    path.join(botDir, 'index.js'),
+    script || `export default async function ({ args, play, bot }) {
+  if (args[0] === 'echo') {
+    console.log(\`BOT:\${bot.command}:\${args.slice(1).join(',')}\`);
+    return 0;
+  }
+  return play(['bj', '10']);
+}
+`
+  );
+}
+
 function stripVersionBanner(output) {
   return String(output || '').replace(/^apechurch-cli v[^\n]*\n+/, '');
 }
@@ -132,9 +170,19 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Commands'), 'Should list commands');
     });
 
+    it('bot --help documents the external bot surface', () => {
+      const { stdout } = cli('bot --help');
+      assert.ok(stdout.includes('Run a private bot'), 'Should document the bot command');
+      assert.ok(stdout.includes('Bot directory:'), 'Should show the bot directory');
+      assert.ok(stdout.includes('bot [options] [name] [args...]'), 'Should show bot command usage');
+    });
+
     it('play --help includes BNF grammar for structured arguments', () => {
       const { stdout } = cli('play --help');
       assert.ok(stdout.includes('Grammar (BNF)'), 'Should show a BNF appendix');
+      assert.ok(stdout.includes('Stateless game options'), 'Should group stateless play options');
+      assert.ok(stdout.includes('Stateful game options'), 'Should group stateful play options');
+      assert.ok(stdout.includes('Shared play / loop options'), 'Should group shared play options');
       assert.ok(stdout.includes('<points> ::= <number>'), 'Should document GP rate grammar');
       assert.ok(stdout.includes('--auto'), 'Should document explicit automatic random play');
       assert.ok(stdout.includes('<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*'), 'Should document Keno numbers grammar');
@@ -747,6 +795,31 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(bj.stdout.includes('No wallet found'));
     });
 
+    it('routes stateful games through play mode', () => {
+      const bj = cli('play bj 10');
+      const vp = cli('play vp 10');
+      const cashDashPayouts = cli('play dash payouts');
+      const hiLoPayouts = cli('play hilo payouts');
+      const blackjackOption = cli('play --game blackjack --amount 10');
+      const blackjackPositionalAmountFlag = cli('play blackjack --amount 10');
+      const videoPokerAutoBest = cli('play vp 10 --auto best');
+
+      assert.notStrictEqual(bj.code, 0);
+      assert.notStrictEqual(vp.code, 0);
+      assert.strictEqual(cashDashPayouts.code, 0);
+      assert.strictEqual(hiLoPayouts.code, 0);
+      assert.notStrictEqual(blackjackOption.code, 0);
+      assert.notStrictEqual(blackjackPositionalAmountFlag.code, 0);
+      assert.notStrictEqual(videoPokerAutoBest.code, 0);
+      assert.ok(bj.stdout.includes('No wallet found'));
+      assert.ok(vp.stdout.includes('No wallet found'));
+      assert.ok(cashDashPayouts.stdout.includes('Tiles'));
+      assert.ok(hiLoPayouts.stdout.includes('Same'));
+      assert.ok(blackjackOption.stdout.includes('No wallet found'));
+      assert.ok(blackjackPositionalAmountFlag.stdout.includes('No wallet found'));
+      assert.ok(videoPokerAutoBest.stdout.includes('No wallet found'));
+    });
+
     it('rejects removed stateful aliases', () => {
       const hiLo = cli('hi-lo payouts');
       const nebula = cli('game nebula');
@@ -816,6 +889,72 @@ describe('CLI Commands Integration Tests', () => {
       const data = JSON.parse(stdout);
       
       assert.ok('name' in data || 'key' in data, 'Should have game info');
+    });
+  });
+
+  describe('bot command', () => {
+    it('lists discovered bots from the default bot directory', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'sample-bot',
+      });
+
+      const { stdout, code } = cli('bot');
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('Discovered bots:'), 'Should show discovered bots');
+      assert.ok(stdout.includes('sample-bot'), 'Should list the sample bot');
+      assert.ok(stdout.includes('.apechurch-cli/bots'), 'Should mention the default bots directory');
+    });
+
+    it('runs a discovered bot and forwards positional arguments', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'sample-bot',
+      });
+
+      const echoed = cli('bot sample-bot echo hello world');
+      const played = cli('bot sample-bot');
+
+      assert.strictEqual(echoed.code, 0);
+      assert.ok(echoed.stdout.includes('BOT:sample-bot:hello,world'));
+      assert.notStrictEqual(played.code, 0);
+      assert.ok(played.stdout.includes('No wallet found'));
+    });
+
+    it('preserves bot-specific flags after the bot name', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'arg-bot',
+        script: `export default async function ({ args }) {
+  console.log(JSON.stringify(args));
+  return 0;
+}
+`,
+      });
+
+      const { stdout, code } = cli('bot arg-bot --base 10 --stop-loss 50');
+
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('["--base","10","--stop-loss","50"]'));
+    });
+
+    it('prefers APECHURCH_CLI_PLUGINS as the bot base directory', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: PLUGIN_OVERRIDE_ROOT,
+        folderName: 'override-bot',
+      });
+
+      const env = { APECHURCH_CLI_PLUGINS: PLUGIN_OVERRIDE_ROOT };
+      const { stdout, code } = cli('bot --list', { env });
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('override-bot'));
+      assert.ok(stdout.includes('APECHURCH_CLI_PLUGINS='));
+      assert.ok(stdout.includes(path.join(PLUGIN_OVERRIDE_ROOT, 'bots')));
+      assert.ok(!stdout.includes('sample-bot'));
     });
   });
 
