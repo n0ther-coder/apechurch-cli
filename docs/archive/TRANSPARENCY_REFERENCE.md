@@ -367,6 +367,7 @@ The Transparency section explicitly lists these standard actions / rules:
 
 - The Transparency section says the side-bet odds are calculated assuming **independent card draws (with replacement)** for this mode.
 - That assumption matters; do not silently swap in standard finite-deck blackjack odds unless separately documented.
+- Current verification notes confirm the live H17 rule surface: the dealer hits soft 17. See `docs/verification/BLACKJACK_CONTRACT.md` for on-chain examples.
 
 ---
 

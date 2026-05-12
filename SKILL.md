@@ -576,7 +576,7 @@ Lose → bet 10 → Lose → bet 10 → Lose → bet 20 → Lose → bet 30 → 
 
 ## Blackjack ✔︎
 
-Interactive blackjack with optional auto-play.
+Interactive H17 blackjack with optional auto-play. The dealer hits soft 17.
 
 **CLI aliases:** `bj`
 **ABI verified:** `true`
@@ -612,6 +612,7 @@ apechurch-cli blackjack 10   # Prompts for each decision
 `--auto` enables automatic play for decision-heavy hands:
 - Considers your hand value and dealer context
 - Chooses actions such as hit, stand, double, split, insurance, and surrender when available
+- Models the live dealer-hits-soft-17 rule surface
 - Supports loop mode and betting strategies
 
 Use `apechurch-cli help auto` for advanced auto-play modes and pacing controls.

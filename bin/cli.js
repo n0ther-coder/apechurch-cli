@@ -1083,7 +1083,7 @@ function getBlackjackCatalogEntry() {
       fallbackName: 'Blackjack',
     }),
     type: 'stateful',
-    description: 'Classic blackjack with simple and exact-EV auto-play',
+    description: 'Classic H17 blackjack with simple and exact-EV auto-play',
     abiVerified: true,
     contract: BLACKJACK_CONTRACT,
   };
@@ -4768,8 +4768,8 @@ ${'═'.repeat(60)}
   ${blackjack.displayName.toUpperCase()}
 ${'═'.repeat(60)}
 
-  Classic blackjack card game. Play against the dealer, aim for 21.
-  Includes auto-play bot with mathematically optimal basic strategy.
+  Classic H17 blackjack card game. Play against the dealer, aim for 21.
+  Dealer hits soft 17. Includes auto-play bot with H17-aware strategy.
 
   Type:     ${blackjack.type}
   Key:      ${blackjack.key}
@@ -5631,10 +5631,12 @@ ${'─'.repeat(70)}
     • Your hand total (hard/soft)
     • Dealer's up card
     • Available actions (hit, stand, double, split, etc.)
+    • The live dealer-hits-soft-17 rule surface
 
   best: Exact EV solver on the live hand state:
     • Enumerates the remaining deck without replacement
     • Models early surrender, insurance, double, and split
+    • Models the dealer hitting soft 17
     • Optimizes current-hand RTP under the contract's rules
   
   Commands:

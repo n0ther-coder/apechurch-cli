@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
 import { Action } from '../../lib/stateful/blackjack/constants.js';
-import { getBestActionByEV } from '../../lib/stateful/blackjack/solver.js';
+import { getBestActionByEV, getBlackjackActionEVs } from '../../lib/stateful/blackjack/solver.js';
 
 function summarize(values) {
   let total = 0;
@@ -107,6 +107,20 @@ describe('Blackjack EV Solver', () => {
 
     assert.strictEqual(result.action, Action.STAND);
     assert.ok(result.actionValues[Action.STAND] > result.actionValues[Action.INSURANCE]);
+  });
+
+  it('models the dealer as hitting soft 17', () => {
+    const state = makeState({
+      playerHands: [[10, 7]],
+      dealer: [6],
+    });
+
+    const actionValues = getBlackjackActionEVs(state, {
+      allowedActions: [Action.STAND],
+    });
+
+    assert.ok(actionValues[Action.STAND] < 1);
+    assert.ok(actionValues[Action.STAND] > 0.95);
   });
 
   it('splits eights against dealer 6', () => {

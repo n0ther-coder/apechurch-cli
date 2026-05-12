@@ -90,7 +90,7 @@ Treat that `3%` as an operator-friendly midpoint, not as a protocol guarantee or
 
 Two caveats matter:
 
-- `Blackjack ✔︎` main-only is still modeled statistically in this repo rather than as one fully closed-form long-run house edge.
+- `Blackjack ✔︎` main-only is still modeled statistically in this repo rather than as one fully closed-form long-run house edge; the model uses the live H17 rule surface where the dealer hits soft 17.
 - `Cash Dash ✔︎` is policy-dependent because the player can stop after any safe row or continue into deeper rows.
 - `Hi-Lo Nebula ✔︎` is policy-dependent because the player can stop after any successful guess and the jackpot pool is live.
 

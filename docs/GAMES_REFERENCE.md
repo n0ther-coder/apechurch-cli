@@ -199,8 +199,19 @@ Stateful blackjack with interactive actions, optional player-side exposure, and 
 
 **Compare:**
 - RTP references used by the repo: **`100.05%`** main-only model, `79.88%` player-side only, `82.02%` dealer-side only.
+- Dealer rule: live H17; the dealer hits soft 17.
 - Core payouts: natural blackjack `2.5x`, normal win `2.0x`, surrender refund `0.5x`.
 - Operational note: the main game remains a statistical model; the note file now holds the full action-cost and state-layout trail.
+
+**On-chain H17 evidence:**
+
+These recent completed games were read through `getGameInfo(gameId)` on the live Blackjack contract. Each dealer hand reached `6 + A = soft 17` and then drew another card, confirming that the dealer hits soft 17. Use [ApeScan readContract](https://apescan.io/address/0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7#readContract) with the listed game id to reproduce the state.
+
+| Game ID | Completed At (CEST) | Dealer Cards | Evidence |
+|---------|---------------------|--------------|----------|
+| [99510688323277774808189985470574577974425351704928502458537662926535820065335](https://apescan.io/address/0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7#readContract) | `2026-05-12 16:16:24` | `6s, As, 3d` | `6 + A` soft 17, then hit `3` for soft 20 |
+| [77812801484122263968586016604514782848730548159477039383535570773428865502168](https://apescan.io/address/0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7#readContract) | `2026-05-12 05:56:56` | `6c, Ac, Ad` | `6 + A` soft 17, then hit `A` for soft 18 |
+| [3684004821532526616751431729648887116381896381839973536604235964900052479437](https://apescan.io/address/0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7#readContract) | `2026-05-12 05:55:31` | `6d, Ac, 3s` | `6 + A` soft 17, then hit `3` for soft 20 |
 
 ## Blocks ✔︎
 
@@ -691,7 +702,7 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| Main Only | Yes | **`100.05%`** | Statistical main-game model from the repo simulator | `96.84%` |
+| Main Only | Yes | **`100.05%`** | Statistical H17 main-game model from the repo simulator | `96.84%` |
 | Dealer Side Only | Yes | `82.02%` | Exact EV from the published dealer-side conditions | `96.84%` |
 | Side Only | Yes | `79.88%` | Exact EV from the published player-side table | `96.84%` |
 
@@ -876,7 +887,7 @@ For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODD
 
 The local source set is still insufficient for a defensible closed-form RTP on `Cult Quest`, `Reel Pirates`, and `Rico's Revenge`.
 
-For `Blackjack ✔︎`, the main hand still remains a statistical model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables and the public rule surface now matches the repo solver assumptions.
+For `Blackjack ✔︎`, the main hand still remains a statistical H17 model rather than a closed-form proof, while the isolated player-side and dealer-side lanes are recoverable from the published side-bet tables and the public rule surface now matches the repo solver assumptions, including dealer hits soft 17.
 
 For `Cash Dash ✔︎`, the row sizes, row payout table, and state transitions are verified, but whole-run RTP is policy-dependent because the player can cash out after any safe row or intentionally continue into deeper rows.
 

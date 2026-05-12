@@ -191,6 +191,16 @@ The public Blackjack bundle embeds the following rule config:
 - `doubleAfterSplitAllowed: true`
 - `maxHands: 2`
 
+## On-Chain H17 Evidence
+
+The `dealerHitsSoft17: true` bundle rule is also observable on-chain. The following recent completed games were read through `getGameInfo(gameId)` on the live Blackjack contract. In each case the dealer reached `6 + A = soft 17` and then drew another card. Use [ApeScan readContract](https://apescan.io/address/0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7#readContract) with the listed game id to reproduce the state.
+
+| Game ID | Completed At (CEST) | Dealer Cards | Evidence |
+|---------|---------------------|--------------|----------|
+| [99510688323277774808189985470574577974425351704928502458537662926535820065335](https://apescan.io/address/0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7#readContract) | `2026-05-12 16:16:24` | `6s, As, 3d` | `6 + A` soft 17, then hit `3` for soft 20 |
+| [77812801484122263968586016604514782848730548159477039383535570773428865502168](https://apescan.io/address/0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7#readContract) | `2026-05-12 05:56:56` | `6c, Ac, Ad` | `6 + A` soft 17, then hit `A` for soft 18 |
+| [3684004821532526616751431729648887116381896381839973536604235964900052479437](https://apescan.io/address/0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7#readContract) | `2026-05-12 05:55:31` | `6d, Ac, 3s` | `6 + A` soft 17, then hit `3` for soft 20 |
+
 It also publishes the public side-bet tables used by the site:
 
 - Player side:

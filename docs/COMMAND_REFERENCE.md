@@ -669,7 +669,7 @@ Alias: `bj`
                      | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new hand with that amount. `--human` is a supported advanced option but intentionally hidden from standard `--help`.
+If the first positional token is numeric, the command starts a new hand with that amount. Blackjack uses the live H17 rule surface: the dealer hits soft 17, and `--auto simple` / `--auto best` model that rule. `--human` is a supported advanced option but intentionally hidden from standard `--help`.
 
 ### `cash-dash [action] [amount]`
 

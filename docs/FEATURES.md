@@ -50,7 +50,7 @@
 
 ## Automation
 - `--loop` mode for continuous play
-- Stateful card-game auto-play for blackjack and video poker (`Gimboz Poker` in Ape Church naming)
+- Stateful card-game auto-play for H17 blackjack, where the dealer hits soft 17, and video poker (`Gimboz Poker` in Ape Church naming)
 - Pause/Resume autonomous play
 - Strategy-based wager sizing
 - Session tracking (wins, losses, PnL, streaks)

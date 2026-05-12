@@ -38,7 +38,7 @@ These notes belong under `docs/analytics/` only when the repo already has a defe
 
 | Game | Reason |
 |------|--------|
-| Blackjack ✔︎ | The main hand is still modeled statistically in this repo, not proven with a closed-form exact distribution. Side bets could get their own note later, but not a single "full game" analytics note. |
+| Blackjack ✔︎ | The main hand is still modeled statistically in this repo under the live H17 rule surface where the dealer hits soft 17, not proven with a closed-form exact distribution. Side bets could get their own note later, but not a single "full game" analytics note. |
 
 ## Selection Rule
 

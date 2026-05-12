@@ -272,7 +272,7 @@ Coverage and limits:
 | Bear-A-Dice ✔︎ | `play bear-dice 10` | `bear`, `dice` | Avoid unlucky numbers |
 | Blocks ✔︎ | `play blocks 10 1 5` | - | 3x3 cluster board with consecutive all-or-nothing rolls |
 | Primes ✔︎ | `play primes 10 0 20` | - | Prime-or-zero number draws with batched runs |
-| Blackjack ✔︎ | `blackjack 25 --side 1 --auto` | `bj` | Card game with auto-play and optional player side bet |
+| Blackjack ✔︎ | `blackjack 25 --side 1 --auto` | `bj` | H17 card game with auto-play and optional player side bet |
 | Video Poker ✔︎ / Gimboz Poker | `video-poker 10 --auto` | `vp` | Jacks or Better with auto-play and solver tools |
 
 ## Argument Grammar (BNF)
@@ -392,6 +392,7 @@ apechurch-cli cash-dash 10              # Prompts for the opening tile
 
 - `--auto` enables automatic play for stateful games
 - stateful games can be routed through `play`, which is the intended surface for private bot automation
+- blackjack follows the live H17 rule surface: the dealer hits soft 17, and auto-play / estimates model that rule
 - `blackjack --side <ape>` adds a player side bet to the opening deal without changing the in-hand EV solver
 - `cash-dash` shows the opening row and prompts for the first tile when `--tile` is omitted in manual mode
 - `cash-dash --cashout-after <rows>` lets auto-play target deeper rows before cashing out

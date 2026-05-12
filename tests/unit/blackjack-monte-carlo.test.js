@@ -40,6 +40,18 @@ describe('Blackjack Monte Carlo Estimate', () => {
     assert.equal(result.netDeltaApe, -5.4);
   });
 
+  it('has the dealer hit soft 17', () => {
+    const result = simulateBlackjackGameNetDeltaApe({
+      mainBetApe: 10,
+      availableApe: 100,
+      rng: () => 0,
+      deckValues: [10, 7, 6, 11, 3],
+    });
+
+    assert.equal(result.terminal, false);
+    assert.equal(result.netDeltaApe, -10);
+  });
+
   it('stops the session if a started hand cannot afford any further action', () => {
     const result = simulateBlackjackGameNetDeltaApe({
       mainBetApe: 25,
