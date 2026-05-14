@@ -70,6 +70,30 @@ apechurch-cli bot my-bot dry-run
 apechurch-cli bot --list
 ```
 
+## Standard Bot Output
+
+Bot implementations are private. This repository contains only the loader and shared helper surface. Bots that make one or more `apechurch-cli play ...` calls should use the `session` helper object passed in the bot runtime context, or the equivalent helpers exported from `lib/bots/session.js` when developing inside this repo.
+
+Every bot should accept:
+
+- `--json`: print one parseable JSON payload on stdout. Include each nested `play --json` payload under the corresponding game entry. When calling another bot, call it with `--json` and embed that payload under a `fallback` or similarly named object.
+- `--fallback-loss <ape>` and `--fallback-bot <name>`: these must be specified together. If the current bot's total P&L is negative and `abs(P&L) >= <ape>`, call `<name>` with initial amount `<ape>`.
+
+Human-readable bot output should use this four-line per-game shape:
+
+```text
+# balance: <balance>, win_rate: <won>/<tot>, payout_ape: <total payouts>, wager_ape: <total wagered>, pnl: <pnl>
+apechurch-cli play <game> ...
+# game_n: <n>, status: <status>, bet: <bet>, payout: <payout>, multiply: <payout/bet>
+
+```
+
+After the final game, print the balance line one more time. Use dim white keys, yellow commands, bright green positive P&L, bright red negative P&L, and magenta bet values. The shared formatter functions already implement those colors.
+
+Use `session.formatCommandLine(tokens)` for the command line and `playJson(tokens)` for individual gameplay calls so the bot can parse the exact payload that `apechurch-cli play ... --json` would return. The bot runtime forces win chimes for nested JSON gameplay calls, so wins still make the same sound a direct human command would make.
+
+Do not commit private bot strategy, wager-sizing logic, or bot-specific tests to this repository. Keep private bot implementations in the external bots directory and test them in their private workspace.
+
 ## Execution Boundary
 
 Bot plugins should be routed through the `play` surface only. The public CLI now supports the stateful games through `play` as well as their direct commands:
@@ -95,6 +119,9 @@ The runtime context passed to a bot is intentionally narrow:
 - `args`: positional arguments passed after the bot name
 - `play(tokens)`: reruns the public `apechurch-cli play ...` surface
 - `playJson(tokens)`: reruns `apechurch-cli play ... --json` and returns the parsed response
+- `botRun(name, tokens)`: reruns another bot with human-readable output
+- `botJson(name, tokens)`: reruns another bot with `--json` and returns the parsed response
+- `session`: shared output, command-line rendering, parsing, P&L, color, and fallback helpers for private bots
 - `bot`: manifest metadata such as `command`, `name`, and filesystem paths
 
 ## Important Security Note

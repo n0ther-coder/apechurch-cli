@@ -7,6 +7,7 @@ import {
   getWinChimeNotes,
   getWinChimeIntervals,
 } from '../../lib/chime.js';
+import { FORCE_CHIME_ENV_VAR } from '../../lib/constants.js';
 
 describe('Win Chime', () => {
   it('rounds payout multipliers up from wei values', () => {
@@ -33,7 +34,24 @@ describe('Win Chime', () => {
   });
 
   it('disables the chime only in json mode', () => {
-    assert.strictEqual(canEmitWinChime({}), true);
-    assert.strictEqual(canEmitWinChime({ isJson: true }), false);
+    const previous = process.env[FORCE_CHIME_ENV_VAR];
+    delete process.env[FORCE_CHIME_ENV_VAR];
+    try {
+      assert.strictEqual(canEmitWinChime({}), true);
+      assert.strictEqual(canEmitWinChime({ isJson: true }), false);
+    } finally {
+      if (previous !== undefined) process.env[FORCE_CHIME_ENV_VAR] = previous;
+    }
+  });
+
+  it('allows bots to force chimes for nested json plays', () => {
+    const previous = process.env[FORCE_CHIME_ENV_VAR];
+    process.env[FORCE_CHIME_ENV_VAR] = '1';
+    try {
+      assert.strictEqual(canEmitWinChime({ isJson: true }), true);
+    } finally {
+      if (previous === undefined) delete process.env[FORCE_CHIME_ENV_VAR];
+      else process.env[FORCE_CHIME_ENV_VAR] = previous;
+    }
   });
 });

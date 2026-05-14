@@ -154,6 +154,23 @@ function cli(args, options = {}) {
   }
 }
 
+function cliRaw(args, options = {}) {
+  const optionEnv = options.env || {};
+  const env = {
+    ...process.env,
+    ...optionEnv,
+    HOME: optionEnv.HOME || NO_WALLET_HOME,
+    FORCE_COLOR: '0',
+  };
+
+  return execSync(`node ${CLI_PATH} ${args} 2>&1`, {
+    encoding: 'utf8',
+    timeout: options.timeout || 30000,
+    ...options,
+    env,
+  });
+}
+
 setupNoWalletHome();
 
 describe('CLI Commands Integration Tests', () => {
@@ -162,6 +179,36 @@ describe('CLI Commands Integration Tests', () => {
     it('--version shows version number', () => {
       const { stdout } = cli('--version');
       assert.ok(/\d+\.\d+\.\d+/.test(stdout), 'Should show semver version');
+      assert.ok(/\(\d{14} [0-9a-f]{7,}\)/i.test(stdout), 'Should show commit timestamp and abbreviated commit hash');
+    });
+
+    it('--version --json shows version metadata', () => {
+      const { stdout } = cli('--version --json');
+      const parsed = JSON.parse(stdout);
+
+      assert.ok(/\d+\.\d+\.\d+/.test(parsed.version), 'Should include semver version');
+      assert.ok(/^\d{14}$/.test(parsed.timestamp_utc), 'Should include UTC commit timestamp');
+      assert.ok(/^[0-9a-f]{7,}$/i.test(parsed.commit_id), 'Should include abbreviated commit hash');
+    });
+
+    it('--json alone shows version metadata', () => {
+      const { stdout } = cli('--json');
+      const parsed = JSON.parse(stdout);
+
+      assert.ok(/\d+\.\d+\.\d+/.test(parsed.version), 'Should include semver version');
+      assert.ok(/^\d{14}$/.test(parsed.timestamp_utc), 'Should include UTC commit timestamp');
+      assert.ok(/^[0-9a-f]{7,}$/i.test(parsed.commit_id), 'Should include abbreviated commit hash');
+    });
+
+    it('command --json output includes version metadata without banner', () => {
+      const stdout = cliRaw('games --json');
+      const parsed = JSON.parse(stdout);
+
+      assert.ok(!stdout.startsWith('apechurch-cli v'), 'Should not print the invocation banner in JSON mode');
+      assert.ok(/\d+\.\d+\.\d+/.test(parsed.version), 'Should include semver version');
+      assert.ok(/^\d{14}$/.test(parsed.timestamp_utc), 'Should include UTC commit timestamp');
+      assert.ok(/^[0-9a-f]{7,}$/i.test(parsed.commit_id), 'Should include abbreviated commit hash');
+      assert.ok(Array.isArray(parsed.games), 'Should preserve the command payload');
     });
 
     it('--help shows usage', () => {
@@ -908,6 +955,21 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('.apechurch-cli/bots'), 'Should mention the default bots directory');
     });
 
+    it('does not load external bot code while running unrelated commands', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'broken-bot',
+        script: 'export default function broken( {',
+      });
+
+      const { stdout, code } = cli('games --json');
+      const payload = JSON.parse(stdout);
+
+      assert.strictEqual(code, 0);
+      assert.ok(Array.isArray(payload.games), 'Should run the normal CLI command');
+    });
+
     it('runs a discovered bot and forwards positional arguments', () => {
       resetBotFixtures();
       writeBotFixture({
@@ -965,6 +1027,71 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(code, 0);
       assert.strictEqual(payload.code, 1);
       assert.ok(payload.message.includes('No wallet found'));
+    });
+
+    it('exposes shared session helpers to external bots', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'session-bot',
+        script: `export default async function ({ session }) {
+  const parsed = session.parseStandardBotArgs(['--json', '--fallback-loss', '2', '--fallback-bot', 'next-bot', 'private']);
+  console.log(JSON.stringify({
+    json: parsed.json,
+    fallbackLoss: parsed.fallbackLoss,
+    fallbackBot: parsed.fallbackBot,
+    remainingArgs: parsed.remainingArgs,
+    line: session.formatAfterGameLine({
+      gameNumber: 1,
+      status: 'complete',
+      wagerWei: session.parseApeToWei('2'),
+      payoutWei: session.parseApeToWei('5'),
+    }),
+  }));
+  return 0;
+}
+`,
+      });
+
+      const { stdout, code } = cli('bot session-bot');
+      const payload = JSON.parse(stdout.trim());
+
+      assert.strictEqual(code, 0);
+      assert.strictEqual(payload.json, true);
+      assert.strictEqual(payload.fallbackLoss, '2');
+      assert.strictEqual(payload.fallbackBot, 'next-bot');
+      assert.deepStrictEqual(payload.remainingArgs, ['private']);
+      assert.strictEqual(payload.line, '# game_n: 1, status: complete, bet: 2, payout: 5, multiply: 2.5');
+    });
+
+    it('exposes a botJson helper for nested bot responses', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'child-bot',
+        script: `export default async function ({ args, bot }) {
+  console.log(JSON.stringify({ bot: bot.command, args }));
+  return 0;
+}
+`,
+      });
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'parent-bot',
+        script: `export default async function ({ botJson }) {
+  const payload = await botJson('child-bot', ['3']);
+  console.log(JSON.stringify(payload));
+  return 0;
+}
+`,
+      });
+
+      const { stdout, code } = cli('bot parent-bot');
+      const payload = JSON.parse(stdout.trim());
+
+      assert.strictEqual(code, 0);
+      assert.strictEqual(payload.bot, 'child-bot');
+      assert.deepStrictEqual(payload.args, ['3', '--json']);
     });
 
     it('prefers APECHURCH_CLI_PLUGINS as the bot base directory', () => {

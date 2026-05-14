@@ -64,6 +64,7 @@
  * @see {@link https://docs.ape.church} - Documentation
  */
 import { Command, Option } from 'commander';
+import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -72,6 +73,7 @@ import updateNotifier from 'update-notifier';
 // Check for updates (async, non-blocking, cached for 1 day)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const repoRoot = path.join(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
 const shouldShowUpdateNotifier = process.stdout.isTTY && process.stderr.isTTY && !process.argv.includes('--json');
 const notifier = shouldShowUpdateNotifier
@@ -280,15 +282,20 @@ import {
 // --- CLI Setup ---
 const program = new Command();
 const PACKAGE_VERSION = pkg.version || '0.0.0';
+const VERSION_METADATA = Object.freeze({
+  version: PACKAGE_VERSION,
+  ...readVersionGitMetadata(),
+});
+const VERSION_DISPLAY = formatVersionDisplay(VERSION_METADATA);
 
-program.name(BINARY_NAME).version(PACKAGE_VERSION, '-v, --version', 'output the current version');
+program.name(BINARY_NAME).version(VERSION_DISPLAY, '-v, --version', 'output the current version');
 const GAME_LIST = listGames().join(' | ');
 const cliPath = path.join(__dirname, 'cli.js');
 const discoveredBots = discoverBotDefinitions();
 const BOT_HELP_EXAMPLES = Object.freeze([
   `${BINARY_NAME} bot`,
-  `${BINARY_NAME} bot martingale-recovery`,
-  `${BINARY_NAME} bot martingale-recovery --base 10 --stop-loss 50`,
+  `${BINARY_NAME} bot my-bot`,
+  `${BINARY_NAME} bot my-bot --max-games 10 --json`,
 ]);
 const GAME_TITLE_COLLATOR = new Intl.Collator('en', {
   sensitivity: 'base',
@@ -371,11 +378,121 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--json                  Emit JSON output only',
 ]);
 
+function formatUtcTimestamp(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, '0'),
+    String(date.getUTCDate()).padStart(2, '0'),
+    String(date.getUTCHours()).padStart(2, '0'),
+    String(date.getUTCMinutes()).padStart(2, '0'),
+    String(date.getUTCSeconds()).padStart(2, '0'),
+  ].join('');
+}
+
+function readVersionGitMetadata() {
+  try {
+    const output = execFileSync('git', ['-C', repoRoot, 'log', '-1', '--format=%cI%n%h'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    const [commitIsoDate, commitId] = output.split(/\r?\n/);
+
+    return {
+      timestamp_utc: formatUtcTimestamp(new Date(commitIsoDate)),
+      commit_id: commitId || null,
+    };
+  } catch {
+    return {
+      timestamp_utc: null,
+      commit_id: null,
+    };
+  }
+}
+
+function formatVersionDisplay(metadata) {
+  const details = [metadata.timestamp_utc, metadata.commit_id].filter(Boolean).join(' ');
+  return details ? `${metadata.version} (${details})` : metadata.version;
+}
+
+function withVersionMetadata(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return {
+      ...VERSION_METADATA,
+      ...value,
+      version: VERSION_METADATA.version,
+      timestamp_utc: VERSION_METADATA.timestamp_utc,
+      commit_id: VERSION_METADATA.commit_id,
+    };
+  }
+
+  return {
+    ...VERSION_METADATA,
+    data: value,
+  };
+}
+
+function enrichJsonLine(text) {
+  const trimmed = String(text ?? '').trim();
+  if (!trimmed || (trimmed[0] !== '{' && trimmed[0] !== '[')) {
+    return text;
+  }
+
+  try {
+    return JSON.stringify(withVersionMetadata(JSON.parse(trimmed)));
+  } catch {
+    return text;
+  }
+}
+
+function installJsonMetadataConsoleHooks() {
+  if (!process.argv.includes('--json')) {
+    return;
+  }
+
+  const writeJsonMetadataLine = (original) => (...args) => {
+    if (args.length === 1 && typeof args[0] === 'string') {
+      return original(enrichJsonLine(args[0]));
+    }
+
+    return original(...args);
+  };
+
+  console.log = writeJsonMetadataLine(console.log.bind(console));
+  console.error = writeJsonMetadataLine(console.error.bind(console));
+}
+
+function isVersionArg(arg) {
+  return arg === '--version' || arg === '-v';
+}
+
+function getTopLevelVersionArgs(argv = process.argv) {
+  const args = argv.slice(2);
+  const firstCommandArg = args.find((arg) => arg !== '--json');
+  const isVersionRequest = isVersionArg(firstCommandArg);
+  const isMetadataJsonRequest = args.includes('--json') && (!firstCommandArg || isVersionRequest);
+
+  return {
+    isVersionRequest,
+    isJson: isMetadataJsonRequest,
+  };
+}
+
+function printVersionJson() {
+  console.log(JSON.stringify(withVersionMetadata({})));
+}
+
 function printInvocationVersion() {
   if (process.env[SUPPRESS_VERSION_BANNER_ENV_VAR] === '1') {
     return;
   }
-  console.error(`${BINARY_NAME} v${PACKAGE_VERSION}`);
+  if (process.argv.includes('--json')) {
+    return;
+  }
+  console.error(`${BINARY_NAME} v${VERSION_DISPLAY}`);
 }
 
 function formatHelpBnfSection(lines = []) {
@@ -6870,7 +6987,16 @@ program
 // ============================================================================
 // PARSE
 // ============================================================================
-printInvocationVersion();
+const topLevelVersionArgs = getTopLevelVersionArgs();
+installJsonMetadataConsoleHooks();
+if (topLevelVersionArgs.isJson) {
+  printVersionJson();
+  process.exit(0);
+}
+
+if (!topLevelVersionArgs.isVersionRequest) {
+  printInvocationVersion();
+}
 await program.parseAsync(process.argv);
 
 // Show update notification if available (after command completes)
