@@ -189,18 +189,20 @@ All-or-nothing compounded `2d6` survival game. You pick a risk level and `1-5` r
 
 Stateful blackjack with interactive actions, optional player-side exposure, and `--auto` support. This repo's promoted surface is based on the public production ABI, not an explorer-verified Solidity source. See [SKILL.md](../SKILL.md#blackjack-) for the user-facing action flow.
 
-**Command:** `apechurch-cli blackjack <amount> [--side <ape>] [--auto [simple|best]]`
+**Command:** `apechurch-cli blackjack <amount> [--side <ape>] [--auto [simple|best]] [--solver-max-states <n>]`
 
 ```bnf
 <amount> ::= <ape>
 <side> ::= <number>                ; decimal APE amount; value >= 0
 <auto-mode> ::= "simple" | "best"
+<solver-max-states> ::= <integer>  ; positive exact-EV search cap; default 50000
 ```
 
 **Compare:**
 - RTP references used by the repo: **`100.05%`** main-only model, `79.88%` player-side only, `82.02%` dealer-side only.
 - Dealer rule: live H17; the dealer hits soft 17.
 - Core payouts: natural blackjack `2.5x`, normal win `2.0x`, surrender refund `0.5x`.
+- `--solver-max-states` applies only to `--auto best`: it caps recursive player-state exploration to avoid long CPU stalls; raise it if branchy hands fall back to simple mode, or lower it to bound runtime.
 - Operational note: the main game remains a statistical model; the note file now holds the full action-cost and state-layout trail.
 
 **On-chain H17 evidence:**

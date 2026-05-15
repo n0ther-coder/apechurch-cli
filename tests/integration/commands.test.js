@@ -288,6 +288,7 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout } = cli('blackjack --help');
       assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
       assert.ok(stdout.includes('--side <ape>'), 'Should show player side bet option');
+      assert.ok(stdout.includes('--solver-max-states <n>'), 'Should show blackjack solver state cap option');
       assert.ok(stdout.includes('--take-profit <ape>'), 'Should show take-profit stop option');
       assert.ok(stdout.includes('--min-profit <ape>'), 'Should show min-profit stop option');
       assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
@@ -319,6 +320,7 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout } = cli('play --help');
       assert.ok(stdout.includes('--loop'), 'Should still show loop option');
       assert.ok(stdout.includes('--delay <seconds>'), 'Should still show delay option');
+      assert.ok(stdout.includes('--solver-max-states <n>'), 'Should show blackjack solver state cap option');
       assert.ok(stdout.includes('--take-profit <ape>'), 'Should show take-profit stop option');
       assert.ok(stdout.includes('--min-profit <ape>'), 'Should show min-profit stop option');
       assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
@@ -333,6 +335,7 @@ describe('CLI Commands Integration Tests', () => {
     it('help auto still shows advanced examples', () => {
       const { stdout } = cli('help auto');
       assert.ok(stdout.includes('--auto best'), 'Should keep best-mode examples in helper text');
+      assert.ok(stdout.includes('--solver-max-states'), 'Should document the blackjack best-EV state cap');
       assert.ok(stdout.includes('--human'), 'Should keep humanized pacing example in helper text');
       assert.ok(stdout.includes('play roulette 10 RED --loop --human'), 'Should document humanized pacing for simple games');
     });

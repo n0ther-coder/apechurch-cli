@@ -317,6 +317,7 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<rolls> ::= <integer>                              ; 1 <= value <= 5',
   '<uint256> ::= <integer> | "0x" <hex>               ; expert override for gameData gameId',
   '<bytes32> ::= "0x" <64-hex-chars>                  ; expert override for gameData userRandomWord',
+  '<solver-states> ::= <integer>                      ; blackjack best-EV search state cap; default 50000',
   '<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*',
   '<keno-number> ::= <integer>                        ; 1 <= value <= 40',
   '<speed-keno-numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*',
@@ -352,6 +353,7 @@ const PLAY_STATEFUL_OPTION_LINES = Object.freeze([
   '--game-id <id>          Stateful unfinished-game id for resume/action',
   '--display <mode>        Stateful display mode: full, simple, json',
   '--side <ape>            Blackjack player side bet',
+  '--solver-max-states <n> Blackjack best-EV search state cap (default 50000)',
   '--solver                Solver suggestions for supported stateful games',
   '--tile <tile>           Cash Dash opening tile: 1-7 or random',
   '--cashout-after <rows>  Cash Dash auto-play cashout depth',
@@ -3058,6 +3060,7 @@ program
   .option('--game-id <id>', 'Stateful game ID for resume/action when using play <stateful-game>')
   .option('--display <mode>', 'Stateful display mode: full, simple, json')
   .option('--side <ape>', 'Blackjack player side bet amount')
+  .option('--solver-max-states <n>', 'Blackjack best-EV search state cap (default 50000)')
   .option('--solver', 'Show solver suggestions in supported stateful games')
   .option('--tile <tile>', 'Cash Dash opening tile: 1-7 or random')
   .option('--cashout-after <rows>', 'Cash Dash auto-play cashes out after N safe rows')
@@ -3113,6 +3116,7 @@ program
       '--game-id',
       '--display',
       '--side',
+      '--solver-max-states',
       '--solver',
       '--tile',
       '--cashout-after',
@@ -4920,6 +4924,9 @@ ${'─'.repeat(60)}
 
   --auto [mode]   Auto-play the hand
   --side <ape>    Player side bet amount
+  --solver-max-states <n>
+                 Best-EV search state cap; default 50000. Raise only if
+                 complex hands hit the fallback warning; lower to bound CPU.
   --loop          Keep playing until balance runs out
   --take-profit <ape>  Stop when balance reaches this amount
   --min-profit <ape>  Stop when session P&L reaches this profit
@@ -4938,6 +4945,7 @@ ${'─'.repeat(60)}
   <amount> ::= <ape>
   <ape> ::= <number>            ; decimal APE amount; value > 0
   <side> ::= <number>           ; decimal APE amount; value >= 0
+  <solver-states> ::= <integer> ; positive best-EV search state cap; default 50000
   <auto-mode> ::= "simple" | "best"
 
 ${'─'.repeat(60)}
@@ -4959,6 +4967,8 @@ ${'─'.repeat(60)}
   ${BINARY_NAME} blackjack 25 --side 1          Add 1 APE player side bet
   ${BINARY_NAME} blackjack 25 --auto            Bot plays one hand
   ${BINARY_NAME} blackjack 25 --auto best       Exact EV solver
+  ${BINARY_NAME} blackjack 25 --auto best --solver-max-states 100000
+                                           Give complex exact-EV branches more CPU budget
   ${BINARY_NAME} blackjack 25 --auto --loop     Bot grinds until broke
   ${BINARY_NAME} blackjack 10 --auto --loop --take-profit 500
                                            Bot plays until 500 APE balance
@@ -5767,10 +5777,13 @@ ${'─'.repeat(70)}
     • Models early surrender, insurance, double, and split
     • Models the dealer hitting soft 17
     • Optimizes current-hand RTP under the contract's rules
+    • Uses --solver-max-states to cap recursive search states
+      (default 50000; raise for complex hands that fall back, lower to limit CPU)
   
   Commands:
     ${BINARY_NAME} blackjack 10 --auto              # One hand, auto-play
     ${BINARY_NAME} blackjack 10 --auto best         # Exact EV solver
+    ${BINARY_NAME} blackjack 10 --auto best --solver-max-states 100000
     ${BINARY_NAME} blackjack 10 --auto --loop       # Continuous auto-play
     ${BINARY_NAME} blackjack 25 --side 1 --auto     # Auto-play with player side bet
   
@@ -6873,6 +6886,7 @@ program
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--auto [mode]', 'Auto-play the hand')
   .option('--side <ape>', 'Player side bet amount')
+  .option('--solver-max-states <n>', 'Best-EV search state cap for --auto best (default 50000)')
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')

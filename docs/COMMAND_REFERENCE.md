@@ -373,6 +373,7 @@ Notes:
                          | "--game-id" <game-id>
                          | "--display" <display>
                          | "--side" <ape>
+                         | "--solver-max-states" <count>
                          | "--solver"
                          | "--tile" <token>
                          | "--cashout-after" <count>
@@ -439,6 +440,7 @@ These options apply only to `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video
 | `--game-id <id>` | Stateful unfinished-game id for resume/action when using `play <stateful-game>` |
 | `--display <mode>` | Stateful display mode |
 | `--side <ape>` | Blackjack player side bet |
+| `--solver-max-states <n>` | Blackjack `--auto best` recursive search state cap; default `50000`, used to prevent long CPU stalls while allowing larger caps for complex hands |
 | `--solver` | Show solver suggestions in supported stateful games |
 | `--tile <tile>` | Cash Dash opening tile |
 | `--cashout-after <rows>` | Cash Dash auto-play cashout depth |
@@ -653,6 +655,7 @@ Alias: `bj`
                      | "--verbose"
                      | "--auto" [ <auto-mode> ]
                      | "--side" <ape-nonnegative>
+                     | "--solver-max-states" <count>
                      | "--delay" <seconds>
                      | "--human"
                      | "--loop"
@@ -671,7 +674,7 @@ Alias: `bj`
                      | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new hand with that amount. Blackjack uses the live H17 rule surface: the dealer hits soft 17, and `--auto simple` / `--auto best` model that rule. `--human` is a supported advanced option but intentionally hidden from standard `--help`.
+If the first positional token is numeric, the command starts a new hand with that amount. Blackjack uses the live H17 rule surface: the dealer hits soft 17, and `--auto simple` / `--auto best` model that rule. `--solver-max-states <n>` applies to `--auto best`; its default is `50000` recursive player states, which keeps exact-EV search from stalling the CLI, and it can be raised for unusually complex hands that otherwise fall back to simple mode. `--human` is a supported advanced option but intentionally hidden from standard `--help`.
 
 ### `cash-dash [action] [amount]`
 

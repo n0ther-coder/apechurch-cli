@@ -585,6 +585,8 @@ Interactive H17 blackjack with optional auto-play. The dealer hits soft 17.
 
 ```bash
 apechurch-cli blackjack 10 --auto              # Single game, simple auto-play
+apechurch-cli blackjack 10 --auto best         # Single game, exact-EV auto-play
+apechurch-cli blackjack 10 --auto best --solver-max-states 100000
 apechurch-cli blackjack 10 --auto --loop       # Continuous auto-play
 apechurch-cli blackjack 10 --auto --loop --max-games 20 --bet-strategy martingale
 apechurch-cli bj 10 --auto --loop --max-games 20 # Using alias
@@ -614,6 +616,11 @@ apechurch-cli blackjack 10   # Prompts for each decision
 - Chooses actions such as hit, stand, double, split, insurance, and surrender when available
 - Models the live dealer-hits-soft-17 rule surface
 - Supports loop mode and betting strategies
+
+`--auto best` uses an exact-EV search capped by `--solver-max-states <n>`.
+The default is `50000` recursive player states; the cap is there to prevent long
+CPU stalls on highly branchy hands. Raise it when a complex hand falls back to
+simple mode, or lower it when you prefer a tighter runtime bound.
 
 Use `apechurch-cli help auto` for advanced auto-play modes and pacing controls.
 

@@ -394,6 +394,7 @@ apechurch-cli cash-dash 10              # Prompts for the opening tile
 - stateful games can be routed through `play`, which is the intended surface for private bot automation
 - blackjack follows the live H17 rule surface: the dealer hits soft 17, and auto-play / estimates model that rule
 - `blackjack --side <ape>` adds a player side bet to the opening deal without changing the in-hand EV solver
+- `blackjack --auto best --solver-max-states <n>` controls the exact-EV search cap; default is `50000` states, which prevents long CPU stalls, while higher values can avoid fallback on unusually branchy hands
 - `cash-dash` shows the opening row and prompts for the first tile when `--tile` is omitted in manual mode
 - `cash-dash --cashout-after <rows>` lets auto-play target deeper rows before cashing out
 - `video-poker --solver` shows the same best-EV hold suggestion in interactive mode
@@ -410,11 +411,11 @@ apechurch-cli play --auto                        # Auto-select random stateless 
 apechurch-cli play [game] [amount] [config...]  # Play a specific stateless game
 
 # Stateful games
-apechurch-cli play blackjack <amount> [--auto [simple|best]]
+apechurch-cli play blackjack <amount> [--auto [simple|best]] [--solver-max-states <n>]
 apechurch-cli play cash-dash <amount> [--auto [simple|best]]
 apechurch-cli cash-dash <amount> [--auto [simple|best]]  # Cash Dash (aliases: cashdash, dash)
 apechurch-cli hi-lo-nebula <amount> [--auto [simple|best]]  # Hi-Lo Nebula (aliases: hilonebula, hilo)
-apechurch-cli blackjack <amount> [--auto] [--side <ape>]  # Blackjack (alias: bj)
+apechurch-cli blackjack <amount> [--auto] [--side <ape>] [--solver-max-states <n>]  # Blackjack (alias: bj)
 apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker (alias: vp)
 
 # Shared helpers
