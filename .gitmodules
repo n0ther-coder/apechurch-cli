@@ -1,0 +1,3 @@
+[submodule "bots"]
+	path = bots
+	url = git@github.com:n0ther-coder/apechurch-cli-bots.git
