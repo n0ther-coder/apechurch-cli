@@ -68,6 +68,7 @@ Run it with:
 apechurch-cli bot my-bot
 apechurch-cli bot my-bot dry-run
 apechurch-cli bot --list
+apechurch-cli bot my-bot -h
 ```
 
 ## Standard Bot Output
@@ -76,6 +77,7 @@ Bot implementations are private. This repository contains only the loader and sh
 
 Every bot should accept:
 
+- `-h, --help`: print the bot's own usage, options, purpose, and operating model. `apechurch-cli bot --help` is reserved for the shared bot loader; `apechurch-cli bot <name> -h` and `apechurch-cli bot <name> --help` are the standard forms for bot-specific help.
 - `--json`: print one parseable JSON payload on stdout. Include each nested `play --json` payload under the corresponding game entry. When calling another bot, call it with `--json` and embed that payload under a `fallback` or similarly named object.
 - `--fallback-loss <ape>` and `--fallback-bot <name>`: these must be specified together. If the current bot's total P&L is negative and `abs(P&L) >= <ape>`, call `<name>` with initial amount `<ape>`.
 

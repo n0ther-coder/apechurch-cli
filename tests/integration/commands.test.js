@@ -1004,6 +1004,24 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('["--base","10","--stop-loss","50"]'));
     });
 
+    it('forwards bot-specific help flags after the bot name', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'help-bot',
+        script: `export default async function ({ args }) {
+  console.log(JSON.stringify(args));
+  return 0;
+}
+`,
+      });
+
+      const { stdout, code } = cli('bot help-bot --help');
+
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('["--help"]'));
+    });
+
     it('exposes a playJson helper for parsed play responses', () => {
       resetBotFixtures();
       writeBotFixture({

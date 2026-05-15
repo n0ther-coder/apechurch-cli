@@ -4187,10 +4187,12 @@ program
 // ============================================================================
 // COMMAND: BOT (Private bot loader)
 // ============================================================================
-program
+const botCommand = program
   .command('bot [name] [args...]')
   .description('Run a private bot from the external bots directory')
   .allowUnknownOption(true)
+  .helpOption(false)
+  .option('-h, --help', 'Show bot loader help, or pass help through to a named bot')
   .option('--list', 'List discovered bots')
   .addHelpText('after', `
 Examples:
@@ -4199,6 +4201,11 @@ Examples:
 ${formatBotDirectoryNotice()}
 `)
   .action(async (name, args, opts) => {
+    if (opts.help && !name) {
+      botCommand.outputHelp();
+      return;
+    }
+
     if (opts.list || !name) {
       printBotList();
       return;
@@ -4213,9 +4220,14 @@ ${formatBotDirectoryNotice()}
     }
 
     try {
+      const rawArgs = Array.isArray(args) ? [...args] : [];
+      if (opts.help) {
+        rawArgs.push('--help');
+      }
+
       const exitCode = await runBot(bot, {
         cliPath,
-        rawArgs: Array.isArray(args) ? args : [],
+        rawArgs,
       });
       if (exitCode !== 0) {
         process.exitCode = exitCode;
