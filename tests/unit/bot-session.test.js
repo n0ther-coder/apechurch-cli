@@ -10,10 +10,13 @@ import {
   formatAfterGameLine,
   formatBeforeGameLine,
   formatCommandLine,
+  getStandardBotCliForwardTokens,
+  getStandardBotLoopCondition,
   getPlayStatus,
   getSettledPlayEconomics,
   parseApeToWei,
   parseStandardBotArgs,
+  prepareStandardBotLoopRuntime,
   shouldTriggerFallback,
 } from '../../lib/bots/session.js';
 
@@ -32,6 +35,99 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(parsed.fallbackLoss, '25');
     assert.strictEqual(parsed.fallbackBot, 'fallback-bot');
     assert.deepStrictEqual(parsed.remainingArgs, ['--private-mode', 'x']);
+  });
+
+  it('parses standard bot loop controls separately from private args', () => {
+    const parsed = parseStandardBotArgs([
+      '--take-profit=12',
+      '--min-profit',
+      '5',
+      '--recover-loss',
+      '3',
+      '--giveback-profit=4',
+      '--stop-loss',
+      '8',
+      '--max-loss=9',
+      '--max-games',
+      '2',
+      '--gp-ape',
+      '7.5',
+      '--human',
+      '--delay=6',
+      '--private-mode',
+    ]);
+
+    assert.deepStrictEqual(parsed.loopControls, {
+      takeProfit: '12',
+      minProfit: '5',
+      recoverLoss: '3',
+      givebackProfit: '4',
+      stopLoss: '8',
+      maxLoss: '9',
+      maxGames: '2',
+      gpApe: '7.5',
+      human: true,
+      delay: '6',
+    });
+    assert.deepStrictEqual(parsed.remainingArgs, ['--private-mode']);
+
+    assert.strictEqual(parseStandardBotArgs(['--delay=0']).loopControls.delay, '0');
+  });
+
+  it('derives CLI wallet guards from bot gross P&L controls', async () => {
+    const parsed = parseStandardBotArgs([
+      '--min-profit',
+      '5',
+      '--max-loss',
+      '8',
+      '--gp-ape',
+      '7.5',
+      '--human',
+      '--delay',
+      '6',
+    ]);
+    const runtime = await prepareStandardBotLoopRuntime({
+      loopControls: parsed.loopControls,
+      getBalanceApe: async () => 100,
+      dryRun: false,
+    });
+
+    assert.deepStrictEqual(
+      getStandardBotCliForwardTokens(parsed.loopControls, runtime),
+      ['--take-profit', '105', '--stop-loss', '92', '--gp-ape', '7.5', '--human', '--delay', '6'],
+    );
+  });
+
+  it('detects standard bot gross P&L loop conditions', () => {
+    const parsed = parseStandardBotArgs(['--max-loss', '2', '--max-games', '3']);
+
+    assert.deepStrictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: -3n * 10n ** 18n,
+        executions: 2,
+      }),
+      {
+        kind: 'max_loss',
+        threshold_ape: '2',
+        pnl_ape: '-3',
+        executions: 2,
+      },
+    );
+
+    assert.deepStrictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: 0n,
+        executions: 3,
+      }),
+      {
+        kind: 'max_games',
+        threshold: 3,
+        pnl_ape: '0',
+        executions: 3,
+      },
+    );
   });
 
   it('requires fallback options to be specified together', () => {
