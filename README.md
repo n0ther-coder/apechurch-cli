@@ -77,7 +77,7 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 
 - Full CLI command, option, alias, and shared BNF reference: [docs/COMMAND_REFERENCE.md](./docs/COMMAND_REFERENCE.md)
 - Per-game syntax and game-specific grammar: [docs/GAMES_REFERENCE.md](./docs/GAMES_REFERENCE.md)
-- Private bot loader boundary, directory layout, and security note: [docs/BOT_PLUGINS.md](./docs/BOT_PLUGINS.md)
+- Private bot implementation guide, directory layout, and security note: [bots/README.md](./bots/README.md)
 - The House mechanics, current `House Yield` semantics, and planning-grade APY model: [docs/HOUSE_REFERENCE.md](./docs/HOUSE_REFERENCE.md)
 
 ## Profile

@@ -495,9 +495,9 @@ These options are accepted by the `play` command for both stateless and stateful
 
 `bot` discovers external bot folders from `~/.apechurch-cli/bots` by default, or from `${APECHURCH_CLI_PLUGINS}/bots` when that environment variable is set. Each bot is defined by `bot.json` plus an entry module. Use `bot --list` to inspect discovery, `bot --help` for the shared loader help, then `bot <name> ...` to execute one bot. Use `bot <name> -h` or `bot <name> --help` for bot-specific help.
 
-Bot implementations should accept `-h, --help`, `--json`, `--fallback-loss <ape>`, and `--fallback-bot <name>` after the bot name. The fallback options must be specified together; when the current bot finishes below break-even and `abs(P&L)` reaches the threshold, the fallback bot is called with initial amount `<ape>`. See [BOT_PLUGINS.md](./BOT_PLUGINS.md) for the standard bot output contract.
+Bot implementations should accept `-h, --help`, `--json`, `--fallback-loss <ape>`, and `--fallback-bot <name>` after the bot name. The fallback options must be specified together; when the current bot finishes below break-even and `abs(P&L)` reaches the threshold, the fallback bot is called with initial amount `<ape>`. See [bots/README.md](../bots/README.md) for the standard bot output contract.
 
-The runtime surface is intentionally narrow: bots receive positional args plus gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, and `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors. See [BOT_PLUGINS.md](./BOT_PLUGINS.md) for the manifest format, output contract, and security note.
+The runtime surface is intentionally narrow: bots receive positional args plus gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, and `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors. See [bots/README.md](../bots/README.md) for the manifest format, output contract, and security note.
 
 ## History, Catalog, And Help
 
