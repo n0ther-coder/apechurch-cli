@@ -14,6 +14,7 @@ import {
   getStandardBotLoopCondition,
   getPlayStatus,
   getSettledPlayEconomics,
+  getStandardBotNestedBotForwardTokens,
   parseApeToWei,
   parseStandardBotArgs,
   prepareStandardBotLoopRuntime,
@@ -74,7 +75,31 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(parseStandardBotArgs(['--delay=0']).loopControls.delay, '0');
   });
 
-  it('derives CLI wallet guards from bot gross P&L controls', async () => {
+  it('forwards absolute take-profit and stop-loss wallet guards unchanged', async () => {
+    const parsed = parseStandardBotArgs([
+      '--take-profit',
+      '1400',
+      '--stop-loss',
+      '300',
+      '--gp-ape',
+      '7.5',
+      '--human',
+      '--delay',
+      '6',
+    ]);
+    const runtime = await prepareStandardBotLoopRuntime({
+      loopControls: parsed.loopControls,
+      getBalanceApe: async () => 1000,
+      dryRun: false,
+    });
+
+    assert.deepStrictEqual(
+      getStandardBotCliForwardTokens(parsed.loopControls, runtime),
+      ['--take-profit', '1400', '--stop-loss', '300', '--gp-ape', '7.5', '--human', '--delay', '6'],
+    );
+  });
+
+  it('derives CLI wallet guards from relative min-profit and max-loss controls', async () => {
     const parsed = parseStandardBotArgs([
       '--min-profit',
       '5',
@@ -95,6 +120,45 @@ describe('Bot Session Helpers', () => {
     assert.deepStrictEqual(
       getStandardBotCliForwardTokens(parsed.loopControls, runtime),
       ['--take-profit', '105', '--stop-loss', '92', '--gp-ape', '7.5', '--human', '--delay', '6'],
+    );
+  });
+
+  it('forwards absolute wallet guards to nested bots', async () => {
+    const parsed = parseStandardBotArgs([
+      '--min-profit',
+      '5',
+      '--max-loss',
+      '8',
+      '--recover-loss',
+      '3',
+      '--giveback-profit',
+      '4',
+      '--max-games',
+      '9',
+    ]);
+    const runtime = await prepareStandardBotLoopRuntime({
+      loopControls: parsed.loopControls,
+      getBalanceApe: async () => 100,
+      dryRun: false,
+    });
+
+    assert.deepStrictEqual(
+      getStandardBotNestedBotForwardTokens(parsed.loopControls, {
+        runtime,
+        remainingMaxGames: 2,
+      }),
+      [
+        '--take-profit',
+        '105',
+        '--recover-loss',
+        '3',
+        '--giveback-profit',
+        '4',
+        '--stop-loss',
+        '92',
+        '--max-games',
+        '2',
+      ],
     );
   });
 
@@ -126,6 +190,42 @@ describe('Bot Session Helpers', () => {
         threshold: 3,
         pnl_ape: '0',
         executions: 3,
+      },
+    );
+  });
+
+  it('detects absolute wallet take-profit and stop-loss loop conditions', () => {
+    const parsed = parseStandardBotArgs(['--take-profit', '1400', '--stop-loss', '300']);
+
+    assert.deepStrictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: 10n * 10n ** 18n,
+        currentBalanceApe: '1400.1',
+        executions: 4,
+      }),
+      {
+        kind: 'take_profit',
+        threshold_ape: '1400',
+        balance_ape: '1400.1',
+        pnl_ape: '10',
+        executions: 4,
+      },
+    );
+
+    assert.deepStrictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: -10n * 10n ** 18n,
+        currentBalanceApe: '299.9',
+        executions: 5,
+      }),
+      {
+        kind: 'stop_loss',
+        threshold_ape: '300',
+        balance_ape: '299.9',
+        pnl_ape: '-10',
+        executions: 5,
       },
     );
   });
