@@ -15,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_PATH = path.join(__dirname, '../../bin/cli.js');
 const NO_WALLET_HOME = path.join(__dirname, '../tmp-no-wallet-home');
 const HISTORY_FIXTURE_HOME = path.join(__dirname, '../tmp-history-home');
-const PLUGIN_OVERRIDE_ROOT = path.join(__dirname, '../tmp-plugin-root');
+const CONFIG_OVERRIDE_ROOT = path.join(__dirname, '../tmp-config-root');
 const HISTORY_FIXTURE_WALLET = '0x1111111111111111111111111111111111111111';
 
 function setupNoWalletHome() {
@@ -83,7 +83,7 @@ function setupHistoryFixtureHome() {
 
 function resetBotFixtures() {
   fs.rmSync(path.join(NO_WALLET_HOME, '.apechurch-cli', 'bots'), { recursive: true, force: true });
-  fs.rmSync(PLUGIN_OVERRIDE_ROOT, { recursive: true, force: true });
+  fs.rmSync(CONFIG_OVERRIDE_ROOT, { recursive: true, force: true });
 }
 
 function writeBotFixture({
@@ -122,17 +122,38 @@ function stripVersionBanner(output) {
   return String(output || '').replace(/^apechurch-cli v[^\n]*\n+/, '');
 }
 
+function buildCliEnv(options = {}) {
+  const optionEnv = options.env || {};
+  const optionHasBotConfig = Object.prototype.hasOwnProperty.call(optionEnv, 'APECHURCH_CLI_CONFIG');
+  const optionBotConfig = optionEnv.APECHURCH_CLI_CONFIG;
+  const preserveBotConfig = optionHasBotConfig && optionBotConfig !== process.env.APECHURCH_CLI_CONFIG;
+  const env = {
+    ...process.env,
+    HOME: optionEnv.HOME || NO_WALLET_HOME,
+    FORCE_COLOR: '0',
+  };
+
+  // Integration tests create isolated bot fixtures. Do not let a developer's
+  // shell-level bot config override the fixture directory unless a test opts in.
+  delete env.APECHURCH_CLI_CONFIG;
+
+  const mergedEnv = {
+    ...env,
+    ...optionEnv,
+  };
+
+  if (!preserveBotConfig) {
+    delete mergedEnv.APECHURCH_CLI_CONFIG;
+  }
+
+  return mergedEnv;
+}
+
 /**
  * Run CLI command and return output
  */
 function cli(args, options = {}) {
-  const optionEnv = options.env || {};
-  const env = {
-    ...process.env,
-    ...optionEnv,
-    HOME: optionEnv.HOME || NO_WALLET_HOME,
-    FORCE_COLOR: '0',
-  };
+  const env = buildCliEnv(options);
   const execOptions = {
     ...options,
     env,
@@ -155,13 +176,7 @@ function cli(args, options = {}) {
 }
 
 function cliRaw(args, options = {}) {
-  const optionEnv = options.env || {};
-  const env = {
-    ...process.env,
-    ...optionEnv,
-    HOME: optionEnv.HOME || NO_WALLET_HOME,
-    FORCE_COLOR: '0',
-  };
+  const env = buildCliEnv(options);
 
   return execSync(`node ${CLI_PATH} ${args} 2>&1`, {
     encoding: 'utf8',
@@ -219,7 +234,7 @@ describe('CLI Commands Integration Tests', () => {
 
     it('bot --help documents the external bot surface', () => {
       const { stdout } = cli('bot --help');
-      assert.ok(stdout.includes('Run a private bot'), 'Should document the bot command');
+      assert.ok(stdout.includes('Run an external bot'), 'Should document the bot command');
       assert.ok(stdout.includes('Bot directory:'), 'Should show the bot directory');
       assert.ok(stdout.includes('bot [options] [name] [args...]'), 'Should show bot command usage');
     });
@@ -474,7 +489,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Aliases: glyde, glyde-crash, glydecrash, speed-crash, speedcrash, crash'));
       assert.ok(stdout.includes('Aliases: bj'));
       assert.ok(stdout.includes('Aliases: cashdash, dash'));
-      assert.ok(stdout.includes('Aliases: hilonebula, hilo'));
+      assert.ok(stdout.includes('Aliases: hilonebula, hilo, nebula'));
     });
 
     it('--json returns array of games', () => {
@@ -771,7 +786,7 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Hi-Lo Nebula ✔︎');
-      assert.deepStrictEqual(data.aliases, ['hilonebula', 'hilo']);
+      assert.deepStrictEqual(data.aliases, ['hilonebula', 'hilo', 'nebula']);
     });
 
     it('exposes ABI verification metadata for verified Cash Dash', () => {
@@ -831,12 +846,14 @@ describe('CLI Commands Integration Tests', () => {
 
     it('accepts the current stateful aliases', () => {
       const hilo = cli('game hilonebula --json');
+      const nebula = cli('game nebula --json');
       const cashDash = cli('game cashdash --json');
       const dash = cli('dash payouts');
       const vp = cli('vp 10');
       const bj = cli('bj 10');
 
       assert.strictEqual(JSON.parse(hilo.stdout).key, 'hi-lo-nebula');
+      assert.strictEqual(JSON.parse(nebula.stdout).key, 'hi-lo-nebula');
       assert.strictEqual(JSON.parse(cashDash.stdout).key, 'cash-dash');
       assert.strictEqual(dash.code, 0);
       assert.ok(dash.stdout.includes('Tiles'));
@@ -873,11 +890,9 @@ describe('CLI Commands Integration Tests', () => {
 
     it('rejects removed stateful aliases', () => {
       const hiLo = cli('hi-lo payouts');
-      const nebula = cli('game nebula');
       const gimbozPoker = cli('gimboz-poker 10');
 
       assert.notStrictEqual(hiLo.code, 0);
-      assert.notStrictEqual(nebula.code, 0);
       assert.notStrictEqual(gimbozPoker.code, 0);
     });
 
@@ -1115,20 +1130,55 @@ describe('CLI Commands Integration Tests', () => {
       assert.deepStrictEqual(payload.args, ['3', '--json']);
     });
 
-    it('prefers APECHURCH_CLI_PLUGINS as the bot base directory', () => {
+    it('prefers APECHURCH_CLI_CONFIG as the bot base directory', () => {
       resetBotFixtures();
       writeBotFixture({
-        baseDir: PLUGIN_OVERRIDE_ROOT,
+        baseDir: CONFIG_OVERRIDE_ROOT,
         folderName: 'override-bot',
       });
 
-      const env = { APECHURCH_CLI_PLUGINS: PLUGIN_OVERRIDE_ROOT };
+      const env = { APECHURCH_CLI_CONFIG: CONFIG_OVERRIDE_ROOT };
       const { stdout, code } = cli('bot --list', { env });
       assert.strictEqual(code, 0);
       assert.ok(stdout.includes('override-bot'));
-      assert.ok(stdout.includes('APECHURCH_CLI_PLUGINS='));
-      assert.ok(stdout.includes(path.join(PLUGIN_OVERRIDE_ROOT, 'bots')));
+      assert.ok(stdout.includes('APECHURCH_CLI_CONFIG='));
+      assert.ok(stdout.includes(path.join(CONFIG_OVERRIDE_ROOT, 'bots')));
       assert.ok(!stdout.includes('sample-bot'));
+    });
+
+    it('accepts APECHURCH_CLI_CONFIG pointing directly at the bots directory', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'direct-bots-dir',
+      });
+
+      const botsDir = path.join(CONFIG_OVERRIDE_ROOT, 'bots');
+      const env = { APECHURCH_CLI_CONFIG: botsDir };
+      const { stdout, code } = cli('bot --list', { env });
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('direct-bots-dir'));
+      assert.ok(stdout.includes(`Bot directory: ${botsDir}`));
+      assert.ok(!stdout.includes(path.join(botsDir, 'bots')));
+    });
+
+    it('passes -v through to named bots', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'versioned-bot',
+        script: `export default async function ({ args }) {
+  console.log(JSON.stringify({ args }));
+  return 0;
+}
+`,
+      });
+
+      const env = { APECHURCH_CLI_CONFIG: CONFIG_OVERRIDE_ROOT };
+      const { stdout, code } = cli('bot versioned-bot -v 1 --json', { env });
+      const payload = JSON.parse(stdout.trim());
+      assert.strictEqual(code, 0);
+      assert.deepStrictEqual(payload.args, ['-v', '1', '--json']);
     });
   });
 

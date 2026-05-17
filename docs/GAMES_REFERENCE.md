@@ -20,7 +20,7 @@ Ordering: alphabetical by game title.
 |------|------------------|-------------|---------|
 | ApeStrong ✔︎ | `play ape-strong <amt> <range>` | `--game ape-strong --amount X --range Y` | `apestrong`, `strong` |
 | Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` | - |
-| Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --rolls Z` | `bear`, `dice` |
+| Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --rolls Z` (`--runs Z` alias) | `bear`, `dice` |
 | Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` | `bj` |
 | Blocks ✔︎ | `play blocks <amt> <risk> <runs>` | `--game blocks --amount X --risk Y --runs Z` | - |
 | Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` | `bubblegumheist`, `bubblegum`, `heist` |
@@ -30,7 +30,7 @@ Ordering: alphabetical by game title.
 | Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` | `geezdiggerz`, `geez` |
 | Gimboz Smash ✔︎ | `play gimboz-smash <amt> <range>` | `--game gimboz-smash --amount X --range Y` | `gimbozsmash`, `smash` |
 | Glyde or Crash ✔︎ | `play glyde-or-crash <amt> <multiplier>` | `--game glyde-or-crash --amount X --multiplier Y` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` |
-| Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` | `hilonebula`, `hilo` |
+| Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` | `hilonebula`, `hilo`, `nebula` |
 | Jungle Plinko ✔︎ | `play jungle-plinko <amt> <risk> <balls>` | `--game jungle-plinko --amount X --risk Y --balls Z` | `jungleplinko`, `jungle` |
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` | - |
 | Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --risk Y` | `monkeymatch`, `monkey` |
@@ -166,7 +166,7 @@ Classic baccarat with contract-backed combined bets. You can play `PLAYER`, `BAN
 
 All-or-nothing compounded `2d6` survival game. You pick a risk level and `1-5` rolls; every safe sum compounds the payout, and the first losing sum zeroes the whole run.
 
-**Command:** `apechurch-cli play bear-dice <amount> [--risk <0-4|Easy|Medium|Hard|Expert|Master>] [--rolls <1-5>]`
+**Command:** `apechurch-cli play bear-dice <amount> [--risk <0-4|Easy|Medium|Hard|Expert|Master>] [--rolls <1-5>|--runs <1-5>]`
 
 ```bnf
 <amount> ::= <ape>
@@ -415,7 +415,7 @@ Verified fixed-target crash game. The player chooses a target multiplier, the co
 
 **Type:** Cards / Cash-out streak
 **Contract:** `0xa67d5CD51028cAaa367eEFcE90a5eA0b71c6cBE2`
-**Aliases:** `hilonebula`, `hilo`
+**Aliases:** `hilonebula`, `hilo`, `nebula`
 **ABI verified:** `true`
 **Verification notes:** [HI_LO_NEBULA_CONTRACT.md](./verification/HI_LO_NEBULA_CONTRACT.md)
 **Analytics:** [HI_LO_NEBULA_ANALYTICS.md](./analytics/HI_LO_NEBULA_ANALYTICS.md)
@@ -659,7 +659,7 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `cash-dash`, `hi-lo-neb
 ```bash
 --loop                    # Enable continuous play
 --delay <seconds>         # Fixed time between games
---human                   # Add weighted 3-9s human-like delay on top of --delay
+--human [range]           # Add human-like delay on top of --delay; default 3-9s, e.g. 2-17
 --take-profit <ape>       # Stop at target balance
 --min-profit <ape>        # Stop at target session profit
 --target-x <x>            # Stop after any single-game payout multiplier at or above X

@@ -70,14 +70,14 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 
 - `APECHURCH_CLI_PK`: optional fallback for non-interactive fresh install/reinstall
 - `APECHURCH_CLI_PASS`: required for non-interactive install/signing; optional otherwise
-- `APECHURCH_CLI_PLUGINS`: optional base-directory override for external bots; bots are loaded from `${APECHURCH_CLI_PLUGINS}/bots`
+- `APECHURCH_CLI_CONFIG`: optional override for external bots; accepts either a parent directory containing `bots/` or the `bots/` directory itself
 - `APECHURCH_CLI_PROFILE_URL`: optional override for the username/profile API endpoint
 
 ## Reference Docs
 
 - Full CLI command, option, alias, and shared BNF reference: [docs/COMMAND_REFERENCE.md](./docs/COMMAND_REFERENCE.md)
 - Per-game syntax and game-specific grammar: [docs/GAMES_REFERENCE.md](./docs/GAMES_REFERENCE.md)
-- Private bot implementation guide, directory layout, and security note: [bots/README.md](./bots/README.md)
+- External bot authoring guidelines, directory layout, and security note: [bots/README.md](./bots/README.md)
 - The House mechanics, current `House Yield` semantics, and planning-grade APY model: [docs/HOUSE_REFERENCE.md](./docs/HOUSE_REFERENCE.md)
 
 ## Profile
@@ -266,7 +266,7 @@ Coverage and limits:
 | Gimboz Smash ✔︎ | `play gimboz-smash 10 1-50` or `play gimboz-smash 10 --out-range 45-50` | `gimbozsmash`, `smash` | One-or-two interval target game on a 1-100 board |
 | Glyde or Crash ✔︎ | `play glyde-or-crash 10 2x` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` | Target a crash multiplier |
 | Reel Pirates | `play reel-pirates 20` | `reelpirates`, `pirates`, `reel` | Match-anywhere cascade slot |
-| Hi-Lo Nebula ✔︎ | `hi-lo-nebula 10 --auto best` | `hilonebula`, `hilo` | Stateful higher/lower/same card streak game with cash-out |
+| Hi-Lo Nebula ✔︎ | `hi-lo-nebula 10 --auto best` | `hilonebula`, `hilo`, `nebula` | Stateful higher/lower/same card streak game with cash-out |
 | Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | `sushishowdown`, `sushi` | Slot machine |
 | Monkey Match ✔︎ | `play monkey-match 10` | `monkeymatch`, `monkey` | Poker hands from barrels |
 | Bear-A-Dice ✔︎ | `play bear-dice 10` | `bear`, `dice` | Avoid unlucky numbers |
@@ -414,7 +414,7 @@ apechurch-cli play [game] [amount] [config...]  # Play a specific stateless game
 apechurch-cli play blackjack <amount> [--auto [simple|best]] [--solver-max-states <n>]
 apechurch-cli play cash-dash <amount> [--auto [simple|best]]
 apechurch-cli cash-dash <amount> [--auto [simple|best]]  # Cash Dash (aliases: cashdash, dash)
-apechurch-cli hi-lo-nebula <amount> [--auto [simple|best]]  # Hi-Lo Nebula (aliases: hilonebula, hilo)
+apechurch-cli hi-lo-nebula <amount> [--auto [simple|best]]  # Hi-Lo Nebula (aliases: hilonebula, hilo, nebula)
 apechurch-cli blackjack <amount> [--auto] [--side <ape>] [--solver-max-states <n>]  # Blackjack (alias: bj)
 apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker (alias: vp)
 

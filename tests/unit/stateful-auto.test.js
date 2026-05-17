@@ -58,4 +58,19 @@ describe('Stateful Auto Mode', () => {
       assert.ok(delayMs <= 14000, `delay ${delayMs} should be at most 14s`);
     }
   });
+
+  it('supports custom human timing ranges', () => {
+    assert.strictEqual(resolveLoopDelaySeconds({ rawDelay: undefined, human: '2-17' }), 0);
+
+    for (let i = 0; i < 200; i++) {
+      const delayMs = getLoopDelayMs({ delaySeconds: 1, human: '2-4' });
+      assert.ok(delayMs >= 3000, `delay ${delayMs} should be at least 3s`);
+      assert.ok(delayMs <= 5000, `delay ${delayMs} should be at most 5s`);
+    }
+
+    assert.throws(
+      () => getLoopDelayMs({ delaySeconds: 0, human: '17-2' }),
+      /Invalid --human value/,
+    );
+  });
 });

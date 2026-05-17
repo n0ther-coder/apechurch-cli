@@ -36,12 +36,12 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `game <name>` | - | Show metadata and grammar for one game |
 | `commands` | - | Show the compact terminal command index |
 | `help [topic]` | - | Show detailed topic help |
-| `bot [name] [args...]` | - | Run a private bot discovered from the external bots directory |
+| `bot [name] [args...]` | - | Run an external bot discovered from the configured bots directory |
 | `send <asset> <amount> <destination>` | - | Send `APE` or `GP` |
 | `house [action] [amount]` | - | Show, deposit into, or withdraw from The House |
 | `blackjack [action] [amount]` | `bj` | Interactive/stateful blackjack |
 | `cash-dash [action] [amount]` | `cashdash`, `dash` | Interactive/stateful Cash Dash |
-| `hi-lo-nebula [action] [amount]` | `hilonebula`, `hilo` | Interactive/stateful Hi-Lo Nebula |
+| `hi-lo-nebula [action] [amount]` | `hilonebula`, `hilo`, `nebula` | Interactive/stateful Hi-Lo Nebula |
 | `video-poker [action] [amount]` | `vp` | Interactive/stateful video poker |
 
 ## Shared Grammar
@@ -59,6 +59,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 <block> ::= <integer>                             ; value >= 0
 <count> ::= <integer>                             ; value > 0
 <seconds> ::= <number>                            ; value > 0 in loop/card pacing options
+<human-range> ::= <integer> "-" <integer>          ; inclusive seconds range, e.g. 2-17; each endpoint > 0
 <username> ::= <token>                            ; normalized username; letters, numbers, underscores; max 32 chars
 <persona> ::= "conservative" | "balanced" | "aggressive" | "degen"
 <card-display> ::= "full" | "simple" | "json"
@@ -131,11 +132,12 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
               | "hi-lo-nebula"
               | "hilonebula"
               | "hilo"
+              | "nebula"
               | "video-poker"
               | "vp"
 <stateful-game> ::= "blackjack" | "bj"
                   | "cash-dash" | "cashdash" | "dash"
-                  | "hi-lo-nebula" | "hilonebula" | "hilo"
+                  | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula"
                   | "video-poker" | "vp"
 <video-poker-bet> ::= "1" | "5" | "10" | "25" | "50" | "100"
 <auto-mode> ::= "simple" | "best"
@@ -160,7 +162,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `sushi-showdown` | `sushishowdown`, `sushi` |
 | `blackjack` | `bj` |
 | `cash-dash` | `cashdash`, `dash` |
-| `hi-lo-nebula` | `hilonebula`, `hilo` |
+| `hi-lo-nebula` | `hilonebula`, `hilo`, `nebula` |
 | `video-poker` | `vp` |
 
 ## Setup And Wallet
@@ -336,7 +338,7 @@ Notes:
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token, for example `1,7,13,25,40` or `random` |
 | `--games <games>` | Speed Keno batch count |
-| `--runs <runs>` | Primes or Blocks run count |
+| `--runs <runs>` | Bear Dice, Primes, or Blocks run count |
 | `--rolls <rolls>` | Bear-A-Dice roll count |
 | `--timeout <ms>` | Wait time for a result; `0` means no wait limit |
 | `--x-gameId <uint256>` | Expert override for the generated `gameId` in `gameData` |
@@ -382,6 +384,7 @@ Notes:
                        | "--strategy" <persona>
                        | "--loop"
                        | "--delay" <seconds>
+                       | "--human" [ <human-range> ]
                        | "--max-games" <count>
                        | "--take-profit" <ape>
                        | "--min-profit" <ape>
@@ -423,7 +426,7 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token |
 | `--games <games>` | Speed Keno batch count |
-| `--runs <runs>` | Primes or Blocks run count |
+| `--runs <runs>` | Bear Dice, Primes, or Blocks run count |
 | `--rolls <rolls>` | Bear-A-Dice roll count |
 | `--timeout <ms>` | Wait time for a stateless result; `0` returns the pending play response |
 | `--x-gameId <uint256>` | Expert override for the generated `gameId` in `gameData` |
@@ -456,6 +459,7 @@ These options are accepted by the `play` command for both stateless and stateful
 | `--strategy <name>` | Persona used when the CLI chooses a game/config |
 | `--loop` | Keep playing until a stop condition is hit |
 | `--delay <seconds>` | Delay between looped games |
+| `--human [range]` | Add humanized loop pacing. Bare `--human` uses weighted 3-9s; a range such as `2-17` overrides the random seconds window |
 | `--max-games <count>` | Stop loop after N games |
 | `--take-profit <ape>` | Stop loop when balance reaches the target |
 | `--min-profit <ape>` | Stop loop when session P&L reaches the target profit |
@@ -493,11 +497,11 @@ These options are accepted by the `play` command for both stateless and stateful
 <bot-name> ::= <token>
 ```
 
-`bot` discovers external bot folders from `~/.apechurch-cli/bots` by default, or from `${APECHURCH_CLI_PLUGINS}/bots` when that environment variable is set. Each bot is defined by `bot.json` plus an entry module. Use `bot --list` to inspect discovery, `bot --help` for the shared loader help, then `bot <name> ...` to execute one bot. Use `bot <name> -h` or `bot <name> --help` for bot-specific help.
+`bot` discovers external bot folders from `~/.apechurch-cli/bots` by default. When `APECHURCH_CLI_CONFIG` is set, it can point either to a parent directory containing `bots/` or directly to the `bots/` directory itself. Each bot is defined by `bot.json` plus an entry module. Use `bot --list` to inspect discovery, `bot --help` for the shared loader help, then `bot <name> ...` to execute one bot. Use `bot <name> -h` or `bot <name> --help` for bot-specific help.
 
-Bot implementations should accept `-h, --help`, `--json`, `--fallback-loss <ape>`, and `--fallback-bot <name>` after the bot name. The fallback options must be specified together; when the current bot finishes below break-even and `abs(P&L)` reaches the threshold, the fallback bot is called with initial amount `<ape>`. Standard bot `--take-profit` and `--stop-loss` values are absolute wallet thresholds that should be forwarded unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive those absolute thresholds from the bot's starting balance. See [bots/README.md](../bots/README.md) for the standard bot output contract.
+The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. External bots should document their own flags and may follow the shared conventions for `-h, --help`, `--json`, `--fallback-loss <ape>`, `--fallback-bot <name>`, and standard loop controls. `--take-profit` and `--stop-loss` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive those absolute thresholds from the bot's starting balance. See [bots/README.md](../bots/README.md) for authoring guidelines, manifest rules, output conventions, and the security note.
 
-The runtime surface is intentionally narrow: bots receive positional args plus gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, and `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors. See [bots/README.md](../bots/README.md) for the manifest format, output contract, and security note.
+The runtime surface is intentionally narrow: bots receive positional args plus gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, and `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors.
 
 ## History, Catalog, And Help
 
@@ -657,7 +661,7 @@ Alias: `bj`
                      | "--side" <ape-nonnegative>
                      | "--solver-max-states" <count>
                      | "--delay" <seconds>
-                     | "--human"
+                     | "--human" [ <human-range> ]
                      | "--loop"
                      | "--max-games" <count>
                      | "--take-profit" <ape>
@@ -674,7 +678,7 @@ Alias: `bj`
                      | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new hand with that amount. Blackjack uses the live H17 rule surface: the dealer hits soft 17, and `--auto simple` / `--auto best` model that rule. `--solver-max-states <n>` applies to `--auto best`; its default is `50000` recursive player states, which keeps exact-EV search from stalling the CLI, and it can be raised for unusually complex hands that otherwise fall back to simple mode. `--human` is a supported advanced option but intentionally hidden from standard `--help`.
+If the first positional token is numeric, the command starts a new hand with that amount. Blackjack uses the live H17 rule surface: the dealer hits soft 17, and `--auto simple` / `--auto best` model that rule. `--solver-max-states <n>` applies to `--auto best`; its default is `50000` recursive player states, which keeps exact-EV search from stalling the CLI, and it can be raised for unusually complex hands that otherwise fall back to simple mode. `--human [range]` is a supported advanced option but intentionally hidden from standard `--help`.
 
 ### `cash-dash [action] [amount]`
 
@@ -707,7 +711,7 @@ Aliases: `cashdash`, `dash`
                      | "--tile" <cash-dash-tile>
                      | "--cashout-after" <count>
                      | "--delay" <seconds>
-                     | "--human"
+                     | "--human" [ <human-range> ]
                      | "--loop"
                      | "--max-games" <count>
                      | "--take-profit" <ape>
@@ -724,14 +728,14 @@ Aliases: `cashdash`, `dash`
                      | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new run. During an active run, use `guess <tile>` / `tile <tile>` / `pick <tile>` for the next row, or `cashout` / `c` to settle. `--tile` chooses the opening tile (`1-7` or `random`); when omitted in manual mode, the CLI renders the opening row and prompts before sending `play`. Auto/JSON starts use tile `1` unless `--tile` is supplied. `--cashout-after` controls how many safe rows auto-play targets before cashing out. `--human` is supported but hidden from standard `--help`.
+If the first positional token is numeric, the command starts a new run. During an active run, use `guess <tile>` / `tile <tile>` / `pick <tile>` for the next row, or `cashout` / `c` to settle. `--tile` chooses the opening tile (`1-7` or `random`); when omitted in manual mode, the CLI renders the opening row and prompts before sending `play`. Auto/JSON starts use tile `1` unless `--tile` is supplied. `--cashout-after` controls how many safe rows auto-play targets before cashing out. `--human [range]` is supported but hidden from standard `--help`.
 
 ### `hi-lo-nebula [action] [amount]`
 
-Aliases: `hilonebula`, `hilo`
+Aliases: `hilonebula`, `hilo`, `nebula`
 
 ```bnf
-<hi-lo-nebula-command> ::= ( "hi-lo-nebula" | "hilonebula" | "hilo" ) [ <hi-lo-nebula-head> ] [ <ape> ] <hi-lo-nebula-option>*
+<hi-lo-nebula-command> ::= ( "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" ) [ <hi-lo-nebula-head> ] [ <ape> ] <hi-lo-nebula-option>*
 <hi-lo-nebula-head> ::= <ape>
                        | "resume"
                        | "status"
@@ -758,7 +762,7 @@ Aliases: `hilonebula`, `hilo`
                         | "--auto" [ <auto-mode> ]
                         | "--solver"
                         | "--delay" <seconds>
-                        | "--human"
+                        | "--human" [ <human-range> ]
                         | "--loop"
                         | "--max-games" <count>
                         | "--take-profit" <ape>
@@ -775,7 +779,7 @@ Aliases: `hilonebula`, `hilo`
                         | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new run. `--solver` shows the manual `Suggested action` line using the same `best` engine. `--auto best` is a VRF-aware net-EV continuation solver over the verified rank-only branch table, using the live jackpot snapshot as the terminal bonus reference. `--human` is supported but hidden from standard `--help`.
+If the first positional token is numeric, the command starts a new run. `--solver` shows the manual `Suggested action` line using the same `best` engine. `--auto best` is a VRF-aware net-EV continuation solver over the verified rank-only branch table, using the live jackpot snapshot as the terminal bonus reference. `--human [range]` is supported but hidden from standard `--help`.
 
 ### `video-poker [action] [amount]`
 
@@ -797,7 +801,7 @@ Alias: `vp`
                        | "--auto" [ <auto-mode> ]
                        | "--solver"
                        | "--delay" <seconds>
-                       | "--human"
+                       | "--human" [ <human-range> ]
                        | "--loop"
                        | "--max-games" <count>
                        | "--take-profit" <ape>
@@ -814,4 +818,4 @@ Alias: `vp`
                        | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new hand. Valid opening wagers are fixed to `1`, `5`, `10`, `25`, `50`, or `100` APE. `--human` is supported but hidden from standard `--help`.
+If the first positional token is numeric, the command starts a new hand. Valid opening wagers are fixed to `1`, `5`, `10`, `25`, `50`, or `100` APE. `--human [range]` is supported but hidden from standard `--help`.

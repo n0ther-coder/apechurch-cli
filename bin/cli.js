@@ -111,8 +111,8 @@ import {
   HI_LO_NEBULA_CONTRACT,
   PACKAGE_NAME,
   BINARY_NAME,
+  CONFIG_DIR_ENV_VAR,
   PASS_ENV_VAR,
-  PLUGINS_DIR_ENV_VAR,
   PROFILE_URL_ENV_VAR,
   PRIVATE_KEY_ENV_VAR,
   SUPPRESS_VERSION_BANNER_ENV_VAR,
@@ -269,8 +269,10 @@ import {
   getConfiguredGameVrfFeeApe,
 } from '../lib/loop-estimate.js';
 import {
+  formatHumanDelayRange,
   formatDelayMs,
   getLoopDelayMs,
+  normalizeHumanTiming,
   resolveLoopDelaySeconds,
   sleep,
 } from '../lib/stateful/timing.js';
@@ -288,7 +290,7 @@ const VERSION_METADATA = Object.freeze({
 });
 const VERSION_DISPLAY = formatVersionDisplay(VERSION_METADATA);
 
-program.name(BINARY_NAME).version(VERSION_DISPLAY, '-v, --version', 'output the current version');
+program.name(BINARY_NAME).version(VERSION_DISPLAY, '-V, --version', 'output the current version');
 const GAME_LIST = listGames().join(' | ');
 const cliPath = path.join(__dirname, 'cli.js');
 const discoveredBots = discoverBotDefinitions();
@@ -313,7 +315,7 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<out-range> ::= <target-range>                     ; one excluded inclusive range for Gimboz Smash outside bets; excluded coverage must be within 5..95',
   '<picks> ::= <integer>                              ; 1 <= value <= 10 for Keno, 1 <= value <= 5 for Speed Keno',
   '<games> ::= <integer>                              ; 1 <= value <= 20',
-  '<runs> ::= <integer>                               ; 1 <= value <= 20 for Primes, 1 <= value <= 5 for Blocks',
+  '<runs> ::= <integer>                               ; 1 <= value <= 20 for Primes, 1 <= value <= 5 for Bear Dice/Blocks',
   '<rolls> ::= <integer>                              ; 1 <= value <= 5',
   '<uint256> ::= <integer> | "0x" <hex>               ; expert override for gameData gameId',
   '<bytes32> ::= "0x" <64-hex-chars>                  ; expert override for gameData userRandomWord',
@@ -341,7 +343,7 @@ const PLAY_STATELESS_OPTION_LINES = Object.freeze([
   '--picks <picks>         Keno / Speed Keno pick count',
   '--numbers <numbers>     Keno / Speed Keno numbers as one token',
   '--games <games>         Speed Keno batch count',
-  '--runs <runs>           Primes / Blocks run count',
+  '--runs <runs>           Bear Dice / Primes / Blocks run count',
   '--rolls <rolls>         Bear-A-Dice roll count',
   '--timeout <ms>          Max wait for a stateless game result; 0 returns pending',
   '--x-gameId <uint256>    Expert stateless gameData override',
@@ -468,7 +470,7 @@ function installJsonMetadataConsoleHooks() {
 }
 
 function isVersionArg(arg) {
-  return arg === '--version' || arg === '-v';
+  return arg === '--version' || arg === '-V';
 }
 
 function getTopLevelVersionArgs(argv = process.argv) {
@@ -514,13 +516,13 @@ function formatHelpOptionGroup(title, lines = []) {
 }
 
 function formatBotDirectoryNotice() {
-  const overrideDir = process.env[PLUGINS_DIR_ENV_VAR];
+  const overrideDir = process.env[CONFIG_DIR_ENV_VAR];
   const effectiveDir = discoveredBots.botsDir;
   if (!overrideDir) {
     return `Bot directory: ${BOTS_DIR}`;
   }
 
-  return `Bot directory: ${effectiveDir} (${PLUGINS_DIR_ENV_VAR}=${overrideDir})`;
+  return `Bot directory: ${effectiveDir} (${CONFIG_DIR_ENV_VAR}=${overrideDir})`;
 }
 
 function formatBotLoadErrors() {
@@ -1212,7 +1214,7 @@ function getHiLoNebulaCatalogEntry() {
   return {
     key: 'hi-lo-nebula',
     name: 'Hi-Lo Nebula',
-    aliases: ['hilonebula', 'hilo'],
+    aliases: ['hilonebula', 'hilo', 'nebula'],
     displayName: resolveGameDisplayName({
       gameKey: 'hi-lo-nebula',
       contract: HI_LO_NEBULA_CONTRACT,
@@ -2929,7 +2931,7 @@ program
   .option('--picks <picks>', 'Keno pick count', '5')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--games <games>', 'Speed Keno game count (batching)')
-  .option('--runs <runs>', 'Primes / Blocks run count (batching)')
+  .option('--runs <runs>', 'Bear Dice / Primes / Blocks run count (batching)')
   .option('--rolls <rolls>', 'Bear-A-Dice roll count')
   .option('--timeout <ms>', 'Max wait for result (0 = no wait)', '0')
   .option('--x-gameId <uint256>', 'Expert: override generated gameId in gameData')
@@ -3051,7 +3053,7 @@ program
   .option('--picks <picks>', 'Keno pick count')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--games <games>', 'Speed Keno game count (batching)')
-  .option('--runs <runs>', 'Primes / Blocks run count (batching)')
+  .option('--runs <runs>', 'Bear Dice / Primes / Blocks run count (batching)')
   .option('--rolls <rolls>', 'Bear-A-Dice roll count')
   .option('--timeout <ms>', 'Max wait for a stateless game result (0 = no wait)', '30000')
   .option('--x-gameId <uint256>', 'Expert: override generated gameId in gameData')
@@ -3067,7 +3069,7 @@ program
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
+  .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
@@ -3086,12 +3088,21 @@ program
   .addHelpText('after', formatPlayHelpAppendix())
   .action(async (gameArg, amountArg, configArgs, opts) => {
     const loopMode = Boolean(opts.loop);
-    const humanTiming = Boolean(opts.human);
-    const loopDelaySeconds = resolveLoopDelaySeconds({
-      rawDelay: opts.delay,
-      human: humanTiming,
-      defaultDelaySeconds: 3,
-    });
+    let humanTiming;
+    let loopDelaySeconds;
+    try {
+      humanTiming = normalizeHumanTiming(opts.human);
+      loopDelaySeconds = resolveLoopDelaySeconds({
+        rawDelay: opts.delay,
+        human: humanTiming,
+        defaultDelaySeconds: 3,
+      });
+    } catch (error) {
+      const err = { error: error.message };
+      if (opts.json) console.error(JSON.stringify(err));
+      else console.error(`\n❌ ${err.error}\n`);
+      return;
+    }
     const playCommand = program.commands.find((command) => command.name() === 'play');
     const hasPositionalInput = Boolean(gameArg || amountArg || (configArgs && configArgs.length > 0));
     const explicitPlayFlags = new Set([
@@ -3377,8 +3388,9 @@ program
       const fixedDelayLabel = loopDelaySeconds > 0
         ? formatDelayMs(Math.round(loopDelaySeconds * 1000))
         : null;
+      const humanDelayLabel = humanTiming ? `humanized ${formatHumanDelayRange(humanTiming)} delay` : null;
       const delayLabel = humanTiming
-        ? (fixedDelayLabel ? `${fixedDelayLabel} + humanized 3-9s delay` : 'humanized 3-9s delay')
+        ? (fixedDelayLabel ? `${fixedDelayLabel} + ${humanDelayLabel}` : humanDelayLabel)
         : `${fixedDelayLabel || '0s'} delay`;
       const strategyInfo = betStrategyName !== 'flat' ? ` | Strategy: ${betStrategyName}` : '';
       const maxBetInfo = maxBet ? ` | Max bet: ${maxBet} APE` : '';
@@ -4189,11 +4201,11 @@ program
   });
 
 // ============================================================================
-// COMMAND: BOT (Private bot loader)
+// COMMAND: BOT (External bot loader)
 // ============================================================================
 const botCommand = program
   .command('bot [name] [args...]')
-  .description('Run a private bot from the external bots directory')
+  .description('Run an external bot from the configured bots directory')
   .allowUnknownOption(true)
   .helpOption(false)
   .option('-h, --help', 'Show bot loader help, or pass help through to a named bot')
@@ -4203,6 +4215,17 @@ Examples:
   ${BOT_HELP_EXAMPLES.join('\n  ')}
 
 ${formatBotDirectoryNotice()}
+
+Environment:
+  ${CONFIG_DIR_ENV_VAR}
+      Optional external bot directory override. Set it to either the parent
+      config/checkout directory or directly to its bots directory.
+  ${PRIVATE_KEY_ENV_VAR}
+      Optional fallback for non-interactive wallet access.
+  ${PASS_ENV_VAR}
+      Required for non-interactive install/signing; optional otherwise.
+  ${PROFILE_URL_ENV_VAR}
+      Optional override for the username/profile API.
 `)
   .action(async (name, args, opts) => {
     if (opts.help && !name) {
@@ -5379,16 +5402,16 @@ PLAY - STATEFUL
   ${BINARY_NAME} play cash-dash <amt> Stateful play surface for bots
   ${BINARY_NAME} blackjack <amt>      Interactive blackjack (alias: bj)
   ${BINARY_NAME} cash-dash <amt>      Interactive Cash Dash (aliases: cashdash, dash)
-  ${BINARY_NAME} hi-lo-nebula <amt>   Interactive Hi-Lo Nebula (aliases: hilonebula, hilo)
+  ${BINARY_NAME} hi-lo-nebula <amt>   Interactive Hi-Lo Nebula (aliases: hilonebula, hilo, nebula)
   ${BINARY_NAME} video-poker <amt>    Interactive video poker (alias: vp)
 
 PLAY - SHARED LOOP CONTROLS
   ${BINARY_NAME} play <game> <amt> --loop
                                    Continuous play for selected stateless/stateful game
 
-PRIVATE BOTS
+EXTERNAL BOTS
   ${BINARY_NAME} bot                List discovered bots and the active bots directory
-  ${BINARY_NAME} bot <name> [args...]   Run one external bot through the play-only surface
+  ${BINARY_NAME} bot <name> [args...]   Run one external bot through the helper surface
 
 CONTROL
   ${BINARY_NAME} pause                Stop autonomous play
@@ -5423,7 +5446,7 @@ CONTEST
 ENVIRONMENT
   ${PRIVATE_KEY_ENV_VAR}   Optional fallback for non-interactive install/reinstall
   ${PASS_ENV_VAR}          Required for non-interactive install/signing; optional otherwise
-  ${PLUGINS_DIR_ENV_VAR}   Optional base-directory override for external bots
+  ${CONFIG_DIR_ENV_VAR}    Optional directory override for external bots
   ${PROFILE_URL_ENV_VAR}   Optional override for the username/profile API
 
 LOOP OPTIONS
@@ -5492,7 +5515,7 @@ GAME ALIASES
   sushi-showdown: sushishowdown, sushi
   blackjack: bj
   cash-dash: cashdash, dash
-  hi-lo-nebula: hilonebula, hilo
+  hi-lo-nebula: hilonebula, hilo, nebula
   video-poker: vp
 
 ASSETS
@@ -5577,13 +5600,14 @@ ${'─'.repeat(70)}
                        current rate is set in profile
 
   Hidden timing flag:
-    --human            Add humanized random pacing (3-9s)
+    --human [range]    Add humanized random pacing (default 3-9s; e.g. 2-17)
                        If --delay is also set, it is added on top
 
   These can be combined:
     ${BINARY_NAME} play --loop --take-profit 200 --min-profit 25 --stop-loss 50 --max-loss 20 --max-games 500
     ${BINARY_NAME} play roulette 10 RED --loop --recover-loss 25
     ${BINARY_NAME} play roulette 10 RED --loop --human
+    ${BINARY_NAME} play roulette 10 RED --loop --human 2-17
 
   Where loop game estimates are supported, startup also prints a pre-loop estimate.
   Games with a full Monte Carlo model show the typical run plus lucky / bad-run bounds:
@@ -5884,7 +5908,7 @@ ${'─'.repeat(70)}
 
     ${BINARY_NAME} play roulette 10 RED --loop --human
     ${BINARY_NAME} video-poker 10 --auto best --loop \\
-      --delay 5 --human
+      --delay 5 --human 2-17
 
 ${'─'.repeat(70)}
   DISPLAY MODES
@@ -6888,7 +6912,7 @@ program
   .option('--side <ape>', 'Player side bet amount')
   .option('--solver-max-states <n>', 'Best-EV search state cap for --auto best (default 50000)')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
+  .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
@@ -6924,7 +6948,7 @@ program
   .option('--tile <tile>', 'Opening tile: 1-7 or random; manual mode prompts when omitted')
   .option('--cashout-after <rows>', 'Auto-play cashes out after N safe rows')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
+  .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
@@ -6950,6 +6974,7 @@ program
   .command('hi-lo-nebula [action] [amount]')
   .alias('hilonebula')
   .alias('hilo')
+  .alias('nebula')
   .description('Play Hi-Lo Nebula ✔︎ - sequential higher/lower/same card streaks')
   .option('--game <id>', 'Specify game ID (for resume/action)')
   .option('--display <mode>', 'Display mode: full, simple, json')
@@ -6958,7 +6983,7 @@ program
   .option('--auto [mode]', 'Auto-play the run')
   .option('--solver', 'Show the best continuation suggestion in manual mode')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
+  .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
@@ -6991,7 +7016,7 @@ program
   .option('--auto [mode]', 'Auto-play the hand')
   .option('--solver', 'Show best-EV hold suggestion in interactive video poker')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .addOption(new Option('--human', 'Add humanized random timing (3-9s); if --delay is set, it is added on top').hideHelp())
+  .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')

@@ -75,6 +75,25 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(parseStandardBotArgs(['--delay=0']).loopControls.delay, '0');
   });
 
+  it('parses and forwards custom standard bot human timing ranges', () => {
+    const parsed = parseStandardBotArgs([
+      '--human',
+      '2-17',
+      '--private-mode',
+    ]);
+
+    assert.strictEqual(parsed.loopControls.human, '2-17');
+    assert.deepStrictEqual(parsed.remainingArgs, ['--private-mode']);
+    assert.deepStrictEqual(
+      getStandardBotCliForwardTokens(parsed.loopControls, {}),
+      ['--human', '2-17'],
+    );
+
+    const disabled = parseStandardBotArgs(['--human=false']);
+    assert.strictEqual(disabled.loopControls.human, false);
+    assert.deepStrictEqual(getStandardBotCliForwardTokens(disabled.loopControls, {}), []);
+  });
+
   it('forwards absolute take-profit and stop-loss wallet guards unchanged', async () => {
     const parsed = parseStandardBotArgs([
       '--take-profit',

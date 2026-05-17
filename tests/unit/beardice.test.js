@@ -38,6 +38,35 @@ describe('Bear-A-Dice helpers', () => {
     });
   });
 
+  it('accepts --runs as an alias for --rolls', () => {
+    const config = resolveBearDiceConfig(
+      {},
+      { risk: 'Medium', runs: '1' },
+      {},
+      { bearDice: { rolls: [3, 5] } },
+      () => 5,
+      {
+        gameEntry: {
+          config: {
+            difficulty: {
+              default: 0,
+              options: [
+                { value: 0, label: 'Easy' },
+                { value: 1, label: 'Medium' },
+              ],
+            },
+            rolls: { default: 1 },
+          },
+        },
+      }
+    );
+
+    assert.deepStrictEqual(config, {
+      difficulty: 1,
+      rolls: 1,
+    });
+  });
+
   it('preserves preselected bear dice config values instead of overriding them', () => {
     const config = resolveBearDiceConfig(
       { difficulty: 4, rolls: 5 },
