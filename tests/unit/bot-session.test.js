@@ -41,6 +41,13 @@ describe('Bot Session Helpers', () => {
     assert.deepStrictEqual(parsed.remainingArgs, ['--private-mode', 'x']);
   });
 
+  it('parses --color as a shared bot output option', () => {
+    const parsed = parseStandardBotArgs(['--color', '--private-mode']);
+
+    assert.strictEqual(parsed.color, true);
+    assert.deepStrictEqual(parsed.remainingArgs, ['--private-mode']);
+  });
+
   it('parses standard bot loop controls separately from private args', () => {
     const parsed = parseStandardBotArgs([
       '--take-profit=12',

@@ -11,6 +11,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 - The binary name is `apechurch-cli`.
 - Options are order-insensitive in practice. The BNF groups them for readability, not to force a left-to-right order.
 - `--json` is documented only on commands that actually register it.
+- `--color` is a global plain-output option; JSON output remains uncolored.
 - `--gp-ape <points>` is a per-run local override.
 - `profile set --gp-ape <points>` persists a wallet-specific current local override.
 - When a report includes on-chain GP for a settled game, that on-chain value overrides any locally estimated GP.
@@ -26,6 +27,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `APECHURCH_CLI_PASS` | none | Wallet password for non-interactive install/signing |
 | `APECHURCH_CLI_PROFILE_URL` | `https://www.ape.church/api/profile` | Username/profile API endpoint override |
 | `APECHAIN_RPC_URL` | `https://rpc.apechain.com/http` | Custom ApeChain RPC URL(s); the default RPC remains appended as a fallback |
+| `APECHURCH_CLI_FORCE_COLOR` | unset | Force ANSI color in plain output when set to `1`; equivalent to `--color` |
 | `NO_COLOR` | unset | Disable ANSI color output |
 | `APECHURCH_CLI_FORCE_CHIME` | unset | Force win chimes in JSON/nested bot flows when set to `1` |
 | `APECHURCH_CLI_SUPPRESS_VERSION_BANNER` | unset | Suppress the stderr version banner when set to `1`; nested bot CLI calls set this internally |
@@ -416,6 +418,7 @@ Notes:
                        | "--gp-ape" <points>
                        | "-v"
                        | "--verbose"
+                       | "--color"
                        | "--json"
 ```
 
@@ -490,6 +493,7 @@ These options are accepted by the `play` command for both stateless and stateful
 | `--max-bet <ape>` | Loop safety cap for progressive strategies |
 | `--gp-ape <points>` | Override local GP estimation for this run |
 | `-v`, `--verbose` | Show technical logs |
+| `--color` | Force ANSI color in plain output; JSON output stays uncolored |
 | `--json` | Emit JSON output only |
 
 ### GP Rate Controls
@@ -509,15 +513,15 @@ These options are accepted by the `play` command for both stateless and stateful
 ### `bot [name] [args...]`
 
 ```bnf
-<bot-command> ::= "bot" [ <bot-name> ] [ <token>* ] [ "-h" | "--help" ] [ "--json" ] [ "--fallback-loss" <ape> "--fallback-bot" <bot-name> ] [ "--list" ]
+<bot-command> ::= "bot" [ <bot-name> ] [ <token>* ] [ "-h" | "--help" ] [ "--color" ] [ "--json" ] [ "--fallback-loss" <ape> "--fallback-bot" <bot-name> ] [ "--list" ]
 <bot-name> ::= <token>
 ```
 
 `bot` discovers external bot folders from `$APECHURCH_CLI_CONFIG_DIR/bots` by default, where `APECHURCH_CLI_CONFIG_DIR` defaults to `~/.apechurch-cli`. Set `APECHURCH_CLI_BOTS_DIR` when the bot root lives elsewhere; its value must be the actual bots root that contains bot folders with `bot.json`, not a parent directory. Bot logs belong under `APECHURCH_CLI_LOG_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/log`. Each bot is defined by `bot.json` plus an entry module. Use `bot --list` to inspect discovery, `bot --help` for the shared loader help, then `bot <name> ...` to execute one bot. Use `bot <name> -h` or `bot <name> --help` for bot-specific help.
 
-The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. External bots should document their own flags and may follow the shared conventions for `-h, --help`, `--json`, `--fallback-loss <ape>`, `--fallback-bot <name>`, and standard loop controls. `--take-profit` and `--stop-loss` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive those absolute thresholds from the bot's starting balance. See [bots/README.md](../bots/README.md) for authoring guidelines, manifest rules, output conventions, and the security note.
+The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. External bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape>`, `--fallback-bot <name>`, and standard loop controls. `--take-profit` and `--stop-loss` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive those absolute thresholds from the bot's starting balance. See [bots/README.md](../bots/README.md) for authoring guidelines, manifest rules, output conventions, and the security note.
 
-The runtime surface is intentionally narrow: bots receive positional args plus gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and shared `bot.logDir`. Bot summary logs are written directly in the shared log directory; if a bot throws or receives `SIGINT`/`SIGTERM`, the CLI writes a minimal best-effort JSON log with `status: "error"` or `status: "interrupted"` before returning control.
+The runtime surface is intentionally narrow: bots receive positional args plus gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and shared `bot.logDir`. Bot summary logs are written directly in the shared log directory with a `.json` extension; if a bot throws or receives `SIGINT`/`SIGTERM`, the CLI writes a minimal best-effort JSON log with `status: "error"` or `status: "interrupted"` before returning control.
 
 ## History, Catalog, And Help
 

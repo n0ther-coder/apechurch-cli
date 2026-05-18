@@ -20,6 +20,7 @@ const HISTORY_FIXTURE_WALLET = '0x1111111111111111111111111111111111111111';
 const CONFIG_DIR_ENV = 'APECHURCH_CLI_CONFIG_DIR';
 const BOTS_DIR_ENV = 'APECHURCH_CLI_BOTS_DIR';
 const LOG_DIR_ENV = 'APECHURCH_CLI_LOG_DIR';
+const ANSI_RE = /\x1b\[[0-9;]*m/;
 
 function setupNoWalletHome() {
   fs.rmSync(NO_WALLET_HOME, { recursive: true, force: true });
@@ -229,6 +230,12 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(/^\d{14}$/.test(parsed.timestamp_utc), 'Should include UTC commit timestamp');
       assert.ok(/^[0-9a-f]{7,}$/i.test(parsed.commit_id), 'Should include abbreviated commit hash');
       assert.ok(Array.isArray(parsed.games), 'Should preserve the command payload');
+    });
+
+    it('--color does not add ANSI escapes to JSON output', () => {
+      const stdout = cliRaw('games --json --color');
+      assert.doesNotMatch(stdout, ANSI_RE);
+      JSON.parse(stdout);
     });
 
     it('--help shows usage', () => {
@@ -1190,6 +1197,28 @@ describe('CLI Commands Integration Tests', () => {
       assert.deepStrictEqual(payload.args, ['3', '--json']);
     });
 
+    it('forces ANSI colors in piped plain bot output with --color', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'color-bot',
+        script: `export default async function ({ binaryName, session }) {
+  const colorOutput = session.shouldUsePlainColorOutput();
+  console.log(session.formatCommandLine(['roulette', '1', 'RED'], { binaryName, colorOutput }));
+  return 0;
+}
+`,
+      });
+
+      const plain = cli('bot color-bot');
+      const forced = cli('bot color-bot --color');
+
+      assert.strictEqual(plain.code, 0);
+      assert.strictEqual(forced.code, 0);
+      assert.doesNotMatch(plain.stdout, ANSI_RE);
+      assert.match(forced.stdout, ANSI_RE);
+    });
+
     it('uses APECHURCH_CLI_CONFIG_DIR as the config directory and default bot root', () => {
       resetBotFixtures();
       writeBotFixture({
@@ -1281,7 +1310,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(code, 0);
       assert.strictEqual(stdout.trim(), '');
 
-      const files = fs.readdirSync(logDir).filter((name) => /^summary-bot\.\d{14}(?:\.\d+)?\.log$/.test(name));
+      const files = fs.readdirSync(logDir).filter((name) => /^summary-bot\.\d{14}(?:\.\d+)?\.json$/.test(name));
       assert.strictEqual(files.length, 1);
 
       const payload = JSON.parse(fs.readFileSync(path.join(logDir, files[0]), 'utf8'));
@@ -1319,7 +1348,7 @@ export default async function ({ paths, bot }) {
         status: 'ok',
       });
 
-      const files = fs.readdirSync(logDir).filter((name) => /^summary-bot-json\.\d{14}(?:\.\d+)?\.log$/.test(name));
+      const files = fs.readdirSync(logDir).filter((name) => /^summary-bot-json\.\d{14}(?:\.\d+)?\.json$/.test(name));
       assert.strictEqual(files.length, 1);
     });
 
@@ -1343,7 +1372,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(code, 1);
       assert.ok(stdout.includes('Bot "error-bot" failed'));
 
-      const files = fs.readdirSync(logDir).filter((name) => /^error-bot\.\d{14}(?:\.\d+)?\.log$/.test(name));
+      const files = fs.readdirSync(logDir).filter((name) => /^error-bot\.\d{14}(?:\.\d+)?\.json$/.test(name));
       assert.strictEqual(files.length, 1);
 
       const payload = JSON.parse(fs.readFileSync(path.join(logDir, files[0]), 'utf8'));
@@ -1418,7 +1447,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(close.code, 130);
       assert.strictEqual(close.signal, null);
 
-      const files = fs.readdirSync(logDir).filter((name) => /^interrupt-bot\.\d{14}(?:\.\d+)?\.log$/.test(name));
+      const files = fs.readdirSync(logDir).filter((name) => /^interrupt-bot\.\d{14}(?:\.\d+)?\.json$/.test(name));
       assert.strictEqual(files.length, 1);
 
       const payload = JSON.parse(fs.readFileSync(path.join(logDir, files[0]), 'utf8'));

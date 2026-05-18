@@ -115,6 +115,7 @@ import {
   BINARY_NAME,
   CONFIG_DIR_ENV_VAR,
   FORCE_CHIME_ENV_VAR,
+  FORCE_COLOR_ENV_VAR,
   NO_COLOR_ENV_VAR,
   PASS_ENV_VAR,
   PROFILE_URL_ENV_VAR,
@@ -254,6 +255,7 @@ import {
   formatHeader,
   formatAddress,
   formatHistoryLine,
+  forceColorOutput,
 } from '../lib/theme.js';
 import { fitAnsiText, getVisibleWidth } from '../lib/ansi.js';
 import {
@@ -308,13 +310,17 @@ Environment:
 
   Network and output:
     ${RPC_URL_ENV_VAR}             Custom ApeChain RPC URL(s); default RPC remains a fallback
+    ${FORCE_COLOR_ENV_VAR}   Force ANSI color in plain output when set to 1
     ${NO_COLOR_ENV_VAR}                    Disable ANSI color when set
     ${FORCE_CHIME_ENV_VAR}   Force win chimes in JSON/nested bot flows when set to 1
     ${SUPPRESS_VERSION_BANNER_ENV_VAR}
                              Suppress the stderr version banner when set to 1
 `;
 
-program.name(BINARY_NAME).version(VERSION_DISPLAY, '-V, --version', 'output the current version');
+program
+  .name(BINARY_NAME)
+  .version(VERSION_DISPLAY, '-V, --version', 'output the current version')
+  .option('--color', 'Force ANSI color in plain output, even when output is piped');
 program.addHelpText('after', TOP_LEVEL_ENVIRONMENT_HELP);
 const GAME_LIST = listGames().join(' | ');
 const cliPath = path.join(__dirname, 'cli.js');
@@ -405,6 +411,7 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--max-bet <ape>         Loop safety cap for progressive strategies',
   '--gp-ape <points>       Override local GP estimation for this run',
   '-v, --verbose           Show technical logs',
+  '--color                 Force ANSI color in plain output',
   '--json                  Emit JSON output only',
 ]);
 
@@ -501,7 +508,7 @@ function isVersionArg(arg) {
 
 function getTopLevelVersionArgs(argv = process.argv) {
   const args = argv.slice(2);
-  const firstCommandArg = args.find((arg) => arg !== '--json');
+  const firstCommandArg = args.find((arg) => arg !== '--json' && arg !== '--color');
   const isVersionRequest = isVersionArg(firstCommandArg);
   const isMetadataJsonRequest = args.includes('--json') && (!firstCommandArg || isVersionRequest);
 
@@ -523,6 +530,16 @@ function printInvocationVersion() {
     return;
   }
   console.error(`${BINARY_NAME} v${VERSION_DISPLAY}`);
+}
+
+function shouldForceAnsiColor(argv = process.argv) {
+  if (argv.includes('--json')) return false;
+  return argv.includes('--color') || process.env[FORCE_COLOR_ENV_VAR] === '1';
+}
+
+function installColorOutputMode() {
+  if (!shouldForceAnsiColor()) return;
+  forceColorOutput();
 }
 
 function formatHelpBnfSection(lines = []) {
@@ -5491,6 +5508,7 @@ ENVIRONMENT
   ${PASS_ENV_VAR}        Wallet password for non-interactive install/signing
   ${PROFILE_URL_ENV_VAR} Optional override for the username/profile API
   ${RPC_URL_ENV_VAR}             Custom ApeChain RPC URL(s); default RPC remains a fallback
+  ${FORCE_COLOR_ENV_VAR}   Force ANSI color in plain output when set to 1
   ${NO_COLOR_ENV_VAR}                    Disable ANSI color when set
   ${FORCE_CHIME_ENV_VAR}   Force win chimes in JSON/nested bot flows when set to 1
   ${SUPPRESS_VERSION_BANNER_ENV_VAR}
@@ -7099,6 +7117,7 @@ program
 // ============================================================================
 const topLevelVersionArgs = getTopLevelVersionArgs();
 installJsonMetadataConsoleHooks();
+installColorOutputMode();
 if (topLevelVersionArgs.isJson) {
   printVersionJson();
   process.exit(0);

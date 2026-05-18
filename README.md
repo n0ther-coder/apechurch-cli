@@ -77,6 +77,7 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 | `APECHURCH_CLI_PASS` | none | Wallet password for non-interactive install/signing; otherwise the CLI prompts locally when needed |
 | `APECHURCH_CLI_PROFILE_URL` | `https://www.ape.church/api/profile` | Username/profile API endpoint override |
 | `APECHAIN_RPC_URL` | `https://rpc.apechain.com/http` | Optional custom ApeChain RPC URL or comma/whitespace-separated URLs; the default RPC remains appended as a fallback |
+| `APECHURCH_CLI_FORCE_COLOR` | unset | Force ANSI color in plain output when set to `1`; equivalent to `--color` |
 | `NO_COLOR` | unset | Disable ANSI color output when set |
 | `APECHURCH_CLI_FORCE_CHIME` | unset | Force win chimes in JSON/nested bot flows when set to `1` |
 | `APECHURCH_CLI_SUPPRESS_VERSION_BANNER` | unset | Suppress the stderr version banner when set to `1`; nested bot CLI calls set this internally |
@@ -455,6 +456,8 @@ apechurch-cli wallet download 0x1234...abcd --json
 apechurch-cli history 0x1234...abcd --breakdown --json
 apechurch-cli scoreboard 0x1234...abcd --json
 ```
+
+Use `--color` to force ANSI color in plain output when piping or redirecting. JSON output remains uncolored.
 
 See [SKILL.md](./SKILL.md) for complete agent documentation.
 Maintainer and deep-dive docs live under `docs/README.md` in the repo.
