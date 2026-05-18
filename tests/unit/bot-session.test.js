@@ -7,10 +7,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
-  formatAfterGameLine,
   formatBeforeGameLine,
+  formatBotCommandLine,
   formatCommandLine,
+  formatIterationSummaryLine,
+  formatPlayCommandSuffix,
   getStandardBotCliForwardTokens,
+  getNestedBotEconomics,
   getStandardBotLoopCondition,
   getPlayStatus,
   getSettledPlayEconomics,
@@ -269,23 +272,35 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(
       formatBeforeGameLine({
         balanceApe: '100.0000',
-        wins: 1,
-        gamesPlayed: 2,
         totalPayoutWei: 30n * 10n ** 18n,
         totalWagerWei: 20n * 10n ** 18n,
         totalPnlWei: 10n * 10n ** 18n,
       }),
-      '# balance: 100.0000, win_rate: 1/2, payout_ape: 30, wager_ape: 20, pnl: 10',
+      '# balance: 100.0000, payout_ape: 30, wager_ape: 20, pnl: 10',
     );
 
     assert.strictEqual(
-      formatAfterGameLine({
+      formatIterationSummaryLine({
         gameNumber: 3,
-        status: 'complete',
-        wagerWei: 10n * 10n ** 18n,
-        payoutWei: 25n * 10n ** 18n,
+        totalWagerWei: 20n * 10n ** 18n,
+        totalPayoutWei: 25n * 10n ** 18n,
+        totalPnlWei: 5n * 10n ** 18n,
       }),
-      '# game_n: 3, status: complete, bet: 10, payout: 25, multiply: 2.5',
+      '# game_n: 3, wagered: 20, pnl: 5, multiply: 1.25',
+    );
+
+    assert.strictEqual(
+      formatPlayCommandSuffix({
+        status: 'complete',
+        wager_ape: '3.248005801137022857',
+        result: { payout_ape: '0' },
+      }),
+      '  # bet: 3.248006, payout: 0',
+    );
+
+    assert.strictEqual(
+      formatPlayCommandSuffix({ status: 'loop_control_reached' }),
+      '  # loop_control_reached',
     );
   });
 
@@ -297,6 +312,10 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(
       formatCommandLine(['roulette', '10', 'RED BLACK']),
       "apechurch-cli play roulette 10 'RED BLACK'",
+    );
+    assert.strictEqual(
+      formatBotCommandLine('winston', ['16', '--take-profit', '1400']),
+      'apechurch-cli bot winston 16 --take-profit 1400',
     );
   });
 
@@ -323,6 +342,17 @@ describe('Bot Session Helpers', () => {
     }, 2);
     assert.strictEqual(stateful.pnlWei, -125n * 10n ** 17n);
     assert.strictEqual(getPlayStatus({ state: 'HAND_COMPLETE' }), 'complete');
+  });
+
+  it('extracts nested bot economics from summary payloads', () => {
+    const economics = getNestedBotEconomics({
+      total_wager_ape: '18',
+      total_payout_ape: '9',
+    }, 1, 'winston');
+
+    assert.strictEqual(economics.wagerWei, 18n * 10n ** 18n);
+    assert.strictEqual(economics.payoutWei, 9n * 10n ** 18n);
+    assert.strictEqual(economics.pnlWei, -9n * 10n ** 18n);
   });
 
   it('detects fallback threshold hits from total bot P&L', () => {

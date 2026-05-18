@@ -361,6 +361,13 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
 
+    it('play accepts --bankroll as a --max-loss alias', () => {
+      const { stdout, code } = cli('play --bankroll 0 --json');
+      const payload = JSON.parse(stdout);
+      assert.strictEqual(code, 1);
+      assert.match(payload.error, /Invalid --bankroll value/);
+    });
+
     it('help auto still shows advanced examples', () => {
       const { stdout } = cli('help auto');
       assert.ok(stdout.includes('--auto best'), 'Should keep best-mode examples in helper text');
@@ -1205,6 +1212,71 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(payload.paths.logDir, logDir);
       assert.strictEqual(payload.botLogDir, path.join(logDir, 'path-bot'));
       assert.strictEqual(payload.logExists, true);
+    });
+
+    it('writes a summary json log for bot runs even without --json', () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'summary-bot',
+        script: `export default async function ({ bot, args }) {
+  return {
+    exitCode: 0,
+    summary: { bot: bot.command, args, status: 'ok' },
+  };
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const { stdout, code } = cli('bot summary-bot 7', { env });
+      assert.strictEqual(code, 0);
+      assert.strictEqual(stdout.trim(), '');
+
+      const files = fs.readdirSync(logDir).filter((name) => /^summary-bot\.\d{14}(?:\.\d+)?\.log$/.test(name));
+      assert.strictEqual(files.length, 1);
+
+      const payload = JSON.parse(fs.readFileSync(path.join(logDir, files[0]), 'utf8'));
+      assert.deepStrictEqual(payload, {
+        bot: 'summary-bot',
+        args: ['7'],
+        status: 'ok',
+      });
+    });
+
+    it('prints returned summary json and logs it when --json is requested', () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'summary-bot-json',
+        script: `export default async function ({ bot, args }) {
+  return {
+    exitCode: 0,
+    summary: { bot: bot.command, args, status: 'ok' },
+  };
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const { stdout, code } = cli('bot summary-bot-json 7 --json', { env });
+      assert.strictEqual(code, 0);
+      assert.deepStrictEqual(JSON.parse(stdout.trim()), {
+        bot: 'summary-bot-json',
+        args: ['7', '--json'],
+        status: 'ok',
+      });
+
+      const files = fs.readdirSync(logDir).filter((name) => /^summary-bot-json\.\d{14}(?:\.\d+)?\.log$/.test(name));
+      assert.strictEqual(files.length, 1);
     });
 
     it('passes -v through to named bots', () => {

@@ -50,6 +50,17 @@ describe('Loop Terminal Conditions', () => {
     );
   });
 
+  it('parses bankroll as a max-loss alias', () => {
+    assert.strictEqual(parseLoopTerminalOptions({ bankroll: '15' }).maxLoss, 15);
+  });
+
+  it('rejects conflicting max-loss and bankroll values', () => {
+    assert.throws(
+      () => parseLoopTerminalOptions({ maxLoss: '15', bankroll: '20' }),
+      /Conflicting --max-loss and --bankroll values/
+    );
+  });
+
   it('detects target-x hits from exact settled payouts', () => {
     const condition = getSingleGameLoopTerminalCondition({
       gameResult: {
