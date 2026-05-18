@@ -1152,6 +1152,42 @@ describe('CLI Commands Integration Tests', () => {
       assert.deepStrictEqual(payload.args, ['3', '--json']);
     });
 
+    it('filters child bot metric lines from forwarded plain output', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'noisy-child',
+        script: `export default async function ({ args }) {
+  if (process.env.APECHURCH_CLI_BOT_PLAIN_OUTPUT === '1') {
+    console.error('# hidden child metric');
+    console.error('child command output');
+  }
+  return { exitCode: 0, summary: { bot: 'noisy-child', args, status: 'ok' } };
+}
+`,
+      });
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'noisy-parent',
+        script: `export default async function ({ botJson }) {
+  const payload = await botJson('noisy-child', ['3']);
+  console.log(JSON.stringify(payload));
+  return 0;
+}
+`,
+      });
+
+      const { stdout, code } = cli('bot noisy-parent');
+      const lines = stdout.trim().split('\n');
+      const payload = JSON.parse(lines.at(-1));
+
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('child command output'));
+      assert.ok(!stdout.includes('# hidden child metric'));
+      assert.strictEqual(payload.bot, 'noisy-child');
+      assert.deepStrictEqual(payload.args, ['3', '--json']);
+    });
+
     it('uses APECHURCH_CLI_CONFIG_DIR as the config directory and default bot root', () => {
       resetBotFixtures();
       writeBotFixture({
