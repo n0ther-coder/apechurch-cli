@@ -1161,6 +1161,7 @@ describe('CLI Commands Integration Tests', () => {
   if (process.env.APECHURCH_CLI_BOT_PLAIN_OUTPUT === '1') {
     console.error('# hidden child metric');
     console.error('child command output');
+    console.error('');
   }
   return { exitCode: 0, summary: { bot: 'noisy-child', args, status: 'ok' } };
 }
@@ -1183,6 +1184,7 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(code, 0);
       assert.ok(stdout.includes('child command output'));
+      assert.ok(!stdout.includes('child command output\n\n'));
       assert.ok(!stdout.includes('# hidden child metric'));
       assert.strictEqual(payload.bot, 'noisy-child');
       assert.deepStrictEqual(payload.args, ['3', '--json']);
@@ -1222,7 +1224,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(!stdout.includes(path.join(botsDir, 'bots')));
     });
 
-    it('exposes resolved config, bot, and log directories to bots', () => {
+    it('exposes resolved config, bot, and flat log directories to bots', () => {
       resetBotFixtures();
       const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
       writeBotFixture({
@@ -1230,7 +1232,12 @@ describe('CLI Commands Integration Tests', () => {
         folderName: 'path-bot',
         script: `import fs from 'node:fs';
 export default async function ({ paths, bot }) {
-  console.log(JSON.stringify({ paths, botLogDir: bot.logDir, logExists: fs.existsSync(bot.logDir) }));
+  console.log(JSON.stringify({
+    paths,
+    botLogDir: bot.logDir,
+    logExists: fs.existsSync(bot.logDir),
+    botSubdirExists: fs.existsSync(new URL('./path-bot', \`file://\${bot.logDir}/\`)),
+  }));
   return 0;
 }
 `,
@@ -1246,8 +1253,9 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(payload.paths.configDir, CONFIG_OVERRIDE_ROOT);
       assert.strictEqual(payload.paths.botsDir, path.join(CONFIG_OVERRIDE_ROOT, 'bots'));
       assert.strictEqual(payload.paths.logDir, logDir);
-      assert.strictEqual(payload.botLogDir, path.join(logDir, 'path-bot'));
+      assert.strictEqual(payload.botLogDir, logDir);
       assert.strictEqual(payload.logExists, true);
+      assert.strictEqual(payload.botSubdirExists, false);
     });
 
     it('writes a summary json log for bot runs even without --json', () => {
@@ -1313,6 +1321,111 @@ export default async function ({ paths, bot }) {
 
       const files = fs.readdirSync(logDir).filter((name) => /^summary-bot-json\.\d{14}(?:\.\d+)?\.log$/.test(name));
       assert.strictEqual(files.length, 1);
+    });
+
+    it('writes an error json log when a bot throws', () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'error-bot',
+        script: `export default async function () {
+  throw new Error('boom');
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const { stdout, code } = cli('bot error-bot --json', { env });
+      assert.strictEqual(code, 1);
+      assert.ok(stdout.includes('Bot "error-bot" failed'));
+
+      const files = fs.readdirSync(logDir).filter((name) => /^error-bot\.\d{14}(?:\.\d+)?\.log$/.test(name));
+      assert.strictEqual(files.length, 1);
+
+      const payload = JSON.parse(fs.readFileSync(path.join(logDir, files[0]), 'utf8'));
+      assert.strictEqual(payload.bot, 'error-bot');
+      assert.strictEqual(payload.bot_name, 'error-bot');
+      assert.strictEqual(payload.status, 'error');
+      assert.deepStrictEqual(payload.args, ['--json']);
+      assert.strictEqual(payload.error.name, 'Error');
+      assert.strictEqual(payload.error.message, 'boom');
+      assert.match(payload.started_at_utc, /^\d{4}-\d{2}-\d{2}T/);
+      assert.match(payload.ended_at_utc, /^\d{4}-\d{2}-\d{2}T/);
+    });
+
+    it('writes an interrupted json log when a bot receives SIGINT', async () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'interrupt-bot',
+        script: `export default async function () {
+  console.log('ready');
+  setInterval(() => {}, 1000);
+  await new Promise(() => {});
+}
+`,
+      });
+
+      const env = buildCliEnv({
+        env: {
+          [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+          [LOG_DIR_ENV]: logDir,
+        },
+      });
+      const child = spawn(process.execPath, [CLI_PATH, 'bot', 'interrupt-bot'], {
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
+
+      await new Promise((resolve, reject) => {
+        let output = '';
+        const timeout = setTimeout(() => {
+          child.kill('SIGKILL');
+          reject(new Error(`interrupt-bot did not become ready. Output: ${output}`));
+        }, 5000);
+        const onData = (chunk) => {
+          output += chunk;
+          if (output.includes('ready')) {
+            clearTimeout(timeout);
+            child.stdout.off('data', onData);
+            child.stderr.off('data', onData);
+            resolve();
+          }
+        };
+        child.stdout.on('data', onData);
+        child.stderr.on('data', onData);
+      });
+
+      child.kill('SIGINT');
+      const close = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          child.kill('SIGKILL');
+          reject(new Error('interrupt-bot did not exit after SIGINT.'));
+        }, 5000);
+        child.on('close', (code, signal) => {
+          clearTimeout(timeout);
+          resolve({ code, signal });
+        });
+      });
+
+      assert.strictEqual(close.code, 130);
+      assert.strictEqual(close.signal, null);
+
+      const files = fs.readdirSync(logDir).filter((name) => /^interrupt-bot\.\d{14}(?:\.\d+)?\.log$/.test(name));
+      assert.strictEqual(files.length, 1);
+
+      const payload = JSON.parse(fs.readFileSync(path.join(logDir, files[0]), 'utf8'));
+      assert.strictEqual(payload.bot, 'interrupt-bot');
+      assert.strictEqual(payload.bot_name, 'interrupt-bot');
+      assert.strictEqual(payload.status, 'interrupted');
+      assert.strictEqual(payload.signal, 'SIGINT');
     });
 
     it('passes -v through to named bots', () => {
