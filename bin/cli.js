@@ -85,7 +85,9 @@ import { formatEther, isAddress, parseEther } from 'viem';
 // --- Local modules ---
 import {
   APECHURCH_DIR,
-  BOTS_DIR,
+  BOTS_DIR_ENV_VAR,
+  LOG_DIR,
+  LOG_DIR_ENV_VAR,
   SKILL_TARGET_DIR,
   WALLET_FILE,
   GAS_RESERVE_APE,
@@ -112,9 +114,12 @@ import {
   PACKAGE_NAME,
   BINARY_NAME,
   CONFIG_DIR_ENV_VAR,
+  FORCE_CHIME_ENV_VAR,
+  NO_COLOR_ENV_VAR,
   PASS_ENV_VAR,
   PROFILE_URL_ENV_VAR,
   PRIVATE_KEY_ENV_VAR,
+  RPC_URL_ENV_VAR,
   SUPPRESS_VERSION_BANNER_ENV_VAR,
   VIDEO_POKER_CONTRACT,
   ZERO_ADDRESS,
@@ -289,8 +294,28 @@ const VERSION_METADATA = Object.freeze({
   ...readVersionGitMetadata(),
 });
 const VERSION_DISPLAY = formatVersionDisplay(VERSION_METADATA);
+const TOP_LEVEL_ENVIRONMENT_HELP = `
+Environment:
+  Paths:
+    ${CONFIG_DIR_ENV_VAR}   Root config/data directory (default: ~/.apechurch-cli)
+    ${BOTS_DIR_ENV_VAR}     External bots root (default: ${CONFIG_DIR_ENV_VAR}/bots)
+    ${LOG_DIR_ENV_VAR}      Bot log directory (default: ${CONFIG_DIR_ENV_VAR}/log)
+
+  Wallet and profile:
+    ${PRIVATE_KEY_ENV_VAR}          Optional fallback for non-interactive install/reinstall
+    ${PASS_ENV_VAR}        Wallet password for non-interactive install/signing
+    ${PROFILE_URL_ENV_VAR} Optional username/profile API endpoint override
+
+  Network and output:
+    ${RPC_URL_ENV_VAR}             Custom ApeChain RPC URL(s); default RPC remains a fallback
+    ${NO_COLOR_ENV_VAR}                    Disable ANSI color when set
+    ${FORCE_CHIME_ENV_VAR}   Force win chimes in JSON/nested bot flows when set to 1
+    ${SUPPRESS_VERSION_BANNER_ENV_VAR}
+                             Suppress the stderr version banner when set to 1
+`;
 
 program.name(BINARY_NAME).version(VERSION_DISPLAY, '-V, --version', 'output the current version');
+program.addHelpText('after', TOP_LEVEL_ENVIRONMENT_HELP);
 const GAME_LIST = listGames().join(' | ');
 const cliPath = path.join(__dirname, 'cli.js');
 const discoveredBots = discoverBotDefinitions();
@@ -375,6 +400,7 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--giveback-profit <ape> Stop after run-up falls back to break-even/loss',
   '--stop-loss <ape>       Stop when balance drops to the threshold',
   '--max-loss <ape>        Stop when session P&L reaches the loss limit',
+  '--bankroll <ape>        Alias for --max-loss',
   '--bet-strategy <name>   Loop bet progression',
   '--max-bet <ape>         Loop safety cap for progressive strategies',
   '--gp-ape <points>       Override local GP estimation for this run',
@@ -515,14 +541,19 @@ function formatHelpOptionGroup(title, lines = []) {
   return `${title}:\n  ${lines.join('\n  ')}`;
 }
 
-function formatBotDirectoryNotice() {
-  const overrideDir = process.env[CONFIG_DIR_ENV_VAR];
-  const effectiveDir = discoveredBots.botsDir;
-  if (!overrideDir) {
-    return `Bot directory: ${BOTS_DIR}`;
-  }
+function formatPathEnvNotice(label, resolvedPath, envVar) {
+  const rawValue = process.env[envVar];
+  return rawValue
+    ? `${label}: ${resolvedPath} (${envVar}=${rawValue})`
+    : `${label}: ${resolvedPath}`;
+}
 
-  return `Bot directory: ${effectiveDir} (${CONFIG_DIR_ENV_VAR}=${overrideDir})`;
+function formatBotDirectoryNotice() {
+  return [
+    formatPathEnvNotice('Config directory', APECHURCH_DIR, CONFIG_DIR_ENV_VAR),
+    formatPathEnvNotice('Bot directory', discoveredBots.botsDir, BOTS_DIR_ENV_VAR),
+    formatPathEnvNotice('Bot log directory', LOG_DIR, LOG_DIR_ENV_VAR),
+  ].join('\n');
 }
 
 function formatBotLoadErrors() {
@@ -1975,6 +2006,7 @@ Install:
   Fresh install/reinstall prompts securely for the private key (hidden input)
 
 Environment:
+  ${CONFIG_DIR_ENV_VAR}   Root config/data directory (default: ~/.apechurch-cli)
   ${PRIVATE_KEY_ENV_VAR}   Optional fallback for non-interactive install/reinstall
   ${PASS_ENV_VAR}          Required for non-interactive install/signing; optional otherwise
   ${PROFILE_URL_ENV_VAR}   Optional override for the username/profile API endpoint
@@ -3079,7 +3111,7 @@ program
   .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
   .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
-  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
+  .option('--max-loss <ape>, --bankroll <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
@@ -3145,6 +3177,7 @@ program
       '--giveback-profit',
       '--stop-loss',
       '--max-loss',
+      '--bankroll',
       '--bet-strategy',
       '--max-bet',
       '--gp-ape',
@@ -4218,14 +4251,16 @@ ${formatBotDirectoryNotice()}
 
 Environment:
   ${CONFIG_DIR_ENV_VAR}
-      Optional external bot directory override. Set it to either the parent
-      config/checkout directory or directly to its bots directory.
-  ${PRIVATE_KEY_ENV_VAR}
-      Optional fallback for non-interactive wallet access.
+      Root config/data directory. Default: ~/.apechurch-cli.
+  ${BOTS_DIR_ENV_VAR}
+      External bots root. Set this to the actual bots checkout/root directory.
+      Default: ${CONFIG_DIR_ENV_VAR}/bots.
+  ${LOG_DIR_ENV_VAR}
+      Bot log directory. Default: ${CONFIG_DIR_ENV_VAR}/log.
   ${PASS_ENV_VAR}
-      Required for non-interactive install/signing; optional otherwise.
-  ${PROFILE_URL_ENV_VAR}
-      Optional override for the username/profile API.
+      Wallet password for non-interactive signing during live bot runs.
+  ${RPC_URL_ENV_VAR}
+      Custom ApeChain RPC URL(s); the default RPC remains a fallback.
 `)
   .action(async (name, args, opts) => {
     if (opts.help && !name) {
@@ -4960,6 +4995,7 @@ ${'─'.repeat(60)}
   --giveback-profit <ape>  Stop after a run-up falls back to break-even/loss
   --stop-loss <ape>  Stop when balance drops to this amount
   --max-loss <ape>  Stop when session P&L reaches this loss
+  --bankroll <ape>  Alias for --max-loss
 
 ${'─'.repeat(60)}
   GRAMMAR (BNF)
@@ -5055,6 +5091,7 @@ ${'─'.repeat(60)}
   --target-profit <ape> Stop when a run pays at least this payout
   --stop-loss <ape> Stop when balance drops to this amount
   --max-loss <ape> Stop when session P&L reaches this loss
+  --bankroll <ape> Alias for --max-loss
   --retrace <ape> Stop when a run loses at least this amount
   --recover-loss <ape> Stop after a drawdown recovers to break-even/profit
   --giveback-profit <ape> Stop after a run-up falls back to break-even/loss
@@ -5145,6 +5182,7 @@ ${'─'.repeat(60)}
   --target-profit <ape> Stop when a run pays at least this payout
   --stop-loss <ape> Stop when balance drops to this amount
   --max-loss <ape> Stop when session P&L reaches this loss
+  --bankroll <ape> Alias for --max-loss
   --retrace <ape> Stop when a run loses at least this amount
   --recover-loss <ape> Stop after a drawdown recovers to break-even/profit
   --giveback-profit <ape> Stop after a run-up falls back to break-even/loss
@@ -5236,6 +5274,7 @@ ${'─'.repeat(60)}
   --giveback-profit <ape>  Stop after a run-up falls back to break-even/loss
   --stop-loss <ape>  Stop when balance drops to this amount
   --max-loss <ape>  Stop when session P&L reaches this loss
+  --bankroll <ape>  Alias for --max-loss
 
 ${'─'.repeat(60)}
   GRAMMAR (BNF)
@@ -5444,10 +5483,17 @@ CONTEST
   ${BINARY_NAME} contest register     Register for the contest (5 APE)
 
 ENVIRONMENT
-  ${PRIVATE_KEY_ENV_VAR}   Optional fallback for non-interactive install/reinstall
-  ${PASS_ENV_VAR}          Required for non-interactive install/signing; optional otherwise
-  ${CONFIG_DIR_ENV_VAR}    Optional directory override for external bots
-  ${PROFILE_URL_ENV_VAR}   Optional override for the username/profile API
+  ${CONFIG_DIR_ENV_VAR}   Root config/data directory (default: ~/.apechurch-cli)
+  ${BOTS_DIR_ENV_VAR}     External bots root (default: ${CONFIG_DIR_ENV_VAR}/bots)
+  ${LOG_DIR_ENV_VAR}      Bot log directory (default: ${CONFIG_DIR_ENV_VAR}/log)
+  ${PRIVATE_KEY_ENV_VAR}          Optional fallback for non-interactive install/reinstall
+  ${PASS_ENV_VAR}        Wallet password for non-interactive install/signing
+  ${PROFILE_URL_ENV_VAR} Optional override for the username/profile API
+  ${RPC_URL_ENV_VAR}             Custom ApeChain RPC URL(s); default RPC remains a fallback
+  ${NO_COLOR_ENV_VAR}                    Disable ANSI color when set
+  ${FORCE_CHIME_ENV_VAR}   Force win chimes in JSON/nested bot flows when set to 1
+  ${SUPPRESS_VERSION_BANNER_ENV_VAR}
+                          Suppress the stderr version banner when set to 1
 
 LOOP OPTIONS
   --loop                  Play continuously
@@ -5460,6 +5506,7 @@ LOOP OPTIONS
   --giveback-profit <ape> Stop at break-even/loss after a run-up of at least this size
   --stop-loss <ape>       Stop when balance drops to limit
   --max-loss <ape>        Stop when session P&L reaches the loss limit
+  --bankroll <ape>        Alias for --max-loss
   --max-games <count>     Stop after N games
   --bet-strategy <name>   Betting strategy (flat, martingale, etc.)
   --max-bet <ape>         Maximum bet cap (for progressive strategies)
@@ -5589,8 +5636,9 @@ ${'─'.repeat(70)}
   --stop-loss <ape>    Stop when balance DROPS to this amount
                        Example: --stop-loss 50 (stop if you hit 50 APE)
 
-  --max-loss <ape>     Stop when session P&L reaches -<ape> or worse
-                       Example: --max-loss 20 (stop at -20 APE session P&L)
+  --max-loss <ape> / --bankroll <ape>
+                       Stop when session P&L reaches -<ape> or worse
+                       Example: --bankroll 20 (stop at -20 APE session P&L)
                        
   --max-games <n>      Stop after exactly N games
                        Example: --max-games 100 (play 100 games then stop)
@@ -5930,6 +5978,10 @@ ${'═'.repeat(70)}
   Wallet path:
     ${WALLET_FILE}
 
+  Config directory:
+    ${APECHURCH_DIR}
+    Override with ${CONFIG_DIR_ENV_VAR}.
+
   Security model in this hardened build:
     • The private key is stored only in encrypted form on disk
     • Signing happens only locally on this machine
@@ -5972,7 +6024,7 @@ ${'─'.repeat(70)}
     --json             Emit the machine-readable download report
 
   Download writes:
-    ~/.apechurch-cli/history/<wallet>_history.json
+    ${path.join(APECHURCH_DIR, 'history')}/<wallet>_history.json
 
   History commands:
     ${BINARY_NAME} history --list
@@ -6117,7 +6169,9 @@ ${'─'.repeat(70)}
 ${'─'.repeat(70)}
 
   Per-wallet history files are stored at:
-    ~/.apechurch-cli/history/<wallet>_history.json
+    ${path.join(APECHURCH_DIR, 'history')}/<wallet>_history.json
+
+  Override the config/data root with ${CONFIG_DIR_ENV_VAR}.
 
   The local wallet address is used automatically if you omit [address].
 
@@ -6923,7 +6977,7 @@ program
   .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
   .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
-  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
+  .option('--max-loss <ape>, --bankroll <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
@@ -6959,7 +7013,7 @@ program
   .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
   .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
-  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
+  .option('--max-loss <ape>, --bankroll <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
@@ -6994,7 +7048,7 @@ program
   .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
   .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
-  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
+  .option('--max-loss <ape>, --bankroll <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
@@ -7027,7 +7081,7 @@ program
   .option('--recover-loss <ape>', 'Stop when session P&L returns to break-even/profit after being down at least this much (use with --loop)')
   .option('--giveback-profit <ape>', 'Stop when session P&L returns to break-even/loss after being up at least this much (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
-  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
+  .option('--max-loss <ape>, --bankroll <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')

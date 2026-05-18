@@ -17,6 +17,9 @@ const NO_WALLET_HOME = path.join(__dirname, '../tmp-no-wallet-home');
 const HISTORY_FIXTURE_HOME = path.join(__dirname, '../tmp-history-home');
 const CONFIG_OVERRIDE_ROOT = path.join(__dirname, '../tmp-config-root');
 const HISTORY_FIXTURE_WALLET = '0x1111111111111111111111111111111111111111';
+const CONFIG_DIR_ENV = 'APECHURCH_CLI_CONFIG_DIR';
+const BOTS_DIR_ENV = 'APECHURCH_CLI_BOTS_DIR';
+const LOG_DIR_ENV = 'APECHURCH_CLI_LOG_DIR';
 
 function setupNoWalletHome() {
   fs.rmSync(NO_WALLET_HOME, { recursive: true, force: true });
@@ -124,9 +127,7 @@ function stripVersionBanner(output) {
 
 function buildCliEnv(options = {}) {
   const optionEnv = options.env || {};
-  const optionHasBotConfig = Object.prototype.hasOwnProperty.call(optionEnv, 'APECHURCH_CLI_CONFIG');
-  const optionBotConfig = optionEnv.APECHURCH_CLI_CONFIG;
-  const preserveBotConfig = optionHasBotConfig && optionBotConfig !== process.env.APECHURCH_CLI_CONFIG;
+  const pathEnvVars = [CONFIG_DIR_ENV, BOTS_DIR_ENV, LOG_DIR_ENV];
   const env = {
     ...process.env,
     HOME: optionEnv.HOME || NO_WALLET_HOME,
@@ -134,16 +135,20 @@ function buildCliEnv(options = {}) {
   };
 
   // Integration tests create isolated bot fixtures. Do not let a developer's
-  // shell-level bot config override the fixture directory unless a test opts in.
-  delete env.APECHURCH_CLI_CONFIG;
+  // shell-level path config override the fixture directories unless a test opts in.
+  for (const envVar of pathEnvVars) {
+    delete env[envVar];
+  }
 
   const mergedEnv = {
     ...env,
     ...optionEnv,
   };
 
-  if (!preserveBotConfig) {
-    delete mergedEnv.APECHURCH_CLI_CONFIG;
+  for (const envVar of pathEnvVars) {
+    if (!Object.prototype.hasOwnProperty.call(optionEnv, envVar)) {
+      delete mergedEnv[envVar];
+    }
   }
 
   return mergedEnv;
@@ -230,13 +235,19 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout } = cli('--help');
       assert.ok(stdout.includes('Usage'), 'Should show usage');
       assert.ok(stdout.includes('Commands'), 'Should list commands');
+      assert.ok(stdout.includes(CONFIG_DIR_ENV), 'Should document config directory env');
+      assert.ok(stdout.includes(BOTS_DIR_ENV), 'Should document bots directory env');
+      assert.ok(stdout.includes(LOG_DIR_ENV), 'Should document bot log directory env');
     });
 
     it('bot --help documents the external bot surface', () => {
       const { stdout } = cli('bot --help');
       assert.ok(stdout.includes('Run an external bot'), 'Should document the bot command');
       assert.ok(stdout.includes('Bot directory:'), 'Should show the bot directory');
+      assert.ok(stdout.includes('Bot log directory:'), 'Should show the bot log directory');
       assert.ok(stdout.includes('bot [options] [name] [args...]'), 'Should show bot command usage');
+      assert.ok(stdout.includes(BOTS_DIR_ENV), 'Should document direct bots root override');
+      assert.ok(stdout.includes(LOG_DIR_ENV), 'Should document bot log dir override');
     });
 
     it('play --help includes BNF grammar for structured arguments', () => {
@@ -312,6 +323,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--recover-loss <ape>'), 'Should show drawdown recovery stop option');
       assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
       assert.ok(stdout.includes('--max-loss <ape>'), 'Should show max-loss stop option');
+      assert.ok(stdout.includes('--bankroll <ape>'), 'Should show bankroll alias');
       assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
@@ -327,6 +339,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--recover-loss <ape>'), 'Should show drawdown recovery stop option');
       assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
       assert.ok(stdout.includes('--max-loss <ape>'), 'Should show max-loss stop option');
+      assert.ok(stdout.includes('--bankroll <ape>'), 'Should show bankroll alias');
       assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
@@ -344,6 +357,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--recover-loss <ape>'), 'Should show drawdown recovery stop option');
       assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
       assert.ok(stdout.includes('--max-loss <ape>'), 'Should show max-loss stop option');
+      assert.ok(stdout.includes('--bankroll <ape>'), 'Should show bankroll alias');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
 
@@ -365,6 +379,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--recover-loss <ape>'), 'Should document drawdown recovery stop');
       assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should document profit giveback stop');
       assert.ok(stdout.includes('--max-loss <ape>'), 'Should document max-loss stop');
+      assert.ok(stdout.includes('--bankroll <ape>'), 'Should document bankroll alias');
       assert.ok(stdout.includes('Estimate games before wallet squandering'), 'Should document wallet squandering estimate');
       assert.ok(stdout.includes('Estimate games before stop-loss'), 'Should document stop-loss estimate');
       assert.ok(stdout.includes('--human'), 'Should document humanized loop pacing');
@@ -1130,23 +1145,24 @@ describe('CLI Commands Integration Tests', () => {
       assert.deepStrictEqual(payload.args, ['3', '--json']);
     });
 
-    it('prefers APECHURCH_CLI_CONFIG as the bot base directory', () => {
+    it('uses APECHURCH_CLI_CONFIG_DIR as the config directory and default bot root', () => {
       resetBotFixtures();
       writeBotFixture({
         baseDir: CONFIG_OVERRIDE_ROOT,
         folderName: 'override-bot',
       });
 
-      const env = { APECHURCH_CLI_CONFIG: CONFIG_OVERRIDE_ROOT };
+      const env = { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT };
       const { stdout, code } = cli('bot --list', { env });
       assert.strictEqual(code, 0);
       assert.ok(stdout.includes('override-bot'));
-      assert.ok(stdout.includes('APECHURCH_CLI_CONFIG='));
+      assert.ok(stdout.includes(`${CONFIG_DIR_ENV}=`));
       assert.ok(stdout.includes(path.join(CONFIG_OVERRIDE_ROOT, 'bots')));
+      assert.ok(stdout.includes(path.join(CONFIG_OVERRIDE_ROOT, 'log')));
       assert.ok(!stdout.includes('sample-bot'));
     });
 
-    it('accepts APECHURCH_CLI_CONFIG pointing directly at the bots directory', () => {
+    it('accepts APECHURCH_CLI_BOTS_DIR pointing directly at the bots root', () => {
       resetBotFixtures();
       writeBotFixture({
         baseDir: CONFIG_OVERRIDE_ROOT,
@@ -1154,12 +1170,41 @@ describe('CLI Commands Integration Tests', () => {
       });
 
       const botsDir = path.join(CONFIG_OVERRIDE_ROOT, 'bots');
-      const env = { APECHURCH_CLI_CONFIG: botsDir };
+      const env = { [BOTS_DIR_ENV]: botsDir };
       const { stdout, code } = cli('bot --list', { env });
       assert.strictEqual(code, 0);
       assert.ok(stdout.includes('direct-bots-dir'));
       assert.ok(stdout.includes(`Bot directory: ${botsDir}`));
+      assert.ok(stdout.includes(`${BOTS_DIR_ENV}=`));
       assert.ok(!stdout.includes(path.join(botsDir, 'bots')));
+    });
+
+    it('exposes resolved config, bot, and log directories to bots', () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'path-bot',
+        script: `import fs from 'node:fs';
+export default async function ({ paths, bot }) {
+  console.log(JSON.stringify({ paths, botLogDir: bot.logDir, logExists: fs.existsSync(bot.logDir) }));
+  return 0;
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const { stdout, code } = cli('bot path-bot --json', { env });
+      const payload = JSON.parse(stdout.trim());
+      assert.strictEqual(code, 0);
+      assert.strictEqual(payload.paths.configDir, CONFIG_OVERRIDE_ROOT);
+      assert.strictEqual(payload.paths.botsDir, path.join(CONFIG_OVERRIDE_ROOT, 'bots'));
+      assert.strictEqual(payload.paths.logDir, logDir);
+      assert.strictEqual(payload.botLogDir, path.join(logDir, 'path-bot'));
+      assert.strictEqual(payload.logExists, true);
     });
 
     it('passes -v through to named bots', () => {
@@ -1174,7 +1219,7 @@ describe('CLI Commands Integration Tests', () => {
 `,
       });
 
-      const env = { APECHURCH_CLI_CONFIG: CONFIG_OVERRIDE_ROOT };
+      const env = { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT };
       const { stdout, code } = cli('bot versioned-bot -v 1 --json', { env });
       const payload = JSON.parse(stdout.trim());
       assert.strictEqual(code, 0);

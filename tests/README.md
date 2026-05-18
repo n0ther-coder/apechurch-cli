@@ -51,6 +51,10 @@ Pure function tests - no network calls, no state changes.
 | `APECHURCH_CLI_PASS=...` | Supply the local wallet password non-interactively during live signing |
 | `APECHURCH_CLI_PK=0x...` | Optional non-interactive fallback if you must run `apechurch-cli install` on a fresh machine without a terminal prompt |
 | `APECHURCH_CLI_PROFILE_URL=https://...` | Override the profile API endpoint during local setup/registration |
+| `APECHURCH_CLI_CONFIG_DIR=/path/to/config` | Override the local CLI config/data root for isolated test runs |
+| `APECHURCH_CLI_BOTS_DIR=/path/to/bots` | Override the external bot root used by `bot` tests |
+| `APECHURCH_CLI_LOG_DIR=/path/to/log` | Override the bot log directory |
+| `APECHAIN_RPC_URL=https://...` | Override the ApeChain RPC URL used by wallet/live reads |
 
 ## Live Test Requirements
 

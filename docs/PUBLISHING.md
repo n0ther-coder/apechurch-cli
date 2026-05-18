@@ -45,6 +45,7 @@ Example:
    - Prompts securely for the private key on a fresh install/reinstall without an existing `~/.apechurch-cli/wallet.json`
    - `APECHURCH_CLI_PK` is an optional non-interactive fallback only
    - `APECHURCH_CLI_PASS` is required for non-interactive install/signing
+   - Optional: `APECHURCH_CLI_CONFIG_DIR` to override the local config/data root
    - Optional: `APECHURCH_CLI_PROFILE_URL` to override the username/profile API endpoint
    - Registers username via SIWE (auto-generated unless provided)
    - Prints funding guide and wallet address
@@ -78,6 +79,7 @@ Steps:
    - Prompts securely for the private key only when no encrypted wallet is already present locally
    - `APECHURCH_CLI_PK` is an optional non-interactive fallback only
    - `APECHURCH_CLI_PASS` is required for non-interactive install/signing and avoids interactive password prompts during local signing
+   - `APECHURCH_CLI_CONFIG_DIR` overrides the local config/data root if needed
    - `APECHURCH_CLI_PROFILE_URL` overrides the default profile API if needed
    - If no username is given, one is generated.
 
@@ -129,6 +131,9 @@ See `profile.example.json` for a full example.
 Related env vars:
 - `APECHURCH_CLI_PK` as a non-interactive fallback for install/reinstall
 - `APECHURCH_CLI_PASS` for non-interactive local signing
+- `APECHURCH_CLI_CONFIG_DIR` to point local config/data at a different root
+- `APECHURCH_CLI_BOTS_DIR` to point external bot discovery at a bots root
+- `APECHURCH_CLI_LOG_DIR` to point bot logs at a different directory
 - `APECHURCH_CLI_PROFILE_URL` to point username/profile registration at a different API
 
 Common override keys:

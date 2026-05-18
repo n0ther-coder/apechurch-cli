@@ -68,10 +68,18 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 
 ## Environment Variables
 
-- `APECHURCH_CLI_PK`: optional fallback for non-interactive fresh install/reinstall
-- `APECHURCH_CLI_PASS`: required for non-interactive install/signing; optional otherwise
-- `APECHURCH_CLI_CONFIG`: optional override for external bots; accepts either a parent directory containing `bots/` or the `bots/` directory itself
-- `APECHURCH_CLI_PROFILE_URL`: optional override for the username/profile API endpoint
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APECHURCH_CLI_CONFIG_DIR` | `~/.apechurch-cli` | Root directory for local CLI config and data, including wallet, profiles, history, state, scores, default bots, and default bot logs |
+| `APECHURCH_CLI_BOTS_DIR` | `$APECHURCH_CLI_CONFIG_DIR/bots` | External bots root; set this to the actual bots checkout/root directory that contains bot folders with `bot.json` |
+| `APECHURCH_CLI_LOG_DIR` | `$APECHURCH_CLI_CONFIG_DIR/log` | Bot log directory; bot runtime contexts expose this path for bot-owned logs |
+| `APECHURCH_CLI_PK` | none | Optional fallback for non-interactive fresh install/reinstall only |
+| `APECHURCH_CLI_PASS` | none | Wallet password for non-interactive install/signing; otherwise the CLI prompts locally when needed |
+| `APECHURCH_CLI_PROFILE_URL` | `https://www.ape.church/api/profile` | Username/profile API endpoint override |
+| `APECHAIN_RPC_URL` | `https://rpc.apechain.com/http` | Optional custom ApeChain RPC URL or comma/whitespace-separated URLs; the default RPC remains appended as a fallback |
+| `NO_COLOR` | unset | Disable ANSI color output when set |
+| `APECHURCH_CLI_FORCE_CHIME` | unset | Force win chimes in JSON/nested bot flows when set to `1` |
+| `APECHURCH_CLI_SUPPRESS_VERSION_BANNER` | unset | Suppress the stderr version banner when set to `1`; nested bot CLI calls set this internally |
 
 ## Reference Docs
 
@@ -333,7 +341,7 @@ apechurch-cli play ape-strong 10 50 --loop --take-profit 150
 | `--recover-loss <ape>` | Stop when session P&L gets back to break-even/profit after a drawdown of at least this size |
 | `--giveback-profit <ape>` | Stop when session P&L falls back to break-even/loss after a run-up of at least this size |
 | `--stop-loss <ape>` | Stop when balance drops to limit |
-| `--max-loss <ape>` | Stop when session P&L reaches the loss limit |
+| `--max-loss <ape>`, `--bankroll <ape>` | Stop when session P&L reaches the loss limit |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
 | `--gp-ape <points>` | Override the loop points conversion for this run |

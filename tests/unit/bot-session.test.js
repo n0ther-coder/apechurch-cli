@@ -75,6 +75,11 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(parseStandardBotArgs(['--delay=0']).loopControls.delay, '0');
   });
 
+  it('accepts --bankroll as an alias for --max-loss', () => {
+    const parsed = parseStandardBotArgs(['--bankroll', '9']);
+    assert.strictEqual(parsed.loopControls.maxLoss, '9');
+  });
+
   it('parses and forwards custom standard bot human timing ranges', () => {
     const parsed = parseStandardBotArgs([
       '--human',
