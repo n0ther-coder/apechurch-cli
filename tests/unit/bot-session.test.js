@@ -321,8 +321,8 @@ describe('Bot Session Helpers', () => {
       "apechurch-cli play roulette 10 'RED BLACK'",
     );
     assert.strictEqual(
-      formatBotCommandLine('winston', ['16', '--take-profit', '1400']),
-      'apechurch-cli bot winston 16 --take-profit 1400',
+      formatBotCommandLine('nested-bot', ['16', '--take-profit', '1400']),
+      'apechurch-cli bot nested-bot 16 --take-profit 1400',
     );
   });
 
@@ -355,7 +355,7 @@ describe('Bot Session Helpers', () => {
     const economics = getNestedBotEconomics({
       total_wager_ape: '18',
       total_payout_ape: '9',
-    }, 1, 'winston');
+    }, 1, 'nested-bot');
 
     assert.strictEqual(economics.wagerWei, 18n * 10n ** 18n);
     assert.strictEqual(economics.payoutWei, 9n * 10n ** 18n);
