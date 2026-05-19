@@ -9,6 +9,7 @@ import {
   renderGameFullPromptLine,
   renderGameFullDecisionStart,
 } from '../../lib/stateful/video-poker/display.js';
+import { stripAnsi } from '../../lib/ansi.js';
 
 const ANSI_REGEX = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
 
@@ -141,8 +142,9 @@ describe('Video Poker Display', () => {
       ],
     }, { displayMode: 'simple' });
 
-    assert.match(output, /💀 No winning hand/);
-    assert.match(output, /\(net profit -25\.0000 APE\)/);
+    const plain = stripAnsi(output);
+    assert.match(plain, /💀 No winning hand/);
+    assert.match(plain, /\(net profit -25\.0000 APE\)/);
     assert.doesNotMatch(output, /❌ No winning hand/);
   });
 
@@ -166,9 +168,9 @@ describe('Video Poker Display', () => {
       totalPayoutApe: 0,
     });
 
-    assert.match(winFooter, /🎉 Straight! → 100 APE \(4x\) \(net profit \+75\.0000 APE\)/);
-    assert.match(pushFooter, /🤝 Jacks or Better! → 25 APE \(1x\) \(net profit 0\.0000 APE\)/);
-    assert.match(lossFooter, /💀 No winning hand \(net profit -25\.0000 APE\)/);
+    assert.match(stripAnsi(winFooter), /🎉 Straight! → 100 APE \(4x\) \(net profit \+75\.0000 APE\)/);
+    assert.match(stripAnsi(pushFooter), /🤝 Jacks or Better! → 25 APE \(1x\) \(net profit 0\.0000 APE\)/);
+    assert.match(stripAnsi(lossFooter), /💀 No winning hand \(net profit -25\.0000 APE\)/);
   });
 
   it('keeps the full-mode result line only in the footer for completed hands', () => {
@@ -191,7 +193,7 @@ describe('Video Poker Display', () => {
     }, { displayMode: 'full' });
 
     assert.doesNotMatch(output, /║ → Flush\s+║/);
-    assert.match(output, /🎉 Flush! → 150 APE \(6x\) \(net profit \+125\.0000 APE\)/);
+    assert.match(stripAnsi(output), /🎉 Flush! → 150 APE \(6x\) \(net profit \+125\.0000 APE\)/);
   });
 
   it('serializes bigint fields in json mode', () => {

@@ -3,7 +3,7 @@ import assert from 'node:assert';
 
 import { renderGame } from '../../lib/stateful/blackjack/display.js';
 import { formatActionLabel } from '../../lib/stateful/blackjack/state.js';
-import { getVisibleWidth } from '../../lib/ansi.js';
+import { getVisibleWidth, stripAnsi } from '../../lib/ansi.js';
 
 function makeCard(rank, suit, display) {
   return {
@@ -112,8 +112,9 @@ describe('Blackjack Display', () => {
       totalPayout: 25000000000000000000n,
     }), [], { displayMode: 'simple' });
 
-    assert.match(output, /🤝 RESULT: PUSH/);
-    assert.match(output, /\(net profit 0\.0000 APE\)/);
+    const plain = stripAnsi(output);
+    assert.match(plain, /🤝 RESULT: PUSH/);
+    assert.match(plain, /\(net profit 0\.0000 APE\)/);
   });
 
   it('keeps the full-mode dealer-wins row aligned when it includes an emoji outcome icon', () => {

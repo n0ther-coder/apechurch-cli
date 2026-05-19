@@ -59,7 +59,7 @@ describe('Loop Stats', () => {
       nextDelayLabel: '6s',
     });
 
-    const lines = output.split('\n');
+    const lines = stripAnsi(output).split('\n');
 
     assert.deepStrictEqual(lines, [
       '⚖️  Balance: 173.40 APE (+23.40)',
@@ -84,7 +84,7 @@ describe('Loop Stats', () => {
       nextDelayLabel: '6s',
     });
 
-    const lines = output.split('\n');
+    const lines = stripAnsi(output).split('\n');
 
     assert.deepStrictEqual(lines, [
       '⚖️  Balance: 173.40 APE (+23.40)',
@@ -108,7 +108,7 @@ describe('Loop Stats', () => {
       nextDelayLabel: '6s',
     });
 
-    const lines = output.split('\n');
+    const lines = stripAnsi(output).split('\n');
 
     assert.deepStrictEqual(lines, [
       '⚖️  Balance: 150.00 APE (+0.00)',
@@ -131,7 +131,7 @@ describe('Loop Stats', () => {
       rtpGame: 'ape-strong',
     });
 
-    assert.deepStrictEqual(output.split('\n'), [
+    assert.deepStrictEqual(stripAnsi(output).split('\n'), [
       '⚖️  Balance: 200.00 APE (+50.00)',
       '✌️  Win rate: 100.00% (1/1)',
       '🎲 RTP (expected/reported/current): 97.38% 👌 / 98.53% / 150.00% (payout 150.00 APE  wagered 100.00 APE  win 50.00 APE)',
@@ -153,7 +153,7 @@ describe('Loop Stats', () => {
       rtpGame: 'ape-strong',
     });
 
-    const lines = output.split('\n');
+    const lines = stripAnsi(output).split('\n');
 
     assert.deepStrictEqual(lines, [
       '🏁 Session Stats:',
@@ -178,7 +178,7 @@ describe('Loop Stats', () => {
       stats,
     });
 
-    assert.match(output, /🤝 Net result: \+0\.00 APE \(⚖️  end 150\.00 = start 150\.00\)/);
+    assert.match(stripAnsi(output), /🤝 Net result: \+0\.00 APE \(⚖️  end 150\.00 = start 150\.00\)/);
   });
 
   it('scopes current RTP to the active variant bucket when config is provided', () => {
@@ -207,7 +207,7 @@ describe('Loop Stats', () => {
       rtpConfig: { picks: 4 },
     });
 
-    assert.match(output, /93\.39% 👌 \/ 86\.35% \/ 90\.00%/);
+    assert.match(stripAnsi(output), /93\.39% 👌 \/ 86\.35% \/ 90\.00%/);
   });
 
   it('accepts a per-run GP rate override', () => {

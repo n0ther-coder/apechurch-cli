@@ -220,15 +220,16 @@ describe('Theme', () => {
         settled: true,
       };
       const result = formatHistoryLine(game);
-      assert.ok(result.includes('🎉'));
-      assert.ok(result.includes('2026-03-27 14:28:51 UTC 🎉'));
-      assert.ok(result.indexOf('ApeStrong') > result.indexOf('🎉'));
-      assert.ok(result.includes('       9.50 APE'));
-      assert.ok(result.includes('       10.00 wAPE'));
-      assert.ok(result.includes('🧮 50 GP'));
-      assert.ok(result.includes('ApeStrong'));
-      assert.ok(!result.includes('<123456789>'));
-      assert.ok(result.includes('(verified on-chain, 2026-03-29 12:00:00 UTC)'));
+      const plain = stripAnsi(result);
+      assert.ok(plain.includes('🎉'));
+      assert.ok(plain.includes('2026-03-27 14:28:51 UTC 🎉'));
+      assert.ok(plain.indexOf('ApeStrong') > plain.indexOf('🎉'));
+      assert.ok(plain.includes('       9.50 APE'));
+      assert.ok(plain.includes('       10.00 wAPE'));
+      assert.ok(plain.includes('🧮 50 GP'));
+      assert.ok(plain.includes('ApeStrong'));
+      assert.ok(!plain.includes('<123456789>'));
+      assert.ok(plain.includes('(verified on-chain, 2026-03-29 12:00:00 UTC)'));
     });
 
     it('formats losing game line', () => {
@@ -244,14 +245,15 @@ describe('Theme', () => {
         settled: true,
       };
       const result = formatHistoryLine(game);
-      assert.ok(result.includes('💀'));
-      assert.ok(result.includes('2026-03-27 14:30:00 UTC 💀'));
-      assert.ok(result.indexOf('Roulette') > result.indexOf('💀'));
-      assert.ok(result.includes('       5.00 APE'));
-      assert.ok(result.includes('        5.00 wAPE'));
-      assert.ok(result.includes('Roulette'));
-      assert.ok(!result.includes('<42>'));
-      assert.ok(result.includes('(verified on-chain, 2026-03-29 12:05:00 UTC)'));
+      const plain = stripAnsi(result);
+      assert.ok(plain.includes('💀'));
+      assert.ok(plain.includes('2026-03-27 14:30:00 UTC 💀'));
+      assert.ok(plain.indexOf('Roulette') > plain.indexOf('💀'));
+      assert.ok(plain.includes('       5.00 APE'));
+      assert.ok(plain.includes('        5.00 wAPE'));
+      assert.ok(plain.includes('Roulette'));
+      assert.ok(!plain.includes('<42>'));
+      assert.ok(plain.includes('(verified on-chain, 2026-03-29 12:05:00 UTC)'));
     });
 
     it('formats break-even game line with handshake icon', () => {
@@ -267,14 +269,15 @@ describe('Theme', () => {
         settled: true,
       };
       const result = formatHistoryLine(game);
-      assert.ok(result.includes('🤝'));
-      assert.ok(result.includes('2026-03-27 14:31:00 UTC 🤝'));
-      assert.ok(result.indexOf('Blackjack') > result.indexOf('🤝'));
-      assert.ok(result.includes('        1.00 wAPE'));
-      assert.ok(result.includes('Blackjack'));
-      assert.ok(!result.includes('<987654321>'));
-      assert.ok(result.includes('       0.00 APE'));
-      assert.ok(result.includes('(verified on-chain, 2026-03-29 12:06:00 UTC)'));
+      const plain = stripAnsi(result);
+      assert.ok(plain.includes('🤝'));
+      assert.ok(plain.includes('2026-03-27 14:31:00 UTC 🤝'));
+      assert.ok(plain.indexOf('Blackjack') > plain.indexOf('🤝'));
+      assert.ok(plain.includes('        1.00 wAPE'));
+      assert.ok(plain.includes('Blackjack'));
+      assert.ok(!plain.includes('<987654321>'));
+      assert.ok(plain.includes('       0.00 APE'));
+      assert.ok(plain.includes('(verified on-chain, 2026-03-29 12:06:00 UTC)'));
     });
 
     it('formats pending game line', () => {
@@ -290,12 +293,13 @@ describe('Theme', () => {
         settled: false,
       };
       const result = formatHistoryLine(game);
-      assert.ok(result.includes('⏳'));
-      assert.ok(result.includes('2026-03-27 14:32:00 UTC ⏳'));
-      assert.ok(result.indexOf('Plinko') > result.indexOf('⏳'));
-      assert.ok(result.includes('pending'));
-      assert.ok(result.includes('        2.00 wAPE'));
-      assert.ok(result.includes('(verified on-chain, 2026-03-29 12:07:00 UTC)'));
+      const plain = stripAnsi(result);
+      assert.ok(plain.includes('⏳'));
+      assert.ok(plain.includes('2026-03-27 14:32:00 UTC ⏳'));
+      assert.ok(plain.indexOf('Plinko') > plain.indexOf('⏳'));
+      assert.ok(plain.includes('pending'));
+      assert.ok(plain.includes('        2.00 wAPE'));
+      assert.ok(plain.includes('(verified on-chain, 2026-03-29 12:07:00 UTC)'));
     });
 
     it('formats local-only history lines with an explicit local source label', () => {
@@ -428,7 +432,7 @@ describe('Theme', () => {
         pnl_ape: '6',
         settled: true,
       };
-      const result = formatHistoryLine(game, { showIds: true });
+      const result = stripAnsi(formatHistoryLine(game, { showIds: true }));
 
       assert.ok(result.endsWith('<999>'));
     });

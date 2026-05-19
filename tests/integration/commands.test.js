@@ -20,6 +20,7 @@ const HISTORY_FIXTURE_WALLET = '0x1111111111111111111111111111111111111111';
 const CONFIG_DIR_ENV = 'APECHURCH_CLI_CONFIG_DIR';
 const BOTS_DIR_ENV = 'APECHURCH_CLI_BOTS_DIR';
 const LOG_DIR_ENV = 'APECHURCH_CLI_LOG_DIR';
+const FORCE_COLOR_ENV = 'APECHURCH_CLI_FORCE_COLOR';
 const ANSI_RE = /\x1b\[[0-9;]*m/;
 
 function setupNoWalletHome() {
@@ -133,6 +134,7 @@ function buildCliEnv(options = {}) {
     ...process.env,
     HOME: optionEnv.HOME || NO_WALLET_HOME,
     FORCE_COLOR: '0',
+    [FORCE_COLOR_ENV]: '',
   };
 
   // Integration tests create isolated bot fixtures. Do not let a developer's
@@ -145,6 +147,8 @@ function buildCliEnv(options = {}) {
     ...env,
     ...optionEnv,
   };
+  mergedEnv.FORCE_COLOR = '0';
+  mergedEnv[FORCE_COLOR_ENV] = '';
 
   for (const envVar of pathEnvVars) {
     if (!Object.prototype.hasOwnProperty.call(optionEnv, envVar)) {
