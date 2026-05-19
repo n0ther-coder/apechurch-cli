@@ -39,7 +39,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `install` | - | Install or reinstall the local encrypted wallet bundle |
 | `uninstall` | - | Remove local CLI data |
 | `wallet [action] [address]` | - | Wallet management, local wallet listing, and history download |
-| `status` | - | Show current wallet, balance, local state, and game stats |
+| `status` | - | Show current wallet, balance, and local state |
 | `pause` | - | Pause autonomous play |
 | `continue` | - | Resume autonomous play |
 | `register` | - | Register or update the username/persona |

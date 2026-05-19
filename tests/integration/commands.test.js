@@ -408,6 +408,7 @@ describe('CLI Commands Integration Tests', () => {
         stdout.includes('Address') || stdout.includes('address') || stdout.includes('No wallet found'),
         'Should show address data or an explicit missing-wallet message'
       );
+      assert.ok(!stdout.includes('Available:'), 'Plain status output should not show available balance');
     });
 
     it('--json returns valid JSON', () => {
@@ -419,6 +420,8 @@ describe('CLI Commands Integration Tests', () => {
       } else {
         assert.ok('address' in data, 'JSON should have address');
         assert.ok('balance' in data, 'JSON should have balance');
+        assert.ok('available_ape' in data, 'JSON should keep available_ape');
+        assert.ok('gas_reserve_ape' in data, 'JSON should keep gas_reserve_ape');
         assert.ok('can_play' in data, 'JSON should have can_play');
         assert.ok('username' in data, 'JSON should have username');
       }

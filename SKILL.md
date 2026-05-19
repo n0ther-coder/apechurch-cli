@@ -771,23 +771,15 @@ All commands support `--json` for machine-readable output. Samples below are abr
   "paused": false,
   "persona": "balanced",
   "username": "MY_AGENT",
+  "gp_rate": {
+    "base_gp_per_ape": 5,
+    "current_gp_per_ape": 5,
+    "effective_gp_per_ape": 5,
+    "source": "default",
+    "source_label": "default"
+  },
   "can_play": true,
-  "unfinished_games": [],
-  "game_stats": [
-    {
-      "game": "ApeStrong",
-      "games_played": 12,
-      "net_profit_ape": "3.5000",
-      "net_profit_complete": true,
-      "wins": 6,
-      "pushes": 1,
-      "losses": 5,
-      "win_rate": 50,
-      "rtp": 129.17,
-      "unfinished_games": 0,
-      "unfinished_game_ids": []
-    }
-  ]
+  "unfinished_games": []
 }
 ```
 

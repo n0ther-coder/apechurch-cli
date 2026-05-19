@@ -231,7 +231,6 @@ import {
   selectHistoryGames,
 } from '../lib/history.js';
 import {
-  buildGameStatusSummary,
   buildHistoryGameStatusSummary,
   summarizeUnfinishedGames,
 } from '../lib/status.js';
@@ -2635,72 +2634,47 @@ program
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: opts.json });
     const profile = loadProfile(account.address);
-    let history = loadHistory(account.address);
     const activeGames = loadActiveGames(account.address);
     const { publicClient } = createClients();
 
-    history = await enrichStoredHistoryVariants(publicClient, history);
+    const balancePromise = getBalanceWithRetry(publicClient, account.address, { attempts: 1 });
+    const gpBalancePromise = GP_TOKEN_CONTRACT === ZERO_ADDRESS
+      ? Promise.resolve(0n)
+      : publicClient.readContract({
+        address: GP_TOKEN_CONTRACT,
+        abi: GP_TOKEN_ABI,
+        functionName: 'getCurrentEXP',
+        args: [account.address],
+      });
+    const houseBalancePromise = publicClient.readContract({
+      address: HOUSE_CONTRACT,
+      abi: HOUSE_ABI,
+      functionName: 'balanceOf',
+      args: [account.address],
+    });
 
-    let balance;
-    try {
-      balance = await getBalanceWithRetry(publicClient, account.address);
-    } catch (error) {
-      const err = { error: `Failed to fetch balance: ${sanitizeError(error)}` };
+    const [balanceResult, gpBalanceResult, houseBalanceResult] = await Promise.allSettled([
+      balancePromise,
+      gpBalancePromise,
+      houseBalancePromise,
+    ]);
+
+    if (balanceResult.status === 'rejected') {
+      const err = { error: `Failed to fetch balance: ${sanitizeError(balanceResult.reason)}` };
       if (opts.json) console.log(JSON.stringify(err));
       else console.error('\n❌ ' + err.error + '\n');
       return;
     }
 
-    // Fetch GP balance (Gimbo Points - 0 decimals)
-    let gpBalance = 0n;
-    try {
-      if (GP_TOKEN_CONTRACT !== ZERO_ADDRESS) {
-        gpBalance = await publicClient.readContract({
-          address: GP_TOKEN_CONTRACT,
-          abi: GP_TOKEN_ABI,
-          functionName: 'getCurrentEXP',
-          args: [account.address],
-        });
-      }
-    } catch {
-      // GP fetch failed, continue with 0
-    }
-
-    // Fetch House balance
-    let houseBalance = 0n;
-    try {
-      houseBalance = await publicClient.readContract({
-        address: HOUSE_CONTRACT,
-        abi: HOUSE_ABI,
-        functionName: 'balanceOf',
-        args: [account.address],
-      });
-    } catch {
-      // House fetch failed, continue with 0
-    }
-
+    const balance = balanceResult.value;
+    const gpBalance = gpBalanceResult.status === 'fulfilled' ? gpBalanceResult.value : 0n;
+    const houseBalance = houseBalanceResult.status === 'fulfilled' ? houseBalanceResult.value : 0n;
     const balanceApe = parseFloat(formatEther(balance));
     const houseBalanceApe = parseFloat(formatEther(houseBalance));
     const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
     const canPlay = availableApe >= 1 && !profile.paused;
     const unfinishedGames = summarizeUnfinishedGames(activeGames);
     const gpPerApeInfo = resolveGpPerApeInfo({ profile });
-
-    let historyEntries = [];
-    let failedHistoryFetches = 0;
-    try {
-      const historyResult = await fetchSavedHistoryEntries(publicClient, history.games);
-      historyEntries = historyResult.entries;
-      failedHistoryFetches = historyResult.failedFetches;
-    } catch {
-      failedHistoryFetches = history.games.length;
-    }
-
-    const gameStats = buildGameStatusSummary({
-      historyGames: history.games,
-      historyEntries,
-      activeGames,
-    });
 
     const response = {
       address: account.address,
@@ -2721,12 +2695,7 @@ program
       },
       can_play: canPlay,
       unfinished_games: unfinishedGames,
-      game_stats: gameStats,
     };
-
-    if (failedHistoryFetches > 0) {
-      response.history_failed_fetches = failedHistoryFetches;
-    }
 
     if (opts.json) {
       console.log(JSON.stringify(response));
@@ -2739,22 +2708,10 @@ program
       if (houseBalanceApe > 0) {
         console.log(formatField('House', theme.staked(`${response.house_balance} APE`) + theme.dim(' (staked)')));
       }
-      console.log(formatField('Available', formatBalance(response.available_ape)));
       console.log(formatField('Username', response.username ? theme.accent(response.username) : theme.dim('(not set)')));
       console.log(formatField('Persona', theme.value(response.persona)));
       console.log(formatField('Paused', response.paused ? theme.warning('Yes') : theme.success('No')));
       console.log(formatField('Can Play', formatYesNo(response.can_play)));
-      console.log('');
-
-      console.log(`${formatHeader('Game Stats', '🎮')}\n`);
-      if (failedHistoryFetches > 0) {
-        console.log(`   ${theme.warning(`Per-game stats are unavailable for ${failedHistoryFetches} saved game(s) while on-chain history was loading.`)}`);
-      }
-      if (gameStats.length === 0) {
-        console.log(`   ${theme.dim('No completed or unfinished games tracked yet.')}`);
-      } else {
-        console.log(formatGameStatsTable(gameStats));
-      }
       console.log('');
 
       console.log(formatUnfinishedGamesSection(unfinishedGames));
