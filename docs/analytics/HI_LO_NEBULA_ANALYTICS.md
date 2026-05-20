@@ -85,10 +85,66 @@ So the exact hit rates are:
 - The safest edge branches are `2 -> Higher` and `A -> Lower`; those are the only listed branches above `96.15%` because `12` of `13` ranks win.
 - Once a guess wins, the player may still stop or continue, so whole-run EV is a separate policy question from the one-step branch EV listed here.
 
+## Winston Ladder Auto Solver
+
+`winston-ladder` is a Hi-Lo Nebula auto-play mode designed around a two-game target ladder. It is selected with:
+
+```bash
+apechurch-cli hi-lo-nebula <amount> --auto winston-ladder
+apechurch-cli play hi-lo-nebula <amount> --auto winston-ladder
+```
+
+For manual play, the same policy can be used as a suggestion engine:
+
+```bash
+apechurch-cli hi-lo-nebula <amount> --solver winston-ladder
+```
+
+Let `A` be the initial bet amount for one on-chain game. The ladder:
+
+- plays at most `2` on-chain Hi-Lo Nebula games
+- uses the same initial bet `A` for the second game when it is needed
+- plays at most `7` guesses per game
+- ignores VRF fees for the ladder target
+- opens the first game with the highest immediate hit-rate branch
+- cashes out the first game once payout is at least `1.5A`
+- if the first game ends below `1.5A`, starts a second game when bankroll and loop safety controls allow it
+- targets total payout of at least `2.5A` across both games when a second game is played
+
+After a first-game cashout below `1.5A`, the solver compares two chances:
+
+- continuing the current game toward the `1.5A` first-game target
+- banking the current payout and trying to reach the remaining ladder target in the second game
+
+The policy chooses the branch with the higher exact probability of reaching the target within the `7`-guess cap.
+
+### Winston Ladder Distribution
+
+The table below is computed from the verified rank-only model and the local `winston-ladder` policy. It excludes VRF fees. Net result bins are expressed in units of `A`, using the actual games played by the ladder.
+
+| Outcome bucket | Probability |
+|----------------|-------------|
+| Total loss (`-2A`) | `25.6254%` |
+| `-2A < P&L < -A` | `0.0000%` |
+| `-A <= P&L < 0` | `11.3309%` |
+| `0 < win < A` | `50.0477%` |
+| `A <= win < 1.5A` | `11.3878%` |
+| `win > 1.5A` | `1.6082%` |
+| RTP on expected actual wagers | `94.2069%` |
+
+Supporting figures:
+
+- Probability of playing the second game: `64.2476%`
+- Expected games per ladder run: `1.6425`
+- Expected payout per initial bet `A`: `1.5473A`
+- Expected actual wager per ladder run: `1.6425A`
+- RTP normalized to a fixed `2A` budget: `77.3663%`
+
 ## Sources
 
 1. [docs/verification/HI_LO_NEBULA_CONTRACT.md](../verification/HI_LO_NEBULA_CONTRACT.md) — verified write path, draw model, getters, and paytable.
 2. [lib/stateful/hi-lo-nebula/constants.js](../../lib/stateful/hi-lo-nebula/constants.js) — local hard-coded multiplier table derived from the verified contract.
+3. [lib/stateful/hi-lo-nebula/strategy.js](../../lib/stateful/hi-lo-nebula/strategy.js) — `simple`, `best`, and `winston-ladder` auto-play policies.
 
 ## FAQ
 

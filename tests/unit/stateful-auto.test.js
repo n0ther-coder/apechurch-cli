@@ -4,6 +4,7 @@ import assert from 'node:assert';
 import {
   AUTO_MODE_BEST,
   AUTO_MODE_SIMPLE,
+  AUTO_MODE_WINSTON_LADDER,
   normalizeAutoMode,
 } from '../../lib/stateful/auto.js';
 import { getLoopDelayMs, resolveLoopDelaySeconds } from '../../lib/stateful/timing.js';
@@ -20,6 +21,18 @@ describe('Stateful Auto Mode', () => {
 
   it('returns null for invalid modes', () => {
     assert.strictEqual(normalizeAutoMode('turbo'), null);
+  });
+
+  it('accepts game-specific modes only when they are explicitly enabled', () => {
+    assert.strictEqual(normalizeAutoMode('winston-ladder'), null);
+    assert.strictEqual(
+      normalizeAutoMode('winston-ladder', [
+        AUTO_MODE_SIMPLE,
+        AUTO_MODE_BEST,
+        AUTO_MODE_WINSTON_LADDER,
+      ]),
+      AUTO_MODE_WINSTON_LADDER,
+    );
   });
 
   it('uses the default 5s only when no human timing is requested', () => {

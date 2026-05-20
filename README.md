@@ -275,7 +275,7 @@ Coverage and limits:
 | Gimboz Smash ✔︎ | `play gimboz-smash 10 1-50` or `play gimboz-smash 10 --out-range 45-50` | `gimbozsmash`, `smash` | One-or-two interval target game on a 1-100 board |
 | Glyde or Crash ✔︎ | `play glyde-or-crash 10 2x` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` | Target a crash multiplier |
 | Reel Pirates | `play reel-pirates 20` | `reelpirates`, `pirates`, `reel` | Match-anywhere cascade slot |
-| Hi-Lo Nebula ✔︎ | `hi-lo-nebula 10 --auto best` | `hilonebula`, `hilo`, `nebula` | Stateful higher/lower/same card streak game with cash-out |
+| Hi-Lo Nebula ✔︎ | `hi-lo-nebula 10 --auto winston-ladder` | `hilonebula`, `hilo`, `nebula` | Stateful higher/lower/same card streak game with cash-out and ladder auto-play |
 | Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | `sushishowdown`, `sushi` | Slot machine |
 | Monkey Match ✔︎ | `play monkey-match 10` | `monkeymatch`, `monkey` | Poker hands from barrels |
 | Bear-A-Dice ✔︎ | `play bear-dice 10` | `bear`, `dice` | Avoid unlucky numbers |
@@ -391,6 +391,8 @@ apechurch-cli cash-dash 10 --auto --cashout-after 1
 apechurch-cli play cash-dash 10 --auto --cashout-after 1
 apechurch-cli blackjack 25 --side 1 --auto
 apechurch-cli cash-dash 10 --solver     # Interactive tile suggestion (best EV)
+apechurch-cli hi-lo-nebula 10 --auto winston-ladder
+apechurch-cli hi-lo-nebula 10 --solver winston-ladder
 apechurch-cli video-poker 10 --auto --loop
 apechurch-cli video-poker 10 --solver    # Interactive hold suggestion (best EV)
 
@@ -406,6 +408,8 @@ apechurch-cli cash-dash 10              # Prompts for the opening tile
 - `blackjack --auto best --solver-max-states <n>` controls the exact-EV search cap; default is `50000` states, which prevents long CPU stalls, while higher values can avoid fallback on unusually branchy hands
 - `cash-dash` shows the opening row and prompts for the first tile when `--tile` is omitted in manual mode
 - `cash-dash --cashout-after <rows>` lets auto-play target deeper rows before cashing out
+- `hi-lo-nebula --auto winston-ladder` plays up to two on-chain games with the same initial bet, up to seven guesses each, targeting a 1.5x first-game cashout or a 2.5x total ladder payout before fees
+- `hi-lo-nebula --solver [mode]` defaults to `best` and can show manual hints for `simple`, `best`, or `winston-ladder`
 - `video-poker --solver` shows the same best-EV hold suggestion in interactive mode
 - `video-poker --display full` now uses the boxed ASCII table layout; `simple` keeps the compact text layout
 - `blackjack` and `video-poker` use `--delay 5` by default in loop mode
@@ -422,8 +426,9 @@ apechurch-cli play [game] [amount] [config...]  # Play a specific stateless game
 # Stateful games
 apechurch-cli play blackjack <amount> [--auto [simple|best]] [--solver-max-states <n>]
 apechurch-cli play cash-dash <amount> [--auto [simple|best]]
+apechurch-cli play hi-lo-nebula <amount> [--auto [simple|best|winston-ladder]]
 apechurch-cli cash-dash <amount> [--auto [simple|best]]  # Cash Dash (aliases: cashdash, dash)
-apechurch-cli hi-lo-nebula <amount> [--auto [simple|best]]  # Hi-Lo Nebula (aliases: hilonebula, hilo, nebula)
+apechurch-cli hi-lo-nebula <amount> [--auto [simple|best|winston-ladder]]  # Hi-Lo Nebula
 apechurch-cli blackjack <amount> [--auto] [--side <ape>] [--solver-max-states <n>]  # Blackjack (alias: bj)
 apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker (alias: vp)
 

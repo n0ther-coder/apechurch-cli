@@ -14,8 +14,14 @@ describe('Hi-Lo Nebula manual suggestion mode', () => {
     assert.strictEqual(resolveDecisionMode({ autoMode: 'simple', autoPlay: false, solver: true }), 'best');
   });
 
+  it('uses an explicit solver mode when provided', () => {
+    assert.strictEqual(resolveDecisionMode({ autoMode: null, autoPlay: false, solverMode: 'simple' }), 'simple');
+    assert.strictEqual(resolveDecisionMode({ autoMode: null, autoPlay: false, solverMode: 'winston-ladder' }), 'winston-ladder');
+  });
+
   it('keeps the requested mode during auto-play', () => {
     assert.strictEqual(resolveDecisionMode({ autoMode: 'simple', autoPlay: true }), 'simple');
     assert.strictEqual(resolveDecisionMode({ autoMode: 'best', autoPlay: true }), 'best');
+    assert.strictEqual(resolveDecisionMode({ autoMode: 'winston-ladder', autoPlay: true }), 'winston-ladder');
   });
 });

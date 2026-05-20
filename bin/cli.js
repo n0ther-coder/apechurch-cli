@@ -386,7 +386,7 @@ const PLAY_STATEFUL_OPTION_LINES = Object.freeze([
   '--display <mode>        Stateful display mode: full, simple, json',
   '--side <ape>            Blackjack player side bet',
   '--solver-max-states <n> Blackjack best-EV search state cap (default 50000)',
-  '--solver                Solver suggestions for supported stateful games',
+  '--solver [mode]         Solver suggestions for supported stateful games',
   '--tile <tile>           Cash Dash opening tile: 1-7 or random',
   '--cashout-after <rows>  Cash Dash auto-play cashout depth',
 ]);
@@ -3069,7 +3069,7 @@ program
   .option('--display <mode>', 'Stateful display mode: full, simple, json')
   .option('--side <ape>', 'Blackjack player side bet amount')
   .option('--solver-max-states <n>', 'Blackjack best-EV search state cap (default 50000)')
-  .option('--solver', 'Show solver suggestions in supported stateful games')
+  .option('--solver [mode]', 'Show solver suggestions in supported stateful games')
   .option('--tile <tile>', 'Cash Dash opening tile: 1-7 or random')
   .option('--cashout-after <rows>', 'Cash Dash auto-play cashes out after N safe rows')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
@@ -5148,7 +5148,7 @@ ${'─'.repeat(60)}
 ${'─'.repeat(60)}
 
   --auto [mode]   Auto-play the run
-  --solver        Show the best continuation suggestion in manual mode
+  --solver [mode] Show a continuation suggestion in manual mode (default: best)
   --loop          Keep starting new runs until a stop condition triggers
   --max-games <count> Stop after N runs in loop mode
   --take-profit <ape>  Stop when balance reaches this amount
@@ -5172,7 +5172,15 @@ ${'─'.repeat(60)}
 
   <amount> ::= <ape>
   <ape> ::= <number>            ; decimal APE amount; value > 0
-  <auto-mode> ::= "simple" | "best"
+  <auto-mode> ::= "simple" | "best" | "winston-ladder"
+
+${'─'.repeat(60)}
+  HI-LO AUTO / SOLVER MODES
+${'─'.repeat(60)}
+
+  simple          Cash first available payout; otherwise pick highest hit rate
+  best            Net-EV continuation solver with VRF and jackpot snapshot
+  winston-ladder  Two-game, seven-guess target ladder; ignores VRF in target
 
 ${'─'.repeat(60)}
   ACTIONS (during game)
@@ -5189,8 +5197,12 @@ ${'─'.repeat(60)}
 
   ${BINARY_NAME} hi-lo-nebula 25                Play one run, 25 APE
   ${BINARY_NAME} hi-lo-nebula 25 --solver       Manual play with best suggestion
+  ${BINARY_NAME} hi-lo-nebula 25 --solver winston-ladder
+                                          Manual play with ladder suggestions
   ${BINARY_NAME} hi-lo-nebula 25 --auto         Simple auto-play
   ${BINARY_NAME} hi-lo-nebula 25 --auto best    Net-EV auto-play with VRF/jackpot snapshot
+  ${BINARY_NAME} hi-lo-nebula 25 --auto winston-ladder
+                                          Two-game target ladder auto-play
   ${BINARY_NAME} hi-lo-nebula 25 --auto best --loop --max-games 20
                                           Continuous Hi-Lo auto-play
   ${BINARY_NAME} hi-lo-nebula 25 --auto best --loop --max-loss 20
@@ -5805,10 +5817,13 @@ ${'═'.repeat(70)}
 
   The --auto flag lets the CLI play without human input.
   Available on games that require decisions (Blackjack, Cash Dash, Hi-Lo Nebula, Video Poker).
+  In manual Hi-Lo Nebula, --solver [mode] uses the same decision engines and defaults to best.
 
   Modes:
     • simple   Fast heuristic mode (default)
     • best     Exact EV mode where implemented
+    • winston-ladder
+               Hi-Lo Nebula two-game target ladder mode
 
 ${'─'.repeat(70)}
   BLACKJACK --auto
@@ -5856,11 +5871,22 @@ ${'─'.repeat(70)}
     • Subtracts future VRF fees from continuation value
     • Includes the live jackpot snapshot as the terminal bonus
 
+  winston-ladder:
+    • Plays up to two on-chain games with up to seven guesses each
+    • Opens the first game with the highest hit-rate branch
+    • Cashes the first game at 1.5x, otherwise compares continuing with
+      banking and targeting the second game
+    • The second game uses the same initial bet and targets 2.5x total
+      payout across the ladder; VRF fees are ignored by the ladder target
+
   Commands:
     ${BINARY_NAME} hi-lo-nebula 10 --auto            # One run, auto-play
     ${BINARY_NAME} hi-lo-nebula 10 --auto best       # Net-EV solver
+    ${BINARY_NAME} hi-lo-nebula 10 --auto winston-ladder
+                                             # Two-game target ladder
     ${BINARY_NAME} hi-lo-nebula 10 --auto --loop     # Continuous auto-play
     ${BINARY_NAME} hi-lo-nebula 10 --solver          # Manual play with suggestions
+    ${BINARY_NAME} hi-lo-nebula 10 --solver winston-ladder
 
 ${'─'.repeat(70)}
   CASH DASH --auto
@@ -7013,7 +7039,7 @@ program
   .option('--json', 'JSON output only')
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--auto [mode]', 'Auto-play the run')
-  .option('--solver', 'Show the best continuation suggestion in manual mode')
+  .option('--solver [mode]', 'Show a continuation suggestion in manual mode')
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')

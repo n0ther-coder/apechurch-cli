@@ -422,18 +422,19 @@ Verified fixed-target crash game. The player chooses a target multiplier, the co
 
 Stateful sequential card-prediction game with explicit `HIGHER`, `LOWER`, `SAME`, and `CASHOUT` actions. The verified contract does **not** use a `52`-card deck: it samples only ranks `2..A` uniformly with replacement, so suits and deck depletion are not part of the on-chain model.
 
-**Command:** `apechurch-cli hi-lo-nebula <amount> [--auto [simple|best]] [--solver] [--loop]`
+**Command:** `apechurch-cli hi-lo-nebula <amount> [--auto [simple|best|winston-ladder]] [--solver [simple|best|winston-ladder]] [--loop]`
 
 ```bnf
 <amount> ::= <ape>
-<auto-mode> ::= "simple" | "best"
+<auto-mode> ::= "simple" | "best" | "winston-ladder"
 ```
 
 **Compare:**
 - Public references still carried by the repo: `97.5%` calculated RTP and **`97.84%`** running RTP from the archived transparency snapshot.
 - Verified mechanics: `play`, `makeGuess`, `cashOut`, live `getVRFFee`, verified `getGameInfo`, and a live `getJackpotAmount(betAmount)` getter.
 - `--auto best` uses a VRF-aware net-EV continuation solver on the verified branch model, with the live jackpot share treated as the terminal bonus snapshot.
-- `--solver` enables manual `Suggested action` hints from that same `best` engine.
+- `--auto winston-ladder` plays up to two on-chain games with the same initial bet, up to seven guesses per game, targeting a 1.5x first-game cashout or a 2.5x total ladder payout; ladder targets ignore VRF fees.
+- `--solver [mode]` enables manual `Suggested action` hints from any Hi-Lo auto mode and defaults to `best`.
 - `--loop` now supports the common session stop conditions and betting strategies used by the other stateful games.
 - Operational note: the repo now verifies the rank/paytable model exactly, but it still does **not** promote one closed-form whole-game RTP because the player can stop after any successful guess and the jackpot pool is live.
 
@@ -683,7 +684,7 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `cash-dash`, `hi-lo-neb
 - Manual `play` for stateless games accepts any positive APE amount; built-in strategy presets usually floor auto-sized bets at `1 APE`
 - VRF fees are automatically calculated and added; some games also expose percentage fees or payout-side commissions, so check `Accepted Wagers` and the per-game verification note before comparing raw stake sizes
 - Stateful games can be called directly or through `play`; `apechurch-cli play --help` separates stateless game options from stateful game options
-- Stateful games use `--auto simple` by default; `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`
+- Stateful games use `--auto simple` by default; `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`; `hi-lo-nebula` also accepts `--auto winston-ladder`
 - `hi-lo-nebula --display full` uses the boxed multi-panel layout with current card, action keys, and streak info
 - `hi-lo-nebula --loop` supports the common `--take-profit`, `--stop-loss`, `--max-games`, `--bet-strategy`, and related session controls
 - `video-poker --solver` shows a best-EV hold suggestion in interactive mode

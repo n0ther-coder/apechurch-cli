@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { parseEther } from 'viem';
 
 import { GuessDirection, getAvailableGuessDirections, getPayoutMultiplier, getSuccessfulNextRanks } from '../../lib/stateful/hi-lo-nebula/constants.js';
-import { getBestDecision } from '../../lib/stateful/hi-lo-nebula/strategy.js';
+import { getBestDecision, getWinstonLadderDecision, getWinstonLadderNewGameTargetProbability } from '../../lib/stateful/hi-lo-nebula/strategy.js';
 
 const VRF_FEE = parseEther('0.093211589');
 
@@ -86,6 +86,71 @@ describe('Hi-Lo Nebula best auto strategy', () => {
   });
 });
 
+describe('Hi-Lo Nebula winston-ladder strategy', () => {
+  it('opens the first game with the most likely branch', () => {
+    const decision = getWinstonLadderDecision(makeWinstonState({
+      currentCard: 4,
+      roundsWon: 0,
+      initialBetApe: 10,
+      currentCashoutApe: 0,
+      canCashOut: false,
+    }), {
+      roundIndex: 1,
+      initialBetApe: 10,
+    });
+
+    assert.strictEqual(decision.type, 'guess');
+    assert.strictEqual(decision.direction, GuessDirection.HIGHER);
+  });
+
+  it('cashes the first game once the 1.5x target is reached', () => {
+    const decision = getWinstonLadderDecision(makeWinstonState({
+      currentCard: 6,
+      roundsWon: 2,
+      initialBetApe: 10,
+      currentCashoutApe: 16,
+      canCashOut: true,
+    }), {
+      roundIndex: 1,
+      initialBetApe: 10,
+    });
+
+    assert.strictEqual(decision.type, 'cashout');
+  });
+
+  it('cashes the second game once the ladder total reaches 2.5x of the first bet', () => {
+    const decision = getWinstonLadderDecision(makeWinstonState({
+      currentCard: 10,
+      roundsWon: 1,
+      initialBetApe: 10,
+      currentCashoutApe: 13,
+      canCashOut: true,
+    }), {
+      roundIndex: 2,
+      initialBetApe: 10,
+      firstPayoutApe: 12,
+      ladderTargetPayoutApe: 25,
+    });
+
+    assert.strictEqual(decision.type, 'cashout');
+  });
+
+  it('computes a live-card target probability lower than an already-satisfied target', () => {
+    const hardTarget = getWinstonLadderNewGameTargetProbability({
+      initialBetApe: 10,
+      targetPayoutApe: 25,
+    });
+    const alreadySatisfied = getWinstonLadderNewGameTargetProbability({
+      initialBetApe: 10,
+      targetPayoutApe: 10,
+    });
+
+    assert.ok(hardTarget > 0, 'hard target should be reachable');
+    assert.ok(hardTarget < alreadySatisfied, 'hard target should be less certain than an already satisfied target');
+    assert.strictEqual(alreadySatisfied, 1);
+  });
+});
+
 function makeState({
   currentCard,
   roundsWon,
@@ -106,6 +171,25 @@ function makeState({
     initialBetAmount: currentBet,
     currentCashout: canCashOut ? currentBet : 0n,
     currentJackpotAmount,
+  };
+}
+
+function makeWinstonState({
+  currentCard,
+  roundsWon,
+  initialBetApe,
+  currentCashoutApe,
+  canCashOut,
+}) {
+  return {
+    awaitingDecision: true,
+    canCashOut,
+    currentCard,
+    roundsWon,
+    initialBetAmount: parseEther(String(initialBetApe)),
+    initialBetAmountApe: initialBetApe,
+    currentCashout: parseEther(String(currentCashoutApe)),
+    currentCashoutApe,
   };
 }
 

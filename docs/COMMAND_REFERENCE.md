@@ -158,6 +158,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
                   | "video-poker" | "vp"
 <video-poker-bet> ::= "1" | "5" | "10" | "25" | "50" | "100"
 <auto-mode> ::= "simple" | "best"
+<hi-lo-auto-mode> ::= "simple" | "best" | "winston-ladder"
 ```
 
 ## Game Aliases
@@ -393,7 +394,7 @@ Notes:
                          | "--display" <display>
                          | "--side" <ape>
                          | "--solver-max-states" <count>
-                         | "--solver"
+                         | "--solver" [ <auto-mode> | "winston-ladder" ]
                          | "--tile" <token>
                          | "--cashout-after" <count>
 <play-shared-option> ::= "--game" ( <stateless-game> | <stateful-game> )
@@ -458,12 +459,12 @@ These options apply only to `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video
 
 | Option | Meaning |
 |--------|---------|
-| `--auto [mode]` | Stateful auto-play mode where supported (`simple` or `best`) |
+| `--auto [mode]` | Stateful auto-play mode where supported (`simple` or `best`; Hi-Lo Nebula also supports `winston-ladder`) |
 | `--game-id <id>` | Stateful unfinished-game id for resume/action when using `play <stateful-game>` |
 | `--display <mode>` | Stateful display mode |
 | `--side <ape>` | Blackjack player side bet |
 | `--solver-max-states <n>` | Blackjack `--auto best` recursive search state cap; default `50000`, used to prevent long CPU stalls while allowing larger caps for complex hands |
-| `--solver` | Show solver suggestions in supported stateful games |
+| `--solver [mode]` | Show solver suggestions in supported stateful games; default mode is `best` |
 | `--tile <tile>` | Cash Dash opening tile |
 | `--cashout-after <rows>` | Cash Dash auto-play cashout depth |
 
@@ -781,8 +782,8 @@ Aliases: `hilonebula`, `hilo`, `nebula`
                         | "--json"
                         | "-v"
                         | "--verbose"
-                        | "--auto" [ <auto-mode> ]
-                        | "--solver"
+                        | "--auto" [ <hi-lo-auto-mode> ]
+                        | "--solver" [ <hi-lo-auto-mode> ]
                         | "--delay" <seconds>
                         | "--human" [ <human-range> ]
                         | "--loop"
@@ -802,7 +803,7 @@ Aliases: `hilonebula`, `hilo`, `nebula`
                         | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new run. `--solver` shows the manual `Suggested action` line using the same `best` engine. `--auto best` is a VRF-aware net-EV continuation solver over the verified rank-only branch table, using the live jackpot snapshot as the terminal bonus reference. `--human [range]` is supported but hidden from standard `--help`.
+If the first positional token is numeric, the command starts a new run. `--solver` shows the manual `Suggested action` line and defaults to `best`; `--solver simple`, `--solver best`, and `--solver winston-ladder` select the same decision engines exposed by `--auto`. `--auto best` is a VRF-aware net-EV continuation solver over the verified rank-only branch table, using the live jackpot snapshot as the terminal bonus reference. `--auto winston-ladder` can play up to two on-chain games with the same initial bet, up to seven guesses per game, targeting a first-game 1.5x cashout or a 2.5x total ladder payout; VRF fees are ignored by that ladder target. `--human [range]` is supported but hidden from standard `--help`.
 
 ### `video-poker [action] [amount]`
 
