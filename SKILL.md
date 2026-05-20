@@ -500,7 +500,8 @@ apechurch-cli play ape-strong 10 50 --loop --target 200 --stop-loss 50 --max-gam
 | Option | Description |
 |--------|-------------|
 | `--target <ape>` | Stop when balance reaches this amount |
-| `--stop-loss <ape>` | Stop when balance drops to this amount |
+| `--stop-loss <ape>` | Stop when balance drops to this amount; derives bankroll when no `--bankroll`/`--max-loss` is set |
+| `--bankroll <ape>`, `--max-loss <ape>` | Stop when session P&L reaches this loss; derives wallet stop-loss when no `--stop-loss` is set |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
 
@@ -537,6 +538,7 @@ Control bet sizing based on win/loss patterns.
 | `reverse-martingale` | Double on win, reset on loss | Medium |
 | `fibonacci` | Fibonacci sequence on losses | Medium |
 | `dalembert` | +1 unit on loss, -1 on win | Low-Medium |
+| `bankroll-fraction=<n>` | Bet fraction `n` of remaining bankroll | Dynamic |
 
 ### Using Strategies
 
@@ -549,6 +551,9 @@ apechurch-cli play roulette 10 RED --loop --bet-strategy martingale --max-bet 10
 
 # Fibonacci on blackjack
 apechurch-cli blackjack 5 --auto --loop --bet-strategy fibonacci --max-games 50
+
+# Bankroll fraction sizing (no explicit wager amount)
+apechurch-cli play roulette --bet RED --loop --bankroll 500 --bet-strategy bankroll-fraction=0.09 --max-bet 100 --min-bet 5
 ```
 
 ### Strategy Behavior Examples
@@ -567,10 +572,13 @@ Lose → bet 10 → Lose → bet 10 → Lose → bet 20 → Lose → bet 30 → 
 
 ```bash
 --max-bet <ape>    # Cap maximum bet (prevents runaway martingale)
+--min-bet <ape>    # Floor dynamic bankroll-fraction bets
 --stop-loss <ape>  # Stop if balance drops too low
 ```
 
 **Recommended:** Always use `--max-bet` with progressive strategies.
+
+`bankroll-fraction=<n>` requires `--bankroll`/`--max-loss` or `--stop-loss`, conflicts with an explicit starting wager, and sizes each new play from the remaining bankroll.
 
 ---
 
@@ -749,8 +757,9 @@ apechurch-cli video-poker payouts  # Show payout table
 | `--target <ape>` | Stop at target balance |
 | `--stop-loss <ape>` | Stop at loss limit |
 | `--max-games <n>` | Stop after N games |
-| `--bet-strategy <name>` | Betting strategy |
+| `--bet-strategy <name>` | Betting strategy, including `bankroll-fraction=<0..1>` |
 | `--max-bet <ape>` | Maximum bet cap |
+| `--min-bet <ape>` | Minimum bet floor |
 
 ---
 

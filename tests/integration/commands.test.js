@@ -335,6 +335,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
       assert.ok(stdout.includes('--max-loss <ape>'), 'Should show max-loss stop option');
       assert.ok(stdout.includes('--bankroll <ape>'), 'Should show bankroll alias');
+      assert.ok(stdout.includes('--min-bet <ape>'), 'Should show minimum bet floor option');
+      assert.ok(stdout.includes('bankroll-fraction=<0..1>'), 'Should document bankroll fraction strategy syntax');
       assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
@@ -351,6 +353,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
       assert.ok(stdout.includes('--max-loss <ape>'), 'Should show max-loss stop option');
       assert.ok(stdout.includes('--bankroll <ape>'), 'Should show bankroll alias');
+      assert.ok(stdout.includes('--min-bet <ape>'), 'Should show minimum bet floor option');
+      assert.ok(stdout.includes('bankroll-fraction=<0..1>'), 'Should document bankroll fraction strategy syntax');
       assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
@@ -369,6 +373,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
       assert.ok(stdout.includes('--max-loss <ape>'), 'Should show max-loss stop option');
       assert.ok(stdout.includes('--bankroll <ape>'), 'Should show bankroll alias');
+      assert.ok(stdout.includes('--min-bet <ape>'), 'Should show minimum bet floor option');
+      assert.ok(stdout.includes('bankroll-fraction=<0..1>'), 'Should document bankroll fraction strategy syntax');
       assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
     });
 
@@ -398,6 +404,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should document profit giveback stop');
       assert.ok(stdout.includes('--max-loss <ape>'), 'Should document max-loss stop');
       assert.ok(stdout.includes('--bankroll <ape>'), 'Should document bankroll alias');
+      assert.ok(stdout.includes('--min-bet <ape>'), 'Should document minimum bet floor');
+      assert.ok(stdout.includes('bankroll-fraction=<0..1>'), 'Should document bankroll fraction strategy syntax');
       assert.ok(stdout.includes('Estimate games before wallet squandering'), 'Should document wallet squandering estimate');
       assert.ok(stdout.includes('Estimate games before stop-loss'), 'Should document stop-loss estimate');
       assert.ok(stdout.includes('--human'), 'Should document humanized loop pacing');

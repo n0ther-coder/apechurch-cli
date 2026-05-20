@@ -131,6 +131,7 @@ describe('Bot Session Helpers', () => {
       getStandardBotCliForwardTokens(parsed.loopControls, runtime),
       ['--take-profit', '1400', '--stop-loss', '300', '--gp-ape', '7.5', '--human', '--delay', '6'],
     );
+    assert.strictEqual(parsed.loopControls.maxLoss, '700');
   });
 
   it('derives CLI wallet guards from relative min-profit and max-loss controls', async () => {

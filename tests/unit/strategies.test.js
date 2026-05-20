@@ -8,6 +8,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
   getStrategy,
+  resolveStrategy,
   listStrategies,
   getStrategyNames,
   calculateNextBet,
@@ -27,6 +28,7 @@ describe('Betting Strategies', () => {
       assert.ok(names.includes('flat'));
       assert.ok(names.includes('martingale'));
       assert.ok(names.includes('fibonacci'));
+      assert.ok(names.includes('bankroll-fraction=<fraction>'));
     });
 
     it('getStrategy returns valid strategy object', () => {
@@ -39,6 +41,21 @@ describe('Betting Strategies', () => {
     it('getStrategy returns null for invalid name', () => {
       const invalid = getStrategy('nonexistent');
       assert.strictEqual(invalid, null);
+    });
+
+    it('resolves bankroll-fraction strategy specs', () => {
+      const strategy = resolveStrategy('bankroll-fraction=0.09');
+      assert.ok(strategy);
+      assert.strictEqual(strategy.name, 'bankroll-fraction=0.09');
+      assert.strictEqual(strategy.fraction, 0.09);
+      assert.strictEqual(strategy.requiresBankroll, true);
+    });
+
+    it('rejects invalid bankroll-fraction values', () => {
+      assert.throws(
+        () => resolveStrategy('bankroll-fraction=1'),
+        /strictly between 0 and 1/
+      );
     });
   });
 
@@ -272,6 +289,42 @@ describe('Betting Strategies', () => {
       const state = flat.init(baseBet);
       const result = calculateNextBet(flat, state, null);
       assert.strictEqual(result.bet, baseBet);
+    });
+
+    it('calculates bankroll-fraction from remaining bankroll', () => {
+      const strategy = resolveStrategy('bankroll-fraction=0.09');
+      const state = strategy.init(null, { fraction: strategy.fraction });
+
+      assert.strictEqual(
+        calculateNextBet(strategy, state, null, { bankrollRemainingApe: 500 }).bet,
+        45
+      );
+      assert.ok(Math.abs(
+        calculateNextBet(strategy, state, null, { bankrollRemainingApe: 453 }).bet - 40.77
+      ) < 1e-9);
+      assert.ok(Math.abs(
+        calculateNextBet(strategy, state, null, { bankrollRemainingApe: 565 }).bet - 50.85
+      ) < 1e-9);
+    });
+
+    it('applies max-bet and min-bet caps', () => {
+      const strategy = resolveStrategy('bankroll-fraction=0.09');
+      const state = strategy.init(null, { fraction: strategy.fraction });
+
+      assert.deepStrictEqual(
+        calculateNextBet(strategy, state, null, {
+          bankrollRemainingApe: 1000,
+          maxBet: 50,
+        }).bet,
+        50
+      );
+      assert.deepStrictEqual(
+        calculateNextBet(strategy, state, null, {
+          bankrollRemainingApe: 10,
+          minBet: 5,
+        }).bet,
+        5
+      );
     });
   });
 });

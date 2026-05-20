@@ -3,8 +3,10 @@ import assert from 'node:assert';
 
 import {
   createLoopTerminalState,
+  deriveLoopLossControls,
   formatLoopTerminalConditionMessage,
   getBalanceLoopTerminalCondition,
+  getRemainingBankrollApe,
   getSingleGameLoopTerminalCondition,
   parseLoopTerminalOptions,
 } from '../../lib/loop-conditions.js';
@@ -59,6 +61,43 @@ describe('Loop Terminal Conditions', () => {
       () => parseLoopTerminalOptions({ maxLoss: '15', bankroll: '20' }),
       /Conflicting --max-loss and --bankroll values/
     );
+  });
+
+  it('derives stop-loss from max-loss and starting balance', () => {
+    assert.deepStrictEqual(deriveLoopLossControls({
+      startingBalanceApe: 100,
+      maxLoss: 25,
+    }), {
+      stopLoss: 75,
+      maxLoss: 25,
+      derivedStopLoss: true,
+      derivedMaxLoss: false,
+    });
+  });
+
+  it('derives max-loss bankroll from stop-loss and starting balance', () => {
+    assert.deepStrictEqual(deriveLoopLossControls({
+      startingBalanceApe: 100,
+      stopLoss: 70,
+    }), {
+      stopLoss: 70,
+      maxLoss: 30,
+      derivedStopLoss: false,
+      derivedMaxLoss: true,
+    });
+  });
+
+  it('computes remaining bankroll from session P&L', () => {
+    assert.strictEqual(getRemainingBankrollApe({
+      startingBalanceApe: 1000,
+      currentBalanceApe: 953,
+      maxLoss: 500,
+    }), 453);
+    assert.strictEqual(getRemainingBankrollApe({
+      startingBalanceApe: 1000,
+      currentBalanceApe: 1065,
+      maxLoss: 500,
+    }), 565);
   });
 
   it('detects target-x hits from exact settled payouts', () => {

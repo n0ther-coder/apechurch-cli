@@ -145,8 +145,10 @@ import {
 } from '../lib/loop-stats.js';
 import {
   createLoopTerminalState,
+  deriveLoopLossControls,
   formatLoopTerminalConditionMessage,
   getBalanceLoopTerminalCondition,
+  getRemainingBankrollApe,
   getSingleGameLoopTerminalCondition,
   parseLoopTerminalOptions,
 } from '../lib/loop-conditions.js';
@@ -223,7 +225,16 @@ import {
   resolveGameDisplayName,
   stripAbiVerifiedSymbol,
 } from '../registry.js';
-import { getStrategy, listStrategies, getStrategyNames, calculateNextBet } from '../lib/strategies/index.js';
+import {
+  calculateNextBet,
+  getBankrollFractionRuntimeError,
+  getBetStrategyUsageError,
+  getStrategyNames,
+  isBankrollFractionStrategy,
+  isBankrollFractionStrategyName,
+  listStrategies,
+  resolveStrategy,
+} from '../lib/strategies/index.js';
 import {
   buildHistoryWapeLeaderboard,
   fetchSavedHistoryEntries,
@@ -336,6 +347,8 @@ const GAME_TITLE_COLLATOR = new Intl.Collator('en', {
 const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<ape> ::= <number>                                 ; decimal APE amount; value > 0',
   '<points> ::= <number>                              ; decimal GP per APE rate; value > 0',
+  '<bet-strategy> ::= "flat" | "martingale" | "reverse-martingale" | "fibonacci" | "dalembert" | "bankroll-fraction=" <fraction>',
+  '<fraction> ::= <number>                            ; decimal strictly between 0 and 1',
   '<risk> ::= <integer> | <game-risk-label>           ; public risk surface for Bear Dice, Blocks, Plinko, Monkey Match, and Primes',
   '<balls> ::= <integer>                              ; 1 <= value <= 100',
   '<spins> ::= <integer>                              ; 1 <= value <= 15',
@@ -406,13 +419,58 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--stop-loss <ape>       Stop when balance drops to the threshold',
   '--max-loss <ape>        Stop when session P&L reaches the loss limit',
   '--bankroll <ape>        Alias for --max-loss',
-  '--bet-strategy <name>   Loop bet progression',
+  '--bet-strategy <name>   Loop bet progression; supports bankroll-fraction=<0..1>',
   '--max-bet <ape>         Loop safety cap for progressive strategies',
+  '--min-bet <ape>         Loop minimum bet floor',
   '--gp-ape <points>       Override local GP estimation for this run',
   '-v, --verbose           Show technical logs',
   '--color                 Force ANSI color in plain output',
   '--json                  Emit JSON output only',
 ]);
+
+function isPositiveApeToken(value) {
+  const input = String(value ?? '').trim();
+  if (!/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(input)) {
+    return false;
+  }
+  const amount = Number(input);
+  return Number.isFinite(amount) && amount > 0;
+}
+
+function printCommandError(message, { json = false, exit = false } = {}) {
+  if (json) {
+    console.error(JSON.stringify({ error: message }));
+  } else {
+    console.error(`\n❌ ${message}\n`);
+  }
+  if (exit) {
+    process.exit(1);
+  }
+}
+
+function resolveBetStrategyOrExit(rawName, { json = false } = {}) {
+  const betStrategyName = rawName || 'flat';
+  let betStrategy;
+  try {
+    betStrategy = resolveStrategy(betStrategyName);
+  } catch (error) {
+    printCommandError(error.message, { json, exit: true });
+  }
+  if (!betStrategy) {
+    printCommandError(`Unknown betting strategy: "${betStrategyName}". Available: ${getStrategyNames()}`, { json, exit: true });
+  }
+  return { betStrategyName, betStrategy };
+}
+
+function formatDerivedLoopLossNotice({ derivedStopLoss, derivedMaxLoss, stopLoss, maxLoss }) {
+  if (derivedStopLoss) {
+    return `Derived stop-loss: ${Number(stopLoss).toFixed(6).replace(/\.?0+$/, '')} APE from bankroll ${maxLoss} APE`;
+  }
+  if (derivedMaxLoss) {
+    return `Derived bankroll: ${Number(maxLoss).toFixed(6).replace(/\.?0+$/, '')} APE from stop-loss ${stopLoss} APE`;
+  }
+  return null;
+}
 
 function formatUtcTimestamp(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
@@ -1365,6 +1423,10 @@ function clearStatefulGames(gameKey, displayLabel) {
   }
 }
 
+function allowsMissingStatefulStartAmount(opts = {}) {
+  return Boolean(opts.loop && isBankrollFractionStrategyName(opts.betStrategy));
+}
+
 async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
   switch (gameKey) {
     case 'blackjack': {
@@ -1372,7 +1434,7 @@ async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
 
       if (isStatefulStartAction(action)) {
         const betAmount = action || amount;
-        if (!betAmount) {
+        if (!betAmount && !allowsMissingStatefulStartAmount(opts)) {
           console.error('\n❌ Bet amount required');
           console.error(`   Usage: ${BINARY_NAME} blackjack <amount>\n`);
           console.error(`   Example: ${BINARY_NAME} blackjack 10\n`);
@@ -1417,7 +1479,7 @@ async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
 
       if (isStatefulStartAction(action)) {
         const betAmount = action || amount;
-        if (!betAmount) {
+        if (!betAmount && !allowsMissingStatefulStartAmount(opts)) {
           console.error('\n❌ Bet amount required');
           console.error(`   Usage: ${BINARY_NAME} cash-dash <amount>\n`);
           console.error(`   Example: ${BINARY_NAME} cash-dash 25\n`);
@@ -1464,7 +1526,7 @@ async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
 
       if (isStatefulStartAction(action)) {
         const betAmount = action || amount;
-        if (!betAmount) {
+        if (!betAmount && !allowsMissingStatefulStartAmount(opts)) {
           console.error('\n❌ Bet amount required');
           console.error(`   Usage: ${BINARY_NAME} hi-lo-nebula <amount>\n`);
           console.error(`   Example: ${BINARY_NAME} hi-lo-nebula 25\n`);
@@ -1501,7 +1563,7 @@ async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
 
       if (isStatefulStartAction(action)) {
         const betAmount = action || amount;
-        if (!betAmount) {
+        if (!betAmount && !allowsMissingStatefulStartAmount(opts)) {
           console.error('\n❌ Bet amount required');
           console.error('   Valid bets: 1, 5, 10, 25, 50, 100 APE');
           console.error(`   Usage: ${BINARY_NAME} video-poker <amount>\n`);
@@ -3087,8 +3149,9 @@ program
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
-  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
+  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
+  .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--json', 'JSON output only')
@@ -3155,6 +3218,7 @@ program
       '--bankroll',
       '--bet-strategy',
       '--max-bet',
+      '--min-bet',
       '--gp-ape',
     ]);
     const hasExplicitAutoSelectionInput = process.argv.slice(2).some((arg) => explicitPlayFlags.has(arg));
@@ -3192,6 +3256,7 @@ program
     let recoverLoss;
     let givebackProfit;
     const maxBet = opts.maxBet ? parseFloat(opts.maxBet) : null;
+    const minBet = opts.minBet ? parseFloat(opts.minBet) : null;
     let cliGpPerApe = null;
     let playTimeoutMs;
 
@@ -3217,6 +3282,10 @@ program
       console.error(JSON.stringify({ error: `Invalid --max-bet value: "${opts.maxBet}". Must be a positive number (e.g., --max-bet 100)` }));
       process.exit(1);
     }
+    if (opts.minBet !== undefined && (isNaN(minBet) || minBet <= 0)) {
+      console.error(JSON.stringify({ error: `Invalid --min-bet value: "${opts.minBet}". Must be a positive number (e.g., --min-bet 5)` }));
+      process.exit(1);
+    }
     if (opts.gpApe !== undefined) {
       try {
         cliGpPerApe = normalizeGpPerApe(opts.gpApe);
@@ -3227,12 +3296,7 @@ program
     }
 
     // Betting strategy setup
-    const betStrategyName = opts.betStrategy || 'flat';
-    const betStrategy = getStrategy(betStrategyName);
-    if (!betStrategy) {
-      console.error(JSON.stringify({ error: `Unknown betting strategy: "${betStrategyName}". Available: ${getStrategyNames()}` }));
-      process.exit(1);
-    }
+    const { betStrategyName, betStrategy } = resolveBetStrategyOrExit(opts.betStrategy, { json: true });
     
     let startingBalance = null;
     let gamesPlayed = 0;
@@ -3242,7 +3306,8 @@ program
     let loopEstimateShown = false;
 
     const gameInput = gameArg || opts.game;
-    const amountInput = amountArg || opts.amount;
+    let amountInput = amountArg || opts.amount;
+    let normalizedConfigArgs = Array.isArray(configArgs) ? [...configArgs] : [];
     
     let fixedGame = null;
     if (gameInput) {
@@ -3252,75 +3317,97 @@ program
         process.exit(1);
       }
     }
+
+    if (
+      isBankrollFractionStrategy(betStrategy)
+      && fixedGame
+      && opts.amount === undefined
+      && amountArg !== undefined
+      && !isPositiveApeToken(amountArg)
+    ) {
+      amountInput = undefined;
+      normalizedConfigArgs = [amountArg, ...normalizedConfigArgs];
+    }
+
+    const betStrategyUsageError = getBetStrategyUsageError(betStrategy, {
+      loopMode,
+      hasBaseBet: amountInput !== undefined,
+      stopLoss,
+      maxLoss,
+    });
+    if (betStrategyUsageError) {
+      console.error(JSON.stringify({ error: betStrategyUsageError }));
+      process.exit(1);
+    }
     
     // Parse positional config args based on game type
     let positionalConfig = {};
-    if (fixedGame && configArgs && configArgs.length > 0) {
+    if (fixedGame && normalizedConfigArgs.length > 0) {
       if (fixedGame.type === 'plinko') {
-        if (configArgs[0]) positionalConfig.risk = configArgs[0];
-        if (configArgs[1]) positionalConfig.balls = parseInt(configArgs[1]);
+        if (normalizedConfigArgs[0]) positionalConfig.risk = normalizedConfigArgs[0];
+        if (normalizedConfigArgs[1]) positionalConfig.balls = parseInt(normalizedConfigArgs[1]);
       } else if (fixedGame.type === 'slots') {
-        if (configArgs[0]) positionalConfig.spins = parseInt(configArgs[0]);
+        if (normalizedConfigArgs[0]) positionalConfig.spins = parseInt(normalizedConfigArgs[0]);
       } else if (fixedGame.type === 'roulette' || fixedGame.type === 'baccarat') {
-        positionalConfig.bet = configArgs.join(',');
+        positionalConfig.bet = normalizedConfigArgs.join(',');
       } else if (fixedGame.type === 'apestrong') {
-        if (configArgs[0]) positionalConfig.range = parseInt(configArgs[0]);
+        if (normalizedConfigArgs[0]) positionalConfig.range = parseInt(normalizedConfigArgs[0]);
       } else if (fixedGame.type === 'speedcrash') {
-        if (configArgs[0]) positionalConfig.multiplier = configArgs[0];
+        if (normalizedConfigArgs[0]) positionalConfig.multiplier = normalizedConfigArgs[0];
       } else if (fixedGame.type === 'gimbozsmash') {
-        positionalConfig.range = configArgs.join(',');
+        positionalConfig.range = normalizedConfigArgs.join(',');
       } else if (fixedGame.type === 'keno') {
         // For keno: configArgs can be [picks] or [numbers] or [picks, numbers]
         // If first arg is a small number (1-10), treat as picks; otherwise as numbers
-        if (configArgs[0]) {
-          const first = configArgs[0];
+        if (normalizedConfigArgs[0]) {
+          const first = normalizedConfigArgs[0];
           const num = parseInt(first);
           if (!isNaN(num) && num >= 1 && num <= 10 && !first.includes(',')) {
             positionalConfig.picks = num;
-            if (configArgs[1]) positionalConfig.numbers = configArgs.slice(1).join(',');
+            if (normalizedConfigArgs[1]) positionalConfig.numbers = normalizedConfigArgs.slice(1).join(',');
           } else {
             // Treat as numbers
-            positionalConfig.numbers = configArgs.join(',');
+            positionalConfig.numbers = normalizedConfigArgs.join(',');
           }
         }
       } else if (fixedGame.type === 'speedkeno') {
         // For speed keno: configArgs can be [games], [games, picks], [games, numbers], etc.
         // First arg (1-20 without comma) = games, second (1-5 without comma) = picks, or numbers with comma
-        if (configArgs[0]) {
-          const first = configArgs[0];
+        if (normalizedConfigArgs[0]) {
+          const first = normalizedConfigArgs[0];
           const num = parseInt(first);
           if (!isNaN(num) && num >= 1 && num <= 20 && !first.includes(',')) {
             positionalConfig.games = num;
-            if (configArgs[1]) {
-              const second = configArgs[1];
+            if (normalizedConfigArgs[1]) {
+              const second = normalizedConfigArgs[1];
               const pickNum = parseInt(second);
               if (!isNaN(pickNum) && pickNum >= 1 && pickNum <= 5 && !second.includes(',')) {
                 positionalConfig.picks = pickNum;
-                if (configArgs[2]) positionalConfig.numbers = configArgs.slice(2).join(',');
+                if (normalizedConfigArgs[2]) positionalConfig.numbers = normalizedConfigArgs.slice(2).join(',');
               } else {
-                positionalConfig.numbers = configArgs.slice(1).join(',');
+                positionalConfig.numbers = normalizedConfigArgs.slice(1).join(',');
               }
             }
           } else if (first.includes(',')) {
             // Treat as numbers
-            positionalConfig.numbers = configArgs.join(',');
+            positionalConfig.numbers = normalizedConfigArgs.join(',');
           }
         }
       } else if (fixedGame.type === 'beardice') {
         // For bear dice: configArgs can be [risk] or [risk, rolls]
-        if (configArgs[0]) positionalConfig.risk = configArgs[0];
-        if (configArgs[1]) positionalConfig.rolls = parseInt(configArgs[1]);
+        if (normalizedConfigArgs[0]) positionalConfig.risk = normalizedConfigArgs[0];
+        if (normalizedConfigArgs[1]) positionalConfig.rolls = parseInt(normalizedConfigArgs[1]);
       } else if (fixedGame.type === 'blocks') {
         // For blocks: configArgs can be [risk] or [risk, runs]
-        if (configArgs[0]) positionalConfig.risk = configArgs[0];
-        if (configArgs[1]) positionalConfig.runs = parseInt(configArgs[1]);
+        if (normalizedConfigArgs[0]) positionalConfig.risk = normalizedConfigArgs[0];
+        if (normalizedConfigArgs[1]) positionalConfig.runs = parseInt(normalizedConfigArgs[1]);
       } else if (fixedGame.type === 'primes') {
         // For primes: configArgs can be [risk] or [risk, runs]
-        if (configArgs[0]) positionalConfig.risk = configArgs[0];
-        if (configArgs[1]) positionalConfig.runs = parseInt(configArgs[1]);
+        if (normalizedConfigArgs[0]) positionalConfig.risk = normalizedConfigArgs[0];
+        if (normalizedConfigArgs[1]) positionalConfig.runs = parseInt(normalizedConfigArgs[1]);
       } else if (fixedGame.type === 'monkeymatch') {
         // For monkey match: configArgs can be [risk]
-        if (configArgs[0]) positionalConfig.risk = configArgs[0];
+        if (normalizedConfigArgs[0]) positionalConfig.risk = normalizedConfigArgs[0];
       }
     }
 
@@ -3402,7 +3489,8 @@ program
         : `${fixedDelayLabel || '0s'} delay`;
       const strategyInfo = betStrategyName !== 'flat' ? ` | Strategy: ${betStrategyName}` : '';
       const maxBetInfo = maxBet ? ` | Max bet: ${maxBet} APE` : '';
-      console.log(`\n🔄 Loop mode: ${gameInfo} (${delayLabel}${strategyInfo}${maxBetInfo})`);
+      const minBetInfo = minBet ? ` | Min bet: ${minBet} APE` : '';
+      console.log(`\n🔄 Loop mode: ${gameInfo} (${delayLabel}${strategyInfo}${maxBetInfo}${minBetInfo})`);
       if (targetBalance) console.log(`   🎯 Take-profit: ${targetBalance} APE`);
       if (minProfit) console.log(`   💰 Min-profit: ${minProfit} APE session P&L`);
       if (targetX) console.log(`   🎯 Target multiplier: ${targetX}x`);
@@ -4014,7 +4102,7 @@ program
     if (loopMode) {
       // Initialize betting strategy
       const baseBet = amountInput ? parseFloat(amountInput) : 10; // Default base bet
-      let betStrategyState = betStrategy.init(baseBet, { maxBet });
+      let betStrategyState = betStrategy.init(baseBet, { maxBet, minBet, fraction: betStrategy.fraction });
       
       // Track consecutive errors - stop loop after 3 in a row
       let consecutiveErrors = 0;
@@ -4032,6 +4120,24 @@ program
         // Track starting balance and validate parameters on first iteration
         if (startingBalance === null) {
           startingBalance = balanceApe;
+          const derivedLossControls = deriveLoopLossControls({
+            stopLoss,
+            maxLoss,
+            startingBalanceApe: startingBalance,
+          });
+          stopLoss = derivedLossControls.stopLoss;
+          maxLoss = derivedLossControls.maxLoss;
+
+          const bankrollFractionRuntimeError = getBankrollFractionRuntimeError(betStrategy, { maxLoss });
+          if (bankrollFractionRuntimeError) {
+            console.error(JSON.stringify({ error: bankrollFractionRuntimeError }));
+            process.exit(1);
+          }
+
+          if (!opts.json) {
+            const notice = formatDerivedLoopLossNotice(derivedLossControls);
+            if (notice) console.log(`   ${notice}`);
+          }
           
           // Validate target is achievable (higher than current balance)
           if (targetBalance !== null && targetBalance <= balanceApe) {
@@ -4079,9 +4185,14 @@ program
         }
         
         // Calculate next bet using betting strategy
+        const bankrollRemainingApe = getRemainingBankrollApe({
+          currentBalanceApe: balanceApe,
+          startingBalanceApe: startingBalance,
+          maxLoss,
+        });
         const { bet: nextBet, state: newState, capped } = calculateNextBet(
           betStrategy, betStrategyState, lastGameResult, 
-          { maxBet, availableBalance: availableApe }
+          { maxBet, minBet, availableBalance: availableApe, bankrollRemainingApe }
         );
         betStrategyState = newState;
         
@@ -5070,8 +5181,9 @@ ${'─'.repeat(60)}
   --retrace <ape> Stop when a run loses at least this amount
   --recover-loss <ape> Stop after a drawdown recovers to break-even/profit
   --giveback-profit <ape> Stop after a run-up falls back to break-even/loss
-  --bet-strategy <name> Betting strategy for loop mode
+  --bet-strategy <name> Betting strategy for loop mode; supports bankroll-fraction=<0..1>
   --max-bet <ape> Maximum bet amount for progressive strategies
+  --min-bet <ape> Minimum bet amount floor for dynamic strategies
   --display <mode> Display mode: full, simple, json
   --game <id>     Specify game ID (for resume/action)
 
@@ -5161,8 +5273,9 @@ ${'─'.repeat(60)}
   --retrace <ape> Stop when a run loses at least this amount
   --recover-loss <ape> Stop after a drawdown recovers to break-even/profit
   --giveback-profit <ape> Stop after a run-up falls back to break-even/loss
-  --bet-strategy <name> Betting strategy for loop mode
+  --bet-strategy <name> Betting strategy for loop mode; supports bankroll-fraction=<0..1>
   --max-bet <ape> Maximum bet amount for progressive strategies
+  --min-bet <ape> Minimum bet amount floor for dynamic strategies
   --display <mode> Display mode: full, simple, json
   --game <id>     Specify game ID (for resume/action)
 
@@ -5496,8 +5609,9 @@ LOOP OPTIONS
   --max-loss <ape>        Stop when session P&L reaches the loss limit
   --bankroll <ape>        Alias for --max-loss
   --max-games <count>     Stop after N games
-  --bet-strategy <name>   Betting strategy (flat, martingale, etc.)
+  --bet-strategy <name>   Betting strategy (flat, martingale, bankroll-fraction=<0..1>, etc.)
   --max-bet <ape>         Maximum bet cap (for progressive strategies)
+  --min-bet <ape>         Minimum bet floor for dynamic strategies
   --gp-ape <points>       Override local GP estimation for this run
 
 BETTING STRATEGIES
@@ -5506,6 +5620,7 @@ BETTING STRATEGIES
   reverse-martingale      Double on win, reset on loss
   fibonacci               Fibonacci sequence on loss
   dalembert               +1 unit on loss, -1 on win
+  bankroll-fraction=<n>   Bet n of remaining bankroll each game
 
 EXAMPLES
   ${BINARY_NAME} play jungle-plinko 10 2 50
@@ -5524,6 +5639,9 @@ EXAMPLES
 
   # Martingale: start at 10, double on loss, max 100
   ${BINARY_NAME} play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
+
+  # Bankroll fraction: no base bet; bet 9% of remaining bankroll
+  ${BINARY_NAME} play roulette --bet RED --loop --bankroll 500 --bet-strategy bankroll-fraction=0.09 --max-bet 100 --min-bet 5
 
   # Blackjack with strategy
   ${BINARY_NAME} blackjack 5 --auto --loop --bet-strategy martingale --take-profit 100
@@ -5657,16 +5775,26 @@ ${'─'.repeat(70)}
 
   --bet-strategy <name>   Control how bet size changes after wins/losses
                           Options: flat, martingale, reverse-martingale,
-                                   fibonacci, dalembert
+                                   fibonacci, dalembert,
+                                   bankroll-fraction=<0..1>
                           
   --max-bet <ape>         IMPORTANT: Cap maximum bet size
                           Prevents runaway betting in progressive strategies
+
+  --min-bet <ape>         Minimum bet floor for dynamic strategies
                           
   Example - Martingale with safety:
     ${BINARY_NAME} play roulette 10 RED --loop \\
       --bet-strategy martingale \\
       --max-bet 100 \\
       --stop-loss 50
+
+  Example - Bankroll fraction:
+    ${BINARY_NAME} play roulette --bet RED --loop \\
+      --bankroll 500 \\
+      --bet-strategy bankroll-fraction=0.09 \\
+      --max-bet 100 \\
+      --min-bet 5
 
   See: ${BINARY_NAME} help strategies
 
@@ -5721,6 +5849,7 @@ ${'═'.repeat(70)}
 
   SYNTAX:
     ${BINARY_NAME} play <game> <base-bet> --loop --bet-strategy <name> --max-bet <cap>
+    ${BINARY_NAME} play <game> --loop --bankroll <ape> --bet-strategy bankroll-fraction=<0..1>
 
 ${'─'.repeat(70)}
   FLAT (Default) - Safest
@@ -5797,7 +5926,26 @@ ${'─'.repeat(70)}
       --bet-strategy dalembert --max-bet 100
 
 ${'─'.repeat(70)}
-  IMPORTANT: --max-bet
+  BANKROLL FRACTION - Dynamic Bankroll Sizing
+${'─'.repeat(70)}
+
+  Bets a fixed fraction of the remaining session bankroll.
+  Use bankroll-fraction=<decimal> where the decimal is strictly between 0 and 1.
+
+  • Requires: --bankroll/--max-loss or --stop-loss
+  • Conflicts with: explicit <base-bet> or --amount
+  • Remaining bankroll: --bankroll plus session P&L, or current balance minus --stop-loss
+  • Supports: --max-bet cap and --min-bet floor
+
+  Example:
+    ${BINARY_NAME} play roulette --bet RED --loop \\
+      --bankroll 500 \\
+      --bet-strategy bankroll-fraction=0.09 \\
+      --max-bet 100 \\
+      --min-bet 5
+
+${'─'.repeat(70)}
+  IMPORTANT: --max-bet / --min-bet
 ${'─'.repeat(70)}
 
   Progressive strategies can spiral quickly. ALWAYS set --max-bet.
@@ -5806,6 +5954,9 @@ ${'─'.repeat(70)}
     • Bet is capped at max-bet value
     • Strategy state continues (doesn't reset)
     • Output shows "(capped)" when this happens
+
+  --min-bet floors dynamic wagers, including bankroll-fraction, when the
+  calculated bet gets too small.
 
 ${'═'.repeat(70)}
 `,
@@ -6981,8 +7132,9 @@ program
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
-  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
+  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
+  .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('blackjack', action, amount, opts);
@@ -7018,8 +7170,9 @@ program
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
-  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
+  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
+  .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('cash-dash', action, amount, opts);
@@ -7054,8 +7207,9 @@ program
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
-  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
+  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
+  .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('hi-lo-nebula', action, amount, opts);
@@ -7088,8 +7242,9 @@ program
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
-  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert')
+  .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
+  .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('video-poker', action, amount, opts);

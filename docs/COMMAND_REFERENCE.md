@@ -81,7 +81,8 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 <persona> ::= "conservative" | "balanced" | "aggressive" | "degen"
 <card-display> ::= "full" | "simple" | "json"
 <display> ::= "full" | "simple" | "json"
-<bet-strategy> ::= "flat" | "martingale" | "reverse-martingale" | "fibonacci" | "dalembert"
+<bet-strategy> ::= "flat" | "martingale" | "reverse-martingale" | "fibonacci" | "dalembert" | "bankroll-fraction=" <fraction>
+<fraction> ::= <number>                            ; decimal strictly between 0 and 1
 <help-topic> ::= "loop" | "strategies" | "auto" | "wallet" | "history" | "house"
 <asset> ::= "APE" | "GP"
 <game-id> ::= <token>                             ; local unfinished-game identifier
@@ -416,6 +417,7 @@ Notes:
                        | "--bankroll" <ape>
                        | "--bet-strategy" <bet-strategy>
                        | "--max-bet" <ape>
+                       | "--min-bet" <ape>
                        | "--gp-ape" <points>
                        | "-v"
                        | "--verbose"
@@ -424,6 +426,8 @@ Notes:
 ```
 
 The positional tail after `<ape>` is game-specific. See [GAMES_REFERENCE.md](./GAMES_REFERENCE.md) or `apechurch-cli game <name>` for the exact grammar per stateless game.
+
+When using `--bet-strategy bankroll-fraction=<fraction>`, omit the positional wager amount. Prefer named game-configuration flags such as `--bet RED`, `--range 50`, or `--runs 5` so numeric config values are not mistaken for an explicit wager amount.
 
 Stateful games can also be routed through `play`, for example `apechurch-cli play blackjack 10 --auto`, `apechurch-cli play cash-dash 10 --tile 3`, or `apechurch-cli play video-poker 10 --auto best`. Direct commands such as `apechurch-cli blackjack 10` remain supported. When a stateful action needs an unfinished-game id through `play`, prefer `--game-id <id>` because `--game <name>` is already used for selecting the target game.
 
@@ -488,14 +492,17 @@ These options are accepted by the `play` command for both stateless and stateful
 | `--retrace <ape>` | Stop loop when one game loses at least this amount |
 | `--recover-loss <ape>` | Stop loop when session P&L returns to break-even/profit after a drawdown of at least this size |
 | `--giveback-profit <ape>` | Stop loop when session P&L returns to break-even/loss after a run-up of at least this size |
-| `--stop-loss <ape>` | Stop before a play/loop iteration when wallet balance is at or below the threshold |
-| `--max-loss <ape>`, `--bankroll <ape>` | Stop loop when session P&L reaches the loss limit |
-| `--bet-strategy <name>` | Loop bet progression |
+| `--stop-loss <ape>` | Stop before a play/loop iteration when wallet balance is at or below the threshold. If set without `--max-loss`/`--bankroll`, the session bankroll is derived as `starting balance - stop-loss` |
+| `--max-loss <ape>`, `--bankroll <ape>` | Stop loop when session P&L reaches the loss limit. If set without `--stop-loss`, the wallet stop-loss is derived as `starting balance - bankroll` |
+| `--bet-strategy <name>` | Loop bet progression, including `bankroll-fraction=<0..1>` |
 | `--max-bet <ape>` | Loop safety cap for progressive strategies |
+| `--min-bet <ape>` | Loop minimum bet floor for dynamic strategies |
 | `--gp-ape <points>` | Override local GP estimation for this run |
 | `-v`, `--verbose` | Show technical logs |
 | `--color` | Force ANSI color in plain output; JSON output stays uncolored |
 | `--json` | Emit JSON output only |
+
+`bankroll-fraction=<fraction>` requires `--bankroll`/`--max-loss` or `--stop-loss`, and it conflicts with an explicit wager amount (`<amount>` or `--amount`). Each loop iteration bets `fraction * remaining bankroll`; `--max-bet` caps that dynamic wager and `--min-bet` floors it.
 
 ### GP Rate Controls
 
@@ -520,7 +527,7 @@ These options are accepted by the `play` command for both stateless and stateful
 
 `bot` discovers external bot folders from `$APECHURCH_CLI_CONFIG_DIR/bots` by default, where `APECHURCH_CLI_CONFIG_DIR` defaults to `~/.apechurch-cli`. Set `APECHURCH_CLI_BOTS_DIR` when the bot root lives elsewhere; its value must be the actual bots root that contains bot folders with `bot.json`, not a parent directory. Bot logs belong under `APECHURCH_CLI_LOG_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/log`. Each bot is defined by `bot.json` plus an entry module. Use `bot --list` to inspect discovery, `bot --help` for the shared loader help, then `bot <name> ...` to execute one bot. Use `bot <name> -h` or `bot <name> --help` for bot-specific help.
 
-The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. External bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape>`, `--fallback-bot <name>`, and standard loop controls. `--take-profit` and `--stop-loss` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive those absolute thresholds from the bot's starting balance. See [bots/README.md](../bots/README.md) for authoring guidelines, manifest rules, output conventions, and the security note.
+The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. External bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape>`, `--fallback-bot <name>`, and standard loop controls. `--take-profit` and `--stop-loss` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive absolute thresholds from the bot's starting balance, while a lone `--stop-loss` derives the bot's relative bankroll as `starting balance - stop-loss`. See [bots/README.md](../bots/README.md) for authoring guidelines, manifest rules, output conventions, and the security note.
 
 The runtime surface is intentionally narrow: bots receive positional args plus gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and shared `bot.logDir`. Bot summary logs are written directly in the shared log directory with a `.json` extension; if a bot throws or receives `SIGINT`/`SIGTERM`, the CLI writes a minimal best-effort JSON log with `status: "error"` or `status: "interrupted"` before returning control.
 
@@ -697,6 +704,7 @@ Alias: `bj`
                      | "--bankroll" <ape>
                      | "--bet-strategy" <bet-strategy>
                      | "--max-bet" <ape>
+                     | "--min-bet" <ape>
                      | "--gp-ape" <points>
 ```
 
@@ -748,6 +756,7 @@ Aliases: `cashdash`, `dash`
                      | "--bankroll" <ape>
                      | "--bet-strategy" <bet-strategy>
                      | "--max-bet" <ape>
+                     | "--min-bet" <ape>
                      | "--gp-ape" <points>
 ```
 
@@ -800,6 +809,7 @@ Aliases: `hilonebula`, `hilo`, `nebula`
                         | "--bankroll" <ape>
                         | "--bet-strategy" <bet-strategy>
                         | "--max-bet" <ape>
+                        | "--min-bet" <ape>
                         | "--gp-ape" <points>
 ```
 
@@ -840,6 +850,7 @@ Alias: `vp`
                        | "--bankroll" <ape>
                        | "--bet-strategy" <bet-strategy>
                        | "--max-bet" <ape>
+                       | "--min-bet" <ape>
                        | "--gp-ape" <points>
 ```
 

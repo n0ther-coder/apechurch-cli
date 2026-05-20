@@ -341,8 +341,8 @@ apechurch-cli play ape-strong 10 50 --loop --take-profit 150
 | `--retrace <ape>` | Stop when one game loses at least this amount |
 | `--recover-loss <ape>` | Stop when session P&L gets back to break-even/profit after a drawdown of at least this size |
 | `--giveback-profit <ape>` | Stop when session P&L falls back to break-even/loss after a run-up of at least this size |
-| `--stop-loss <ape>` | Stop when balance drops to limit |
-| `--max-loss <ape>`, `--bankroll <ape>` | Stop when session P&L reaches the loss limit |
+| `--stop-loss <ape>` | Stop when balance drops to limit; if used without `--bankroll`/`--max-loss`, the session bankroll is derived as `starting balance - stop-loss` |
+| `--max-loss <ape>`, `--bankroll <ape>` | Stop when session P&L reaches the loss limit; if used without `--stop-loss`, the wallet stop-loss is derived as `starting balance - bankroll` |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
 | `--gp-ape <points>` | Override the loop points conversion for this run |
@@ -367,6 +367,9 @@ apechurch-cli play roulette 10 RED --loop --bet-strategy martingale --max-bet 10
 
 # Fibonacci: sequence on losses
 apechurch-cli play --loop --bet-strategy fibonacci
+
+# Bankroll fraction: bet 9% of remaining bankroll, capped/floored
+apechurch-cli play roulette --bet RED --loop --bankroll 500 --bet-strategy bankroll-fraction=0.09 --max-bet 100 --min-bet 5
 ```
 
 | Strategy | Behavior |
@@ -376,6 +379,10 @@ apechurch-cli play --loop --bet-strategy fibonacci
 | `reverse-martingale` | Double on win, reset on loss |
 | `fibonacci` | Fibonacci sequence on losses |
 | `dalembert` | +1 unit on loss, -1 on win |
+| `bankroll-fraction=<n>` | Bet fraction `n` of remaining bankroll each game; requires `--bankroll`/`--max-loss` or `--stop-loss`, and conflicts with an explicit wager amount |
+
+`bankroll-fraction=<n>` uses remaining bankroll as `--bankroll + session P&L`; when only `--stop-loss` is supplied, the bankroll is derived from `starting balance - stop-loss`. `--max-bet` caps the dynamic wager and `--min-bet` floors it.
+When using bankroll-fraction, omit the wager amount and use named game configuration flags such as `--bet RED` or `--range 50`.
 
 ## Stateful Games
 
