@@ -1174,6 +1174,59 @@ describe('CLI Commands Integration Tests', () => {
       assert.deepStrictEqual(payload.args, ['3', '--json']);
     });
 
+    it('links nested bot json logs with parent run and call ids', () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'lineage-child',
+        script: `export default async function ({ args, bot }) {
+  return {
+    exitCode: 0,
+    summary: { bot: bot.command, args, status: 'child-ok' },
+  };
+}
+`,
+      });
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'lineage-parent',
+        script: `export default async function ({ bot, botJson }) {
+  const child = await botJson('lineage-child', ['3']);
+  return {
+    exitCode: 0,
+    summary: { bot: bot.command, status: 'parent-ok', child },
+  };
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const { stdout, code } = cli('bot lineage-parent --json', { env });
+      const payload = JSON.parse(stdout.trim());
+
+      assert.strictEqual(code, 0);
+      assert.strictEqual(payload.status, 'parent-ok');
+      assert.strictEqual(payload.child.status, 'child-ok');
+      assert.strictEqual(payload.child.parent_run_id, payload.run_id);
+      assert.strictEqual(payload.child.root_run_id, payload.root_run_id);
+      assert.strictEqual(payload.child.call_depth, 1);
+      assert.strictEqual(payload.nested_bot_calls.length, 1);
+      assert.strictEqual(payload.nested_bot_calls[0].child_run_id, payload.child.run_id);
+      assert.strictEqual(payload.nested_bot_calls[0].call_id, payload.child.parent_call_id);
+      assert.deepStrictEqual(payload.nested_bot_calls[0].args, ['3', '--json']);
+
+      const childFiles = fs.readdirSync(logDir).filter((name) => /^lineage-child\.\d{14}(?:\.\d+)?\.json$/.test(name));
+      assert.strictEqual(childFiles.length, 1);
+      const childLog = JSON.parse(fs.readFileSync(path.join(logDir, childFiles[0]), 'utf8'));
+      assert.strictEqual(childLog.run_id, payload.child.run_id);
+      assert.strictEqual(childLog.parent_run_id, payload.run_id);
+      assert.strictEqual(childLog.parent_call_id, payload.nested_bot_calls[0].call_id);
+    });
+
     it('filters child bot metric lines from forwarded plain output', () => {
       resetBotFixtures();
       writeBotFixture({
@@ -1329,11 +1382,16 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(files.length, 1);
 
       const payload = JSON.parse(fs.readFileSync(path.join(logDir, files[0]), 'utf8'));
-      assert.deepStrictEqual(payload, {
-        bot: 'summary-bot',
-        args: ['7'],
-        status: 'ok',
-      });
+      assert.strictEqual(payload.bot, 'summary-bot');
+      assert.strictEqual(payload.bot_name, 'summary-bot');
+      assert.deepStrictEqual(payload.args, ['7']);
+      assert.strictEqual(payload.status, 'ok');
+      assert.match(payload.run_id, /^[0-9a-f-]{36}$/);
+      assert.strictEqual(payload.root_run_id, payload.run_id);
+      assert.strictEqual(payload.parent_run_id, null);
+      assert.strictEqual(payload.call_depth, 0);
+      assert.match(payload.started_at_utc, /^\d{4}-\d{2}-\d{2}T/);
+      assert.match(payload.ended_at_utc, /^\d{4}-\d{2}-\d{2}T/);
     });
 
     it('prints returned summary json and logs it when --json is requested', () => {
@@ -1357,11 +1415,14 @@ export default async function ({ paths, bot }) {
       };
       const { stdout, code } = cli('bot summary-bot-json 7 --json', { env });
       assert.strictEqual(code, 0);
-      assert.deepStrictEqual(JSON.parse(stdout.trim()), {
-        bot: 'summary-bot-json',
-        args: ['7', '--json'],
-        status: 'ok',
-      });
+      const payload = JSON.parse(stdout.trim());
+      assert.strictEqual(payload.bot, 'summary-bot-json');
+      assert.strictEqual(payload.bot_name, 'summary-bot-json');
+      assert.deepStrictEqual(payload.args, ['7', '--json']);
+      assert.strictEqual(payload.status, 'ok');
+      assert.match(payload.run_id, /^[0-9a-f-]{36}$/);
+      assert.strictEqual(payload.root_run_id, payload.run_id);
+      assert.strictEqual(payload.parent_run_id, null);
 
       const files = fs.readdirSync(logDir).filter((name) => /^summary-bot-json\.\d{14}(?:\.\d+)?\.json$/.test(name));
       assert.strictEqual(files.length, 1);
