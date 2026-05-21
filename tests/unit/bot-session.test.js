@@ -12,6 +12,7 @@ import {
   formatCommandLine,
   formatIterationSummaryLine,
   formatPlayCommandSuffix,
+  getStandardBotInternalDelayMs,
   getStandardBotCliForwardTokens,
   getNestedBotEconomics,
   getStandardBotLoopCondition,
@@ -107,6 +108,17 @@ describe('Bot Session Helpers', () => {
     const disabled = parseStandardBotArgs(['--human=false']);
     assert.strictEqual(disabled.loopControls.human, false);
     assert.deepStrictEqual(getStandardBotCliForwardTokens(disabled.loopControls, {}), []);
+  });
+
+  it('computes internal bot pacing from explicit delay plus human timing', () => {
+    assert.strictEqual(getStandardBotInternalDelayMs({ delay: null, human: false }), 0);
+    assert.strictEqual(getStandardBotInternalDelayMs({ delay: '6', human: false }), 6000);
+
+    for (let i = 0; i < 10; i += 1) {
+      const delayMs = getStandardBotInternalDelayMs({ delay: '5', human: '2-4' });
+      assert.ok(delayMs >= 7000, `delay ${delayMs} should include the fixed and minimum human delay`);
+      assert.ok(delayMs <= 9000, `delay ${delayMs} should include the fixed and maximum human delay`);
+    }
   });
 
   it('forwards absolute take-profit and stop-loss wallet guards unchanged', async () => {
