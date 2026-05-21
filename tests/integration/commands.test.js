@@ -1468,7 +1468,12 @@ export default async function ({ paths, bot }) {
       writeBotFixture({
         baseDir: CONFIG_OVERRIDE_ROOT,
         folderName: 'interrupt-bot',
-        script: `export default async function () {
+        script: `export default async function ({ bot, updateRunSummary }) {
+  updateRunSummary({
+    bot: bot.command,
+    status: 'running',
+    iterations: [{ n: 1, result: 'recorded-before-signal' }],
+  });
   console.log('ready');
   setInterval(() => {}, 1000);
   await new Promise(() => {});
@@ -1508,6 +1513,13 @@ export default async function ({ paths, bot }) {
         child.stderr.on('data', onData);
       });
 
+      const runningFiles = fs.readdirSync(logDir).filter((name) => /^interrupt-bot\.\d{14}(?:\.\d+)?\.json$/.test(name));
+      assert.strictEqual(runningFiles.length, 1);
+      const runningPayload = JSON.parse(fs.readFileSync(path.join(logDir, runningFiles[0]), 'utf8'));
+      assert.strictEqual(runningPayload.status, 'running');
+      assert.deepStrictEqual(runningPayload.iterations, [{ n: 1, result: 'recorded-before-signal' }]);
+      assert.match(runningPayload.updated_at_utc, /^\d{4}-\d{2}-\d{2}T/);
+
       child.kill('SIGINT');
       const close = await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -1531,6 +1543,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(payload.bot_name, 'interrupt-bot');
       assert.strictEqual(payload.status, 'interrupted');
       assert.strictEqual(payload.signal, 'SIGINT');
+      assert.deepStrictEqual(payload.iterations, [{ n: 1, result: 'recorded-before-signal' }]);
     });
 
     it('passes -v through to named bots', () => {
