@@ -95,6 +95,34 @@ describe('Blackjack Display', () => {
     assert.strictEqual(parsed.mainBet, '25');
   });
 
+  it('serializes blackjack auto solver summaries in json mode', () => {
+    const output = renderGame(makeState(), [], {
+      displayMode: 'json',
+      autoMode: 'best',
+      autoDecisions: [
+        {
+          sequence: 1,
+          requestedSolver: 'best',
+          effectiveSolver: 'simple',
+          fallbackError: 'Blackjack EV search budget exceeded',
+          action: 1,
+          key: 'h',
+          label: 'Hit',
+          reason: 'Basic strategy fallback',
+        },
+      ],
+    });
+    const parsed = JSON.parse(output);
+
+    assert.strictEqual(parsed.autoMode, 'best');
+    assert.strictEqual(parsed.effectiveSolver, 'simple');
+    assert.strictEqual(parsed.solverDecisionCount, 1);
+    assert.strictEqual(parsed.solverFallbacks[0].requestedSolver, 'best');
+    assert.strictEqual(parsed.solverFallbacks[0].effectiveSolver, 'simple');
+    assert.strictEqual(parsed.solverFallbacks[0].fallbackError, 'Blackjack EV search budget exceeded');
+    assert.strictEqual(parsed.autoDecisions, undefined);
+  });
+
   it('formats blackjack stake actions without forced decimal zeros', () => {
     assert.strictEqual(
       formatActionLabel({ label: 'Double', betCost: 25000000000000000000n }, true),
