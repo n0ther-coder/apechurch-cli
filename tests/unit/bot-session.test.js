@@ -306,7 +306,7 @@ describe('Bot Session Helpers', () => {
         totalPayoutWei: 25n * 10n ** 18n,
         totalPnlWei: 5n * 10n ** 18n,
       }),
-      '# game_n: 3, wagered: 20, pnl: 5, multiply: 1.25',
+      '# routine: 3, wagered: 20, pnl: 5, multiply: 1.25',
     );
 
     assert.strictEqual(

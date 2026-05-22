@@ -3992,10 +3992,12 @@ program
         }
         saveState(state);
 
+        let jsonPayload = null;
+
         // Output
         if (opts.json) {
           // Full JSON for agents/scripts
-          console.log(JSON.stringify({
+          jsonPayload = {
             status: playResponse.status,
             game: gameEntry.key,
             tx: playResponse.tx,
@@ -4008,7 +4010,8 @@ program
               pnl_ape: pnlApe.toFixed(6),
               details: playResponse.result.details || null,
             } : null,
-          }));
+          };
+          console.log(JSON.stringify(jsonPayload));
         } else {
           // Human-friendly output
           if (hasResult) {
@@ -4076,6 +4079,7 @@ program
           error: false,
           playedGameKey: gameEntry.key,
           playedConfig: { ...gameConfig },
+          jsonPayload,
         };
       } catch (error) {
         if (opts.json) {
@@ -4109,6 +4113,7 @@ program
       const MAX_CONSECUTIVE_ERRORS = 3;
       let lastPlayedGameKey = fixedGame?.key || null;
       let lastPlayedConfig = fixedGame ? { ...positionalConfig } : null;
+      const loopGamePayloads = [];
       
       while (true) {
         // Check balance for target/stop-loss
@@ -4205,6 +4210,13 @@ program
         const result = await playOnce(nextBet);
         if (result.counted !== false) {
           gamesPlayed++;
+        }
+
+        if (opts.json && result.completed && result.jsonPayload) {
+          loopGamePayloads.push({
+            game_n: gamesPlayed,
+            ...result.jsonPayload,
+          });
         }
 
         if (result.playedGameKey) {
@@ -4313,6 +4325,30 @@ program
         }
         if (singleGameTerminalCondition || sessionTerminalCondition) break;
         await sleep(getLoopDelayMs({ delaySeconds: loopDelaySeconds, human: humanTiming }));
+      }
+
+      if (opts.json) {
+        const netResultApe = loopStats.totalPayoutApe - loopStats.totalWageredApe;
+        const totalWagerApe = formatApeAmount(loopStats.totalWageredApe);
+        const totalPayoutApe = formatApeAmount(loopStats.totalPayoutApe);
+        const completedGames = loopStats.completedGames;
+        console.log(JSON.stringify({
+          status: completedGames > 0 ? 'complete' : 'loop_control_reached',
+          loop: true,
+          game: lastPlayedGameKey,
+          games_played: gamesPlayed,
+          completed_games: completedGames,
+          total_wager_ape: totalWagerApe,
+          total_payout_ape: totalPayoutApe,
+          games_detail: loopGamePayloads,
+          result: completedGames > 0 ? {
+            wager_ape: totalWagerApe,
+            payout_ape: totalPayoutApe,
+            pnl_ape: formatApeAmount(netResultApe),
+            won: netResultApe > 0,
+          } : null,
+          loop_control: completedGames > 0 ? null : { kind: 'no_completed_loop_games' },
+        }));
       }
     } else {
       await playOnce();

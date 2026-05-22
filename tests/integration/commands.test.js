@@ -1084,6 +1084,33 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('["--help"]'));
     });
 
+    it('does not write a bot json log for help-only invocations', () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'help-log-bot',
+        script: `export default async function ({ args }) {
+  console.log(JSON.stringify({ args }));
+  return 0;
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const { stdout, code } = cli('bot help-log-bot --help', { env });
+
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('["--help"]'));
+      const files = fs.existsSync(logDir)
+        ? fs.readdirSync(logDir).filter((name) => /^help-log-bot\.\d{14}(?:\.\d+)?\.json$/.test(name))
+        : [];
+      assert.deepStrictEqual(files, []);
+    });
+
     it('exposes a playJson helper for parsed play responses', () => {
       resetBotFixtures();
       writeBotFixture({
