@@ -310,6 +310,16 @@ describe('Bot Session Helpers', () => {
     );
 
     assert.strictEqual(
+      formatIterationSummaryLine({
+        gameNumber: 4,
+        totalWagerWei: 2n * 10n ** 18n,
+        totalPayoutWei: 5n * 10n ** 18n,
+        totalPnlWei: 3n * 10n ** 18n,
+      }),
+      '# routine: 4, wagered: 2, pnl: 3, multiply: 2.50',
+    );
+
+    assert.strictEqual(
       formatPlayCommandSuffix({
         status: 'complete',
         wager_ape: '3.248005801137022857',

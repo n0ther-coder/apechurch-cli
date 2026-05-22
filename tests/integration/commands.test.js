@@ -1168,7 +1168,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(payload.fallbackLoss, '2');
       assert.strictEqual(payload.fallbackBot, 'next-bot');
       assert.deepStrictEqual(payload.remainingArgs, ['private']);
-      assert.strictEqual(payload.line, '# game_n: 1, status: complete, bet: 2, payout: 5, multiply: 2.5');
+      assert.strictEqual(payload.line, '# game_n: 1, status: complete, bet: 2, payout: 5, multiply: 2.50');
     });
 
     it('exposes a botJson helper for nested bot responses', () => {
