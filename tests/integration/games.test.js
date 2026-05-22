@@ -19,6 +19,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_PATH = path.join(__dirname, '../../bin/cli.js');
+const PASS_ENV_VAR = 'APECHURCH_CLI_PASS';
 
 // Minimum bet for tests
 const TEST_BET = '1';
@@ -49,6 +50,10 @@ function cli(args, options = {}) {
 function shouldSkipLiveTests() {
   if (process.env.SKIP_LIVE_TESTS === '1') {
     return 'SKIP_LIVE_TESTS=1';
+  }
+
+  if (!process.env[PASS_ENV_VAR]) {
+    return `${PASS_ENV_VAR} is required for non-interactive live tests`;
   }
   
   // Check balance
