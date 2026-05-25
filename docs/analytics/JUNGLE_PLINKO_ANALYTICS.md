@@ -46,7 +46,7 @@ Ball count does **not** change the underlying per-ball distribution. It only cha
 | 5 | `2.5x @ 10.67% (8/75)` |
 | 6 | `5x @ 2.67% (2/75)` |
 
-## Degen
+## High
 
 | Rank | Outcome |
 | --- | --- |
