@@ -179,7 +179,7 @@ describe('Live Game Tests', () => {
       cli(`play ape-strong ${TEST_BET} 50`, { timeout: 45000 });
       
       // Then check history
-      const { stdout } = cli('history --json --limit 1');
+      const { stdout } = cli('history --json --limit 1 --offline');
       const data = JSON.parse(stdout);
       
       assert.ok(data.games.length > 0, 'Should have game in history');

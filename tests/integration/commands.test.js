@@ -20,6 +20,7 @@ const HISTORY_FIXTURE_WALLET = '0x1111111111111111111111111111111111111111';
 const CONFIG_DIR_ENV = 'APECHURCH_CLI_CONFIG_DIR';
 const BOTS_DIR_ENV = 'APECHURCH_CLI_BOTS_DIR';
 const LOG_DIR_ENV = 'APECHURCH_CLI_LOG_DIR';
+const RPC_URL_ENV = 'APECHAIN_RPC_URL';
 const FORCE_COLOR_ENV = 'APECHURCH_CLI_FORCE_COLOR';
 const ANSI_RE = /\x1b\[[0-9;]*m/;
 
@@ -1667,6 +1668,35 @@ export default async function ({ paths, bot }) {
 
       assert.ok('games' in data, 'Should have games key');
       assert.ok(Array.isArray(data.games), 'Games should be array');
+    });
+
+    it('--offline returns cached JSON without RPC access', () => {
+      setupHistoryFixtureHome();
+      const { stdout, code } = cli('history --json --limit 1 --offline', {
+        env: {
+          ...process.env,
+          HOME: HISTORY_FIXTURE_HOME,
+          [RPC_URL_ENV]: 'http://127.0.0.1:1',
+        },
+        timeout: 5000,
+      });
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(code, 0);
+      assert.strictEqual(data.games.length, 1, 'Should respect limit from the local cache');
+      assert.strictEqual(data.stats.current_gp_balance_raw, null);
+      assert.strictEqual(data.stats.current_wape_balance_wei, null);
+    });
+
+    it('--offline rejects --refresh', () => {
+      setupHistoryFixtureHome();
+      const { stdout, code } = cli('history --json --offline --refresh', {
+        env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
+      });
+      const data = JSON.parse(stdout);
+
+      assert.notStrictEqual(code, 0);
+      assert.strictEqual(data.error, '--offline cannot be combined with --refresh');
     });
 
     it('--json --breakdown <game> filters the breakdown to one game family', () => {

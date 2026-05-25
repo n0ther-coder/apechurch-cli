@@ -4690,6 +4690,7 @@ program
   .option('--leaderboard', 'Show weekly wAPE wagered leaderboard')
   .option('--scoreboard', 'Append the wallet scoreboard derived from cached history')
   .option('--url', 'Show scoreboard game URLs in terminal output')
+  .option('--offline', 'Read local cache only; skip RPC enrichment and balance reads')
   .option('--refresh', 'Refresh local history from chain before showing it')
   .option('--from-block <n>', 'Start block for --refresh sync or backfill')
   .option('--to-block <n>', 'End block for --refresh sync (default latest)')
@@ -4720,6 +4721,13 @@ program
 
     if (!isAddress(targetAddress)) {
       const message = `Invalid wallet address: ${targetAddress}`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.error(`\n❌ ${message}\n`);
+      process.exit(1);
+    }
+
+    if (opts.offline && opts.refresh) {
+      const message = '--offline cannot be combined with --refresh';
       if (opts.json) console.log(JSON.stringify({ error: message }));
       else console.error(`\n❌ ${message}\n`);
       process.exit(1);
@@ -4776,19 +4784,34 @@ program
       return;
     }
 
-    const { publicClient } = createClients();
-    history = await enrichStoredHistoryVariants(publicClient, history);
+    let publicClient = null;
+    if (!opts.offline) {
+      ({ publicClient } = createClients());
+      history = await enrichStoredHistoryVariants(publicClient, history);
+    }
     const scoreboard = opts.scoreboard
       ? saveScoresFromHistory(history, targetAddress, {
           updatedOn: new Date().toISOString(),
         })
       : null;
     const scoreboardFilePath = scoreboard ? getScoreFilePath(targetAddress) : null;
-    let currentBalances = {};
-    try {
-      currentBalances = await readCurrentHistoryBalances(publicClient, targetAddress);
-    } catch {
-      currentBalances = {};
+    let currentBalances = {
+      current_gp_balance_raw: null,
+      current_gp_balance_display: null,
+      current_wape_balance_wei: null,
+      current_wape_balance_ape: null,
+    };
+    if (publicClient) {
+      try {
+        currentBalances = await readCurrentHistoryBalances(publicClient, targetAddress);
+      } catch {
+        currentBalances = {
+          current_gp_balance_raw: null,
+          current_gp_balance_display: null,
+          current_wape_balance_wei: null,
+          current_wape_balance_ape: null,
+        };
+      }
     }
 
     const stats = summarizeHistoryGames(history, currentBalances);
@@ -6219,6 +6242,7 @@ ${'─'.repeat(70)}
     ${BINARY_NAME} history --list
     ${BINARY_NAME} history [address]
     ${BINARY_NAME} history [address] --limit 25
+    ${BINARY_NAME} history [address] --offline
     ${BINARY_NAME} history [address] --all
     ${BINARY_NAME} history [address] --stats
     ${BINARY_NAME} history [address] --leaderboard
@@ -6253,6 +6277,7 @@ ${'─'.repeat(70)}
     --leaderboard              Show weekly wAPE wagered totals
     --scoreboard               Append the cached wallet scoreboard
     --url                      Show scoreboard game URLs in terminal output
+    --offline                  Read cache only; skip RPC enrichment and balances
     --breakdown [game]         Show the same stats split by game, optionally filtered
     --refresh                  Run wallet download first, then render
     --from-block <n>           Start block for --refresh
@@ -6279,6 +6304,7 @@ ${'─'.repeat(70)}
 
   2. ${BINARY_NAME} history [address]
      Reads that local file, shows recent games, and prints history stats.
+     Use --offline to skip best-effort RPC enrichment and current balances.
 
   3. ${BINARY_NAME} history [address] --scoreboard
      Appends the cached wallet scoreboard to the history report.
@@ -6377,6 +6403,7 @@ ${'─'.repeat(70)}
   ${BINARY_NAME} wallet download 0x1234...abcd --from-block 0
   ${BINARY_NAME} history
   ${BINARY_NAME} history --limit 25
+  ${BINARY_NAME} history --offline
   ${BINARY_NAME} history --all
   ${BINARY_NAME} history --stats
   ${BINARY_NAME} history --leaderboard
@@ -6407,6 +6434,11 @@ ${'─'.repeat(70)}
 
   --stats:
     • Only aggregate history stats
+
+  --offline:
+    • Reads the local history file only
+    • Skips RPC variant enrichment and current GP/wAPE balances
+    • Cannot be combined with --refresh
 
   --scoreboard:
     • Appends the cached wallet leaderboard derived from history
