@@ -28,6 +28,17 @@ Run count does **not** change the underlying per-run distribution. It only adds 
 | Zero | `2.2x @ 10.00% (1/10)` | `10.5x @ 1.00% (1/100)` | `56x @ 0.10% (1/1000)` | `500x @ 0.01% (1/10000)` |
 | Prime | `1.9x @ 40.00% (2/5)` | `3.5x @ 25.00% (1/4)` | `5.5x @ 16.80% (21/125)` | `7.57x @ 12.29% (1229/10000)` |
 
+## Variance
+
+Variance is computed over `X = payout / total stake`. With multiple runs, the total wager is split evenly and independent run payouts are averaged, so the aggregated variance is the single-run variance divided by the run count. The table ignores Solidity floor-division dust for wagers that are not evenly divisible by `numRuns`.
+
+| Mode | RTP | Variance @ 1 run | Variance @ 10 runs | Variance @ 20 runs |
+| --- | ---: | ---: | ---: | ---: |
+| Easy | `98.0000%` | `0.967600` | `0.096760` | `0.048380` |
+| Medium | `98.0000%` | `3.204600` | `0.320460` | `0.160230` |
+| Hard | `98.0000%` | `7.257600` | `0.725760` | `0.362880` |
+| Extreme | `98.0353%` | `31.081680` | `3.108168` | `1.554084` |
+
 ## Sources
 
 1. [docs/verification/PRIMES_CONTRACT.md](../verification/PRIMES_CONTRACT.md) — verified difficulty table, prime counts, and exact RTP references.

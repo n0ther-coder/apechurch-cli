@@ -69,6 +69,19 @@ The table below is not based on the rounded public percentages. It is the exact 
 | 8 | `600.00x @ 0.003%` (`≈ 5.000 / 1.866 E-5`) | `360000.00x @ 0.000%` (`≈ 2.500 / 3.482 E-9`) | `216000000.00x @ 0.000%` (`≈ 1.250 / 6.499 E-13`) | `129600000000.00x @ 0.000%` (`≈ 6.250 / 1.213 E-19`) | `77760000000000.00x @ 0.000%` (`≈ 3.125 / 2.263 E-23`) |
 | 9 | `5000.00x @ 0.000%` (`≈ 1.000 / 1.679 E-6`) | `25000000.00x @ 0.000%` (`≈ 1.000 / 2.821 E-12`) | `125000000000.00x @ 0.000%` (`≈ 1.000 / 4.738 E-18`) | `625000000000000.00x @ 0.000%` (`≈ 1.000 / 7.958 E-24`) | `3125000000000000000.00x @ 0.000%` (`≈ 1.000 / 1.336 E-31`) |
 
+## Variance
+
+Variance is computed over `X = payout / stake` for the full Blocks game. Unlike batched games, consecutive Blocks rolls are not averaged: surviving rolls compound the payout and any dead roll zeroes the whole game. That makes variance grow sharply as roll count increases.
+
+| Mode | Rolls | RTP | Variance | Std. Dev. |
+| --- | ---: | ---: | ---: | ---: |
+| Low | 1 | `44.7707%` | `5.348428` | `2.312667` |
+| Low | 2 | `20.0441%` | `30.749773` | `5.545248` |
+| Low | 5 | `1.7987%` | `5260.444465` | `72.528922` |
+| High | 1 | `42.3740%` | `29.483781` | `5.429897` |
+| High | 2 | `17.9555%` | `879.881262` | `29.662793` |
+| High | 5 | `1.3661%` | `22966771.791480` | `4792.365991` |
+
 ## Sources
 
 1. [docs/verification/BLOCKS_CONTRACT.md](../verification/BLOCKS_CONTRACT.md) — verified ABI surface, official mode naming, and the repo's consecutive-roll interpretation.

@@ -39,6 +39,15 @@ There is no redraw phase and no further player choice after risk selection, so t
 | Four of a Kind | `5x @ 1.93% (25/1296)` | `5x @ 1.25% (30/2401)` |
 | Five of a Kind | `50x @ 0.08% (1/1296)` | `50x @ 0.04% (1/2401)` |
 
+## Variance
+
+Variance is computed over `X = payout / stake`, using the full exact payout distribution for one Monkey Match hand. Since subtracting the original stake is a constant shift, the same variance also applies to net P&L expressed in stake units. Higher variance means a wider spread around RTP and more reliance on rare top outcomes.
+
+| Mode | RTP | Variance | Std. Dev. |
+| --- | ---: | ---: | ---: |
+| Low | `97.9938%` | `3.065763` | `1.750932` |
+| High | `98.2924%` | `2.666514` | `1.632946` |
+
 ## Sources
 
 1. [docs/verification/MONKEY_MATCH_CONTRACT.md](../verification/MONKEY_MATCH_CONTRACT.md) — verified five-draw model, live mode constants, and exact combinatorial counts.

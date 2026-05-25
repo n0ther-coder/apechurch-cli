@@ -70,6 +70,16 @@ Ball count does **not** change the underlying per-ball distribution. It only cha
 | 9 | `100x @ 0.07% (1/1454)` |
 | 10 | `250x @ 0.03% (1/2908)` |
 
+## Variance
+
+Variance is computed over `X = payout / total stake`. With multiple balls, the total wager is split evenly and independent ball payouts are averaged, so the aggregated variance is the per-ball variance divided by the ball count. The table ignores Solidity floor-division dust for wagers that are not evenly divisible by `numBalls`.
+
+| Mode | RTP | Variance @ 1 ball | Variance @ 10 balls | Variance @ 30 balls |
+| --- | ---: | ---: | ---: | ---: |
+| Low | `97.7288%` | `8.580256` | `0.858026` | `0.286009` |
+| Modest | `97.7612%` | `21.286812` | `2.128681` | `0.709560` |
+| High | `97.7992%` | `37.215781` | `3.721578` | `1.240526` |
+
 ## Scoreboard
 
 #### `play cosmic 120 --risk high --balls 30 --loop --max-games 100`

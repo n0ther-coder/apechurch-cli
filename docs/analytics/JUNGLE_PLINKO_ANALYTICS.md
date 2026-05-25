@@ -104,6 +104,18 @@ Ball count does **not** change the underlying per-ball distribution. It only cha
 | 12 | `250x @ 0.02% (5/25321)` |
 | 13 | `1000x @ 0.00% (1/25321)` |
 
+## Variance
+
+Variance is computed over `X = payout / total stake`. With multiple balls, the total wager is split evenly and independent ball payouts are averaged, so the aggregated variance is the per-ball variance divided by the ball count. The table ignores Solidity floor-division dust for wagers that are not evenly divisible by `numBalls`.
+
+| Mode | RTP | Variance @ 1 ball | Variance @ 50 balls | Variance @ 100 balls |
+| --- | ---: | ---: | ---: | ---: |
+| Low | `98.0000%` | `0.404362` | `0.008087` | `0.004044` |
+| Moderate | `97.9733%` | `0.903163` | `0.018063` | `0.009032` |
+| High | `97.9661%` | `2.110027` | `0.042201` | `0.021100` |
+| Degen | `97.9402%` | `11.875999` | `0.237520` | `0.118760` |
+| Ultra Degen | `97.9928%` | `60.953465` | `1.219069` | `0.609535` |
+
 ## Sources
 
 1. [docs/verification/JUNGLE_PLINKO_CONTRACT.md](../verification/JUNGLE_PLINKO_CONTRACT.md) — verified weighted-bucket model, risk tables, and exact RTP references.

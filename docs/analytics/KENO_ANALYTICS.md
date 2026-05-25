@@ -34,6 +34,23 @@ Keno draws 10 winning numbers from `40` without replacement. Because the draw is
 | Hits 9 |  |  |  |  |  |  |  |  | `500000x @ 0.00% (1/27343888)` | `50000x @ 0.00% (75/211915132)` |
 | Hits 10 |  |  |  |  |  |  |  |  |  | `1000000x @ 0.00% (1/847660528)` |
 
+## Variance
+
+Variance is computed over `X = payout / stake`, using the exact hypergeometric hit-count distribution for each pick count. Since subtracting the original stake is a constant shift, the same variance also applies to net P&L expressed in stake units. Large top payouts dominate the high-pick variance even when their probabilities are tiny.
+
+| Picks | RTP | Variance | Std. Dev. |
+| ---: | ---: | ---: | ---: |
+| 1 | `93.7500%` | `0.574219` | `0.757772` |
+| 2 | `93.7500%` | `1.409315` | `1.187146` |
+| 3 | `93.6741%` | `5.116595` | `2.261989` |
+| 4 | `93.3910%` | `24.893214` | `4.989310` |
+| 5 | `94.6801%` | `16.550138` | `4.068186` |
+| 6 | `93.8970%` | `19.822186` | `4.452211` |
+| 7 | `94.2872%` | `70.171795` | `8.376861` |
+| 8 | `94.1885%` | `74.589278` | `8.636508` |
+| 9 | `93.3169%` | `9324.147853` | `96.561627` |
+| 10 | `93.8297%` | `2197.637725` | `46.878969` |
+
 ## Sources
 
 1. [docs/verification/KENO_CONTRACT.md](../verification/KENO_CONTRACT.md) — verified payout matrix, draw model, and exact RTP references.
