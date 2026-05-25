@@ -1084,7 +1084,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('["--help"]'));
     });
 
-    it('does not write a bot json log for help-only invocations', () => {
+    it('does not write a bot json log for help invocations with bot-specific args', () => {
       resetBotFixtures();
       const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
       writeBotFixture({
@@ -1101,12 +1101,40 @@ describe('CLI Commands Integration Tests', () => {
         [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
         [LOG_DIR_ENV]: logDir,
       };
-      const { stdout, code } = cli('bot help-log-bot --help', { env });
+      const { stdout, code } = cli('bot help-log-bot -v4 --help', { env });
 
       assert.strictEqual(code, 0);
-      assert.ok(stdout.includes('["--help"]'));
+      assert.ok(stdout.includes('["-v4","--help"]'));
       const files = fs.existsSync(logDir)
         ? fs.readdirSync(logDir).filter((name) => /^help-log-bot\.\d{14}(?:\.\d+)?\.json$/.test(name))
+        : [];
+      assert.deepStrictEqual(files, []);
+    });
+
+    it('does not write a bot json log for startup usage errors', () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'usage-error-bot',
+        script: `export default async function () {
+  const error = new Error('Invalid startup arguments');
+  error.botUsageError = true;
+  error.code = 'BOT_USAGE_ERROR';
+  throw error;
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const { code } = cli('bot usage-error-bot --bad', { env });
+
+      assert.notStrictEqual(code, 0);
+      const files = fs.existsSync(logDir)
+        ? fs.readdirSync(logDir).filter((name) => /^usage-error-bot\.\d{14}(?:\.\d+)?\.json$/.test(name))
         : [];
       assert.deepStrictEqual(files, []);
     });
