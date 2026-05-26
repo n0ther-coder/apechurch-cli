@@ -93,12 +93,14 @@ describe('Blackjack Display', () => {
       dealer: { bet: '0', payout: '0' },
     });
     assert.strictEqual(parsed.mainBet, '25');
+    assert.strictEqual(parsed.solverMaxStates, 50000);
   });
 
   it('serializes blackjack auto solver summaries in json mode', () => {
     const output = renderGame(makeState(), [], {
       displayMode: 'json',
       autoMode: 'best',
+      solverMaxStates: 100000,
       autoDecisions: [
         {
           sequence: 1,
@@ -115,6 +117,7 @@ describe('Blackjack Display', () => {
     const parsed = JSON.parse(output);
 
     assert.strictEqual(parsed.autoMode, 'best');
+    assert.strictEqual(parsed.solverMaxStates, 100000);
     assert.strictEqual(parsed.effectiveSolver, 'simple');
     assert.strictEqual(parsed.solverDecisionCount, 1);
     assert.strictEqual(parsed.solverFallbacks[0].requestedSolver, 'best');
