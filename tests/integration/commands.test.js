@@ -531,7 +531,9 @@ describe('CLI Commands Integration Tests', () => {
     it('shows the current alias set in the terminal catalog', () => {
       const { stdout } = cli('games');
       assert.ok(stdout.includes('Aliases: apestrong, strong'));
+      assert.ok(stdout.includes('Aliases: geezdiggerz, geez, diggerz'));
       assert.ok(stdout.includes('Aliases: glyde, glyde-crash, glydecrash, speed-crash, speedcrash, crash'));
+      assert.ok(stdout.includes('Aliases: speedkeno, skeno, speed'));
       assert.ok(stdout.includes('Aliases: bj'));
       assert.ok(stdout.includes('Aliases: cashdash, dash'));
       assert.ok(stdout.includes('Aliases: hilonebula, hilo, nebula'));
@@ -643,10 +645,14 @@ describe('CLI Commands Integration Tests', () => {
       const jungle = cli('game jungle --json');
       const cosmic = cli('game cosmic --json');
       const glyde = cli('game glyde --json');
+      const diggerz = cli('game diggerz --json');
+      const speed = cli('game speed --json');
 
       assert.strictEqual(JSON.parse(jungle.stdout).key, 'jungle-plinko');
       assert.strictEqual(JSON.parse(cosmic.stdout).key, 'cosmic-plinko');
       assert.strictEqual(JSON.parse(glyde.stdout).key, 'glyde-or-crash');
+      assert.strictEqual(JSON.parse(diggerz.stdout).key, 'geez-diggerz');
+      assert.strictEqual(JSON.parse(speed.stdout).key, 'speed-keno');
     });
 
     it('accepts the current simple-game aliases in play mode', () => {
@@ -663,10 +669,8 @@ describe('CLI Commands Integration Tests', () => {
     });
 
     it('rejects removed simple-game aliases', () => {
-      const diggerz = cli('game diggerz');
       const speedk = cli('play speedk 10');
 
-      assert.ok(diggerz.stdout.includes('Unknown game'));
       assert.ok(speedk.stdout.includes('Unknown game'));
     });
 
@@ -732,6 +736,7 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Speed Keno ✔︎');
+      assert.deepStrictEqual(data.aliases, ['speedkeno', 'skeno', 'speed']);
     });
 
     it('exposes ABI verification metadata for verified Dino Dough', () => {
@@ -756,6 +761,7 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(data.abiVerified, true);
       assert.strictEqual(data.displayName, 'Geez Diggerz ✔︎');
+      assert.deepStrictEqual(data.aliases, ['geezdiggerz', 'geez', 'diggerz']);
     });
 
     it('exposes ABI verification metadata for verified Gimboz Smash', () => {

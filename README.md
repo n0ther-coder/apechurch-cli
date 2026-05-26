@@ -267,11 +267,11 @@ Coverage and limits:
 | Jungle Plinko ✔︎ | `play jungle-plinko 10 2 50` | `jungleplinko`, `jungle` | Drop balls for multipliers |
 | Cosmic Plinko ✔︎ | `play cosmic-plinko 10 1 10` | `cosmic` | Asymmetric plinko with higher top-end payouts |
 | Keno ✔︎ | `play keno 10` | - | Pick numbers 1-40 |
-| Speed Keno ✔︎ | `play speed-keno 10` | `speedkeno`, `skeno` | Fast batched keno |
+| Speed Keno ✔︎ | `play speed-keno 10` | `speedkeno`, `skeno`, `speed` | Fast batched keno |
 | Dino Dough ✔︎ | `play dino-dough 10 10` | `dinodough`, `dino` | Slot machine |
 | Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | `bubblegumheist`, `bubblegum`, `heist` | Slot machine |
 | Cash Dash ✔︎ | `cash-dash 10 --auto` | `cashdash`, `dash` | Stateful death-tile ladder game with cash-out |
-| Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | `geezdiggerz`, `geez` | Slot machine |
+| Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | `geezdiggerz`, `geez`, `diggerz` | Slot machine |
 | Gimboz Smash ✔︎ | `play gimboz-smash 10 1-50` or `play gimboz-smash 10 --out-range 45-50` | `gimbozsmash`, `smash` | One-or-two interval target game on a 1-100 board |
 | Glyde or Crash ✔︎ | `play glyde-or-crash 10 2x` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` | Target a crash multiplier |
 | Reel Pirates | `play reel-pirates 20` | `reelpirates`, `pirates`, `reel` | Match-anywhere cascade slot |

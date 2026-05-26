@@ -380,7 +380,7 @@ apechurch-cli play speed-keno 10 --picks 5 --games 20
 
 **Max payout:** 5/5 = 2000x
 
-**Aliases:** `sk`, `speedk`
+**Aliases:** `speedkeno`, `skeno`, `speed`
 
 ---
 
@@ -406,7 +406,7 @@ apechurch-cli play sushi-showdown 10 10  # 10 APE, 10 spins
 **Exact RTP:** `97.90%` for Dino Dough, `97.80%` for Bubblegum Heist, `97.69%` for Geez Diggerz, and `97.87%` for Sushi Showdown from live reel/payout snapshots recorded in the repo.
 **Reel Pirates note:** playable but not ABI verified; the observed gameplay tx uses `(numSpins, gameId, ref, userRandomWord)` and the exact cascade odds are not public in this repo.
 **Current max payout:** `333x` for Dino Dough, `100x` for Bubblegum Heist, `50x` for Geez Diggerz, and `500x` for Sushi Showdown.
-**Aliases:** `dino`, `slots`, `bubblegum`, `heist`, `geez`, `diggerz`, `sushi`, `showdown`
+**Aliases:** `dinodough`, `dino`, `bubblegumheist`, `bubblegum`, `heist`, `geezdiggerz`, `geez`, `diggerz`, `sushishowdown`, `sushi`
 
 
 ---

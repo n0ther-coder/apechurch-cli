@@ -27,7 +27,7 @@ Ordering: alphabetical by game title.
 | Cash Dash ✔︎ | `cash-dash <amt>` | `cash-dash <amt> --auto --cashout-after N` | `cashdash`, `dash` |
 | Cosmic Plinko ✔︎ | `play cosmic-plinko <amt> <risk> <balls>` | `--game cosmic-plinko --amount X --risk Y --balls Z` | `cosmic` |
 | Dino Dough ✔︎ | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` | `dinodough`, `dino` |
-| Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` | `geezdiggerz`, `geez` |
+| Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` | `geezdiggerz`, `geez`, `diggerz` |
 | Gimboz Smash ✔︎ | `play gimboz-smash <amt> <range>` | `--game gimboz-smash --amount X --range Y` | `gimbozsmash`, `smash` |
 | Glyde or Crash ✔︎ | `play glyde-or-crash <amt> <multiplier>` | `--game glyde-or-crash --amount X --multiplier Y` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` | `hilonebula`, `hilo`, `nebula` |
@@ -37,7 +37,7 @@ Ordering: alphabetical by game title.
 | Primes ✔︎ | `play primes <amt> <risk> <runs>` | `--game primes --amount X --risk Y --runs Z` | - |
 | Reel Pirates | `play reel-pirates <amt> <spins>` | `--game reel-pirates --amount X --spins Y` | `reelpirates`, `pirates`, `reel` |
 | Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` | - |
-| Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` | `speedkeno`, `skeno` |
+| Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` | `speedkeno`, `skeno`, `speed` |
 | Sushi Showdown ✔︎ | `play sushi-showdown <amt> <spins>` | `--game sushi-showdown --amount X --spins Y` | `sushishowdown`, `sushi` |
 | Video Poker ✔︎ / Gimboz Poker | `video-poker <amt>` | `video-poker <amt> --auto best` | `vp` |
 
@@ -338,7 +338,7 @@ Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` 
 
 **Type:** Slots
 **Contract:** `0xB02b13Adb8eAaFe1F41ec942612C4a4862b74d1D`
-**Aliases:** `geezdiggerz`, `geez`
+**Aliases:** `geezdiggerz`, `geez`, `diggerz`
 **ABI verified:** `true`
 **Verification notes:** [GEEZ_DIGGERZ_CONTRACT.md](./verification/GEEZ_DIGGERZ_CONTRACT.md)
 **Analytics:** [GEEZ_DIGGERZ_ANALYTICS.md](./analytics/GEEZ_DIGGERZ_ANALYTICS.md)
@@ -583,7 +583,7 @@ American roulette on a `38`-pocket wheel. The contract supports single numbers, 
 
 **Type:** Keno (Batched)
 **Contract:** `0x40EE3295035901e5Fd80703774E5A9FE7CE2B90C`
-**Aliases:** `speedkeno`, `skeno`
+**Aliases:** `speedkeno`, `skeno`, `speed`
 **ABI verified:** `true`
 **Verification notes:** [SPEED_KENO_CONTRACT.md](./verification/SPEED_KENO_CONTRACT.md)
 **Analytics:** [SPEED_KENO_ANALYTICS.md](./analytics/SPEED_KENO_ANALYTICS.md)

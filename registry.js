@@ -447,7 +447,7 @@ export const GAME_REGISTRY = [
   {
     key: 'geez-diggerz',
     name: 'Geez Diggerz',
-    aliases: ['geezdiggerz', 'geez'],
+    aliases: ['geezdiggerz', 'geez', 'diggerz'],
     slug: 'geez-diggerz',
     type: 'slots',
     description: 'Verified multi-spin slot with symmetric 6-symbol reels, a 50x top line, and a flatter rebate-heavy paytable than the other slots.',
@@ -621,7 +621,7 @@ export const GAME_REGISTRY = [
   {
     key: 'speed-keno',
     name: 'Speed Keno',
-    aliases: ['speedkeno', 'skeno'],
+    aliases: ['speedkeno', 'skeno', 'speed'],
     slug: 'speed-keno',
     type: 'speedkeno',
     description: 'Fast batched Keno on a 20-number board. The contract draws 5 winners without replacement per game; 5 picks has the best exact RTP, while batching up to 20 games mainly changes variance and fee overhead.',

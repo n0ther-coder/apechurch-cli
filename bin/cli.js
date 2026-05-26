@@ -5718,12 +5718,12 @@ GAME ALIASES
   bubblegum-heist: bubblegumheist, bubblegum, heist
   cosmic-plinko: cosmic
   dino-dough: dinodough, dino
-  geez-diggerz: geezdiggerz, geez
+  geez-diggerz: geezdiggerz, geez, diggerz
   gimboz-smash: gimbozsmash, smash
   glyde-or-crash: glyde, glyde-crash, glydecrash, speed-crash, speedcrash, crash
   jungle-plinko: jungleplinko, jungle
   monkey-match: monkeymatch, monkey
-  speed-keno: speedkeno, skeno
+  speed-keno: speedkeno, skeno, speed
   sushi-showdown: sushishowdown, sushi
   blackjack: bj
   cash-dash: cashdash, dash
