@@ -208,8 +208,10 @@ import {
   computeCooldownMs,
 } from '../lib/strategy.js';
 import { configGetters, playGame, resolveGame } from '../lib/games/index.js';
+import { parseBaccaratBet } from '../lib/games/baccarat.js';
 import { resolveBearDiceConfig } from '../lib/games/beardice.js';
 import { parseGimbozSmashInput } from '../lib/games/gimbozsmash.js';
+import { parseRouletteBets } from '../lib/games/roulette.js';
 import { resolveSlotsConfig } from '../lib/games/slots.js';
 import {
   getGameConfigCliName,
@@ -286,6 +288,13 @@ import {
   getConfiguredGameVrfFeeApe,
 } from '../lib/loop-estimate.js';
 import {
+  AUTO_MODE_BEST,
+  AUTO_MODE_SIMPLE,
+  AUTO_MODE_WINSTON_LADDER,
+  formatAutoModes,
+  normalizeAutoMode,
+} from '../lib/stateful/auto.js';
+import {
   formatHumanDelayRange,
   formatDelayMs,
   getLoopDelayMs,
@@ -296,6 +305,7 @@ import {
 import {
   discoverBotDefinitions,
   runBot,
+  validateBotInvocation,
 } from '../lib/bots.js';
 
 // --- CLI Setup ---
@@ -1636,6 +1646,290 @@ function resolveStatefulPlayDispatch({ gameArg, amountArg, configArgs, opts }) {
   }
 
   return null;
+}
+
+const HI_LO_NEBULA_VALIDATE_AUTO_MODES = Object.freeze([
+  AUTO_MODE_SIMPLE,
+  AUTO_MODE_BEST,
+  AUTO_MODE_WINSTON_LADDER,
+]);
+
+function formatPlayValidationPayload(payload = {}) {
+  return {
+    status: 'valid',
+    command: 'play',
+    ...payload,
+  };
+}
+
+function failPlayValidation(error) {
+  console.error(JSON.stringify({ error: sanitizeError(error) }));
+  process.exit(1);
+}
+
+function validateStatefulAmount(amount, gameKey) {
+  if (!isPositiveApeToken(amount)) {
+    throw new Error(`Invalid ${gameKey} bet amount.`);
+  }
+  if (gameKey === 'video-poker') {
+    const value = Number(amount);
+    if (![1, 5, 10, 25, 50, 100].includes(value)) {
+      throw new Error('Invalid video-poker bet amount. Valid bets: 1, 5, 10, 25, 50, 100 APE.');
+    }
+  }
+}
+
+function validatePositiveNumberOption(value, optionName, { allowZero = false } = {}) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || (allowZero ? parsed < 0 : parsed <= 0)) {
+    throw new Error(`Invalid ${optionName} value: "${value}". Must be a ${allowZero ? 'non-negative' : 'positive'} number.`);
+  }
+}
+
+function validateStatefulAutoMode(opts, {
+  optionName = '--auto',
+  validModes = undefined,
+} = {}) {
+  if (opts.auto === undefined) return;
+  if (normalizeAutoMode(opts.auto, validModes) === null) {
+    throw new Error(`Invalid ${optionName} mode: "${opts.auto}". Valid values: ${formatAutoModes(validModes)}.`);
+  }
+}
+
+function validateHiLoNebulaSolverMode(opts) {
+  if (opts.solver === undefined) return;
+  const mode = opts.solver === true || String(opts.solver).trim() === ''
+    ? AUTO_MODE_BEST
+    : normalizeAutoMode(opts.solver, HI_LO_NEBULA_VALIDATE_AUTO_MODES);
+  if (mode === null) {
+    throw new Error(`Invalid --solver mode: "${opts.solver}". Valid values: ${formatAutoModes(HI_LO_NEBULA_VALIDATE_AUTO_MODES)}.`);
+  }
+}
+
+function validateCashDashTile(value) {
+  if (value === undefined) return;
+  const input = String(value).trim().toLowerCase();
+  if (input === 'random') return;
+  const parsed = Number(input);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 7) {
+    throw new Error(`Invalid --tile value: "${value}". Must be 1-7 or random.`);
+  }
+}
+
+function validateStatefulStartOptions(gameKey, opts = {}) {
+  parseLoopTerminalOptions(opts);
+  if (opts.delay !== undefined) validatePositiveNumberOption(opts.delay, '--delay');
+  if (opts.maxBet !== undefined) validatePositiveNumberOption(opts.maxBet, '--max-bet');
+  if (opts.minBet !== undefined) validatePositiveNumberOption(opts.minBet, '--min-bet');
+  if (opts.gpApe !== undefined) normalizeGpPerApe(opts.gpApe);
+
+  switch (gameKey) {
+    case 'blackjack':
+      validateStatefulAutoMode(opts);
+      validatePositiveNumberOption(opts.side ?? 0, '--side', { allowZero: true });
+      parseSolverMaxStatesForValidation(opts.solverMaxStates);
+      break;
+    case 'cash-dash':
+      validateStatefulAutoMode(opts);
+      validateCashDashTile(opts.tile);
+      if (opts.cashoutAfter !== undefined) parsePositiveIntegerForValidation(opts.cashoutAfter, '--cashout-after');
+      break;
+    case 'hi-lo-nebula':
+      validateStatefulAutoMode(opts, { validModes: HI_LO_NEBULA_VALIDATE_AUTO_MODES });
+      validateHiLoNebulaSolverMode(opts);
+      break;
+    case 'video-poker':
+      validateStatefulAutoMode(opts);
+      break;
+    default:
+      throw new Error(`Unsupported stateful game: ${gameKey}`);
+  }
+}
+
+function parsePositiveIntegerForValidation(value, optionName) {
+  const text = String(value ?? '').trim();
+  const parsed = Number(text);
+  if (!/^\d+$/.test(text) || !Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid ${optionName} value: "${value}". Must be a positive integer.`);
+  }
+  return parsed;
+}
+
+function parseSolverMaxStatesForValidation(value) {
+  if (value === undefined || value === null || value === '') return null;
+  return parsePositiveIntegerForValidation(value, '--solver-max-states');
+}
+
+function validateStatefulPlayDispatch(dispatch) {
+  if (!dispatch?.game) {
+    throw new Error('No stateful game selected.');
+  }
+
+  if (isStatefulStartAction(dispatch.action)) {
+    const betAmount = dispatch.action || dispatch.amount;
+    if (!betAmount && !allowsMissingStatefulStartAmount(dispatch.opts)) {
+      throw new Error(`Bet amount required for ${dispatch.game.key}.`);
+    }
+    if (betAmount) validateStatefulAmount(betAmount, dispatch.game.key);
+    validateStatefulStartOptions(dispatch.game.key, dispatch.opts);
+    return formatPlayValidationPayload({
+      game: dispatch.game.key,
+      type: 'stateful',
+      action: 'start',
+    });
+  }
+
+  const action = String(dispatch.action || '').trim().toLowerCase();
+  const validActions = {
+    blackjack: ['hit', 'stand', 'double', 'split', 'insurance', 'surrender', 'resume', 'status', 'clear'],
+    'cash-dash': ['resume', 'status', 'payouts', 'table', 'clear', 'guess', 'tile', 'pick'],
+    'hi-lo-nebula': ['resume', 'status', 'payouts', 'table', 'clear'],
+    'video-poker': ['resume', 'status', 'payouts', 'table', 'clear'],
+  }[dispatch.game.key] || [];
+
+  if (!validActions.includes(action)) {
+    throw new Error(`Unknown ${dispatch.game.key} action: ${dispatch.action}`);
+  }
+
+  return formatPlayValidationPayload({
+    game: dispatch.game.key,
+    type: 'stateful',
+    action,
+  });
+}
+
+function validateNumberSelection(input, {
+  label,
+  min,
+  max,
+  minCount,
+  maxCount,
+} = {}) {
+  if (input === undefined || input === null || String(input).trim() === '') return;
+  if (String(input).trim().toLowerCase() === 'random') return;
+
+  const parts = String(input)
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const seen = new Set();
+
+  for (const part of parts) {
+    const parsed = Number(part);
+    if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+      throw new Error(`Invalid ${label} number: "${part}". Must be ${min}-${max}.`);
+    }
+    if (seen.has(parsed)) {
+      throw new Error(`Duplicate ${label} number: ${parsed}.`);
+    }
+    seen.add(parsed);
+  }
+
+  if (parts.length < minCount || parts.length > maxCount) {
+    throw new Error(`Must pick ${minCount}-${maxCount} ${label} numbers. You picked ${parts.length}.`);
+  }
+}
+
+function validateResolvedGameConfig(gameEntry, gameConfig = {}, { amountInput = '1' } = {}) {
+  const configEntries = gameEntry?.config && typeof gameEntry.config === 'object'
+    ? Object.entries(gameEntry.config)
+    : [];
+
+  for (const [field, config] of configEntries) {
+    if (gameConfig[field] === undefined || config?.min === undefined || config?.max === undefined) {
+      continue;
+    }
+    ensureIntRange(
+      gameConfig[field],
+      getGameConfigCliName(gameEntry, field),
+      config.min,
+      config.max,
+    );
+  }
+
+  if (gameEntry.type === 'keno') {
+    validateNumberSelection(gameConfig.numbers, {
+      label: 'keno',
+      min: 1,
+      max: 40,
+      minCount: 1,
+      maxCount: 10,
+    });
+  } else if (gameEntry.type === 'speedkeno') {
+    validateNumberSelection(gameConfig.numbers, {
+      label: 'speed keno',
+      min: 1,
+      max: 20,
+      minCount: 1,
+      maxCount: 5,
+    });
+  } else if (gameEntry.type === 'roulette') {
+    parseRouletteBets(gameConfig.bet, gameEntry);
+  } else if (gameEntry.type === 'baccarat') {
+    parseBaccaratBet(gameConfig.bet, parseEther(String(amountInput || '1')));
+  } else if (gameEntry.type === 'gimbozsmash') {
+    parseGimbozSmashInput({
+      range: gameConfig.targets,
+      outRange: gameConfig.outRange,
+    });
+  }
+}
+
+function resolveValidationGameConfig({
+  fixedGame,
+  opts,
+  positionalConfig,
+  loopMode,
+}) {
+  if (!fixedGame) return {};
+
+  const strategy = normalizeStrategy(opts.strategy || 'balanced');
+  const strategyConfig = getStrategyConfig(strategy);
+  const preferGameDefault = Boolean(fixedGame && !loopMode);
+  const getConfig = configGetters[fixedGame.type];
+  return getConfig
+    ? getConfig(
+        opts,
+        positionalConfig,
+        fixedGame,
+        strategyConfig,
+        randomIntInclusive,
+        { preferGameDefault },
+      )
+    : { ...positionalConfig };
+}
+
+function validateStatelessPlayTarget({
+  fixedGame,
+  opts,
+  positionalConfig,
+  amountInput,
+  loopMode,
+}) {
+  if (amountInput !== undefined && !isPositiveApeToken(amountInput)) {
+    throw new Error('Invalid amount.');
+  }
+
+  parseLoopTerminalOptions(opts);
+  if (opts.maxBet !== undefined) validatePositiveNumberOption(opts.maxBet, '--max-bet');
+  if (opts.minBet !== undefined) validatePositiveNumberOption(opts.minBet, '--min-bet');
+  if (opts.gpApe !== undefined) normalizeGpPerApe(opts.gpApe);
+
+  const gameConfig = resolveValidationGameConfig({
+    fixedGame,
+    opts,
+    positionalConfig,
+    loopMode,
+  });
+  if (fixedGame) {
+    validateResolvedGameConfig(fixedGame, gameConfig, { amountInput });
+  }
+
+  return formatPlayValidationPayload({
+    game: fixedGame?.key || null,
+    type: fixedGame ? 'stateless' : 'auto',
+    config: fixedGame ? gameConfig : null,
+  });
 }
 
 function formatAvailableGameGroups() {
@@ -3155,6 +3449,7 @@ program
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--json', 'JSON output only')
+  .addOption(new Option('--validate-only', 'Validate play arguments without starting a game').hideHelp())
   .addHelpText('after', formatPlayHelpAppendix())
   .action(async (gameArg, amountArg, configArgs, opts) => {
     const loopMode = Boolean(opts.loop);
@@ -3236,6 +3531,14 @@ program
 
     const statefulDispatch = resolveStatefulPlayDispatch({ gameArg, amountArg, configArgs, opts });
     if (statefulDispatch) {
+      if (opts.validateOnly) {
+        try {
+          console.log(JSON.stringify(validateStatefulPlayDispatch(statefulDispatch)));
+        } catch (error) {
+          failPlayValidation(error);
+        }
+        return;
+      }
       return runStatefulGameCommand(
         statefulDispatch.game.key,
         statefulDispatch.action,
@@ -3460,6 +3763,21 @@ program
           process.exit(1);
         }
       }
+    }
+
+    if (opts.validateOnly) {
+      try {
+        console.log(JSON.stringify(validateStatelessPlayTarget({
+          fixedGame,
+          opts,
+          positionalConfig,
+          amountInput,
+          loopMode,
+        })));
+      } catch (error) {
+        failPlayValidation(error);
+      }
+      return;
     }
 
     const account = await getWalletWithPrompt({ json: opts.json, gameplay: true });
@@ -4365,6 +4683,7 @@ const botCommand = program
   .helpOption(false)
   .option('-h, --help', 'Show bot loader help, or pass help through to a named bot')
   .option('--list', 'List discovered bots')
+  .addOption(new Option('--validate-only', 'Validate bot arguments without running').hideHelp())
   .addHelpText('after', `
 Examples:
   ${BOT_HELP_EXAMPLES.join('\n  ')}
@@ -4407,6 +4726,17 @@ Environment:
       const rawArgs = Array.isArray(args) ? [...args] : [];
       if (opts.help) {
         rawArgs.push('--help');
+      }
+
+      if (opts.validateOnly) {
+        try {
+          const payload = await validateBotInvocation(bot, rawArgs);
+          console.log(JSON.stringify(payload));
+        } catch (error) {
+          process.exitCode = 1;
+          console.error(JSON.stringify({ error: sanitizeError(error) }));
+        }
+        return;
       }
 
       const exitCode = await runBot(bot, {

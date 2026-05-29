@@ -386,6 +386,15 @@ describe('CLI Commands Integration Tests', () => {
       assert.match(payload.error, /Invalid --bankroll value/);
     });
 
+    it('play validate-only checks game option values without requiring a wallet', () => {
+      const { stdout, code } = cli('play cosmic-plinko 1 --risk Wrong --validate-only --json');
+      const payload = JSON.parse(stdout);
+
+      assert.strictEqual(code, 1);
+      assert.match(payload.error, /risk must be between/i);
+      assert.ok(!stdout.includes('No wallet found'));
+    });
+
     it('help auto still shows advanced examples', () => {
       const { stdout } = cli('help auto');
       assert.ok(stdout.includes('--auto best'), 'Should keep best-mode examples in helper text');
@@ -1144,6 +1153,29 @@ describe('CLI Commands Integration Tests', () => {
         ? fs.readdirSync(logDir).filter((name) => /^usage-error-bot\.\d{14}(?:\.\d+)?\.json$/.test(name))
         : [];
       assert.deepStrictEqual(files, []);
+    });
+
+    it('bot validate-only checks exported argument parsers without running the bot', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'validator-bot',
+        script: `export function parseArgs(args) {
+  if (args.includes('--bad')) throw new Error('Bad startup option');
+  return { args };
+}
+
+export default async function () {
+  throw new Error('handler should not run during validation');
+}
+`,
+      });
+
+      const { stdout, code } = cli('bot validator-bot --bad --validate-only --json');
+      const payload = JSON.parse(stdout);
+
+      assert.strictEqual(code, 1);
+      assert.strictEqual(payload.error, 'Bad startup option');
     });
 
     it('exposes a playJson helper for parsed play responses', () => {
