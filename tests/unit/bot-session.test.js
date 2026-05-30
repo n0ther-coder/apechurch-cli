@@ -10,6 +10,7 @@ import {
   formatBeforeGameLine,
   formatBotCommandLine,
   formatCommandLine,
+  colorNestedBotOutput,
   formatIterationSummaryLine,
   formatPlayCommandSuffix,
   getStandardBotInternalDelayMs,
@@ -339,7 +340,16 @@ describe('Bot Session Helpers', () => {
         wager_ape: '3.248005801137022857',
         result: { payout_ape: '0' },
       }),
-      '  # bet: 3.248006, payout: 0',
+      '  # bet: 3.248006, payout: 0 (-3.248006)',
+    );
+
+    assert.strictEqual(
+      formatPlayCommandSuffix({
+        isComplete: true,
+        betAmountApe: 45,
+        totalPayoutApe: 90,
+      }),
+      '  # bet: 45, payout: 90 (+45)',
     );
 
     assert.strictEqual(
@@ -361,6 +371,51 @@ describe('Bot Session Helpers', () => {
       formatBotCommandLine('nested-bot', ['16', '--take-profit', '1400']),
       'apechurch-cli bot nested-bot 16 --take-profit 1400',
     );
+  });
+
+  it('keeps direct bot commands yellow while dimming forwarded nested child output', () => {
+    const previousForceColor = process.env.APECHURCH_CLI_FORCE_COLOR;
+    process.env.APECHURCH_CLI_FORCE_COLOR = '1';
+
+    try {
+      const payload = {
+        status: 'complete',
+        wager_ape: '10',
+        result: { payout_ape: '25' },
+      };
+      const directLine = `${formatCommandLine(['speed-keno', '10'], {
+        colorOutput: true,
+      })}${formatPlayCommandSuffix(payload, { colorOutput: true })}`;
+      const directPushLine = formatPlayCommandSuffix({
+        status: 'complete',
+        wager_ape: '10',
+        result: { payout_ape: '10' },
+      }, { colorOutput: true });
+      const nestedChildLine = colorNestedBotOutput(
+        `apechurch-cli play speed-keno 10${formatPlayCommandSuffix(payload)}`,
+        true,
+      );
+
+      assert.match(directLine, /\x1b\[33mapechurch-cli play speed-keno 10\x1b\[39m/);
+      assert.doesNotMatch(directLine, /\x1b\[33m\x1b\[2mapechurch-cli/);
+      assert.match(directLine, /payout: \x1b\[32m25\x1b\[39m/);
+      assert.doesNotMatch(directLine, /payout: \x1b\[32m\x1b\[1m25/);
+      assert.match(directLine, /\(\x1b\[92m\x1b\[1m\+15\x1b\[22m\x1b\[39m\)/);
+      assert.match(directPushLine, /\(\x1b\[95m\x1b\[1m0\x1b\[22m\x1b\[39m\)/);
+
+      assert.strictEqual(
+        nestedChildLine,
+        '\x1b[33m\x1b[2mapechurch-cli play speed-keno 10  # bet: 10, payout: 25 (+15)\x1b[22m\x1b[39m',
+      );
+      assert.doesNotMatch(nestedChildLine, /\x1b\[92m/);
+      assert.doesNotMatch(nestedChildLine, /\x1b\[1m\+15/);
+    } finally {
+      if (previousForceColor === undefined) {
+        delete process.env.APECHURCH_CLI_FORCE_COLOR;
+      } else {
+        process.env.APECHURCH_CLI_FORCE_COLOR = previousForceColor;
+      }
+    }
   });
 
   it('parses leading-decimal APE amounts consistently', () => {
@@ -386,6 +441,20 @@ describe('Bot Session Helpers', () => {
     }, 2);
     assert.strictEqual(stateful.pnlWei, -125n * 10n ** 17n);
     assert.strictEqual(getPlayStatus({ state: 'HAND_COMPLETE' }), 'complete');
+
+    const videoPoker = getSettledPlayEconomics({
+      isComplete: true,
+      gameStateName: 'HAND_COMPLETE',
+      betAmountApe: 45,
+      totalPayoutApe: 0,
+    }, 3);
+    assert.strictEqual(videoPoker.pnlWei, -45n * 10n ** 18n);
+    assert.strictEqual(getPlayStatus({ isComplete: true, gameStateName: 'HAND_COMPLETE' }), 'complete');
+
+    assert.throws(
+      () => getSettledPlayEconomics({ error: 'Invalid bet amount.' }, 4),
+      /returned error: Invalid bet amount/,
+    );
   });
 
   it('extracts nested bot economics from summary payloads', () => {
