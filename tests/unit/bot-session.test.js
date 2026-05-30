@@ -86,6 +86,20 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(parseStandardBotArgs(['--delay=0']).loopControls.delay, '0');
   });
 
+  it('allows --stop-loss 0 while keeping other APE loop controls positive', () => {
+    const parsed = parseStandardBotArgs(['--stop-loss', '0']);
+
+    assert.strictEqual(parsed.loopControls.stopLoss, '0');
+    assert.throws(
+      () => parseStandardBotArgs(['--max-loss', '0']),
+      /Must be a positive APE amount/,
+    );
+    assert.throws(
+      () => parseStandardBotArgs(['--take-profit', '0']),
+      /Must be a positive APE amount/,
+    );
+  });
+
   it('accepts --bankroll as an alias for --max-loss', () => {
     const parsed = parseStandardBotArgs(['--bankroll', '9']);
     assert.strictEqual(parsed.loopControls.maxLoss, '9');
