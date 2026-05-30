@@ -186,6 +186,7 @@ All-or-nothing compounded `2d6` survival game. You pick a risk level and `1-5` r
 **Aliases:** `bj`
 **ABI verified:** `true`
 **Verification notes:** [BLACKJACK_CONTRACT.md](./verification/BLACKJACK_CONTRACT.md)
+**Analytics:** [BLACKJACK_ANALYTICS.md](./analytics/BLACKJACK_ANALYTICS.md)
 
 Stateful blackjack with interactive actions, optional player-side exposure, and `--auto` support. This repo's promoted surface is based on the public production ABI, not an explorer-verified Solidity source. See [SKILL.md](../SKILL.md#blackjack-) for the user-facing action flow.
 
@@ -246,6 +247,7 @@ Consecutive-roll `3x3` cluster game. Each roll resolves a full `9`-tile board, a
 **Aliases:** `bubblegumheist`, `bubblegum`, `heist`
 **ABI verified:** `true`
 **Verification notes:** [BUBBLEGUM_HEIST_CONTRACT.md](./verification/BUBBLEGUM_HEIST_CONTRACT.md)
+**Analytics:** [BUBBLEGUM_HEIST_ANALYTICS.md](./analytics/BUBBLEGUM_HEIST_ANALYTICS.md)
 
 Same slots ABI family as Dino Dough, but with a different live reel and paytable snapshot. The current contract has `5` symbol indexes per reel and a lower top line.
 
@@ -268,6 +270,7 @@ Same slots ABI family as Dino Dough, but with a different live reel and paytable
 **Aliases:** `cashdash`, `dash`
 **ABI verified:** `true`
 **Verification notes:** [CASH_DASH_CONTRACT.md](./verification/CASH_DASH_CONTRACT.md)
+**Analytics:** [CASH_DASH_ANALYTICS.md](./analytics/CASH_DASH_ANALYTICS.md)
 
 Stateful row-by-row tile ladder. Starting a run places the first tile guess immediately. Each resolved safe row compounds the current cashout value; the next `makeGuess` registers that cashout value as the next wager. A death tile ends the run with zero payout, while `cashOut()` settles the current cashout after any resolved safe row.
 
@@ -319,6 +322,7 @@ Asymmetric weighted-bucket Plinko with a narrower risk range than Jungle. Ball c
 **Aliases:** `dinodough`, `dino`
 **ABI verified:** `true`
 **Verification notes:** [DINO_DOUGH_CONTRACT.md](./verification/DINO_DOUGH_CONTRACT.md)
+**Analytics:** [DINO_DOUGH_ANALYTICS.md](./analytics/DINO_DOUGH_ANALYTICS.md)
 
 Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` spins per tx. Spin count only changes floor-division dust against the buy-in; the contract-backed per-spin EV is fixed by the live reel tables and ordered payout matrix.
 
@@ -635,6 +639,7 @@ Verified ordered `3`-reel slot in the same ABI family as Dino Dough, Bubblegum H
 **Aliases:** `vp`
 **ABI verified:** `true`
 **Verification notes:** [VIDEO_POKER_CONTRACT.md](./verification/VIDEO_POKER_CONTRACT.md)
+**Analytics:** [VIDEO_POKER_ANALYTICS.md](./analytics/VIDEO_POKER_ANALYTICS.md)
 
 Stateful Jacks or Better with one redraw, interactive play, and an exact hold-EV solver. `video-poker` is the CLI command; Ape Church calls the same game `Gimboz Poker`.
 

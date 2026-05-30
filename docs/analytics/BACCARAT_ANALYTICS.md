@@ -60,6 +60,34 @@ RTP(main + tie) = m * RTP(main) + t * RTP(TIE)
 | Tie 25% | `1.5x` | `1.462x` | `3x` | `95.55%` | `95.67%` |
 | Tie 50% | `1x` | `0.975x` | `5x` | `92.33%` | `92.41%` |
 
+## Variance
+
+Variance is computed over `X = payout / stake`. For simple lanes, the exact outcome probabilities are the same six-rank draw-tree counts used above. For combined bets, let `t` be the tie share and `m = 1 - t` be the main-lane share:
+
+```text
+Var(X) = E[X^2] - E[X]^2
+
+PLAYER + TIE:
+E[X^2] = P(player) * (2m)^2 + P(tie) * (m + 9t)^2
+
+BANKER + TIE:
+E[X^2] = P(banker) * (1.95m)^2 + P(tie) * (m + 9t)^2
+```
+
+| Bet | RTP | Variance | Std. Dev. |
+|-----|----:|---------:|----------:|
+| `PLAYER` | `98.7719%` | `0.904424` | `0.951012` |
+| `BANKER` | `98.9360%` | `0.859764` | `0.927235` |
+| `TIE` | `85.8830%` | `6.991882` | `2.644217` |
+| `PLAYER+TIE`, tie share `5%` | `98.1274%` | `0.834724` | `0.913632` |
+| `BANKER+TIE`, tie share `5%` | `98.2834%` | `0.794285` | `0.891227` |
+| `PLAYER+TIE`, tie share `10%` | `97.4830%` | `0.804401` | `0.896884` |
+| `BANKER+TIE`, tie share `10%` | `97.6307%` | `0.767973` | `0.876341` |
+| `PLAYER+TIE`, tie share `25%` | `95.5496%` | `0.949686` | `0.974518` |
+| `BANKER+TIE`, tie share `25%` | `95.6728%` | `0.924037` | `0.961268` |
+| `PLAYER+TIE`, tie share `50%` | `92.3274%` | `1.979350` | `1.406894` |
+| `BANKER+TIE`, tie share `50%` | `92.4095%` | `1.967481` | `1.402669` |
+
 ## Sources
 
 1. [docs/verification/BACCARAT_CONTRACT.md](../verification/BACCARAT_CONTRACT.md) — verified tuple layout, payout constants, and exact six-rank draw-tree probabilities.

@@ -42,6 +42,18 @@ Spin count only changes floor-division dust against the total wager. The probabi
 | `0.25x` | `2.82062071%` |
 | `0x` | `58.97621915%` |
 
+## Variance
+
+Variance is computed over `X = payout / total stake`. With multiple spins, the total wager is split evenly and independent spin payouts are averaged, so session variance is the per-spin variance divided by `numSpins`. The table ignores Solidity floor-division dust for wagers that are not evenly divisible by `numSpins`.
+
+The exact denominator for one spin is `82^3 = 551,368` ordered reel-stop triples.
+
+| Spins | RTP | Variance | Std. Dev. |
+|------:|----:|---------:|----------:|
+| `1` | `97.69455246%` | `7.085240` | `2.661811` |
+| `5` | `97.69455246%` | `1.417048` | `1.190398` |
+| `15` | `97.69455246%` | `0.472349` | `0.687276` |
+
 ## Sources
 
 1. [../verification/GEEZ_DIGGERZ_CONTRACT.md](../verification/GEEZ_DIGGERZ_CONTRACT.md) — verified slot-family write/read path, live reel snapshot, and selected paytable entries.

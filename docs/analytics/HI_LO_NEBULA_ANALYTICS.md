@@ -85,6 +85,33 @@ So the exact hit rates are:
 - The safest edge branches are `2 -> Higher` and `A -> Lower`; those are the only listed branches above `96.15%` because `12` of `13` ranks win.
 - Once a guess wins, the player may still stop or continue, so whole-run EV is a separate policy question from the one-step branch EV listed here.
 
+## Variance
+
+Variance is computed over `X = payout / current stake basis` for one guess. The one-step branch has only two outcomes: the branch multiplier on a hit and `0x` on a miss.
+
+```text
+p = successfulRanks / 13
+m = branch payout bps / 10_000
+Var(X) = p * m^2 - (p * m)^2
+```
+
+The table is grouped by exact hit count because any `Higher`, `Lower`, or `Same` branch with the same hit count and payout bps has the same variance. Whole-run variance remains policy-dependent because the player can cash out after any successful guess.
+
+| Hit count | Gross payout | Branch EV | Variance | Std. Dev. |
+|----------:|-------------:|----------:|---------:|----------:|
+| `12/13` | `1.0600x` | `97.8462%` | `0.079782` | `0.282458` |
+| `11/13` | `1.1363x` | `96.1485%` | `0.168082` | `0.409978` |
+| `10/13` | `1.2500x` | `96.1538%` | `0.277367` | `0.526656` |
+| `9/13` | `1.3888x` | `96.1477%` | `0.410861` | `0.640985` |
+| `8/13` | `1.5625x` | `96.1538%` | `0.577848` | `0.760163` |
+| `7/13` | `1.7857x` | `96.1531%` | `0.792464` | `0.890205` |
+| `6/13` | `2.0833x` | `96.1523%` | `1.078614` | `1.038564` |
+| `5/13` | `2.5000x` | `96.1538%` | `1.479290` | `1.216261` |
+| `4/13` | `3.1250x` | `96.1538%` | `2.080251` | `1.442308` |
+| `3/13` | `4.1666x` | `96.1523%` | `3.081755` | `1.755493` |
+| `2/13` | `6.2500x` | `96.1538%` | `5.085059` | `2.255008` |
+| `1/13` | `12.5000x` | `96.1538%` | `11.094675` | `3.330867` |
+
 ## Winston Ladder Auto Solver
 
 `winston-ladder` is a Hi-Lo Nebula auto-play mode designed around a two-game target ladder. It is selected with:

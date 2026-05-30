@@ -31,6 +31,24 @@ Multi-leg wagers are not expanded exhaustively here because their session distri
 | Loss | `0x` @ `97.37%` (37/38) | `0x` @ `52.63%` (10/19) | `0x` @ `52.63%` (10/19) | `0x` @ `52.63%` (10/19) | `0x` @ `68.42%` (13/19) | `0x` @ `68.42%` (13/19) |
 | Positive Payout | `36.9x @ 2.63% (1/38)` | `2.05x @ 47.37% (9/19)` | `2.05x @ 47.37% (9/19)` | `2.05x @ 47.37% (9/19)` | `3.075x @ 31.58% (6/19)` | `3.075x @ 31.58% (6/19)` |
 
+## Variance
+
+Variance is computed over `X = payout / stake` for a single roulette leg. With `c` covered pockets on the `38`-pocket wheel and gross multiplier `m`:
+
+```text
+P(win) = c / 38
+Var(X) = P(win) * m^2 - (P(win) * m)^2
+```
+
+| Bet class | Win states | Multiplier | RTP | Variance | Std. Dev. |
+|-----------|-----------:|-----------:|----:|---------:|----------:|
+| Single Number | `1/38` | `36.9x` | `97.1053%` | `34.888899` | `5.906683` |
+| Red / Black | `18/38` | `2.05x` | `97.1053%` | `1.047715` | `1.023579` |
+| Even / Odd | `18/38` | `2.05x` | `97.1053%` | `1.047715` | `1.023579` |
+| Halves | `18/38` | `2.05x` | `97.1053%` | `1.047715` | `1.023579` |
+| Thirds / Dozens | `12/38` | `3.075x` | `97.1053%` | `2.043044` | `1.429351` |
+| Columns | `12/38` | `3.075x` | `97.1053%` | `2.043044` | `1.429351` |
+
 ## Sources
 
 1. [docs/verification/ROULETTE_CONTRACT.md](../verification/ROULETTE_CONTRACT.md) — verified pocket mapping, payout constants, and exact RTP basis.

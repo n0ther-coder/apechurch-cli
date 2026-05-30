@@ -56,6 +56,10 @@ The current public source set does not prove:
 - exact long-run RTP
 - exact maximum mathematical payout
 
+## Variance
+
+No exact variance is defensible from the local source set today. The missing inputs are the same ones that block exact RTP: symbol frequencies, cascade continuation probabilities, bonus-trigger odds, and bonus expected value. Any variance number would require either the verified settlement source, a complete live getter snapshot of the stochastic surface, or simulation; this repo intentionally does not use simulation for analytics notes.
+
 ## Sources
 
 1. [../verification/REEL_PIRATES_CONTRACT.md](../verification/REEL_PIRATES_CONTRACT.md) — write-path evidence, known public mechanics, and verification limits.

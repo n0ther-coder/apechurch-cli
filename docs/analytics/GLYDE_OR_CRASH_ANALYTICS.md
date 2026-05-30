@@ -86,6 +86,35 @@ bankroll EV = 97.2% - exact RTP
 | `9897.9592x` | `0.0097%` | `99.9903%` | `9897.9592x` | `96.01020424%` | `1.18979576%` |
 | `10000x` | `0.0097%` | `99.9903%` | `10000x` | `97%` | `0.2%` |
 
+## Variance
+
+Variance is computed over `X = payout / stake` for one target. A fixed target has only two outcomes: `target` on a hit and `0x` on a miss.
+
+```text
+p = floor(9_700_000_000 / T) / 1_000_000
+m = T / 10_000
+Var(X) = p * m^2 - (p * m)^2
+```
+
+The platform fee is a constant stake-side shift for a given wager, so it changes net EV but not variance in stake units.
+
+| Target | Win rate | Gross payout | Exact RTP | Variance | Std. Dev. |
+|--------|---------:|-------------:|----------:|---------:|----------:|
+| `1.01x` | `96.0396%` | `1.01x` | `96.999996%` | `0.038800` | `0.196977` |
+| `1.5x` | `64.6666%` | `1.5x` | `96.999900%` | `0.514100` | `0.717008` |
+| `2x` | `48.5000%` | `2x` | `97.000000%` | `0.999100` | `0.999550` |
+| `3x` | `32.3333%` | `3x` | `96.999900%` | `1.969099` | `1.403246` |
+| `5x` | `19.4000%` | `5x` | `97.000000%` | `3.909100` | `1.977144` |
+| `10x` | `9.7000%` | `10x` | `97.000000%` | `8.759100` | `2.959578` |
+| `25x` | `3.8800%` | `25x` | `97.000000%` | `23.309100` | `4.827950` |
+| `50x` | `1.9400%` | `50x` | `97.000000%` | `47.559100` | `6.896311` |
+| `100x` | `0.970000%` | `100x` | `97.000000%` | `96.059100` | `9.800974` |
+| `250x` | `0.388000%` | `250x` | `97.000000%` | `241.559100` | `15.542172` |
+| `500x` | `0.194000%` | `500x` | `97.000000%` | `484.059100` | `22.001343` |
+| `1000x` | `0.097000%` | `1000x` | `97.000000%` | `969.059100` | `31.129714` |
+| `9897.9592x` | `0.009700%` | `9897.9592x` | `96.01020424%` | `9502.129048` | `97.478865` |
+| `10000x` | `0.009700%` | `10000x` | `97.000000%` | `9699.059100` | `98.483801` |
+
 ## Key Takeaways
 
 - Public running RTP snapshots above `100%` do not contradict the contract math; they only mean recent realized outcomes ran hot.
@@ -93,3 +122,8 @@ bankroll EV = 97.2% - exact RTP
 - Round-number presets are unusually clean in this game: `2x`, `5x`, `10x`, `50x`, `100x`, `1000x`, and `10000x` all land at exactly `97%`.
 - The non-flat part of the surface matters only near certain arbitrary targets, especially close to the `10000x` ceiling.
 - The verified contract and current UI input surface allow `1.01x`, even though the public quick presets start at `1.5x`.
+
+## Sources
+
+1. [docs/verification/GLYDE_OR_CRASH_CONTRACT.md](../verification/GLYDE_OR_CRASH_CONTRACT.md) — verified settlement formula, target bounds, and fee surface.
+2. [lib/rtp.js](../../lib/rtp.js) — exact target parsing and RTP helpers used by the CLI.

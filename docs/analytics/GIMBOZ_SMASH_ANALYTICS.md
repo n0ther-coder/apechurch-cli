@@ -150,6 +150,29 @@ Gross multipliers below include the original stake.
 | **94** | 94.00% | 1.0372x | 97.4968% |
 | **95** | 95.00% | 1.0263x | 97.4985% |
 
+## Variance
+
+Variance is computed over `X = payout / stake` for one Gimboz Smash play. Since the game has only win/loss outcomes for a fixed cover count, variance follows directly from the same cover-count formula:
+
+```text
+p = winCount / 100
+m = floor(975000 / winCount) / 10000
+Var(X) = p * m^2 - (p * m)^2
+```
+
+| Cover | Win | Multiplier | RTP | Variance | Std. Dev. |
+|------:|----:|-----------:|----:|---------:|----------:|
+| `1` | `1.00%` | `97.5000x` | `97.5000%` | `94.111875` | `9.701128` |
+| `5` | `5.00%` | `19.5000x` | `97.5000%` | `18.061875` | `4.249926` |
+| `10` | `10.00%` | `9.7500x` | `97.5000%` | `8.555625` | `2.925000` |
+| `21` | `21.00%` | `4.6428x` | `97.4988%` | `3.576073` | `1.891051` |
+| `41` | `41.00%` | `2.3780x` | `97.4980%` | `1.367916` | `1.169580` |
+| `50` | `50.00%` | `1.9500x` | `97.5000%` | `0.950625` | `0.975000` |
+| `65` | `65.00%` | `1.5000x` | `97.5000%` | `0.511875` | `0.715454` |
+| `75` | `75.00%` | `1.3000x` | `97.5000%` | `0.316875` | `0.562917` |
+| `83` | `83.00%` | `1.1746x` | `97.4918%` | `0.194674` | `0.441218` |
+| `95` | `95.00%` | `1.0263x` | `97.4985%` | `0.050031` | `0.223677` |
+
 ## Scoreboard
 
 #### `play smash 10 --out-range 3-97 --loop --delay 1 --max-games 18`
@@ -157,3 +180,8 @@ Gross multipliers below include the original stake.
 | multiplier | game title    | game mode        |     bet |      payout | datetime UTC             |
 |------------|---------------|------------------|---------|-------------|--------------------------|
 |     19.50x | Gimboz Smash  | Cover 5          |  10 APE |  195.00 APE | [2026-04-22T13:53:21.000Z](https://www.ape.church/games/gimboz-smash?id=74033990263888936243695231205935804963170241245501495169273604673762750739002) |
+
+## Sources
+
+1. [docs/verification/GIMBOZ_SMASH_CONTRACT.md](../verification/GIMBOZ_SMASH_CONTRACT.md) - verified ABI surface, interval encoding, and live payout getter notes.
+2. [lib/rtp.js](../../lib/rtp.js) - exact cover-count payout and RTP helpers used by the CLI.

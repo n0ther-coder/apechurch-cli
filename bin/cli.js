@@ -4330,6 +4330,13 @@ program
             } : null,
           };
           console.log(JSON.stringify(jsonPayload));
+          if (hasResult && won) {
+            queueWinChimeFromWei({
+              payoutWei: playResponse.result.payout_wei,
+              wagerWei: playResponse.result.buy_in_wei,
+              isJson: true,
+            });
+          }
         } else {
           // Human-friendly output
           if (hasResult) {

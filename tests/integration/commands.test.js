@@ -1321,6 +1321,43 @@ export default async function () {
       assert.strictEqual(childLog.parent_call_id, payload.nested_bot_calls[0].call_id);
     });
 
+    it('suppresses chimes inside bot children called by a parent bot', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'chime-env-child',
+        script: `export default async function () {
+  return {
+    exitCode: 0,
+    summary: {
+      forceChime: process.env.APECHURCH_CLI_FORCE_CHIME || '',
+      suppressChime: process.env.APECHURCH_CLI_SUPPRESS_CHIME || '',
+      callDepth: process.env.APECHURCH_CLI_BOT_CALL_DEPTH || '',
+    },
+  };
+}
+`,
+      });
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'chime-env-parent',
+        script: `export default async function ({ botJson }) {
+  const child = await botJson('chime-env-child', []);
+  console.log(JSON.stringify(child));
+  return 0;
+}
+`,
+      });
+
+      const { stdout, code } = cli('bot chime-env-parent');
+      const payload = JSON.parse(stdout.trim());
+
+      assert.strictEqual(code, 0);
+      assert.strictEqual(payload.forceChime, '');
+      assert.strictEqual(payload.suppressChime, '1');
+      assert.strictEqual(payload.callDepth, '1');
+    });
+
     it('filters child bot metric lines from forwarded plain output', () => {
       resetBotFixtures();
       writeBotFixture({

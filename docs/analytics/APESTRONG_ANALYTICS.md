@@ -82,6 +82,28 @@ Each entry below is the full exact surface for one supported range value.
 | `92` | `92.00%` | `1.0597x` | `97.4924%` | `93` | `93.00%` | `1.0483x` | `97.4919%` | `94` | `94.00%` | `1.0372x` | `97.4968%` |
 | `95` | `95.00%` | `1.025x` | `97.3750%` |  |  |  |  |  |  |  |  |
 
+## Variance
+
+Variance is computed over `X = payout / stake` for one ApeStrong play. Since subtracting the stake is a constant shift, the same variance applies to net P&L in stake units.
+
+For any supported range `r`, with `p = r / 100` and `m = edgeFlipRangeToPayout(r) / 10_000`:
+
+```text
+E[X] = p * m
+E[X^2] = p * m^2
+Var(X) = p * m^2 - (p * m)^2
+```
+
+| Range | Win | Multiplier | RTP | Variance | Std. Dev. |
+|------:|----:|-----------:|----:|---------:|----------:|
+| `5` | `5.00%` | `19.5000x` | `97.5000%` | `18.061875` | `4.249926` |
+| `10` | `10.00%` | `9.7500x` | `97.5000%` | `8.555625` | `2.925000` |
+| `25` | `25.00%` | `3.9000x` | `97.5000%` | `2.851875` | `1.688750` |
+| `50` | `50.00%` | `1.9500x` | `97.5000%` | `0.950625` | `0.975000` |
+| `75` | `75.00%` | `1.2999x` | `97.4925%` | `0.316826` | `0.562873` |
+| `83` | `83.00%` | `1.1746x` | `97.4918%` | `0.194674` | `0.441218` |
+| `95` | `95.00%` | `1.0250x` | `97.3750%` | `0.049905` | `0.223394` |
+
 ## Sources
 
 1. [docs/verification/APESTRONG_CONTRACT.md](../verification/APESTRONG_CONTRACT.md) — verified settlement rule, live payout-table rule, and recorded exceptions at ranges 75 and 95.
