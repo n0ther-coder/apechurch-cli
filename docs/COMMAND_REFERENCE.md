@@ -161,6 +161,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
                   | "video-poker" | "vp"
 <video-poker-bet> ::= "1" | "5" | "10" | "25" | "50" | "100"
 <auto-mode> ::= "simple" | "best"
+<blackjack-auto-mode> ::= "simple" | "best" | "max"
 <hi-lo-auto-mode> ::= "simple" | "best" | "winston-ladder"
 ```
 
@@ -397,6 +398,7 @@ Notes:
                          | "--display" <display>
                          | "--side" <ape>
                          | "--solver-max-states" <count>
+                         | "--solver-timeout-ms" <count>
                          | "--solver" [ <auto-mode> | "winston-ladder" ]
                          | "--tile" <token>
                          | "--cashout-after" <count>
@@ -465,11 +467,12 @@ These options apply only to `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video
 
 | Option | Meaning |
 |--------|---------|
-| `--auto [mode]` | Stateful auto-play mode where supported (`simple` or `best`; Hi-Lo Nebula also supports `winston-ladder`) |
+| `--auto [mode]` | Stateful auto-play mode where supported (`simple` or `best`; Blackjack also supports `max`; Hi-Lo Nebula also supports `winston-ladder`) |
 | `--game-id <id>` | Stateful unfinished-game id for resume/action when using `play <stateful-game>` |
 | `--display <mode>` | Stateful display mode |
 | `--side <ape>` | Blackjack player side bet |
-| `--solver-max-states <n>` | Blackjack `--auto best` recursive search state cap; default `50000`, used to prevent long CPU stalls while allowing larger caps for complex hands |
+| `--solver-max-states <n>` | Blackjack exact-EV recursive search state cap; default `50000` in `--auto best` and `150000` in `--auto max` |
+| `--solver-timeout-ms <ms>` | Blackjack exact-EV worker timeout; default `5000` in `--auto best` and `30000` in `--auto max`, falls back to simple mode when exceeded |
 | `--solver [mode]` | Show solver suggestions in supported stateful games; default mode is `best` |
 | `--tile <tile>` | Cash Dash opening tile |
 | `--cashout-after <rows>` | Cash Dash auto-play cashout depth |
@@ -687,9 +690,10 @@ Alias: `bj`
                      | "--json"
                      | "-v"
                      | "--verbose"
-                     | "--auto" [ <auto-mode> ]
+                     | "--auto" [ <blackjack-auto-mode> ]
                      | "--side" <ape-nonnegative>
                      | "--solver-max-states" <count>
+                     | "--solver-timeout-ms" <count>
                      | "--delay" <seconds>
                      | "--human" [ <human-range> ]
                      | "--loop"
@@ -710,7 +714,7 @@ Alias: `bj`
                      | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new hand with that amount. Blackjack uses the live H17 rule surface: the dealer hits soft 17, and `--auto simple` / `--auto best` model that rule. `--solver-max-states <n>` applies to `--auto best`; its default is `50000` recursive player states, which keeps exact-EV search from stalling the CLI, and it can be raised for unusually complex hands that otherwise fall back to simple mode. `--human [range]` is a supported advanced option but intentionally hidden from standard `--help`.
+If the first positional token is numeric, the command starts a new hand with that amount. Blackjack uses the live H17 rule surface: the dealer hits soft 17, and `--auto simple` / `--auto best` / `--auto max` model that rule. `--auto best` runs the exact-EV search in a worker. `--solver-max-states <n>` defaults to `50000` recursive player states and `--solver-timeout-ms <ms>` defaults to `5000`; either guard falls back to simple mode. `--auto max` uses the same exact-EV worker with `150000` default states and a `30000` ms default timeout. `--human [range]` is a supported advanced option but intentionally hidden from standard `--help`.
 
 ### `cash-dash [action] [amount]`
 

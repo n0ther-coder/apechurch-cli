@@ -327,6 +327,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
       assert.ok(stdout.includes('--side <ape>'), 'Should show player side bet option');
       assert.ok(stdout.includes('--solver-max-states <n>'), 'Should show blackjack solver state cap option');
+      assert.ok(stdout.includes('--solver-timeout-ms <ms>'), 'Should show blackjack solver timeout option');
       assert.ok(stdout.includes('--take-profit <ape>'), 'Should show take-profit stop option');
       assert.ok(stdout.includes('--min-profit <ape>'), 'Should show min-profit stop option');
       assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
@@ -365,6 +366,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--loop'), 'Should still show loop option');
       assert.ok(stdout.includes('--delay <seconds>'), 'Should still show delay option');
       assert.ok(stdout.includes('--solver-max-states <n>'), 'Should show blackjack solver state cap option');
+      assert.ok(stdout.includes('--solver-timeout-ms <ms>'), 'Should show blackjack solver timeout option');
       assert.ok(stdout.includes('--take-profit <ape>'), 'Should show take-profit stop option');
       assert.ok(stdout.includes('--min-profit <ape>'), 'Should show min-profit stop option');
       assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
@@ -395,10 +397,31 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(!stdout.includes('No wallet found'));
     });
 
+    it('play validate-only reports invalid blackjack solver timeout values', () => {
+      const { stdout, code } = cli('play blackjack 10 --auto best --solver-timeout-ms nope --validate-only --json');
+      const payload = JSON.parse(stdout);
+
+      assert.strictEqual(code, 1);
+      assert.match(payload.error, /Invalid --solver-timeout-ms value/);
+      assert.ok(!stdout.includes('RPC may be slow'));
+    });
+
+    it('play validate-only accepts blackjack auto max only for blackjack', () => {
+      const blackjack = cli('play blackjack 10 --auto max --validate-only --json');
+      assert.strictEqual(blackjack.code, 0);
+      assert.strictEqual(JSON.parse(blackjack.stdout).status, 'valid');
+
+      const cashDash = cli('play cash-dash 10 --auto max --validate-only --json');
+      assert.strictEqual(cashDash.code, 1);
+      assert.match(JSON.parse(cashDash.stdout).error, /Invalid --auto mode/);
+    });
+
     it('help auto still shows advanced examples', () => {
       const { stdout } = cli('help auto');
       assert.ok(stdout.includes('--auto best'), 'Should keep best-mode examples in helper text');
+      assert.ok(stdout.includes('--auto max'), 'Should document the blackjack max mode');
       assert.ok(stdout.includes('--solver-max-states'), 'Should document the blackjack best-EV state cap');
+      assert.ok(stdout.includes('--solver-timeout-ms'), 'Should document the blackjack best-EV timeout');
       assert.ok(stdout.includes('--human'), 'Should keep humanized pacing example in helper text');
       assert.ok(stdout.includes('play roulette 10 RED --loop --human'), 'Should document humanized pacing for simple games');
     });

@@ -239,9 +239,9 @@ These accounting notes describe mechanically possible outcomes only. They are no
 
 ## Auto-Best Solver State-Cap Notes
 
-`blackjack --auto best` uses `lib/stateful/blackjack/solver.js`, an exact live-state EV search over the remaining single deck. Its EV is expressed in units of the opening bet and intentionally excludes chain / VRF fees; fees gate action affordability elsewhere.
+`blackjack --auto best` and `blackjack --auto max` use `lib/stateful/blackjack/solver.js`, an exact live-state EV search over the remaining single deck. The CLI runs that search through a worker wrapper so timeout / memory failures do not block the main gameplay process. Its EV is expressed in units of the opening bet and intentionally excludes chain / VRF fees; fees gate action affordability elsewhere.
 
-`--solver-max-states` caps recursive player-state memoization. The default `50000` is an operational guard, not a contract rule and not a mathematically derived precision parameter. It was introduced after split-heavy spots such as `3,3` vs dealer `3` exhausted Node heap / CPU. When the budget is exceeded, the CLI catches the solver error and falls back to `simple` basic strategy for that decision.
+`--solver-max-states` caps recursive player-state memoization. `--solver-timeout-ms` caps worker wall-clock latency. `--auto best` defaults to `50000` states and `5000` ms. `--auto max` is the same exact solver with larger defaults: `150000` states and `30000` ms. These are operational guards, not contract rules and not mathematically derived precision parameters. The state cap was introduced after split-heavy spots such as `3,3` vs dealer `3` exhausted Node heap / CPU. When either guard trips, the CLI terminates or exits the worker path and falls back to `simple` basic strategy for that decision.
 
 Increasing the cap does not make an incomplete search "more accurate"; it only gives the exact solver more time to finish. If the solver still exceeds the cap, the decision is exactly the simple-strategy fallback after spending more CPU. The complexity is driven by:
 
@@ -266,7 +266,8 @@ Operational guidance:
 
 - keep `50000` for loop / bot runs where latency control matters
 - `75000` to `100000` is a reasonable manual troubleshooting range when a valuable hand hits the fallback warning
-- `150000+` can produce long CLI stalls and should not be used in unattended loops without moving the solver behind an explicit timeout / worker boundary
+- use `--auto max` when you explicitly want the larger `150000` / `30000` budget
+- `150000+` can produce long worker runtimes and should not be used in unattended loops without a tight `--solver-timeout-ms`
 
 ## On-Chain H17 Evidence
 

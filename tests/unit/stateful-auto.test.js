@@ -3,6 +3,7 @@ import assert from 'node:assert';
 
 import {
   AUTO_MODE_BEST,
+  AUTO_MODE_MAX,
   AUTO_MODE_SIMPLE,
   AUTO_MODE_WINSTON_LADDER,
   normalizeAutoMode,
@@ -25,6 +26,15 @@ describe('Stateful Auto Mode', () => {
 
   it('accepts game-specific modes only when they are explicitly enabled', () => {
     assert.strictEqual(normalizeAutoMode('winston-ladder'), null);
+    assert.strictEqual(normalizeAutoMode('max'), null);
+    assert.strictEqual(
+      normalizeAutoMode('max', [
+        AUTO_MODE_SIMPLE,
+        AUTO_MODE_BEST,
+        AUTO_MODE_MAX,
+      ]),
+      AUTO_MODE_MAX,
+    );
     assert.strictEqual(
       normalizeAutoMode('winston-ladder', [
         AUTO_MODE_SIMPLE,

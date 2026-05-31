@@ -190,20 +190,21 @@ All-or-nothing compounded `2d6` survival game. You pick a risk level and `1-5` r
 
 Stateful blackjack with interactive actions, optional player-side exposure, and `--auto` support. This repo's promoted surface is based on the public production ABI, not an explorer-verified Solidity source. See [SKILL.md](../SKILL.md#blackjack-) for the user-facing action flow.
 
-**Command:** `apechurch-cli blackjack <amount> [--side <ape>] [--auto [simple|best]] [--solver-max-states <n>]`
+**Command:** `apechurch-cli blackjack <amount> [--side <ape>] [--auto [simple|best|max]] [--solver-max-states <n>] [--solver-timeout-ms <ms>]`
 
 ```bnf
 <amount> ::= <ape>
 <side> ::= <number>                ; decimal APE amount; value >= 0
-<auto-mode> ::= "simple" | "best"
-<solver-max-states> ::= <integer>  ; positive exact-EV search cap; default 50000
+<auto-mode> ::= "simple" | "best" | "max"
+<solver-max-states> ::= <integer>  ; positive exact-EV search cap; defaults 50000/150000
+<solver-timeout-ms> ::= <integer>  ; positive exact-EV worker timeout; defaults 5000/30000
 ```
 
 **Compare:**
 - RTP references used by the repo: **`100.05%`** main-only model, `79.88%` player-side only, `82.02%` dealer-side only.
 - Dealer rule: live H17; the dealer hits soft 17.
 - Core payouts: natural blackjack `2.5x`, normal win `2.0x`, surrender refund `0.5x`.
-- `--solver-max-states` applies only to `--auto best`: it caps recursive player-state exploration to avoid long CPU stalls; raise it if branchy hands fall back to simple mode, or lower it to bound runtime.
+- `--solver-max-states` and `--solver-timeout-ms` apply only to exact-EV auto modes: `--auto best` defaults to `50000` states / `5000` ms, and `--auto max` defaults to `150000` states / `30000` ms. The worker falls back to simple mode when either guard trips.
 - Operational note: the main game remains a statistical model; the note file now holds the full action-cost and state-layout trail.
 
 **On-chain H17 evidence:**
@@ -689,7 +690,7 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `cash-dash`, `hi-lo-neb
 - Manual `play` for stateless games accepts any positive APE amount; built-in strategy presets usually floor auto-sized bets at `1 APE`
 - VRF fees are automatically calculated and added; some games also expose percentage fees or payout-side commissions, so check `Accepted Wagers` and the per-game verification note before comparing raw stake sizes
 - Stateful games can be called directly or through `play`; `apechurch-cli play --help` separates stateless game options from stateful game options
-- Stateful games use `--auto simple` by default; `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`; `hi-lo-nebula` also accepts `--auto winston-ladder`
+- Stateful games use `--auto simple` by default; `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`; `blackjack` also accepts `--auto max`; `hi-lo-nebula` also accepts `--auto winston-ladder`
 - `hi-lo-nebula --display full` uses the boxed multi-panel layout with current card, action keys, and streak info
 - `hi-lo-nebula --loop` supports the common `--take-profit`, `--stop-loss`, `--max-games`, `--bet-strategy`, and related session controls
 - `video-poker --solver` shows a best-EV hold suggestion in interactive mode

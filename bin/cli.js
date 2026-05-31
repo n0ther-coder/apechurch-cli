@@ -289,6 +289,7 @@ import {
 } from '../lib/loop-estimate.js';
 import {
   AUTO_MODE_BEST,
+  AUTO_MODE_MAX,
   AUTO_MODE_SIMPLE,
   AUTO_MODE_WINSTON_LADDER,
   formatAutoModes,
@@ -372,7 +373,8 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<rolls> ::= <integer>                              ; 1 <= value <= 5',
   '<uint256> ::= <integer> | "0x" <hex>               ; expert override for gameData gameId',
   '<bytes32> ::= "0x" <64-hex-chars>                  ; expert override for gameData userRandomWord',
-  '<solver-states> ::= <integer>                      ; blackjack best-EV search state cap; default 50000',
+  '<solver-states> ::= <integer>                      ; blackjack exact-EV search state cap; defaults 50000/150000 for best/max',
+  '<solver-timeout-ms> ::= <integer>                  ; blackjack exact-EV worker timeout; defaults 5000/30000 for best/max',
   '<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*',
   '<keno-number> ::= <integer>                        ; 1 <= value <= 40',
   '<speed-keno-numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*',
@@ -408,7 +410,8 @@ const PLAY_STATEFUL_OPTION_LINES = Object.freeze([
   '--game-id <id>          Stateful unfinished-game id for resume/action',
   '--display <mode>        Stateful display mode: full, simple, json',
   '--side <ape>            Blackjack player side bet',
-  '--solver-max-states <n> Blackjack best-EV search state cap (default 50000)',
+  '--solver-max-states <n> Blackjack best/max EV search state cap',
+  '--solver-timeout-ms <ms> Blackjack best/max EV worker timeout',
   '--solver [mode]         Solver suggestions for supported stateful games',
   '--tile <tile>           Cash Dash opening tile: 1-7 or random',
   '--cashout-after <rows>  Cash Dash auto-play cashout depth',
@@ -1654,6 +1657,12 @@ const HI_LO_NEBULA_VALIDATE_AUTO_MODES = Object.freeze([
   AUTO_MODE_WINSTON_LADDER,
 ]);
 
+const BLACKJACK_VALIDATE_AUTO_MODES = Object.freeze([
+  AUTO_MODE_SIMPLE,
+  AUTO_MODE_BEST,
+  AUTO_MODE_MAX,
+]);
+
 function formatPlayValidationPayload(payload = {}) {
   return {
     status: 'valid',
@@ -1663,7 +1672,7 @@ function formatPlayValidationPayload(payload = {}) {
 }
 
 function failPlayValidation(error) {
-  console.error(JSON.stringify({ error: sanitizeError(error) }));
+  console.error(JSON.stringify({ error: error?.message || String(error) }));
   process.exit(1);
 }
 
@@ -1725,9 +1734,10 @@ function validateStatefulStartOptions(gameKey, opts = {}) {
 
   switch (gameKey) {
     case 'blackjack':
-      validateStatefulAutoMode(opts);
+      validateStatefulAutoMode(opts, { validModes: BLACKJACK_VALIDATE_AUTO_MODES });
       validatePositiveNumberOption(opts.side ?? 0, '--side', { allowZero: true });
       parseSolverMaxStatesForValidation(opts.solverMaxStates);
+      parseSolverTimeoutMsForValidation(opts.solverTimeoutMs);
       break;
     case 'cash-dash':
       validateStatefulAutoMode(opts);
@@ -1758,6 +1768,11 @@ function parsePositiveIntegerForValidation(value, optionName) {
 function parseSolverMaxStatesForValidation(value) {
   if (value === undefined || value === null || value === '') return null;
   return parsePositiveIntegerForValidation(value, '--solver-max-states');
+}
+
+function parseSolverTimeoutMsForValidation(value) {
+  if (value === undefined || value === null || value === '') return null;
+  return parsePositiveIntegerForValidation(value, '--solver-timeout-ms');
 }
 
 function validateStatefulPlayDispatch(dispatch) {
@@ -3424,7 +3439,8 @@ program
   .option('--game-id <id>', 'Stateful game ID for resume/action when using play <stateful-game>')
   .option('--display <mode>', 'Stateful display mode: full, simple, json')
   .option('--side <ape>', 'Blackjack player side bet amount')
-  .option('--solver-max-states <n>', 'Blackjack best-EV search state cap (default 50000)')
+  .option('--solver-max-states <n>', 'Blackjack best/max EV search state cap (defaults 50000/150000)')
+  .option('--solver-timeout-ms <ms>', 'Blackjack best/max EV worker timeout (defaults 5000/30000)')
   .option('--solver [mode]', 'Show solver suggestions in supported stateful games')
   .option('--tile <tile>', 'Cash Dash opening tile: 1-7 or random')
   .option('--cashout-after <rows>', 'Cash Dash auto-play cashes out after N safe rows')
@@ -3493,6 +3509,7 @@ program
       '--display',
       '--side',
       '--solver-max-states',
+      '--solver-timeout-ms',
       '--solver',
       '--tile',
       '--cashout-after',
@@ -5467,6 +5484,9 @@ ${'─'.repeat(60)}
   --solver-max-states <n>
                  Best-EV search state cap; default 50000. Raise only if
                  complex hands hit the fallback warning; lower to bound CPU.
+  --solver-timeout-ms <ms>
+                 Best-EV worker timeout; default 5000. Timeout falls back
+                 to simple strategy without blocking the main CLI process.
   --loop          Keep playing until balance runs out
   --take-profit <ape>  Stop when balance reaches this amount
   --min-profit <ape>  Stop when session P&L reaches this profit
@@ -5486,8 +5506,9 @@ ${'─'.repeat(60)}
   <amount> ::= <ape>
   <ape> ::= <number>            ; decimal APE amount; value > 0
   <side> ::= <number>           ; decimal APE amount; value >= 0
-  <solver-states> ::= <integer> ; positive best-EV search state cap; default 50000
-  <auto-mode> ::= "simple" | "best"
+  <solver-states> ::= <integer> ; positive exact-EV search cap; defaults 50000/150000
+  <solver-timeout-ms> ::= <integer> ; positive exact-EV worker timeout; defaults 5000/30000
+  <auto-mode> ::= "simple" | "best" | "max"
 
 ${'─'.repeat(60)}
   ACTIONS (during game)
@@ -5510,6 +5531,9 @@ ${'─'.repeat(60)}
   ${BINARY_NAME} blackjack 25 --auto best       Exact EV solver
   ${BINARY_NAME} blackjack 25 --auto best --solver-max-states 100000
                                            Give complex exact-EV branches more CPU budget
+  ${BINARY_NAME} blackjack 25 --auto best --solver-timeout-ms 3000
+                                           Cap exact-EV wall-clock latency
+  ${BINARY_NAME} blackjack 25 --auto max        Exact EV solver with 150000 states / 30000 ms
   ${BINARY_NAME} blackjack 25 --auto --loop     Bot grinds until broke
   ${BINARY_NAME} blackjack 10 --auto --loop --take-profit 500
                                            Bot plays until 500 APE balance
@@ -6369,6 +6393,7 @@ ${'═'.repeat(70)}
   Modes:
     • simple   Fast heuristic mode (default)
     • best     Exact EV mode where implemented
+    • max      Blackjack exact EV mode with larger default solver limits
     • winston-ladder
                Hi-Lo Nebula two-game target ladder mode
 
@@ -6389,11 +6414,19 @@ ${'─'.repeat(70)}
     • Optimizes current-hand RTP under the contract's rules
     • Uses --solver-max-states to cap recursive search states
       (default 50000; raise for complex hands that fall back, lower to limit CPU)
+    • Runs in a worker and uses --solver-timeout-ms to cap wall-clock latency
+      (default 5000; timeout falls back to simple mode)
+
+  max: Same exact EV solver as best, with higher default limits:
+    • --solver-max-states 150000
+    • --solver-timeout-ms 30000
   
   Commands:
     ${BINARY_NAME} blackjack 10 --auto              # One hand, auto-play
     ${BINARY_NAME} blackjack 10 --auto best         # Exact EV solver
+    ${BINARY_NAME} blackjack 10 --auto max          # Exact EV solver, larger budget
     ${BINARY_NAME} blackjack 10 --auto best --solver-max-states 100000
+    ${BINARY_NAME} blackjack 10 --auto best --solver-timeout-ms 3000
     ${BINARY_NAME} blackjack 10 --auto --loop       # Continuous auto-play
     ${BINARY_NAME} blackjack 25 --side 1 --auto     # Auto-play with player side bet
   
@@ -7522,7 +7555,8 @@ program
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--auto [mode]', 'Auto-play the hand')
   .option('--side <ape>', 'Player side bet amount')
-  .option('--solver-max-states <n>', 'Best-EV search state cap for --auto best (default 50000)')
+  .option('--solver-max-states <n>', 'Best-EV search state cap for --auto best/max (defaults 50000/150000)')
+  .option('--solver-timeout-ms <ms>', 'Best-EV worker timeout for --auto best/max (defaults 5000/30000)')
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')

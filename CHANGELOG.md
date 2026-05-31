@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Blackjack exact-EV auto-play now runs through a worker with `--solver-timeout-ms`, so slow or failing solver branches fall back to simple strategy without blocking the main CLI process
+- Blackjack `--auto max` as a higher-budget exact-EV mode using `150000` solver states and a `30000` ms worker timeout by default
 - **Cash Dash ✔︎**: Full stateful command with verified start / guess / cashout flow
   - `apechurch-cli cash-dash <amount>` starts a new run with aliases `cashdash` and `dash`
   - `resume`, `status`, `payouts`, `clear`, `guess <tile>`, and `cashout` actions
