@@ -9,6 +9,8 @@
   - `https://ape.church/_next/static/chunks/app/games/blackjack/page-213bdee3d58ec65d.js`
 - Live ApeScan contract page:
   - `https://apescan.io/address/0x03AC9d823cCc27df9F0981FD3975Ca6F13067Ed7`
+- Supplemental blackjack rules / outcome-accounting reference used for the **2026-05-31** maintainer note:
+  - Cross-check references: `https://wizardofodds.com/games/blackjack/basics/`, `https://wizardofodds.com/games/blackjack/calculator/`, `https://wizardofodds.com/games/blackjack/rule-variations/`
 
 As of **2026-04-09**, ApeScan still labels the contract source as `Unverified`. This promotion therefore relies on the public production ABI reference exposed by Ape Church's frontend bundle, cross-checked against the live ApeScan method surface and the repo's solver/runtime behavior, rather than explorer-published Solidity source.
 
@@ -190,6 +192,81 @@ The public Blackjack bundle embeds the following rule config:
 - `surrender: "early"`
 - `doubleAfterSplitAllowed: true`
 - `maxHands: 2`
+
+## Outcome Accounting Notes
+
+Use `A` for the opening main bet and express rows below as **net P&L relative to `A`**, not gross amount returned. This matches the local solver's `evUnits` convention and avoids confusing stake return with profit:
+
+| Result | Gross returned | Net P&L |
+|--------|---------------:|--------:|
+| Normal loss | `0` | `-A` |
+| Normal push | `A` | `0` |
+| Normal win | `2A` | `+A` |
+| Natural blackjack | `2.5A` | `+1.5A` |
+| Surrender | `0.5A` | `-0.5A` |
+| Double loss | `0` | `-2A` |
+| Double push | `2A` | `0` |
+| Double win | `4A` | `+2A` |
+
+Generic blackjack references often discuss split / re-split up to four hands, but the verified Ape Church rule surface is `maxHands: 2`. The repo therefore models no re-split. Once split, each final hand contributes one of:
+
+```text
+-2A  doubled loss
+-1A  normal loss
+ 0    push
++1A  normal win
++2A  doubled win
+```
+
+With exactly two split hands, the split main-game range is therefore the integer interval:
+
+```text
+-4A, -3A, -2A, -1A, 0, +1A, +2A, +3A, +4A
+```
+
+An `Ace + 10` after split is treated as a normal `21`, not a natural blackjack, so it pays as a normal win rather than `3:2`. This matches the public blackjack rule reference and the local solver state: split hands are built with `isNaturalBlackjack: false`.
+
+Insurance is a separate side wager offered when the dealer shows an Ace. For a generic insurance stake `I` where `0 <= I <= A/2`:
+
+```text
+dealer blackjack:     main-hand P&L + 2I
+dealer no blackjack:  main-hand P&L - I
+```
+
+At full insurance (`I = A/2`), a dealer blackjack against a non-blackjack player hand offsets the main loss to `0`; a player blackjack plus dealer blackjack produces `+A` net. If the dealer does not have blackjack, every continuing main-hand outcome is reduced by `0.5A`.
+
+These accounting notes describe mechanically possible outcomes only. They are not a compact full-game probability distribution; probabilities still depend on the exact live deck state, available actions, and policy.
+
+## Auto-Best Solver State-Cap Notes
+
+`blackjack --auto best` uses `lib/stateful/blackjack/solver.js`, an exact live-state EV search over the remaining single deck. Its EV is expressed in units of the opening bet and intentionally excludes chain / VRF fees; fees gate action affordability elsewhere.
+
+`--solver-max-states` caps recursive player-state memoization. The default `50000` is an operational guard, not a contract rule and not a mathematically derived precision parameter. It was introduced after split-heavy spots such as `3,3` vs dealer `3` exhausted Node heap / CPU. When the budget is exceeded, the CLI catches the solver error and falls back to `simple` basic strategy for that decision.
+
+Increasing the cap does not make an incomplete search "more accurate"; it only gives the exact solver more time to finish. If the solver still exceeds the cap, the decision is exactly the simple-strategy fallback after spending more CPU. The complexity is driven by:
+
+- `hit` / `double` branching over up to ten card ranks in the remaining deck
+- `split` branching over first-card and second-card draw combinations before solving both hands
+- dealer-resolution distributions memoized under many remaining-deck compositions
+
+Local benchmark notes from **2026-05-31** on this repo and workstation:
+
+| Spot | Cap | Result | Approx. latency |
+|------|----:|--------|----------------:|
+| hard `11` vs `6` | `100` | exact decision completed | `38 ms` |
+| hard `16` vs `A` | `100` | exact decision completed | `11 ms` |
+| `8,8` vs `6` | `50000` | budget exceeded -> simple fallback | `7.3 s` |
+| `8,8` vs `6` | `100000` | budget exceeded -> simple fallback | `14.9 s` |
+| `8,8` vs `6` | `150000` | budget exceeded -> simple fallback | `26.0 s` |
+| `3,3` vs `3` | `50000` | budget exceeded -> simple fallback | `14.9 s` |
+
+A separate enumeration of the `450` two-card, non-pair initial states completed under the default `50000` cap; `49` choices differed from the simple strategy and none were worse than simple under the same gross EV model. Pair / split-heavy states are the practical failure surface.
+
+Operational guidance:
+
+- keep `50000` for loop / bot runs where latency control matters
+- `75000` to `100000` is a reasonable manual troubleshooting range when a valuable hand hits the fallback warning
+- `150000+` can produce long CLI stalls and should not be used in unattended loops without moving the solver behind an explicit timeout / worker boundary
 
 ## On-Chain H17 Evidence
 
