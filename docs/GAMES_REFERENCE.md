@@ -190,7 +190,7 @@ All-or-nothing compounded `2d6` survival game. You pick a risk level and `1-5` r
 
 Stateful blackjack with interactive actions, optional player-side exposure, and `--auto` support. This repo's promoted surface is based on the public production ABI, not an explorer-verified Solidity source. See [SKILL.md](../SKILL.md#blackjack-) for the user-facing action flow.
 
-**Command:** `apechurch-cli blackjack <amount> [--side <ape>] [--auto [simple|best|max]] [--solver-max-states <n>] [--solver-timeout-ms <ms>]`
+**Command:** `apechurch-cli blackjack <amount> [--side <ape>] [--auto [simple|best|max]] [--solver [simple|best|max]] [--solver-max-states <n>] [--solver-timeout-ms <ms>]`
 
 ```bnf
 <amount> ::= <ape>
@@ -204,7 +204,8 @@ Stateful blackjack with interactive actions, optional player-side exposure, and 
 - RTP references used by the repo: **`100.05%`** main-only model, `79.88%` player-side only, `82.02%` dealer-side only.
 - Dealer rule: live H17; the dealer hits soft 17.
 - Core payouts: natural blackjack `2.5x`, normal win `2.0x`, surrender refund `0.5x`.
-- `--solver-max-states` and `--solver-timeout-ms` apply only to exact-EV auto modes: `--auto best` defaults to `50000` states / `5000` ms, and `--auto max` defaults to `150000` states / `30000` ms. The worker falls back to simple mode when either guard trips.
+- `--solver-max-states` and `--solver-timeout-ms` apply to exact-EV modes in both auto and manual-solver flows: `best` defaults to `50000` states / `5000` ms, and `max` defaults to `150000` states / `30000` ms. The worker falls back to simple mode when either guard trips.
+- `--solver [simple|best|max]` applies the same decision engines in manual mode without sending actions; `best` and `max` show both the worker decision and the simple decision.
 - Operational note: the main game remains a statistical model; the note file now holds the full action-cost and state-layout trail.
 
 **On-chain H17 evidence:**

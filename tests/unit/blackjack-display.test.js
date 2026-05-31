@@ -106,6 +106,26 @@ describe('Blackjack Display', () => {
     assert.strictEqual(parsed.solverTimeoutMs, 30000);
   });
 
+  it('serializes blackjack manual solver suggestions in json mode', () => {
+    const output = renderGame(makeState(), [], {
+      displayMode: 'json',
+      solverMode: 'max',
+      solverSuggestion: {
+        requestedSolver: 'max',
+        selectedSolver: 'max',
+        worker: { action: 'stand', key: 's', label: 'Stand', source: 'max' },
+        simple: { action: 'hit', key: 'h', label: 'Hit', source: 'simple' },
+      },
+    });
+    const parsed = JSON.parse(output);
+
+    assert.strictEqual(parsed.solverMode, 'max');
+    assert.strictEqual(parsed.solverMaxStates, 150000);
+    assert.strictEqual(parsed.solverTimeoutMs, 30000);
+    assert.strictEqual(parsed.solverSuggestion.worker.action, 'stand');
+    assert.strictEqual(parsed.solverSuggestion.simple.action, 'hit');
+  });
+
   it('serializes blackjack auto solver summaries in json mode', () => {
     const output = renderGame(makeState(), [], {
       displayMode: 'json',

@@ -414,6 +414,7 @@ apechurch-cli cash-dash 10              # Prompts for the opening tile
 - `blackjack --side <ape>` adds a player side bet to the opening deal without changing the in-hand EV solver
 - `blackjack --auto best --solver-max-states <n> --solver-timeout-ms <ms>` controls the exact-EV worker; defaults are `50000` states and `5000` ms, with fallback to simple mode when either guard trips
 - `blackjack --auto max` is the same exact-EV worker with larger defaults: `150000` states and `30000` ms
+- `blackjack --solver [simple|best|max]` shows manual suggestions; `best` and `max` print both the worker choice and the simple-strategy choice
 - `cash-dash` shows the opening row and prompts for the first tile when `--tile` is omitted in manual mode
 - `cash-dash --cashout-after <rows>` lets auto-play target deeper rows before cashing out
 - `hi-lo-nebula --auto winston-ladder` plays up to two on-chain games with the same initial bet, up to seven guesses each, targeting a 1.5x first-game cashout or a 2.5x total ladder payout before fees
@@ -432,12 +433,12 @@ apechurch-cli play --auto                        # Auto-select random stateless 
 apechurch-cli play [game] [amount] [config...]  # Play a specific stateless game
 
 # Stateful games
-apechurch-cli play blackjack <amount> [--auto [simple|best|max]] [--solver-max-states <n>] [--solver-timeout-ms <ms>]
+apechurch-cli play blackjack <amount> [--auto [simple|best|max]] [--solver [simple|best|max]] [--solver-max-states <n>] [--solver-timeout-ms <ms>]
 apechurch-cli play cash-dash <amount> [--auto [simple|best]]
 apechurch-cli play hi-lo-nebula <amount> [--auto [simple|best|winston-ladder]]
 apechurch-cli cash-dash <amount> [--auto [simple|best]]  # Cash Dash (aliases: cashdash, dash)
 apechurch-cli hi-lo-nebula <amount> [--auto [simple|best|winston-ladder]]  # Hi-Lo Nebula
-apechurch-cli blackjack <amount> [--auto [simple|best|max]] [--side <ape>] [--solver-max-states <n>] [--solver-timeout-ms <ms>]  # Blackjack (alias: bj)
+apechurch-cli blackjack <amount> [--auto [simple|best|max]] [--solver [simple|best|max]] [--side <ape>] [--solver-max-states <n>] [--solver-timeout-ms <ms>]  # Blackjack (alias: bj)
 apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker (alias: vp)
 
 # Shared helpers

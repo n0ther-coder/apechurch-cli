@@ -471,8 +471,8 @@ These options apply only to `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video
 | `--game-id <id>` | Stateful unfinished-game id for resume/action when using `play <stateful-game>` |
 | `--display <mode>` | Stateful display mode |
 | `--side <ape>` | Blackjack player side bet |
-| `--solver-max-states <n>` | Blackjack exact-EV recursive search state cap; default `50000` in `--auto best` and `150000` in `--auto max` |
-| `--solver-timeout-ms <ms>` | Blackjack exact-EV worker timeout; default `5000` in `--auto best` and `30000` in `--auto max`, falls back to simple mode when exceeded |
+| `--solver-max-states <n>` | Blackjack exact-EV recursive search state cap; default `50000` in `best` and `150000` in `max` for `--auto` or `--solver` |
+| `--solver-timeout-ms <ms>` | Blackjack exact-EV worker timeout; default `5000` in `best` and `30000` in `max` for `--auto` or `--solver`, falls back to simple mode when exceeded |
 | `--solver [mode]` | Show solver suggestions in supported stateful games; default mode is `best` |
 | `--tile <tile>` | Cash Dash opening tile |
 | `--cashout-after <rows>` | Cash Dash auto-play cashout depth |
@@ -691,6 +691,7 @@ Alias: `bj`
                      | "-v"
                      | "--verbose"
                      | "--auto" [ <blackjack-auto-mode> ]
+                     | "--solver" [ <blackjack-auto-mode> ]
                      | "--side" <ape-nonnegative>
                      | "--solver-max-states" <count>
                      | "--solver-timeout-ms" <count>
@@ -714,7 +715,7 @@ Alias: `bj`
                      | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new hand with that amount. Blackjack uses the live H17 rule surface: the dealer hits soft 17, and `--auto simple` / `--auto best` / `--auto max` model that rule. `--auto best` runs the exact-EV search in a worker. `--solver-max-states <n>` defaults to `50000` recursive player states and `--solver-timeout-ms <ms>` defaults to `5000`; either guard falls back to simple mode. `--auto max` uses the same exact-EV worker with `150000` default states and a `30000` ms default timeout. `--human [range]` is a supported advanced option but intentionally hidden from standard `--help`.
+If the first positional token is numeric, the command starts a new hand with that amount. Blackjack uses the live H17 rule surface: the dealer hits soft 17, and `--auto simple` / `--auto best` / `--auto max` model that rule. `--auto best` and `--solver best` run the exact-EV search in a worker. `--solver-max-states <n>` defaults to `50000` recursive player states and `--solver-timeout-ms <ms>` defaults to `5000`; either guard falls back to simple mode. `--auto max` and `--solver max` use the same exact-EV worker with `150000` default states and a `30000` ms default timeout. In manual mode, `--solver [simple|best|max]` shows suggested actions without executing them; `best` and `max` show both the worker choice and the simple-strategy choice. `--human [range]` is a supported advanced option but intentionally hidden from standard `--help`.
 
 ### `cash-dash [action] [amount]`
 

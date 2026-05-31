@@ -595,6 +595,7 @@ Interactive H17 blackjack with optional auto-play. The dealer hits soft 17.
 apechurch-cli blackjack 10 --auto              # Single game, simple auto-play
 apechurch-cli blackjack 10 --auto best         # Single game, exact-EV auto-play
 apechurch-cli blackjack 10 --auto max          # Exact-EV auto-play with larger solver budget
+apechurch-cli blackjack 10 --solver max        # Manual play with worker and simple suggestions
 apechurch-cli blackjack 10 --auto best --solver-max-states 100000
 apechurch-cli blackjack 10 --auto best --solver-timeout-ms 3000
 apechurch-cli blackjack 10 --auto --loop       # Continuous auto-play
@@ -634,6 +635,10 @@ recursive player states and `5000` ms; either guard falls back to simple mode.
 `30000` ms. Raise the state cap for branchy hands only when you can tolerate
 the extra CPU, and lower the timeout when loop latency matters more than exact
 completion.
+
+`--solver [simple|best|max]` enables manual suggestions without executing an
+action. Bare `--solver` defaults to `best`; `best` and `max` show both the worker
+choice and the simple-strategy choice for comparison.
 
 Use `apechurch-cli help auto` for advanced auto-play modes and pacing controls.
 

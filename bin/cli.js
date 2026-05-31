@@ -1715,6 +1715,16 @@ function validateHiLoNebulaSolverMode(opts) {
   }
 }
 
+function validateBlackjackSolverMode(opts) {
+  if (opts.solver === undefined) return;
+  const mode = opts.solver === true || String(opts.solver).trim() === ''
+    ? AUTO_MODE_BEST
+    : normalizeAutoMode(opts.solver, BLACKJACK_VALIDATE_AUTO_MODES);
+  if (mode === null) {
+    throw new Error(`Invalid --solver mode: "${opts.solver}". Valid values: ${formatAutoModes(BLACKJACK_VALIDATE_AUTO_MODES)}.`);
+  }
+}
+
 function validateCashDashTile(value) {
   if (value === undefined) return;
   const input = String(value).trim().toLowerCase();
@@ -1735,6 +1745,7 @@ function validateStatefulStartOptions(gameKey, opts = {}) {
   switch (gameKey) {
     case 'blackjack':
       validateStatefulAutoMode(opts, { validModes: BLACKJACK_VALIDATE_AUTO_MODES });
+      validateBlackjackSolverMode(opts);
       validatePositiveNumberOption(opts.side ?? 0, '--side', { allowZero: true });
       parseSolverMaxStatesForValidation(opts.solverMaxStates);
       parseSolverTimeoutMsForValidation(opts.solverTimeoutMs);
@@ -5480,6 +5491,7 @@ ${'─'.repeat(60)}
 ${'─'.repeat(60)}
 
   --auto [mode]   Auto-play the hand
+  --solver [mode] Show a suggested action in manual mode (default: best)
   --side <ape>    Player side bet amount
   --solver-max-states <n>
                  Best-EV search state cap; default 50000. Raise only if
@@ -5534,6 +5546,7 @@ ${'─'.repeat(60)}
   ${BINARY_NAME} blackjack 25 --auto best --solver-timeout-ms 3000
                                            Cap exact-EV wall-clock latency
   ${BINARY_NAME} blackjack 25 --auto max        Exact EV solver with 150000 states / 30000 ms
+  ${BINARY_NAME} blackjack 25 --solver max      Manual play with worker and simple suggestions
   ${BINARY_NAME} blackjack 25 --auto --loop     Bot grinds until broke
   ${BINARY_NAME} blackjack 10 --auto --loop --take-profit 500
                                            Bot plays until 500 APE balance
@@ -6420,6 +6433,10 @@ ${'─'.repeat(70)}
   max: Same exact EV solver as best, with higher default limits:
     • --solver-max-states 150000
     • --solver-timeout-ms 30000
+
+  Manual solver suggestions:
+    • --solver defaults to best and does not execute actions
+    • --solver best and --solver max show both the worker choice and simple choice
   
   Commands:
     ${BINARY_NAME} blackjack 10 --auto              # One hand, auto-play
@@ -6427,6 +6444,7 @@ ${'─'.repeat(70)}
     ${BINARY_NAME} blackjack 10 --auto max          # Exact EV solver, larger budget
     ${BINARY_NAME} blackjack 10 --auto best --solver-max-states 100000
     ${BINARY_NAME} blackjack 10 --auto best --solver-timeout-ms 3000
+    ${BINARY_NAME} blackjack 10 --solver max        # Manual suggestions
     ${BINARY_NAME} blackjack 10 --auto --loop       # Continuous auto-play
     ${BINARY_NAME} blackjack 25 --side 1 --auto     # Auto-play with player side bet
   
@@ -7554,9 +7572,10 @@ program
   .option('--json', 'JSON output only')
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--auto [mode]', 'Auto-play the hand')
+  .option('--solver [mode]', 'Show suggested action in manual mode (simple, best, max; default best)')
   .option('--side <ape>', 'Player side bet amount')
-  .option('--solver-max-states <n>', 'Best-EV search state cap for --auto best/max (defaults 50000/150000)')
-  .option('--solver-timeout-ms <ms>', 'Best-EV worker timeout for --auto best/max (defaults 5000/30000)')
+  .option('--solver-max-states <n>', 'Best-EV search state cap for --auto/--solver best/max (defaults 50000/150000)')
+  .option('--solver-timeout-ms <ms>', 'Best-EV worker timeout for --auto/--solver best/max (defaults 5000/30000)')
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')

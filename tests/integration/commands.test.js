@@ -325,6 +325,7 @@ describe('CLI Commands Integration Tests', () => {
     it('blackjack --help keeps --human hidden and documents generic auto-play', () => {
       const { stdout } = cli('blackjack --help');
       assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
+      assert.ok(stdout.includes('--solver [mode]'), 'Should show blackjack manual solver option');
       assert.ok(stdout.includes('--side <ape>'), 'Should show player side bet option');
       assert.ok(stdout.includes('--solver-max-states <n>'), 'Should show blackjack solver state cap option');
       assert.ok(stdout.includes('--solver-timeout-ms <ms>'), 'Should show blackjack solver timeout option');
@@ -416,10 +417,21 @@ describe('CLI Commands Integration Tests', () => {
       assert.match(JSON.parse(cashDash.stdout).error, /Invalid --auto mode/);
     });
 
+    it('play validate-only accepts blackjack solver max and rejects invalid solver modes', () => {
+      const valid = cli('play blackjack 10 --solver max --validate-only --json');
+      assert.strictEqual(valid.code, 0);
+      assert.strictEqual(JSON.parse(valid.stdout).status, 'valid');
+
+      const invalid = cli('play blackjack 10 --solver turbo --validate-only --json');
+      assert.strictEqual(invalid.code, 1);
+      assert.match(JSON.parse(invalid.stdout).error, /Invalid --solver mode/);
+    });
+
     it('help auto still shows advanced examples', () => {
       const { stdout } = cli('help auto');
       assert.ok(stdout.includes('--auto best'), 'Should keep best-mode examples in helper text');
       assert.ok(stdout.includes('--auto max'), 'Should document the blackjack max mode');
+      assert.ok(stdout.includes('--solver max'), 'Should document blackjack manual max suggestions');
       assert.ok(stdout.includes('--solver-max-states'), 'Should document the blackjack best-EV state cap');
       assert.ok(stdout.includes('--solver-timeout-ms'), 'Should document the blackjack best-EV timeout');
       assert.ok(stdout.includes('--human'), 'Should keep humanized pacing example in helper text');
