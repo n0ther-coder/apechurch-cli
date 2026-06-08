@@ -1872,14 +1872,16 @@ export default async function ({ paths, bot }) {
       assert.ok(!stdout.includes('+1.9900 APE'), 'Should no longer show four-decimal positive net profit values');
     });
 
-    it('--leaderboard renders weekly wAPE totals only', () => {
+    it('--leaderboard renders weekly wAPE totals with play breakdowns', () => {
       setupHistoryFixtureHome();
       const { stdout } = cli('history --leaderboard', {
         env: { ...process.env, HOME: HISTORY_FIXTURE_HOME },
       });
 
       assert.ok(stdout.includes('Global: 7.00 $APE wagered over 2 games'));
-      assert.ok(stdout.includes('2024 W10: 7.00 $APE wagered'));
+      assert.ok(stdout.includes('WEEK'));
+      assert.ok(stdout.includes('$APE wagered'));
+      assert.match(stdout, /2024 W10 \|\s+7\.00 \| 1 ape-strong, 1 roulette/);
       assert.ok(!stdout.includes('Recent Games'), 'Should not render the default recent-games section');
       assert.ok(!stdout.includes('History Stats'), 'Should not render aggregate stats in leaderboard mode');
     });
@@ -1896,6 +1898,10 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(data.leaderboard.total_games, 2);
       assert.strictEqual(data.leaderboard.weeks[0].week_label, '2024 W10');
       assert.strictEqual(data.leaderboard.weeks[0].wagered_ape, '7');
+      assert.deepStrictEqual(data.leaderboard.weeks[0].plays.map((play) => [play.game, play.plays]), [
+        ['ape-strong', 1],
+        ['roulette', 1],
+      ]);
     });
 
     it('shows GP earned in the human-readable history output', () => {

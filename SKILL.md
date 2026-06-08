@@ -128,7 +128,7 @@ apechurch-cli history 0x1234...abcd --stats
 # Stats split by game
 apechurch-cli history 0x1234...abcd --breakdown
 
-# Weekly wAPE wagered totals
+# Weekly wAPE wagered totals with play breakdowns
 apechurch-cli history 0x1234...abcd --leaderboard
 
 # Refresh before reading
@@ -177,7 +177,7 @@ Sync and cache behavior:
 | `history --all` | Show all cached games instead of the recent slice |
 | `history --stats` | Show only history stats |
 | `history --breakdown` | Show history stats split by game |
-| `history --leaderboard` | Show global and weekly wAPE wagered totals |
+| `history --leaderboard` | Show global and weekly wAPE wagered totals grouped from Sunday 00:00 UTC |
 | `history --refresh` | Merge an on-chain sync before rendering |
 | `history --from-block <n>` | Start block for `--refresh` |
 | `history --to-block <n>` | End block for `--refresh` |

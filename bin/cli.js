@@ -269,7 +269,7 @@ import {
   formatHistoryLine,
   forceColorOutput,
 } from '../lib/theme.js';
-import { fitAnsiText, getVisibleWidth } from '../lib/ansi.js';
+import { fitAnsiText, getVisibleWidth, truncateAnsi } from '../lib/ansi.js';
 import {
   formatGlydeOrCrashTargetMultiplier,
   getGameCalculatedVariantReference,
@@ -1147,16 +1147,69 @@ function formatLeaderboardApeAmount(amount) {
   return `${sign}${roundedWhole}.${roundedFraction.toString().padStart(2, '0')}`;
 }
 
-function formatHistoryWapeLeaderboardReport(leaderboard) {
+function resolveLeaderboardTerminalWidth() {
+  const columns = Number(process.stdout?.columns || 0);
+  return Number.isFinite(columns) && columns > 0 ? columns : 80;
+}
+
+function truncateLeaderboardCell(text, maxVisibleWidth) {
+  const source = String(text ?? '');
+  if (getVisibleWidth(source) <= maxVisibleWidth) {
+    return source;
+  }
+
+  if (maxVisibleWidth <= 0) {
+    return '';
+  }
+
+  if (maxVisibleWidth === 1) {
+    return '…';
+  }
+
+  const truncated = truncateAnsi(source, maxVisibleWidth - 1).replace(/[\s,]+$/g, '');
+  return `${truncated || truncateAnsi(source, maxVisibleWidth - 1)}…`;
+}
+
+function formatLeaderboardWeekPlays(plays) {
+  if (!Array.isArray(plays) || plays.length === 0) {
+    return '';
+  }
+
+  return plays
+    .map((play) => `${Number(play.plays || 0)} ${play.game || 'unknown'}`)
+    .join(', ');
+}
+
+function formatHistoryWapeLeaderboardReport(leaderboard, { terminalWidth = resolveLeaderboardTerminalWidth() } = {}) {
   const weeks = Array.isArray(leaderboard?.weeks) ? leaderboard.weeks : [];
   const lines = [
     `Global: ${formatLeaderboardApeAmount(leaderboard?.total_wagered_ape)} $APE wagered over ${Number(leaderboard?.total_games || 0)} games`,
   ];
 
   if (weeks.length > 0) {
+    const rows = weeks.map((week) => ({
+      week: week.week_label || `${week.year} W${String(week.week).padStart(2, '0')}`,
+      amount: formatLeaderboardApeAmount(week.wagered_ape),
+      plays: formatLeaderboardWeekPlays(week.plays),
+    }));
+    const weekWidth = Math.max(
+      'WEEK'.length,
+      ...rows.map((row) => getVisibleWidth(row.week)),
+    );
+    const amountWidth = Math.max(
+      '$APE wagered'.length,
+      ...rows.map((row) => getVisibleWidth(row.amount)),
+    );
+    const fixedWidth = weekWidth + 3 + amountWidth + 3;
+    const tableWidth = Math.max(Number(terminalWidth) || 80, fixedWidth + 'PLAYS'.length);
+    const playsWidth = Math.max(0, tableWidth - fixedWidth);
+    const header = `${fitAnsiText('WEEK', weekWidth)} | ${padAnsiStart('$APE wagered', amountWidth)} | PLAYS`;
+
     lines.push('');
-    for (const week of weeks) {
-      lines.push(`${week.year} W${String(week.week).padStart(2, '0')}: ${formatLeaderboardApeAmount(week.wagered_ape)} $APE wagered`);
+    lines.push(header);
+    lines.push('='.repeat(tableWidth));
+    for (const row of rows) {
+      lines.push(`${fitAnsiText(row.week, weekWidth)} | ${padAnsiStart(row.amount, amountWidth)} | ${truncateLeaderboardCell(row.plays, playsWidth)}`);
     }
   }
 
@@ -6700,7 +6753,7 @@ ${'─'.repeat(70)}
      the last option wins.
 
   4. ${BINARY_NAME} history [address] --leaderboard
-     Shows weekly wAPE wagered totals grouped by UTC ISO week.
+     Shows weekly wAPE wagered totals grouped from Sunday 00:00 UTC.
 
   5. ${BINARY_NAME} history [address] --breakdown
      Adds a per-game split of the same economic stats.
@@ -6836,7 +6889,7 @@ ${'─'.repeat(70)}
 
   --leaderboard:
     • Shows Global plus weekly wAPE wagered totals
-    • Weeks are grouped from Monday 00:00 UTC and listed newest first
+    • Weeks are grouped from Sunday 00:00 UTC and listed newest first
 
   --breakdown:
     • Per-game split of the same stats

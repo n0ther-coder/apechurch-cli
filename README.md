@@ -159,7 +159,7 @@ apechurch-cli history 0x1234...abcd --stats
 # Show history stats split by game
 apechurch-cli history 0x1234...abcd --breakdown
 
-# Show weekly wAPE wagered totals
+# Show weekly wAPE wagered totals with play breakdowns
 apechurch-cli history 0x1234...abcd --leaderboard
 
 # Append the cached wallet leaderboard to the history report
@@ -197,7 +197,7 @@ Sync and cache behavior:
 - Explicit backfills and `history --refresh` are merged into the local file and deduplicated by `contract + game_id`.
 - `history --refresh` runs the same on-chain sync path before reading the local file, but it does not clear cached records first.
 - `history` shows `👀 Recent Games` plus `📜 History Stats` by default. `--stats` suppresses the game list, while `--breakdown` appends the same stats split by game.
-- `history --leaderboard` shows global and weekly wAPE wagered, grouped by UTC ISO week, and listed newest first. Terminal amounts are rounded to 2 decimals; JSON keeps exact cached values.
+- `history --leaderboard` shows global and weekly wAPE wagered, grouped from Sunday 00:00 UTC and listed newest first, with each week's games sorted by play count. Terminal amounts are rounded to 2 decimals; JSON keeps exact cached values.
 - `history --scoreboard` appends two cached Top 20 tables: `Highest Multipliers` and `Biggest Payouts`.
 - Scoreboard terminal tables hide the reference column by default; pass `--url` to show `game_url` or `--ids` to show `game_id`. If both are passed, the last option wins. JSON output keeps both fields.
 - Standard `history` output also includes a compact `🎮 Game Status` section with per-game `played`, `net`, `win rate`, `RTP`, and local `unfinished` counts when available.
@@ -233,7 +233,7 @@ Text output includes:
 | `--ids` | Show game IDs in history lines and scoreboard tables |
 | `--stats` | Show only history stats |
 | `--breakdown` | Append the same stats split by game |
-| `--leaderboard` | Show weekly wAPE wagered totals grouped from Monday 00:00 UTC |
+| `--leaderboard` | Show weekly wAPE wagered totals grouped from Sunday 00:00 UTC |
 | `--scoreboard` | Append the cached wallet leaderboard derived from history |
 | `--url` | Show game URLs in terminal scoreboard tables |
 | `--refresh` | Merge an on-chain sync before rendering |

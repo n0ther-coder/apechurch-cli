@@ -43,17 +43,28 @@ describe('History Helpers', () => {
   });
 
   describe('buildHistoryWapeLeaderboard', () => {
-    it('groups wagered wAPE by UTC ISO week from newest to oldest', () => {
+    it('groups wagered wAPE by Sunday-start UTC week from newest to oldest', () => {
       const syncedAt = '2026-04-02T00:00:00.000Z';
-      const mondayWeekOne = Date.UTC(2024, 0, 1, 0, 0, 0) / 1000;
-      const sundayWeekOne = Date.UTC(2024, 0, 7, 23, 59, 59) / 1000;
+      const saturdayWeekOne = Date.UTC(2024, 0, 6, 23, 59, 59) / 1000;
+      const sundayWeekTwo = Date.UTC(2024, 0, 7, 0, 0, 0) / 1000;
       const mondayWeekTwo = Date.UTC(2024, 0, 8, 0, 0, 0) / 1000;
       const leaderboard = buildHistoryWapeLeaderboard({
         games: [
           {
-            timestamp: sundayWeekOne * 1000,
-            chain_timestamp: sundayWeekOne,
+            timestamp: saturdayWeekOne * 1000,
+            chain_timestamp: saturdayWeekOne,
+            game_key: 'roulette',
             wager_wei: parseEther('5').toString(),
+            payout_wei: '0',
+            wape_received_wei: '0',
+            last_sync_on: syncedAt,
+            last_sync_msg: 'ok',
+          },
+          {
+            timestamp: sundayWeekTwo * 1000,
+            chain_timestamp: sundayWeekTwo,
+            game_key: 'blackjack',
+            wager_wei: parseEther('2.5').toString(),
             payout_wei: '0',
             wape_received_wei: '0',
             last_sync_on: syncedAt,
@@ -62,15 +73,7 @@ describe('History Helpers', () => {
           {
             timestamp: mondayWeekTwo * 1000,
             chain_timestamp: mondayWeekTwo,
-            wager_wei: parseEther('2.5').toString(),
-            payout_wei: '0',
-            wape_received_wei: '0',
-            last_sync_on: syncedAt,
-            last_sync_msg: 'ok',
-          },
-          {
-            timestamp: mondayWeekOne * 1000,
-            chain_timestamp: mondayWeekOne,
+            game_key: 'roulette',
             wager_wei: parseEther('1').toString(),
             payout_wei: '0',
             wape_received_wei: '0',
@@ -85,12 +88,19 @@ describe('History Helpers', () => {
       assert.deepStrictEqual(
         leaderboard.weeks.map((week) => [week.year, week.week, week.wagered_ape, week.games]),
         [
-          [2024, 2, '2.5', 1],
-          [2024, 1, '6', 2],
+          [2024, 2, '3.5', 2],
+          [2024, 1, '5', 1],
         ],
       );
-      assert.strictEqual(leaderboard.weeks[0].week_start_utc, '2024-01-08T00:00:00.000Z');
-      assert.strictEqual(leaderboard.weeks[1].week_start_utc, '2024-01-01T00:00:00.000Z');
+      assert.strictEqual(leaderboard.weeks[0].week_start_utc, '2024-01-07T00:00:00.000Z');
+      assert.strictEqual(leaderboard.weeks[1].week_start_utc, '2023-12-31T00:00:00.000Z');
+      assert.deepStrictEqual(
+        leaderboard.weeks.map((week) => week.plays.map((play) => [play.game, play.plays, play.wagered_ape])),
+        [
+          [['blackjack', 1, '2.5'], ['roulette', 1, '1']],
+          [['roulette', 1, '5']],
+        ],
+      );
     });
 
     it('excludes unsynced and reverted games from the weekly leaderboard', () => {
@@ -98,6 +108,7 @@ describe('History Helpers', () => {
         games: [
           {
             timestamp: Date.UTC(2024, 0, 8, 12, 0, 0),
+            game_key: 'ape-strong',
             wager_wei: parseEther('10').toString(),
             payout_wei: '0',
             wape_received_wei: parseEther('10').toString(),
@@ -106,10 +117,12 @@ describe('History Helpers', () => {
           },
           {
             timestamp: Date.UTC(2024, 0, 8, 12, 0, 0),
+            game_key: 'roulette',
             wape_received_wei: parseEther('10').toString(),
           },
           {
             timestamp: Date.UTC(2024, 0, 8, 12, 0, 0),
+            game_key: 'blackjack',
             wager_wei: parseEther('10').toString(),
             payout_wei: '0',
             wape_received_wei: parseEther('10').toString(),
@@ -123,6 +136,9 @@ describe('History Helpers', () => {
       assert.strictEqual(leaderboard.total_games, 1);
       assert.strictEqual(leaderboard.weeks.length, 1);
       assert.strictEqual(leaderboard.weeks[0].wagered_ape, '10');
+      assert.deepStrictEqual(leaderboard.weeks[0].plays.map((play) => [play.game, play.plays]), [
+        ['ape-strong', 1],
+      ]);
     });
   });
 

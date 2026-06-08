@@ -572,7 +572,7 @@ The runtime surface is intentionally narrow: bots receive positional args plus g
 | `--ids` | Append local game IDs in history lines and scoreboard tables |
 | `--stats` | Show stats only |
 | `--breakdown [game]` | Show per-game stats, optionally filtered to one game |
-| `--leaderboard` | Show global and weekly wAPE wagered, grouped from Monday 00:00 UTC |
+| `--leaderboard` | Show global and weekly wAPE wagered plus weekly play breakdowns, grouped from Sunday 00:00 UTC |
 | `--scoreboard` | Append the cached Highest Multipliers and Biggest Payouts tables |
 | `--url` | Show game URLs in terminal scoreboard tables |
 | `--refresh` | Download/refresh the history before rendering |
