@@ -349,7 +349,7 @@ const discoveredBots = discoverBotDefinitions();
 const BOT_HELP_EXAMPLES = Object.freeze([
   `${BINARY_NAME} bot`,
   `${BINARY_NAME} bot my-bot`,
-  `${BINARY_NAME} bot my-bot --max-games 10 --json`,
+  `${BINARY_NAME} bot my-bot --max-routines 10 --json`,
 ]);
 const GAME_TITLE_COLLATOR = new Intl.Collator('en', {
   sensitivity: 'base',

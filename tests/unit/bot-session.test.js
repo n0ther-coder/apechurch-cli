@@ -15,6 +15,7 @@ import {
   formatPlayCommandSuffix,
   getStandardBotInternalDelayMs,
   getStandardBotChildDelayMs,
+  getStandardBotPreflightDelayMs,
   getStandardBotCliForwardTokens,
   getNestedBotEconomics,
   getStandardBotLoopCondition,
@@ -62,12 +63,14 @@ describe('Bot Session Helpers', () => {
       '--stop-loss',
       '8',
       '--max-loss=9',
-      '--max-games',
+      '--max-routines',
       '2',
       '--gp-ape',
       '7.5',
       '--human',
       '--delay=6',
+      '--preflight',
+      '12.5',
       '--private-mode',
     ]);
 
@@ -82,10 +85,12 @@ describe('Bot Session Helpers', () => {
       gpApe: '7.5',
       human: true,
       delay: '6',
+      preflight: '12.5',
     });
     assert.deepStrictEqual(parsed.remainingArgs, ['--private-mode']);
 
     assert.strictEqual(parseStandardBotArgs(['--delay=0']).loopControls.delay, '0');
+    assert.strictEqual(parseStandardBotArgs(['--preflight=0']).loopControls.preflight, '0');
   });
 
   it('allows --stop-loss 0 while keeping other APE loop controls positive', () => {
@@ -147,6 +152,25 @@ describe('Bot Session Helpers', () => {
     }
   });
 
+  it('computes configurable preflight delays without forwarding them', () => {
+    assert.strictEqual(getStandardBotPreflightDelayMs({}, 30), 30000);
+    assert.strictEqual(getStandardBotPreflightDelayMs({ preflight: null }, 30), 30000);
+    assert.strictEqual(getStandardBotPreflightDelayMs({ preflight: '0' }, 30), 0);
+    assert.strictEqual(getStandardBotPreflightDelayMs({ preflight: '2.5' }, 30), 2500);
+    assert.throws(
+      () => getStandardBotPreflightDelayMs({ preflight: '-1' }, 30),
+      /Invalid --preflight/,
+    );
+    assert.deepStrictEqual(
+      getStandardBotCliForwardTokens({ preflight: '9' }, {}),
+      [],
+    );
+    assert.deepStrictEqual(
+      getStandardBotNestedBotForwardTokens({ preflight: '9' }, {}),
+      [],
+    );
+  });
+
   it('forwards absolute wallet guards and human timing to CLI plays', async () => {
     const parsed = parseStandardBotArgs([
       '--take-profit',
@@ -206,7 +230,7 @@ describe('Bot Session Helpers', () => {
       '3',
       '--giveback-profit',
       '4',
-      '--max-games',
+      '--max-routines',
       '9',
     ]);
     const runtime = await prepareStandardBotLoopRuntime({
@@ -229,14 +253,12 @@ describe('Bot Session Helpers', () => {
         '4',
         '--stop-loss',
         '92',
-        '--max-games',
-        '2',
       ],
     );
   });
 
   it('detects standard bot gross P&L loop conditions', () => {
-    const parsed = parseStandardBotArgs(['--max-loss', '2', '--max-games', '3']);
+    const parsed = parseStandardBotArgs(['--max-loss', '2', '--max-routines', '3']);
 
     assert.deepStrictEqual(
       getStandardBotLoopCondition({
@@ -259,11 +281,18 @@ describe('Bot Session Helpers', () => {
         executions: 3,
       }),
       {
-        kind: 'max_games',
+        kind: 'max_routines',
         threshold: 3,
         pnl_ape: '0',
         executions: 3,
       },
+    );
+  });
+
+  it('rejects legacy --max-games on bot invocations', () => {
+    assert.throws(
+      () => parseStandardBotArgs(['--max-games', '3']),
+      /--max-games is not a bot option/,
     );
   });
 
