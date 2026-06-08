@@ -14,6 +14,7 @@ import {
   formatIterationSummaryLine,
   formatPlayCommandSuffix,
   getStandardBotInternalDelayMs,
+  getStandardBotChildDelayMs,
   getStandardBotCliForwardTokens,
   getNestedBotEconomics,
   getStandardBotLoopCondition,
@@ -136,7 +137,17 @@ describe('Bot Session Helpers', () => {
     }
   });
 
-  it('forwards absolute take-profit and stop-loss wallet guards unchanged', async () => {
+  it('computes child bot pacing from human timing only', () => {
+    assert.strictEqual(getStandardBotChildDelayMs({ delay: '6', human: false }), 0);
+
+    for (let i = 0; i < 10; i += 1) {
+      const delayMs = getStandardBotChildDelayMs({ delay: '5', human: '2-4' });
+      assert.ok(delayMs >= 2000, `delay ${delayMs} should include the minimum human delay`);
+      assert.ok(delayMs <= 4000, `delay ${delayMs} should include the maximum human delay`);
+    }
+  });
+
+  it('forwards absolute wallet guards and human timing to CLI plays', async () => {
     const parsed = parseStandardBotArgs([
       '--take-profit',
       '1400',
@@ -156,7 +167,7 @@ describe('Bot Session Helpers', () => {
 
     assert.deepStrictEqual(
       getStandardBotCliForwardTokens(parsed.loopControls, runtime),
-      ['--take-profit', '1400', '--stop-loss', '300', '--gp-ape', '7.5', '--human', '--delay', '6'],
+      ['--take-profit', '1400', '--stop-loss', '300', '--gp-ape', '7.5', '--human'],
     );
     assert.strictEqual(parsed.loopControls.maxLoss, '700');
   });
@@ -181,7 +192,7 @@ describe('Bot Session Helpers', () => {
 
     assert.deepStrictEqual(
       getStandardBotCliForwardTokens(parsed.loopControls, runtime),
-      ['--take-profit', '105', '--stop-loss', '92', '--gp-ape', '7.5', '--human', '--delay', '6'],
+      ['--take-profit', '105', '--stop-loss', '92', '--gp-ape', '7.5', '--human'],
     );
   });
 
