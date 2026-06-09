@@ -2528,12 +2528,20 @@ function formatNullableBps(value) {
   return `${Number(value).toFixed(2)} bps`;
 }
 
-function formatFeeStatsBlock(label, stats) {
+function formatFeeMinMax(stats, { derived = false } = {}) {
+  if (derived && stats.games > 0 && stats.min_fee_ape === null && stats.max_fee_ape === null) {
+    return 'n.a. (not tracked for derived rest)';
+  }
+  return `${formatNullableApe(stats.min_fee_ape, 6)} / ${formatNullableApe(stats.max_fee_ape, 6)}`;
+}
+
+function formatFeeStatsBlock(label, stats, { derived = false } = {}) {
   return [
     `   ${theme.label(`${label}:`)}`,
     `      Games: ${stats.games} (${stats.wins}/${stats.pushes}/${stats.losses} W/P/L)`,
+    `      Wager: ${formatPlainApe(stats.wager_ape, 6)} avg ${formatPlainApe(stats.avg_wager_ape, 6)}`,
     `      Fees: ${formatPlainApe(stats.fee_ape, 6)} avg ${formatPlainApe(stats.avg_fee_ape, 6)} (${formatNullableBps(stats.avg_fee_bps)})`,
-    `      Min/Max fee: ${formatNullableApe(stats.min_fee_ape, 6)} / ${formatNullableApe(stats.max_fee_ape, 6)}`,
+    `      Min/Max fee: ${formatFeeMinMax(stats, { derived })}`,
     `      Gas: ${formatPlainApe(stats.gas_ape, 6)} avg ${formatPlainApe(stats.avg_gas_ape, 6)}`,
     `      Success rate: ${stats.win_rate.toFixed(2)}%`,
   ];
@@ -2544,7 +2552,7 @@ function formatFeeLeader(label, leader) {
     return `   ${theme.label(`${label}:`)} n.a.`;
   }
 
-  return `   ${theme.label(`${label}:`)} ${formatAddress(leader.wallet, true)} ${theme.dim(`${leader.games} game(s)`)} avg ${formatNullableBps(leader.avg_fee_bps)} win ${leader.win_rate.toFixed(2)}%`;
+  return `   ${theme.label(`${label}:`)} ${formatAddress(leader.wallet)} ${theme.dim(`${leader.games} game(s)`)} avg ${formatNullableBps(leader.avg_fee_bps)} win ${leader.win_rate.toFixed(2)}%`;
 }
 
 function formatFeeExtreme(label, extreme, valueFormatter = (value) => value) {
@@ -2552,7 +2560,22 @@ function formatFeeExtreme(label, extreme, valueFormatter = (value) => value) {
     return `   ${theme.label(`${label}:`)} n.a.`;
   }
 
-  return `   ${theme.label(`${label}:`)} ${valueFormatter(extreme)} ${theme.dim(`block ${extreme.block_number} ${formatShortHash(extreme.tx)}`)} ${formatAddress(extreme.wallet, true)}`;
+  return `   ${theme.label(`${label}:`)} ${valueFormatter(extreme)} ${theme.dim(`block ${extreme.block_number} ${extreme.tx}`)} ${formatAddress(extreme.wallet)}`;
+}
+
+function formatFeeOutlier(outlier) {
+  const extreme = outlier?.extreme;
+  if (!extreme) {
+    return null;
+  }
+  const location = theme.dim(`block ${extreme.block_number} ${extreme.tx}`);
+  if (outlier.type === 'zero_fee') {
+    return `      ${theme.warning('Zero observed fee:')} ${formatPlainApe(extreme.wager_ape, 6)} wager ${location} ${formatAddress(extreme.wallet)}`;
+  }
+  if (outlier.type === 'high_fee_bps') {
+    return `      ${theme.warning('High fee/wager:')} ${formatNullableBps(outlier.value_bps)} on ${formatPlainApe(extreme.wager_ape, 6)} wager ${location} ${formatAddress(extreme.wallet)}`;
+  }
+  return null;
 }
 
 function formatFeesScanReport(scanResult) {
@@ -2663,18 +2686,28 @@ function formatFeesReport(report) {
     lines.push('');
     lines.push(...formatFeeStatsBlock('Wallet', report.wallet_stats));
     lines.push('');
-    lines.push(...formatFeeStatsBlock('Rest', report.rest_stats));
+    lines.push(...formatFeeStatsBlock('Rest', report.rest_stats, { derived: true }));
   }
 
-  lines.push('');
-  lines.push(formatFeeLeader('Tracked cheapest avg fee', report.leaders.cheapest_avg_fee_wallet));
-  lines.push(formatFeeLeader('Tracked highest avg fee', report.leaders.highest_avg_fee_wallet));
-  lines.push(formatFeeLeader('Tracked best success', report.leaders.best_success_wallet));
+  if ((report.leaders?.retained_wallets || 0) >= 2) {
+    lines.push('');
+    lines.push(formatFeeLeader('Tracked cheapest avg fee', report.leaders.cheapest_avg_fee_wallet));
+    lines.push(formatFeeLeader('Tracked highest avg fee', report.leaders.highest_avg_fee_wallet));
+    lines.push(formatFeeLeader('Tracked best success', report.leaders.best_success_wallet));
+  }
   lines.push('');
   lines.push(formatFeeExtreme('Min fee', report.extremes.min_fee, (extreme) => `${formatPlainApe(extreme.value_ape, 6)} (${formatNullableBps(extreme.fee_bps)})`));
   lines.push(formatFeeExtreme('Max fee', report.extremes.max_fee, (extreme) => `${formatPlainApe(extreme.value_ape, 6)} (${formatNullableBps(extreme.fee_bps)})`));
   lines.push(formatFeeExtreme('Min fee/wager', report.extremes.min_fee_bps, (extreme) => formatNullableBps(extreme.value)));
   lines.push(formatFeeExtreme('Max fee/wager', report.extremes.max_fee_bps, (extreme) => formatNullableBps(extreme.value)));
+  const outlierLines = (report.outliers || [])
+    .map(formatFeeOutlier)
+    .filter(Boolean);
+  if (outlierLines.length > 0) {
+    lines.push('');
+    lines.push(`   ${theme.label('Outliers:')}`);
+    lines.push(...outlierLines);
+  }
   lines.push('');
 
   return lines.join('\n');

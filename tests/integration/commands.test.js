@@ -2053,6 +2053,79 @@ export default async function ({ paths, bot }) {
   });
 
   describe('fees command', () => {
+    const FEE_WALLET_A = '0x1111111111111111111111111111111111111111';
+    const FEE_WALLET_B = '0x2222222222222222222222222222222222222222';
+    const FEE_TX_A = `0x${'a'.repeat(64)}`;
+    const FEE_TX_B = `0x${'b'.repeat(64)}`;
+
+    function writeFeeReportFixture(logDir) {
+      const feesDir = path.join(logDir, 'fees');
+      fs.rmSync(logDir, { recursive: true, force: true });
+      fs.mkdirSync(feesDir, { recursive: true });
+      fs.writeFileSync(path.join(feesDir, 'speed-keno.json'), JSON.stringify({
+        v: 4,
+        ch: 33139,
+        game: 'speed-keno',
+        name: 'Speed Keno ✔︎',
+        contract: '0x40EE3295035901e5Fd80703774E5A9FE7CE2B90C',
+        cap: 10485760,
+        created: '2026-06-09T00:00:00.000Z',
+        updated: '2026-06-09T00:00:00.000Z',
+        lb: '3',
+        ob: '1',
+        floor: '1',
+        r: [['1', '3']],
+        chunks: 1,
+        logs: 3,
+        missing: 0,
+        g: {
+          n: 3,
+          w: 1,
+          p: 0,
+          l: 2,
+          s: 0,
+          bw: '200000000000000000000',
+          po: '0',
+          fw: '3000000000000000000',
+          gw: '300000000000000000',
+          minf: '0',
+          maxf: '2000000000000000000',
+          minfb: '0',
+          maxfb: '2000',
+          ming: '100000000000000000',
+          maxg: '100000000000000000',
+        },
+        t: {
+          [FEE_WALLET_A]: {
+            a: {
+              n: 1,
+              w: 1,
+              p: 0,
+              l: 0,
+              s: 0,
+              bw: '100000000000000000000',
+              po: '0',
+              fw: '1000000000000000000',
+              gw: '100000000000000000',
+              minf: '1000000000000000000',
+              maxf: '1000000000000000000',
+              minfb: '100',
+              maxfb: '100',
+              ming: '100000000000000000',
+              maxg: '100000000000000000',
+            },
+            r: [['1', '3']],
+          },
+        },
+        x: {
+          minf: { v: '0', fb: '0', b: '1', tx: FEE_TX_A, w: FEE_WALLET_B, p: FEE_WALLET_B, id: '1', bw: '1000000000000000000', po: '0' },
+          maxf: { v: '2000000000000000000', fb: '2000', b: '2', tx: FEE_TX_B, w: FEE_WALLET_B, p: FEE_WALLET_B, id: '2', bw: '1000000000000000000', po: '0' },
+          minfb: { v: '0', fb: '0', b: '1', tx: FEE_TX_A, w: FEE_WALLET_B, p: FEE_WALLET_B, id: '1', bw: '1000000000000000000', po: '0' },
+          maxfb: { v: '2000', fb: '2000', b: '2', tx: FEE_TX_B, w: FEE_WALLET_B, p: FEE_WALLET_B, id: '2', bw: '1000000000000000000', po: '0' },
+        },
+      }, null, 2));
+    }
+
     it('requires --yes for unlimited JSON scans before opening RPC clients', () => {
       const { stdout, code } = cli('fees scan primes --json');
       const data = JSON.parse(stdout);
@@ -2078,6 +2151,31 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(data.wallet, null);
       assert.strictEqual(data.tracked_wallets, 0);
       assert.ok(data.file_path.endsWith(path.join('fees', 'primes.json')));
+    });
+
+    it('renders wager context, derived-rest min/max notes, and outliers in fee reports', () => {
+      const logDir = path.join(NO_WALLET_HOME, '.apechurch-cli', 'fee-report-fixture-log');
+      writeFeeReportFixture(logDir);
+
+      const { stdout, code } = cli(`fees report skeno --wallet ${FEE_WALLET_A}`, {
+        env: {
+          [LOG_DIR_ENV]: logDir,
+        },
+      });
+
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('Wager: 200.000000 APE avg 66.666667 APE'), 'Should show global average wager');
+      assert.ok(stdout.includes('Min/Max fee: n.a. (not tracked for derived rest)'), 'Should explain derived rest min/max');
+      assert.ok(stdout.includes('Outliers:'), 'Should show outlier section');
+      assert.ok(stdout.includes('Zero observed fee:'), 'Should flag zero fee outliers');
+      assert.ok(stdout.includes('High fee/wager:'), 'Should flag high bps outliers');
+      assert.ok(stdout.includes(FEE_WALLET_B), 'Should render fee report addresses in full');
+      assert.ok(stdout.includes(FEE_TX_A), 'Should render fee report transaction hashes in full');
+      assert.ok(stdout.includes(FEE_TX_B), 'Should render fee report transaction hashes in full');
+      assert.ok(!stdout.includes('0x2222...2222'), 'Should not abbreviate fee report addresses');
+      assert.ok(!stdout.includes('0xaaaaaaaa…aaaaaaaa'), 'Should not abbreviate fee report transaction hashes');
+      assert.ok(!stdout.includes('APE APE'), 'Should not duplicate APE units');
+      assert.ok(!stdout.includes('Tracked cheapest avg fee'), 'Should hide tracked leaderboards for one wallet');
     });
   });
 
