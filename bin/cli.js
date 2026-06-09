@@ -256,6 +256,13 @@ import {
   DEFAULT_HISTORY_SYNC_CHUNK_SIZE,
 } from '../lib/wallet-analysis.js';
 import {
+  buildFeeReport,
+  DEFAULT_FEE_ANALYSIS_CAP_BYTES,
+  DEFAULT_FEE_ANALYSIS_CHUNK_SIZE,
+  DEFAULT_FEE_ANALYSIS_MAX_CHUNKS,
+  scanGameFees,
+} from '../lib/fee-analysis.js';
+import {
   theme,
   formatPnL,
   formatBalance,
@@ -439,6 +446,20 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '-v, --verbose           Show technical logs',
   '--color                 Force ANSI color in plain output',
   '--json                  Emit JSON output only',
+]);
+const FEES_HELP_BNF_LINES = Object.freeze([
+  '<fees-command> ::= "fees" <fees-action> <game> <fees-option>*',
+  '<fees-action> ::= "scan" | "report"',
+  '<game> ::= <game-key> | <game-alias> | <game-display-name>',
+  '<fees-option> ::= <wallet-option> | <range-option> | <scan-option> | <report-option> | "--json"',
+  '<wallet-option> ::= "--wallet" <address>',
+  '<range-option> ::= "--from-block" <block> | "--to-block" <block> | "--floor-block" <block>',
+  '<scan-option> ::= "--chunk-size" <integer> | "--max-chunks" <integer> | "--cap-mb" <number> | "-y" | "--yes"',
+  '<report-option> ::= "--min-games" <integer>',
+  '<block> ::= <integer>                                ; block number >= 0',
+  '<address> ::= "0x" <40-hex-chars>',
+  '<integer> ::= <digit>+',
+  '<number> ::= <integer> [ "." <digit>+ ]',
 ]);
 
 function isPositiveApeToken(value) {
@@ -689,6 +710,31 @@ ${formatHelpOptionGroup('Stateless game options', PLAY_STATELESS_OPTION_LINES)}
 ${formatHelpOptionGroup('Stateful game options', PLAY_STATEFUL_OPTION_LINES)}
 
 ${formatHelpOptionGroup('Shared play / loop options', PLAY_SHARED_OPTION_LINES)}
+`;
+}
+
+function formatFeesHelpAppendix() {
+  return `
+Actions:
+  scan    Read observed GameEnded logs for one game and update the compact per-game fee log.
+          Stores global game aggregates and exact aggregates only for --wallet or the current wallet.
+  report  Read the local compact fee log and compare the target wallet against the rest of the game.
+          Does not call the RPC.
+
+Storage:
+  Files are written to ${LOG_DIR}/fees/<canonical-game-key>.json.
+  Game aliases resolve to the canonical registry key, so aliases do not create duplicate logs.
+  The default cap is ${DEFAULT_FEE_ANALYSIS_CAP_BYTES / (1024 * 1024)} MiB per game.
+
+Grammar (BNF):
+  ${FEES_HELP_BNF_LINES.join('\n  ')}
+
+Examples:
+  ${BINARY_NAME} fees scan primes
+  ${BINARY_NAME} fees scan jungle --max-chunks 10
+  ${BINARY_NAME} fees scan primes --yes --json
+  ${BINARY_NAME} fees report primes
+  ${BINARY_NAME} fees report primes --wallet 0x1111111111111111111111111111111111111111 --json
 `;
 }
 
@@ -2407,6 +2453,231 @@ async function downloadHistoryForCli(targetAddress, opts = {}) {
           console.log(formatWalletDownloadProgressLine(progress));
         },
   });
+}
+
+function parseFeeAnalysisCapBytes(rawValue) {
+  const numeric = Number(rawValue ?? (DEFAULT_FEE_ANALYSIS_CAP_BYTES / (1024 * 1024)));
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    throw new Error('cap-mb must be a positive number.');
+  }
+  return Math.max(1, Math.floor(numeric * 1024 * 1024));
+}
+
+function parseFeeAnalysisScanOptions(opts = {}) {
+  const chunkSize = BigInt(parseNonNegativeInt(
+    opts.chunkSize ?? DEFAULT_FEE_ANALYSIS_CHUNK_SIZE.toString(),
+    'chunk-size'
+  ));
+  if (chunkSize <= 0n) {
+    throw new Error('chunk-size must be greater than 0.');
+  }
+
+  const maxChunks = parseNonNegativeInt(
+    opts.maxChunks ?? DEFAULT_FEE_ANALYSIS_MAX_CHUNKS.toString(),
+    'max-chunks'
+  );
+  const capBytes = parseFeeAnalysisCapBytes(opts.capMb);
+  const parsed = {
+    chunkSize,
+    maxChunks,
+    capBytes,
+  };
+
+  if (opts.fromBlock !== undefined) {
+    parsed.fromBlock = BigInt(parseNonNegativeInt(opts.fromBlock, 'from-block'));
+  }
+  if (opts.toBlock !== undefined) {
+    parsed.toBlock = BigInt(parseNonNegativeInt(opts.toBlock, 'to-block'));
+  }
+  if (opts.floorBlock !== undefined) {
+    parsed.floorBlock = BigInt(parseNonNegativeInt(opts.floorBlock, 'floor-block'));
+  }
+  if (parsed.fromBlock !== undefined && parsed.toBlock !== undefined && parsed.toBlock < parsed.fromBlock) {
+    throw new Error('to-block must be greater than or equal to from-block.');
+  }
+  if (parsed.floorBlock !== undefined && parsed.fromBlock !== undefined && parsed.floorBlock > parsed.fromBlock) {
+    throw new Error('floor-block must be less than or equal to from-block.');
+  }
+
+  return parsed;
+}
+
+function parseFeeAnalysisReportOptions(opts = {}) {
+  const minGames = parseNonNegativeInt(opts.minGames ?? '1', 'min-games');
+  if (minGames <= 0) {
+    throw new Error('min-games must be greater than 0.');
+  }
+
+  return {
+    minGames,
+    capBytes: parseFeeAnalysisCapBytes(opts.capMb),
+  };
+}
+
+function formatNullableApe(value, decimals = 6) {
+  if (value === null || value === undefined) {
+    return 'n.a.';
+  }
+  return formatPlainApe(value, decimals);
+}
+
+function formatNullableBps(value) {
+  if (value === null || value === undefined) {
+    return 'n.a.';
+  }
+  return `${Number(value).toFixed(2)} bps`;
+}
+
+function formatFeeStatsBlock(label, stats) {
+  return [
+    `   ${theme.label(`${label}:`)}`,
+    `      Games: ${stats.games} (${stats.wins}/${stats.pushes}/${stats.losses} W/P/L)`,
+    `      Fees: ${formatPlainApe(stats.fee_ape, 6)} avg ${formatPlainApe(stats.avg_fee_ape, 6)} (${formatNullableBps(stats.avg_fee_bps)})`,
+    `      Min/Max fee: ${formatNullableApe(stats.min_fee_ape, 6)} / ${formatNullableApe(stats.max_fee_ape, 6)}`,
+    `      Gas: ${formatPlainApe(stats.gas_ape, 6)} avg ${formatPlainApe(stats.avg_gas_ape, 6)}`,
+    `      Success rate: ${stats.win_rate.toFixed(2)}%`,
+  ];
+}
+
+function formatFeeLeader(label, leader) {
+  if (!leader) {
+    return `   ${theme.label(`${label}:`)} n.a.`;
+  }
+
+  return `   ${theme.label(`${label}:`)} ${formatAddress(leader.wallet, true)} ${theme.dim(`${leader.games} game(s)`)} avg ${formatNullableBps(leader.avg_fee_bps)} win ${leader.win_rate.toFixed(2)}%`;
+}
+
+function formatFeeExtreme(label, extreme, valueFormatter = (value) => value) {
+  if (!extreme) {
+    return `   ${theme.label(`${label}:`)} n.a.`;
+  }
+
+  return `   ${theme.label(`${label}:`)} ${valueFormatter(extreme)} ${theme.dim(`block ${extreme.block_number} ${formatShortHash(extreme.tx)}`)} ${formatAddress(extreme.wallet, true)}`;
+}
+
+function formatFeesScanReport(scanResult) {
+  const lines = [
+    '',
+    formatHeader('Fee Scan', '💸'),
+    '',
+    `   ${theme.label('Game:')} ${theme.gameName(scanResult.name)} ${theme.dim(`(${scanResult.game})`)}`,
+    `   ${theme.label('Contract:')} ${scanResult.contract}`,
+    `   ${theme.label('Blocks:')} ${scanResult.oldest_scanned_block || 'n.a.'} -> ${scanResult.latest_scanned_block || 'n.a.'}`,
+    `   ${theme.label('Backfill floor:')} ${scanResult.floor_block || 'n.a.'}`,
+    `   ${theme.label('Chunks:')} ${scanResult.scanned_chunks}/${scanResult.planned_chunks}`,
+    `   ${theme.label('Observed games:')} ${scanResult.games}`,
+    `   ${theme.label('Tracked wallets:')} ${scanResult.tracked_wallets}`,
+    `   ${theme.label('File:')} ${theme.dim(scanResult.file_path)}`,
+    `   ${theme.label('Size:')} ${(scanResult.file_size_bytes / 1024).toFixed(1)} KiB / ${(scanResult.cap_bytes / 1024 / 1024).toFixed(1)} MiB`,
+  ];
+
+  if (scanResult.target_wallet) {
+    lines.push(`   ${theme.label('Target wallet:')} ${formatAddress(scanResult.target_wallet)}`);
+    lines.push(`   ${theme.label('Target chunks:')} ${scanResult.target_scanned_chunks}`);
+  }
+  if (scanResult.stale_schema_version !== null && scanResult.stale_schema_version !== undefined) {
+    lines.push(`   ${theme.warning(`Rebuilt fee log from stale schema v${scanResult.stale_schema_version}.`)}`);
+  }
+  if (scanResult.missing_transaction_metadata > 0) {
+    lines.push(`   ${theme.warning(`Missing tx metadata for ${scanResult.missing_transaction_metadata} observed log(s).`)}`);
+  }
+  if (scanResult.scanned_chunks === 0) {
+    lines.push(`   ${theme.dim('No uncovered chunks were available for the requested range.')}`);
+  }
+
+  lines.push('');
+  return lines.join('\n');
+}
+
+async function confirmUnlimitedFeeScan(game, scanOpts, {
+  targetWallet = null,
+  json = false,
+  yes = false,
+} = {}) {
+  if (Number(scanOpts.maxChunks) !== 0 || yes) {
+    return true;
+  }
+  if (json) {
+    throw new Error('fees scan with unlimited chunks requires --yes in JSON mode.');
+  }
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error('fees scan with unlimited chunks requires --yes in non-interactive mode.');
+  }
+
+  const filePath = path.join(LOG_DIR, 'fees', `${game.key}.json`);
+  const targetLabel = targetWallet ? formatAddress(targetWallet) : 'none';
+  const fromLabel = scanOpts.fromBlock !== undefined ? scanOpts.fromBlock.toString() : 'automatic';
+  const toLabel = scanOpts.toBlock !== undefined ? scanOpts.toBlock.toString() : 'latest chain block';
+  const floorLabel = scanOpts.floorBlock !== undefined ? scanOpts.floorBlock.toString() : 'contract deployment block';
+  const lines = [
+    '',
+    formatHeader('Full Fee Scan', '💸'),
+    '',
+    `   ${theme.label('Game:')} ${theme.gameName(getGameDisplayName(game))} ${theme.dim(`(${game.key})`)}`,
+    `   ${theme.label('Contract:')} ${game.contract}`,
+    `   ${theme.label('File:')} ${theme.dim(filePath)}`,
+    `   ${theme.label('Target wallet:')} ${targetLabel}`,
+    `   ${theme.label('Range:')} ${fromLabel} -> ${toLabel}`,
+    `   ${theme.label('Backfill floor:')} ${floorLabel}`,
+    `   ${theme.label('Chunk size:')} ${scanOpts.chunkSize.toString()} block(s)`,
+    '',
+    '   This scan will update the compact per-game fee log. It first fills the',
+    '   delta from the newest locally scanned block to the current chain tip,',
+    '   then continues backward from the oldest locally scanned block down to',
+    '   the contract deployment block. Progress is saved after every chunk, so',
+    '   the command can be interrupted and rerun to resume.',
+    '',
+  ];
+
+  console.log(lines.join('\n'));
+  const answer = await prompt('Proceed with full historical fee scan? (y/N) ');
+  return ['y', 'yes'].includes(answer.trim().toLowerCase());
+}
+
+function formatFeesReport(report) {
+  const lines = [
+    '',
+    formatHeader('Fee Report', '💸'),
+    '',
+    `   ${theme.label('Game:')} ${theme.gameName(report.name)} ${theme.dim(`(${report.game})`)}`,
+    `   ${theme.label('Contract:')} ${report.contract}`,
+    `   ${theme.label('File:')} ${theme.dim(report.file_path)}`,
+    `   ${theme.label('Blocks:')} ${report.scan.oldest_scanned_block || 'n.a.'} -> ${report.scan.latest_scanned_block || 'n.a.'}`,
+    `   ${theme.label('Observed games:')} ${report.global.games}`,
+    `   ${theme.label('Tracked wallets:')} ${report.tracked_wallets}`,
+  ];
+
+  if (report.wallet) {
+    lines.push(`   ${theme.label('Wallet:')} ${formatAddress(report.wallet)}`);
+    if (!report.wallet_exact) {
+      lines.push(`   ${theme.warning('This wallet is not fully tracked for every scanned range. Run fees scan with this wallet selected to fill the target aggregate.')}`);
+    }
+  }
+  if (report.stale_schema_version !== null && report.stale_schema_version !== undefined) {
+    lines.push(`   ${theme.warning(`Existing fee log schema v${report.stale_schema_version} was ignored. Run fees scan to rebuild it.`)}`);
+  }
+
+  lines.push('');
+  lines.push(...formatFeeStatsBlock('Global', report.global));
+  if (report.wallet) {
+    lines.push('');
+    lines.push(...formatFeeStatsBlock('Wallet', report.wallet_stats));
+    lines.push('');
+    lines.push(...formatFeeStatsBlock('Rest', report.rest_stats));
+  }
+
+  lines.push('');
+  lines.push(formatFeeLeader('Tracked cheapest avg fee', report.leaders.cheapest_avg_fee_wallet));
+  lines.push(formatFeeLeader('Tracked highest avg fee', report.leaders.highest_avg_fee_wallet));
+  lines.push(formatFeeLeader('Tracked best success', report.leaders.best_success_wallet));
+  lines.push('');
+  lines.push(formatFeeExtreme('Min fee', report.extremes.min_fee, (extreme) => `${formatPlainApe(extreme.value_ape, 6)} (${formatNullableBps(extreme.fee_bps)})`));
+  lines.push(formatFeeExtreme('Max fee', report.extremes.max_fee, (extreme) => `${formatPlainApe(extreme.value_ape, 6)} (${formatNullableBps(extreme.fee_bps)})`));
+  lines.push(formatFeeExtreme('Min fee/wager', report.extremes.min_fee_bps, (extreme) => formatNullableBps(extreme.value)));
+  lines.push(formatFeeExtreme('Max fee/wager', report.extremes.max_fee_bps, (extreme) => formatNullableBps(extreme.value)));
+  lines.push('');
+
+  return lines.join('\n');
 }
 
 // --- Helper: Get wallet account metadata / lazy local signer ---
@@ -5454,6 +5725,107 @@ program
       referenceMode: scoreboardReferenceMode,
     }), '');
     console.log(lines.join('\n'));
+  });
+
+// ============================================================================
+// COMMAND: FEES
+// ============================================================================
+program
+  .command('fees [action] [game]')
+  .description('Scan or report compact observed fee aggregates by game')
+  .option('--wallet <address>', 'Wallet to compare in reports (default current wallet)')
+  .option('--from-block <n>', 'Start block for an explicit fee scan range')
+  .option('--to-block <n>', 'End block for fee scan range (default latest)')
+  .option('--floor-block <n>', 'Oldest block for automatic backfill (default contract deployment block)')
+  .option('--chunk-size <n>', 'Block range per fee log query', DEFAULT_FEE_ANALYSIS_CHUNK_SIZE.toString())
+  .option('--max-chunks <n>', 'Maximum chunks to scan this run; 0 means unlimited/full backfill', DEFAULT_FEE_ANALYSIS_MAX_CHUNKS.toString())
+  .option('--min-games <n>', 'Minimum games for wallet leaderboards in reports', '1')
+  .option('--cap-mb <n>', 'Per-game fee log cap in MiB', String(DEFAULT_FEE_ANALYSIS_CAP_BYTES / (1024 * 1024)))
+  .option('-y, --yes', 'Skip the unlimited scan confirmation prompt')
+  .option('--json', 'JSON output')
+  .addHelpText('after', formatFeesHelpAppendix())
+  .action(async (action = 'report', game, opts) => {
+    const normalizedAction = String(action || 'report').trim().toLowerCase();
+    if (!['scan', 'report'].includes(normalizedAction)) {
+      const message = `Unknown fees action: ${action}. Available: scan, report`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.error(`\n❌ ${message}\n`);
+      process.exit(1);
+    }
+
+    if (!game) {
+      const message = `Missing game. Use: ${BINARY_NAME} fees ${normalizedAction} <game>`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.error(`\n❌ ${message}\n`);
+      process.exit(1);
+    }
+
+    try {
+      if (normalizedAction === 'scan') {
+        const scanOpts = parseFeeAnalysisScanOptions(opts);
+        const resolvedGame = resolveGame(game);
+        if (!resolvedGame) {
+          throw new Error(`Unknown game: ${game}`);
+        }
+        const targetWallet = opts.wallet || getWalletAddress() || null;
+        if (targetWallet && !isAddress(targetWallet)) {
+          throw new Error(`Invalid wallet address: ${targetWallet}`);
+        }
+        const confirmed = await confirmUnlimitedFeeScan(resolvedGame, scanOpts, {
+          targetWallet,
+          json: Boolean(opts.json),
+          yes: Boolean(opts.yes),
+        });
+        if (!confirmed) {
+          if (!opts.json) {
+            console.log('\nFee scan cancelled.\n');
+          }
+          return;
+        }
+        if (!opts.json) {
+          console.log(`\n💸 Scanning observed fees for ${getGameDisplayName(resolvedGame)} (${scanOpts.maxChunks === 0 ? 'unlimited chunks' : `${scanOpts.maxChunks} chunk(s)`})...\n`);
+        }
+        const { publicClient } = createClients();
+        const result = await scanGameFees(publicClient, game, {
+          ...scanOpts,
+          targetWallet,
+          onChunk: opts.json
+            ? null
+            : (chunk) => {
+                const chunkLabel = chunk.target_only ? 'target' : 'global';
+                console.log(`   ${theme.dim(`${chunk.from_block} -> ${chunk.to_block}`)} ${theme.dim(`[${chunkLabel}]`)} ${chunk.processed}/${chunk.logs} observed game(s)`);
+              },
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result));
+        } else {
+          console.log(formatFeesScanReport(result));
+        }
+        return;
+      }
+
+      const reportOpts = parseFeeAnalysisReportOptions(opts);
+      const targetWallet = opts.wallet || getWalletAddress() || null;
+      if (targetWallet && !isAddress(targetWallet)) {
+        throw new Error(`Invalid wallet address: ${targetWallet}`);
+      }
+      const report = buildFeeReport(game, {
+        wallet: targetWallet,
+        ...reportOpts,
+      });
+
+      if (opts.json) {
+        console.log(JSON.stringify(report));
+      } else {
+        console.log(formatFeesReport(report));
+      }
+    } catch (error) {
+      const message = `Failed to ${normalizedAction} fee analysis: ${sanitizeError(error)}`;
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.error(`\n❌ ${message}\n`);
+      process.exit(1);
+    }
   });
 
 // ============================================================================

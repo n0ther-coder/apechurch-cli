@@ -278,6 +278,20 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--numbers 1,7,13,25,40'), 'Should document the single-token numbers form');
     });
 
+    it('fees --help documents actions and BNF grammar', () => {
+      const { stdout } = cli('fees --help');
+      assert.ok(stdout.includes('Actions:'), 'Should document fees actions');
+      assert.ok(stdout.includes('scan    Read observed GameEnded logs'), 'Should document scan action');
+      assert.ok(stdout.includes('report  Read the local compact fee log'), 'Should document report action');
+      assert.ok(stdout.includes('Storage:'), 'Should document fee log storage');
+      assert.ok(stdout.includes('Grammar (BNF)'), 'Should show a BNF appendix');
+      assert.ok(stdout.includes('<fees-action> ::= "scan" | "report"'), 'Should document action grammar');
+      assert.ok(stdout.includes('--yes'), 'Should document the unlimited scan confirmation bypass');
+      assert.ok(stdout.includes('<game> ::= <game-key> | <game-alias> | <game-display-name>'), 'Should document alias-safe game grammar');
+      assert.ok(stdout.includes('fees scan primes'), 'Should include scan example');
+      assert.ok(stdout.includes('fees report primes'), 'Should include report example');
+    });
+
     it('bare play now shows help instead of auto-running', () => {
       const { stdout } = cli('play');
       assert.ok(stdout.includes('Usage: apechurch-cli play'), 'Should show command help');
@@ -2035,6 +2049,35 @@ export default async function ({ paths, bot }) {
       const { stdout } = cli('scoreboard --help');
       assert.ok(stdout.includes('--ids'), 'Should expose the IDs toggle in help');
       assert.ok(stdout.includes('--url'), 'Should expose the URL toggle in help');
+    });
+  });
+
+  describe('fees command', () => {
+    it('requires --yes for unlimited JSON scans before opening RPC clients', () => {
+      const { stdout, code } = cli('fees scan primes --json');
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(code, 1);
+      assert.match(data.error, /requires --yes in JSON mode/);
+    });
+
+    it('reports local fee aggregates as JSON without requiring an RPC scan', () => {
+      const logDir = path.join(NO_WALLET_HOME, '.apechurch-cli', 'fee-report-log');
+      fs.rmSync(logDir, { recursive: true, force: true });
+
+      const { stdout, code } = cli('fees report primes --json', {
+        env: {
+          [LOG_DIR_ENV]: logDir,
+        },
+      });
+      const data = JSON.parse(stdout);
+
+      assert.strictEqual(code, 0);
+      assert.strictEqual(data.game, 'primes');
+      assert.strictEqual(data.global.games, 0);
+      assert.strictEqual(data.wallet, null);
+      assert.strictEqual(data.tracked_wallets, 0);
+      assert.ok(data.file_path.endsWith(path.join('fees', 'primes.json')));
     });
   });
 
