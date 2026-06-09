@@ -1370,7 +1370,7 @@ export default async function () {
       assert.strictEqual(childLog.parent_call_id, payload.nested_bot_calls[0].call_id);
     });
 
-    it('suppresses chimes inside bot children called by a parent bot', () => {
+    it('propagates chimes inside bot children called by a parent bot', () => {
       resetBotFixtures();
       writeBotFixture({
         baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
@@ -1402,9 +1402,75 @@ export default async function () {
       const payload = JSON.parse(stdout.trim());
 
       assert.strictEqual(code, 0);
-      assert.strictEqual(payload.forceChime, '');
-      assert.strictEqual(payload.suppressChime, '1');
+      assert.strictEqual(payload.forceChime, '1');
+      assert.strictEqual(payload.suppressChime, '');
       assert.strictEqual(payload.callDepth, '1');
+    });
+
+    it('suppresses nested bot chimes when requested by the parent bot', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'suppressed-chime-child',
+        script: `export default async function () {
+  process.stderr.write(String.fromCharCode(7));
+  return {
+    exitCode: 0,
+    summary: {
+      forceChime: process.env.APECHURCH_CLI_FORCE_CHIME || '',
+      suppressChime: process.env.APECHURCH_CLI_SUPPRESS_CHIME || '',
+    },
+  };
+}
+`,
+      });
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'suppressed-chime-parent',
+        script: `export default async function ({ botJson }) {
+  const child = await botJson('suppressed-chime-child', [], { suppressChime: true });
+  return { exitCode: 0, summary: { status: 'ok', child } };
+}
+`,
+      });
+
+      const { stdout, code } = cli('bot suppressed-chime-parent --json');
+      const payload = JSON.parse(stdout.trim());
+
+      assert.strictEqual(code, 0);
+      assert.strictEqual(stdout.includes('\x07'), false);
+      assert.strictEqual(payload.child.forceChime, '');
+      assert.strictEqual(payload.child.suppressChime, '1');
+    });
+
+    it('bridges nested bot bell chimes through json caller chains', () => {
+      resetBotFixtures();
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'bell-chime-child',
+        script: `export default async function () {
+  process.stderr.write(String.fromCharCode(7));
+  return { exitCode: 0, summary: { status: 'child-ok' } };
+}
+`,
+      });
+      writeBotFixture({
+        baseDir: path.join(NO_WALLET_HOME, '.apechurch-cli'),
+        folderName: 'bell-chime-parent',
+        script: `export default async function ({ botJson }) {
+  const child = await botJson('bell-chime-child', []);
+  return { exitCode: 0, summary: { status: 'parent-ok', child } };
+}
+`,
+      });
+
+      const { stdout, code } = cli('bot bell-chime-parent --json');
+      const payload = JSON.parse(stdout.replace(/\x07/g, '').trim());
+
+      assert.strictEqual(code, 0);
+      assert.ok(stdout.includes('\x07'));
+      assert.strictEqual(payload.status, 'parent-ok');
+      assert.strictEqual(payload.child.status, 'child-ok');
     });
 
     it('filters child bot metric lines from forwarded plain output', () => {
@@ -2165,6 +2231,7 @@ export default async function ({ paths, bot }) {
 
       assert.strictEqual(code, 0);
       assert.ok(stdout.includes('Wager: 200.000000 APE avg 66.666667 APE'), 'Should show global average wager');
+      assert.ok(stdout.includes('Cost: 3.300000 APE avg 1.100000 APE (165.00 bps)'), 'Should show fee plus gas cost');
       assert.ok(stdout.includes('Min/Max fee: n.a. (not tracked for derived rest)'), 'Should explain derived rest min/max');
       assert.ok(stdout.includes('Outliers:'), 'Should show outlier section');
       assert.ok(stdout.includes('Zero observed fee:'), 'Should flag zero fee outliers');

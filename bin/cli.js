@@ -2543,6 +2543,7 @@ function formatFeeStatsBlock(label, stats, { derived = false } = {}) {
     `      Fees: ${formatPlainApe(stats.fee_ape, 6)} avg ${formatPlainApe(stats.avg_fee_ape, 6)} (${formatNullableBps(stats.avg_fee_bps)})`,
     `      Min/Max fee: ${formatFeeMinMax(stats, { derived })}`,
     `      Gas: ${formatPlainApe(stats.gas_ape, 6)} avg ${formatPlainApe(stats.avg_gas_ape, 6)}`,
+    `      Cost: ${formatPlainApe(stats.cost_ape, 6)} avg ${formatPlainApe(stats.avg_cost_ape, 6)} (${formatNullableBps(stats.avg_cost_bps)})`,
     `      Success rate: ${stats.win_rate.toFixed(2)}%`,
   ];
 }
