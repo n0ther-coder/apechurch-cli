@@ -72,7 +72,7 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 |----------|---------|-------------|
 | `APECHURCH_CLI_CONFIG_DIR` | `~/.apechurch-cli` | Root directory for local CLI config and data, including wallet, profiles, history, state, scores, default bots, and default bot logs |
 | `APECHURCH_CLI_BOTS_DIR` | `$APECHURCH_CLI_CONFIG_DIR/bots` | External bots root; set this to the actual bots checkout/root directory that contains bot folders with `bot.json` |
-| `APECHURCH_CLI_LOG_DIR` | `$APECHURCH_CLI_CONFIG_DIR/log` | Bot log directory; bot runtime contexts expose this path for bot-owned logs |
+| `APECHURCH_CLI_LOG_DIR` | `$APECHURCH_CLI_CONFIG_DIR/log` | Bot log root; run logs are written under per-bot subdirectories such as `log/bob` |
 | `APECHURCH_CLI_PK` | none | Optional fallback for non-interactive fresh install/reinstall only |
 | `APECHURCH_CLI_PASS` | none | Wallet password for non-interactive install/signing; otherwise the CLI prompts locally when needed |
 | `APECHURCH_CLI_PROFILE_URL` | `https://www.ape.church/api/profile` | Username/profile API endpoint override |

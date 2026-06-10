@@ -24,6 +24,21 @@ const RPC_URL_ENV = 'APECHAIN_RPC_URL';
 const FORCE_COLOR_ENV = 'APECHURCH_CLI_FORCE_COLOR';
 const ANSI_RE = /\x1b\[[0-9;]*m/;
 
+function getBotLogDir(logDir, bot) {
+  return path.join(logDir, bot);
+}
+
+function listBotLogFiles(logDir, bot) {
+  const dir = getBotLogDir(logDir, bot);
+  if (!fs.existsSync(dir)) return [];
+  const pattern = new RegExp(`^${bot}\\.\\d{14}(?:\\.\\d+)?\\.json$`);
+  return fs.readdirSync(dir).filter((name) => pattern.test(name));
+}
+
+function readBotLogFile(logDir, bot, fileName) {
+  return JSON.parse(fs.readFileSync(path.join(getBotLogDir(logDir, bot), fileName), 'utf8'));
+}
+
 function setupNoWalletHome() {
   fs.rmSync(NO_WALLET_HOME, { recursive: true, force: true });
   fs.mkdirSync(NO_WALLET_HOME, { recursive: true });
@@ -1170,9 +1185,7 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(code, 0);
       assert.ok(stdout.includes('["-v4","--help"]'));
-      const files = fs.existsSync(logDir)
-        ? fs.readdirSync(logDir).filter((name) => /^help-log-bot\.\d{14}(?:\.\d+)?\.json$/.test(name))
-        : [];
+      const files = listBotLogFiles(logDir, 'help-log-bot');
       assert.deepStrictEqual(files, []);
     });
 
@@ -1198,9 +1211,7 @@ describe('CLI Commands Integration Tests', () => {
       const { code } = cli('bot usage-error-bot --bad', { env });
 
       assert.notStrictEqual(code, 0);
-      const files = fs.existsSync(logDir)
-        ? fs.readdirSync(logDir).filter((name) => /^usage-error-bot\.\d{14}(?:\.\d+)?\.json$/.test(name))
-        : [];
+      const files = listBotLogFiles(logDir, 'usage-error-bot');
       assert.deepStrictEqual(files, []);
     });
 
@@ -1362,9 +1373,9 @@ export default async function () {
       assert.strictEqual(payload.nested_bot_calls[0].call_id, payload.child.parent_call_id);
       assert.deepStrictEqual(payload.nested_bot_calls[0].args, ['3', '--json']);
 
-      const childFiles = fs.readdirSync(logDir).filter((name) => /^lineage-child\.\d{14}(?:\.\d+)?\.json$/.test(name));
+      const childFiles = listBotLogFiles(logDir, 'lineage-child');
       assert.strictEqual(childFiles.length, 1);
-      const childLog = JSON.parse(fs.readFileSync(path.join(logDir, childFiles[0]), 'utf8'));
+      const childLog = readBotLogFile(logDir, 'lineage-child', childFiles[0]);
       assert.strictEqual(childLog.run_id, payload.child.run_id);
       assert.strictEqual(childLog.parent_run_id, payload.run_id);
       assert.strictEqual(childLog.parent_call_id, payload.nested_bot_calls[0].call_id);
@@ -1567,7 +1578,7 @@ export default async function () {
       assert.ok(!stdout.includes(path.join(botsDir, 'bots')));
     });
 
-    it('exposes resolved config, bot, and flat log directories to bots', () => {
+    it('exposes resolved config and bot-specific log directories to bots', () => {
       resetBotFixtures();
       const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
       writeBotFixture({
@@ -1579,7 +1590,7 @@ export default async function ({ paths, bot }) {
     paths,
     botLogDir: bot.logDir,
     logExists: fs.existsSync(bot.logDir),
-    botSubdirExists: fs.existsSync(new URL('./path-bot', \`file://\${bot.logDir}/\`)),
+    rootLogExists: fs.existsSync(paths.logDir),
   }));
   return 0;
 }
@@ -1596,9 +1607,9 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(payload.paths.configDir, CONFIG_OVERRIDE_ROOT);
       assert.strictEqual(payload.paths.botsDir, path.join(CONFIG_OVERRIDE_ROOT, 'bots'));
       assert.strictEqual(payload.paths.logDir, logDir);
-      assert.strictEqual(payload.botLogDir, logDir);
+      assert.strictEqual(payload.botLogDir, path.join(logDir, 'path-bot'));
       assert.strictEqual(payload.logExists, true);
-      assert.strictEqual(payload.botSubdirExists, false);
+      assert.strictEqual(payload.rootLogExists, true);
     });
 
     it('writes a summary json log for bot runs even without --json', () => {
@@ -1624,10 +1635,10 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(code, 0);
       assert.strictEqual(stdout.trim(), '');
 
-      const files = fs.readdirSync(logDir).filter((name) => /^summary-bot\.\d{14}(?:\.\d+)?\.json$/.test(name));
+      const files = listBotLogFiles(logDir, 'summary-bot');
       assert.strictEqual(files.length, 1);
 
-      const payload = JSON.parse(fs.readFileSync(path.join(logDir, files[0]), 'utf8'));
+      const payload = readBotLogFile(logDir, 'summary-bot', files[0]);
       assert.strictEqual(payload.bot, 'summary-bot');
       assert.strictEqual(payload.bot_name, 'summary-bot');
       assert.deepStrictEqual(payload.args, ['7']);
@@ -1670,7 +1681,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(payload.root_run_id, payload.run_id);
       assert.strictEqual(payload.parent_run_id, null);
 
-      const files = fs.readdirSync(logDir).filter((name) => /^summary-bot-json\.\d{14}(?:\.\d+)?\.json$/.test(name));
+      const files = listBotLogFiles(logDir, 'summary-bot-json');
       assert.strictEqual(files.length, 1);
     });
 
@@ -1694,10 +1705,10 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(code, 1);
       assert.ok(stdout.includes('Bot "error-bot" failed'));
 
-      const files = fs.readdirSync(logDir).filter((name) => /^error-bot\.\d{14}(?:\.\d+)?\.json$/.test(name));
+      const files = listBotLogFiles(logDir, 'error-bot');
       assert.strictEqual(files.length, 1);
 
-      const payload = JSON.parse(fs.readFileSync(path.join(logDir, files[0]), 'utf8'));
+      const payload = readBotLogFile(logDir, 'error-bot', files[0]);
       assert.strictEqual(payload.bot, 'error-bot');
       assert.strictEqual(payload.bot_name, 'error-bot');
       assert.strictEqual(payload.status, 'error');
@@ -1759,9 +1770,9 @@ export default async function ({ paths, bot }) {
         child.stderr.on('data', onData);
       });
 
-      const runningFiles = fs.readdirSync(logDir).filter((name) => /^interrupt-bot\.\d{14}(?:\.\d+)?\.json$/.test(name));
+      const runningFiles = listBotLogFiles(logDir, 'interrupt-bot');
       assert.strictEqual(runningFiles.length, 1);
-      const runningPayload = JSON.parse(fs.readFileSync(path.join(logDir, runningFiles[0]), 'utf8'));
+      const runningPayload = readBotLogFile(logDir, 'interrupt-bot', runningFiles[0]);
       assert.strictEqual(runningPayload.status, 'running');
       assert.deepStrictEqual(runningPayload.iterations, [{ n: 1, result: 'recorded-before-signal' }]);
       assert.match(runningPayload.updated_at_utc, /^\d{4}-\d{2}-\d{2}T/);
@@ -1781,10 +1792,10 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(close.code, 130);
       assert.strictEqual(close.signal, null);
 
-      const files = fs.readdirSync(logDir).filter((name) => /^interrupt-bot\.\d{14}(?:\.\d+)?\.json$/.test(name));
+      const files = listBotLogFiles(logDir, 'interrupt-bot');
       assert.strictEqual(files.length, 1);
 
-      const payload = JSON.parse(fs.readFileSync(path.join(logDir, files[0]), 'utf8'));
+      const payload = readBotLogFile(logDir, 'interrupt-bot', files[0]);
       assert.strictEqual(payload.bot, 'interrupt-bot');
       assert.strictEqual(payload.bot_name, 'interrupt-bot');
       assert.strictEqual(payload.status, 'interrupted');
