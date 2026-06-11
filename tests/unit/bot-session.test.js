@@ -81,6 +81,7 @@ describe('Bot Session Helpers', () => {
       givebackProfit: '4',
       stopLoss: '8',
       maxLoss: '9',
+      retrace: null,
       maxGames: '2',
       gpApe: '7.5',
       human: true,
@@ -110,6 +111,36 @@ describe('Bot Session Helpers', () => {
   it('accepts --bankroll as an alias for --max-loss', () => {
     const parsed = parseStandardBotArgs(['--bankroll', '9']);
     assert.strictEqual(parsed.loopControls.maxLoss, '9');
+  });
+
+  it('parses and evaluates routine retrace controls', () => {
+    const parsed = parseStandardBotArgs(['--retrace', '7']);
+
+    assert.strictEqual(parsed.loopControls.retrace, '7');
+    assert.deepStrictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: -9n * 10n ** 18n,
+        routinePnlWei: -7n * 10n ** 18n,
+        executions: 3,
+      }),
+      {
+        kind: 'retrace',
+        threshold_ape: '7',
+        routine_pnl_ape: '-7',
+        pnl_ape: '-9',
+        executions: 3,
+      },
+    );
+    assert.strictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: -9n * 10n ** 18n,
+        routinePnlWei: -6n * 10n ** 18n,
+        executions: 3,
+      }),
+      null,
+    );
   });
 
   it('parses and forwards custom standard bot human timing ranges', () => {
