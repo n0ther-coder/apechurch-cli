@@ -85,7 +85,7 @@ Treat that `3%` as an operator-friendly midpoint, not as a protocol guarantee or
 - Many supported exact RTP surfaces cluster around roughly `97% - 98%`, which implies a `2% - 3%` house edge.
 - `Roulette ✔︎` is documented at `97.11%` RTP, i.e. `2.89%` edge.
 - `Baccarat ✔︎` on `BANKER` is documented at `98.94%` RTP, i.e. `1.06%` edge.
-- Several lower-RTP modes such as Keno variants and high-edge specialty modes pull a blended long-run average upward.
+- Several lower-RTP modes such as Keno variants, multi-roll Blocks variants, and high-edge specialty modes pull a blended long-run average upward.
 - This is **not** a simple arithmetic average of every table row in `docs/GAMES_REFERENCE.md`; it is a practical whole-platform planning assumption for House-backed flow.
 
 Two caveats matter:

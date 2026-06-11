@@ -226,7 +226,7 @@ These recent completed games were read through `getGameInfo(gameId)` on the live
 **Verification notes:** [BLOCKS_CONTRACT.md](./verification/BLOCKS_CONTRACT.md)
 **Analytics:** [BLOCKS_ANALYTICS.md](./analytics/BLOCKS_ANALYTICS.md)
 
-Consecutive-roll `3x3` cluster game. Each roll resolves a full `9`-tile board, and the payout depends only on the largest connected color cluster. For the chosen risk and roll count, every surviving roll compounds the current payout, while any dead cluster ends the whole game at `0x`.
+Consecutive-roll `3x3` max-of-a-kind game. Each roll resolves a full `9`-tile board, and the payout depends only on the largest same-color count, not on tile adjacency. For the chosen risk and roll count, every surviving roll compounds the current payout, while any dead count ends the whole game at `0x`.
 
 **Command:** `apechurch-cli play blocks <amount> <risk> <runs>`
 
@@ -237,10 +237,10 @@ Consecutive-roll `3x3` cluster game. Each roll resolves a full `9`-tile board, a
 ```
 
 **Compare:**
-- Exact RTP: `Low / 1-5 rolls = 44.77%, 20.04%, 8.97%, 4.02%, 1.80%`.
-- Exact RTP: `High / 1-5 rolls = 42.37%, 17.96%, 7.61%, 3.22%, 1.37%`.
+- Exact RTP: `Low / 1-5 rolls = 98.30%, 96.63%, 94.99%, 93.37%, 91.78%`.
+- Exact RTP: `High / 1-5 rolls = 98.33%, 96.69%, 95.08%, 93.49%, 91.93%`.
 - Max fixed top payout per surviving roll: `2500x` in Low, `5000x` in High.
-- Operational note: `Low` pays from cluster `3`; `High` pays only from cluster `4` upward. Blocks is all-or-nothing and has no cash-out path.
+- Operational note: `Low` pays from max same-color count `3`; `High` pays only from max same-color count `4` upward. Blocks is all-or-nothing and has no cash-out path.
 
 ## Bubblegum Heist ✔︎
 
@@ -728,16 +728,16 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| High / 1 roll | Yes | `42.37%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| High / 2 rolls | Yes | `17.96%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| High / 3 rolls | Yes | `7.61%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| High / 4 rolls | Yes | `3.22%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| High / 5 rolls | Yes | `1.37%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| Low / 1 roll | Yes | `44.77%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| Low / 2 rolls | Yes | `20.04%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| Low / 3 rolls | Yes | `8.97%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| Low / 4 rolls | Yes | `4.02%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| Low / 5 rolls | Yes | `1.80%` | Exact exhaustive `6^9` board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| High / 1 roll | Yes | `98.33%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| High / 2 rolls | Yes | `96.69%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| High / 3 rolls | Yes | `95.08%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| High / 4 rolls | Yes | `93.49%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| High / 5 rolls | Yes | `91.93%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| Low / 1 roll | Yes | `98.30%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| Low / 2 rolls | Yes | `96.63%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| Low / 3 rolls | Yes | `94.99%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| Low / 4 rolls | Yes | `93.37%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| Low / 5 rolls | Yes | `91.78%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
 
 #### Monkey Match ✔︎
 
@@ -869,7 +869,7 @@ For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODD
 |------|---------------|----------|-------|-------|-------|-----|
 | Glyde or Crash ✔︎ | `Target 1.01x` | `96.04%` | `1.01x` @ `96.04%` | `1.01x` @ `96.04%` | `1.01x` @ `96.04%` | `97.00%` |
 | Keno ✔︎ | `Picks 5` | `58.35%` | `1.1x` @ `27.77%` | `1.1x` @ `27.77%` | `200x` @ `0.04%` | `94.68%` |
-| Speed Keno ✔︎ | `Picks 2` | `44.74%` | `1.45x` @ `39.47%` | `1.45x` @ `39.47%` | `5x` @ `5.26%` | `97.37%` |
+| Blocks ✔︎ | `Low / 1 roll` | `84.25%` | `1.01x` @ `55.85%` | `1.01x` @ `55.85%` | `2500x` @ `0.00%` | **`98.30%`** |
 | Jungle Plinko ✔︎ | `Risk 0 / Low` | `53.33%` | `1.2x` @ `38.10%` | `1.2x` @ `38.10%` | `2.2x` @ `15.24%` | **`98.00%`** |
 | Primes ✔︎ | `Easy` | `50.00%` | `1.9x` @ `40.00%` | `1.9x` @ `40.00%` | `2.2x` @ `10.00%` | **`98.00%`** |
 | Roulette ✔︎ | `Red / Black` | `47.37%` | `2.05x` @ `47.37%` | `2.05x` @ `47.37%` | `2.05x` @ `47.37%` | `97.11%` |
@@ -890,7 +890,7 @@ For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODD
 | Jungle Plinko ✔︎ | `Risk 4 / Ultra Degen` | `22.18%` | `1.4x` @ `9.87%` | `1.4x` @ `9.87%` | `1000x` @ `0.00%` | **`97.99%`** |
 | Cosmic Plinko ✔︎ | `Mode 2 / High` | `14.37%` | `1.5x` @ `6.19%` | `1.5x` @ `6.19%` | `250x` @ `0.03%` | **`97.80%`** |
 | Primes ✔︎ | `Extreme` | `12.30%` | `7.57x` @ `12.29%` | `7.57x` @ `12.29%` | `500x` @ `0.01%` | **`98.04%`** |
-| Blocks ✔︎ | `High / 5 rolls` | `0.0013%` | `57.67x` @ `0.00%` | `57.67x` @ `0.00%` | `3125000000000000000.00x` @ `0.00%` | `1.37%` |
+| Blocks ✔︎ | `High / 5 rolls` | `0.1848%` | `57.67x` @ `0.06%` | `169.15x` @ `0.07%` | `3125000000000000000.00x` @ `0.00%` | `91.93%` |
 | Bear-A-Dice ✔︎ | `Master / 5 rolls` | `0.000053%` | `1,847,949.19x` @ `0.00%` | `1,847,949.19x` @ `0.00%` | `1,847,949.19x` @ `0.00%` | **`97.80%`** |
 
 ### Still Not Exactly Calculable from Local Sources

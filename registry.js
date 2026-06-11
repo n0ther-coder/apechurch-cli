@@ -339,14 +339,14 @@ export const GAME_REGISTRY = [
   },
 
   // ===========================================================================
-  // BLOCKS - 3x3 cluster board with consecutive compounding rolls
+  // BLOCKS - 3x3 max-of-a-kind board with consecutive compounding rolls
   // ===========================================================================
   {
     key: 'blocks',
     name: 'Blocks',
     slug: 'blocks',
     type: 'blocks',
-    description: 'All-or-nothing 3x3 cluster survival game. Choose Low or High and 1-5 consecutive rolls; each paying cluster compounds the current payout, while any dead roll ends the whole game at 0x.',
+    description: 'All-or-nothing 3x3 max-of-a-kind survival game. Choose Low or High and 1-5 consecutive rolls; each paying same-color count compounds the current payout, while any dead roll ends the whole game at 0x.',
     contract: BLOCKS_CONTRACT,
     abiVerified: true,
     config: {
@@ -355,14 +355,14 @@ export const GAME_REGISTRY = [
         max: 1,
         default: 0,
         cliName: 'risk',
-        description: 'Risk level. 0=Low starts paying at a 3-block cluster; 1=High removes that floor and raises the top payout.',
+        description: 'Risk level. 0=Low starts paying when any color appears at least 3 times; 1=High removes that floor and raises the top payout.',
         bnf: [
           '<risk> ::= <integer> | "Low" | "High"',
           '; semantic constraint: value ∈ {0, 1}',
         ],
         options: [
-          { value: 0, label: 'Low', desc: 'Pays from cluster 3; every surviving roll compounds the payout' },
-          { value: 1, label: 'High', desc: 'Only cluster 4+ survives; the 9-cluster ceiling is 5000x per roll' },
+          { value: 0, label: 'Low', desc: 'Pays from max same-color count 3; every surviving roll compounds the payout' },
+          { value: 1, label: 'High', desc: 'Only max same-color count 4+ survives; the 9-of-a-kind ceiling is 5000x per roll' },
         ],
       },
       runs: {

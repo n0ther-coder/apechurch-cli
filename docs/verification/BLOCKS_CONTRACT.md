@@ -1,6 +1,6 @@
 # Blocks Contract Verification Notes
 
-> Summary: Verified tuple layout, read path, official `Low` / `High` wording, and the repo's exact consecutive-roll Blocks model.
+> Summary: Verified tuple layout, read path, official `Low` / `High` wording, max-of-a-kind settlement rule, and the repo's exact consecutive-roll Blocks model.
 
 ## Public Source Trail
 
@@ -41,6 +41,8 @@ Verified runtime facts used by the CLI:
 - `BASE_GAS = 600000`
 - `GAS_PER_RUN = 200000`
 - settlement consumes `numRuns * BOARD_SIZE` random words
+- `BOARD_SIZE = 9`
+- `NUM_COLORS = 6`
 
 The live CLI write path in [lib/games/blocks.js](../../lib/games/blocks.js) matches that tuple order and fee surface.
 
@@ -69,66 +71,84 @@ The verified contract exposes:
 Important implications:
 
 - settlement stores every revealed board in `boards`
-- `maxCounts` stores the largest connected cluster for each roll
+- `maxCounts` stores the largest same-color count for each roll, not the largest connected component
 - the getter exposes only one `totalPayout` for the full game, not a per-roll payout array
 - `riskMode` and `numRuns` are persisted directly, so history and replay tooling can reconstruct the exact CLI variant
 
-## Gameplay Model Used By The Repo
+## Verified Settlement Rule
 
-The official docs describe Blocks as:
+The verified source comments and callback code describe Blocks as:
 
-- a `3x3` tile game
-- a multiplier game where each flip reveals a number tied to a multiplier
-- a game with selectable `risk level`
-- a game with selectable `number of consecutive rolls`
+```text
+Each run generates a fresh board, computes M = max-of-a-kind, and looks up the multiplier.
+Final payout = wager * product of all run multipliers. Bust if any run's M is below threshold.
+```
 
-Combined with the verified getter shape above (`maxCounts` per roll, but a single `totalPayout` for the whole game), the repo now models Blocks as:
+The callback implements that literally:
 
-- one consecutive-roll game, not a sum of independent mini-bets
-- each surviving roll compounding the current payout by that roll's cluster multiplier
-- any dead cluster ending the whole game at `0x`
-- no cash-out and no partial payout
+- it creates a `uint8[6] counts` array for the six colors
+- each tile is assigned `color = (randomWord % NUM_COLORS) + 1`
+- the contract increments `counts[color - 1]`
+- `maxCount` is updated from the largest color frequency
+- `multiplier = payouts[riskMode][maxCount]`
+- if `multiplier > 0`, `totalToPayout = totalToPayout * multiplier / PAYOUT_DENOM`
+- otherwise the whole game busts to `0`
 
-This final settlement interpretation is an inference from the official docs wording plus the verified read/write surface; it is no longer modeled as a wager-splitting batch.
+So the implementation reality is **max-of-a-kind**, not a connected same-color cluster. This is the source of the old discrepancy: earlier repo docs and constants treated `maxCounts` as a connected cluster, while the public page and verified contract both use the largest color frequency on the board.
 
-## Exact Single-Roll Cluster Distribution
+## Verified Payout Table
 
-The public transparency material rounds the cluster table to four decimals. The repo now uses the exact cluster distribution obtained by exhaustive enumeration of all `6^9 = 10,077,696` boards; percentages below are shown to `3` decimals and the parenthetical ratio is written as `a / b E-n`, where the exponent applies to the whole ratio and is omitted when it would be `E0`:
+The constructor sets:
 
-| Largest Cluster | Exact Boards | Probability | Low | High |
-|-----------------|-------------:|------------:|----:|-----:|
-| `1` | `1,166,910` | `11.579%` (`≈ 1.944 / 1.679 E-1`) | `0x` | `0x` |
-| `2` | `5,094,600` | `50.553%` (`≈ 2.122 / 4.199`) | `0x` | `0x` |
-| `3` | `2,760,840` | `27.396%` (`≈ 3.834 / 1.399 E-1`) | `1.01x` | `0x` |
-| `4` | `814,920` | `8.086%` (`≈ 3.395 / 4.199 E-1`) | `1.2x` | `2.25x` |
-| `5` | `198,750` | `1.972%` (`≈ 3.312 / 1.679 E-2`) | `2x` | `6.6x` |
-| `6` | `36,600` | `0.363%` (`≈ 1.525 / 4.199 E-2`) | `5x` | `15x` |
-| `7` | `4,800` | `0.048%` (`≈ 2.500 / 5.248 E-3`) | `20x` | `80x` |
-| `8` | `270` | `0.003%` (`≈ 5.000 / 1.866 E-5`) | `200x` | `600x` |
-| `9` | `6` | `0.000%` (`≈ 1.000 / 1.679 E-6`) | `2500x` | `5000x` |
+| Max Count | Low | High |
+|---:|---:|---:|
+| `3` | `1.01x` | `0x` |
+| `4` | `1.2x` | `2.25x` |
+| `5` | `2x` | `6.6x` |
+| `6` | `5x` | `15x` |
+| `7` | `20x` | `80x` |
+| `8` | `200x` | `600x` |
+| `9` | `2500x` | `5000x` |
+
+## Exact Single-Roll Max-Count Distribution
+
+The public Blocks page rounds this table to four decimals. The repo uses the exact distribution obtained by exhaustive enumeration of all `6^9 = 10,077,696` boards:
+
+| Largest Same-Color Count | Exact Boards | Probability | Low | High |
+|-------------------------:|-------------:|------------:|----:|-----:|
+| `2` | `1,587,600` | `15.753601%` | `0x` | `0x` |
+| `3` | `5,628,000` | `55.846098%` | `1.01x` | `0x` |
+| `4` | `2,320,920` | `23.030264%` | `1.2x` | `2.25x` |
+| `5` | `472,500` | `4.688572%` | `2x` | `6.6x` |
+| `6` | `63,000` | `0.625143%` | `5x` | `15x` |
+| `7` | `5,400` | `0.053584%` | `20x` | `80x` |
+| `8` | `270` | `0.002679%` | `200x` | `600x` |
+| `9` | `6` | `0.000060%` | `2500x` | `5000x` |
+
+There is no largest count `1` on a `9`-tile board with `6` colors.
 
 ## Exact RTP Model
 
 For mode `m` and roll count `N`:
 
 ```text
-EV_roll(m) = Σ_cluster P(cluster) * multiplier(m, cluster)
+EV_roll(m) = Sum_maxCount P(maxCount) * multiplier(m, maxCount)
 RTP_game(m, N) = EV_roll(m)^N
 ```
 
-Because dead clusters already carry multiplier `0x`, the fail-fast all-or-nothing rule changes the path semantics but not the expected-value formula: the full-game EV is still the product of identical per-roll expectations.
+Because dead counts already carry multiplier `0x`, the fail-fast all-or-nothing rule changes the path semantics but not the expected-value formula: the full-game EV is still the product of identical per-roll expectations.
 
 Exact per-roll expectations used by the repo:
 
-- `Low`: `EV_roll = 3,759,877 / 8,398,080 ≈ 0.44770673773052`
-- `High`: `EV_roll = 3,295 / 7,776 ≈ 0.42373971193415`
+- `Low`: `EV_roll = 0.98300087638673`
+- `High`: `EV_roll = 0.98331702008141`
 
 Exact RTP references:
 
 | Mode | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
 |------|-------:|--------:|--------:|--------:|--------:|
-| Low | `44.770674%` | `20.044132%` | `8.973893%` | `4.017672%` | `1.798739%` |
-| High | `42.373971%` | `17.955534%` | `7.608473%` | `3.224012%` | `1.366142%` |
+| Low | `98.300088%` | `96.629072%` | `94.986463%` | `93.371776%` | `91.784538%` |
+| High | `98.331702%` | `96.691236%` | `95.078138%` | `93.491952%` | `91.932227%` |
 
 ## Promotion Outcome
 
@@ -137,4 +157,4 @@ Blocks remains `ABI verified` because:
 - the live contract address is explorer-verified
 - the CLI tuple layout and fee path match the verified source
 - the verified getter persists `riskMode`, `numRuns`, `boards`, `maxCounts`, and one final `totalPayout`
-- the repo now uses the official `Low` / `High` wording and a consecutive-roll model consistent with the public docs and verified storage surface
+- the repo now uses the contract-backed max-of-a-kind distribution and a consecutive-roll model consistent with the public docs and verified storage surface

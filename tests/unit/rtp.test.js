@@ -105,9 +105,9 @@ describe('RTP Helpers', () => {
     const byLabel = new Map(variants.map((variant) => [variant.variantLabel, variant]));
 
     assert.strictEqual(variants.length, 10);
-    assert.strictEqual(byLabel.get('Low / 1 roll').calculated.display, '44.77%');
+    assert.strictEqual(byLabel.get('Low / 1 roll').calculated.display, '98.30%');
     assert.strictEqual(byLabel.get('Low / 5 rolls').maxPayout.display, '97,656,250,000,000,000x');
-    assert.strictEqual(byLabel.get('High / 1 roll').calculated.display, '42.37%');
+    assert.strictEqual(byLabel.get('High / 1 roll').calculated.display, '98.33%');
     assert.strictEqual(byLabel.get('High / 5 rolls').maxPayout.display, '3,125,000,000,000,000,000x');
   });
 
@@ -237,7 +237,7 @@ describe('RTP Helpers', () => {
       config: { mode: 1, runs: 5 },
     });
 
-    assert.strictEqual(expected.display, '1.37%');
+    assert.strictEqual(expected.display, '91.93%');
     assert.strictEqual(expected.referenceType, 'calculated');
     assert.strictEqual(expected.calculationKind, 'exact');
     assert.strictEqual(maxPayout.display, '3,125,000,000,000,000,000x');
