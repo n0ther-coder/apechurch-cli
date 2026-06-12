@@ -23,6 +23,7 @@ const LOG_DIR_ENV = 'APECHURCH_CLI_LOG_DIR';
 const RPC_URL_ENV = 'APECHAIN_RPC_URL';
 const FORCE_COLOR_ENV = 'APECHURCH_CLI_FORCE_COLOR';
 const ANSI_RE = /\x1b\[[0-9;]*m/;
+const CONFIG_OVERRIDE_WALLET = '0x2222222222222222222222222222222222222222';
 
 function getBotLogDir(logDir, bot) {
   return path.join(logDir, bot);
@@ -105,6 +106,19 @@ function setupHistoryFixtureHome() {
 function resetBotFixtures() {
   fs.rmSync(path.join(NO_WALLET_HOME, '.apechurch-cli', 'bots'), { recursive: true, force: true });
   fs.rmSync(CONFIG_OVERRIDE_ROOT, { recursive: true, force: true });
+}
+
+function writeConfigOverrideProfile({ address = CONFIG_OVERRIDE_WALLET, currentGpPerApe = 7.5 } = {}) {
+  const normalized = address.toLowerCase();
+  fs.mkdirSync(path.join(CONFIG_OVERRIDE_ROOT, 'profiles'), { recursive: true });
+  fs.writeFileSync(
+    path.join(CONFIG_OVERRIDE_ROOT, 'wallet.json'),
+    JSON.stringify({ address }, null, 2)
+  );
+  fs.writeFileSync(
+    path.join(CONFIG_OVERRIDE_ROOT, 'profiles', `${normalized}_profile.json`),
+    JSON.stringify({ currentGpPerApe }, null, 2)
+  );
 }
 
 function writeBotFixture({
@@ -1643,6 +1657,13 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(payload.bot_name, 'summary-bot');
       assert.deepStrictEqual(payload.args, ['7']);
       assert.strictEqual(payload.status, 'ok');
+      assert.deepStrictEqual(payload.gp_rate, {
+        base_gp_per_ape: 5,
+        current_gp_per_ape: null,
+        effective_gp_per_ape: 5,
+        source: 'base',
+        source_label: 'base default',
+      });
       assert.match(payload.run_id, /^[0-9a-f-]{36}$/);
       assert.strictEqual(payload.root_run_id, payload.run_id);
       assert.strictEqual(payload.parent_run_id, null);
@@ -1683,6 +1704,76 @@ export default async function ({ paths, bot }) {
 
       const files = listBotLogFiles(logDir, 'summary-bot-json');
       assert.strictEqual(files.length, 1);
+    });
+
+    it('persists the effective GP rate in bot summary logs', () => {
+      resetBotFixtures();
+      writeConfigOverrideProfile({ currentGpPerApe: 7.5 });
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'gp-rate-bot',
+        script: `export default async function ({ bot, args }) {
+  return {
+    exitCode: 0,
+    summary: { bot: bot.command, args, status: 'ok' },
+  };
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const { stdout, code } = cli('bot gp-rate-bot 7 --json', { env });
+      assert.strictEqual(code, 0);
+      const printed = JSON.parse(stdout.trim());
+      assert.deepStrictEqual(printed.gp_rate, {
+        base_gp_per_ape: 5,
+        current_gp_per_ape: 7.5,
+        effective_gp_per_ape: 7.5,
+        source: 'profile',
+        source_label: 'wallet current',
+      });
+
+      const files = listBotLogFiles(logDir, 'gp-rate-bot');
+      assert.strictEqual(files.length, 1);
+      const logged = readBotLogFile(logDir, 'gp-rate-bot', files[0]);
+      assert.deepStrictEqual(logged.gp_rate, printed.gp_rate);
+    });
+
+    it('persists a bot --gp-ape override before the wallet profile rate', () => {
+      resetBotFixtures();
+      writeConfigOverrideProfile({ currentGpPerApe: 7.5 });
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'gp-rate-override-bot',
+        script: `export default async function ({ bot, args }) {
+  return {
+    exitCode: 0,
+    summary: { bot: bot.command, args, status: 'ok' },
+  };
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const { stdout, code } = cli('bot gp-rate-override-bot 7 --gp-ape 8 --json', { env });
+      assert.strictEqual(code, 0);
+      const printed = JSON.parse(stdout.trim());
+      assert.deepStrictEqual(printed.args, ['7', '--gp-ape', '8', '--json']);
+      assert.deepStrictEqual(printed.gp_rate, {
+        base_gp_per_ape: 5,
+        current_gp_per_ape: 7.5,
+        effective_gp_per_ape: 8,
+        source: 'cli',
+        source_label: 'run override',
+      });
     });
 
     it('writes an error json log when a bot throws', () => {
