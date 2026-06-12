@@ -11,6 +11,7 @@ import {
   formatBotCommandLine,
   formatCommandLine,
   colorNestedBotOutput,
+  createStandardBotLoopState,
   formatIterationSummaryLine,
   formatPlayCommandSuffix,
   getStandardBotInternalDelayMs,
@@ -316,6 +317,92 @@ describe('Bot Session Helpers', () => {
         threshold: 3,
         pnl_ape: '0',
         executions: 3,
+      },
+    );
+  });
+
+  it('triggers recover-loss from the net P&L session low', () => {
+    const parsed = parseStandardBotArgs(['--recover-loss', '100']);
+    const state = createStandardBotLoopState();
+
+    assert.strictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: 500n * 10n ** 18n,
+        currentBalanceApe: '820',
+        startingBalanceApe: '1000',
+        executions: 1,
+        state,
+      }),
+      null,
+    );
+
+    assert.strictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: 500n * 10n ** 18n,
+        currentBalanceApe: '910',
+        startingBalanceApe: '1000',
+        executions: 2,
+        state,
+      }),
+      null,
+    );
+
+    assert.deepStrictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: 500n * 10n ** 18n,
+        currentBalanceApe: '921',
+        startingBalanceApe: '1000',
+        executions: 3,
+        state,
+      }),
+      {
+        kind: 'recover_loss',
+        threshold_ape: '100',
+        pnl_ape: '-79',
+        min_pnl_ape: '-180',
+        recovered_ape: '101',
+        pnl_basis: 'net',
+        executions: 3,
+      },
+    );
+  });
+
+  it('triggers giveback-profit from the net P&L session high', () => {
+    const parsed = parseStandardBotArgs(['--giveback-profit', '400']);
+    const state = createStandardBotLoopState();
+
+    assert.strictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: -1n * 10n ** 18n,
+        currentBalanceApe: '1502.41',
+        startingBalanceApe: '1000',
+        executions: 8,
+        state,
+      }),
+      null,
+    );
+
+    assert.deepStrictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: -1n * 10n ** 18n,
+        currentBalanceApe: '1102.4',
+        startingBalanceApe: '1000',
+        executions: 9,
+        state,
+      }),
+      {
+        kind: 'giveback_profit',
+        threshold_ape: '400',
+        pnl_ape: '102.4',
+        max_pnl_ape: '502.41',
+        giveback_ape: '400.01',
+        pnl_basis: 'net',
+        executions: 9,
       },
     );
   });

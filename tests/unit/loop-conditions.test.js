@@ -235,7 +235,7 @@ describe('Loop Terminal Conditions', () => {
     });
   });
 
-  it('arms recover-loss after a drawdown and stops on break-even recovery', () => {
+  it('stops recover-loss after net P&L rebounds from the session low', () => {
     const terminalState = createLoopTerminalState();
 
     assert.strictEqual(getBalanceLoopTerminalCondition({
@@ -256,8 +256,16 @@ describe('Loop Terminal Conditions', () => {
 
     assert.equal(terminalState.recoverLossArmed, true);
 
+    assert.strictEqual(getBalanceLoopTerminalCondition({
+      currentBalanceApe: 96,
+      startingBalanceApe: 100,
+      recoverLoss: 20,
+      gamesPlayed: 6,
+      state: terminalState,
+    }), null);
+
     assert.deepStrictEqual(getBalanceLoopTerminalCondition({
-      currentBalanceApe: 101,
+      currentBalanceApe: 99,
       startingBalanceApe: 100,
       recoverLoss: 20,
       gamesPlayed: 7,
@@ -265,11 +273,13 @@ describe('Loop Terminal Conditions', () => {
     }), {
       kind: 'recover_loss',
       threshold: 20,
-      sessionPnlApe: 1,
+      sessionPnlApe: -1,
+      minSessionPnlApe: -22,
+      recoveredApe: 21,
     });
   });
 
-  it('arms giveback-profit after a run-up and stops on break-even giveback', () => {
+  it('stops giveback-profit after net P&L falls from the session high', () => {
     const terminalState = createLoopTerminalState();
 
     assert.strictEqual(getBalanceLoopTerminalCondition({
@@ -290,8 +300,16 @@ describe('Loop Terminal Conditions', () => {
 
     assert.equal(terminalState.givebackProfitArmed, true);
 
+    assert.strictEqual(getBalanceLoopTerminalCondition({
+      currentBalanceApe: 105,
+      startingBalanceApe: 100,
+      givebackProfit: 40,
+      gamesPlayed: 6,
+      state: terminalState,
+    }), null);
+
     assert.deepStrictEqual(getBalanceLoopTerminalCondition({
-      currentBalanceApe: 99,
+      currentBalanceApe: 101,
       startingBalanceApe: 100,
       givebackProfit: 40,
       gamesPlayed: 8,
@@ -299,7 +317,9 @@ describe('Loop Terminal Conditions', () => {
     }), {
       kind: 'giveback_profit',
       threshold: 40,
-      sessionPnlApe: -1,
+      sessionPnlApe: 1,
+      maxSessionPnlApe: 42,
+      givebackApe: 41,
     });
   });
 
@@ -308,6 +328,8 @@ describe('Loop Terminal Conditions', () => {
       kind: 'recover_loss',
       threshold: 25,
       sessionPnlApe: 0.5,
+      minSessionPnlApe: -26,
+      recoveredApe: 26.5,
     }, {
       currentBalanceApe: 100.5,
       startingBalanceApe: 100,
@@ -315,8 +337,26 @@ describe('Loop Terminal Conditions', () => {
     });
 
     assert.ok(message.includes('Loss recovered! Session P&L: +0.50 APE'));
-    assert.ok(message.includes('Triggered after reaching -25.00 APE or worse'));
+    assert.ok(message.includes('Recovered 26.50 APE from min P&L -26.00 APE'));
     assert.ok(message.includes('Games played: 9'));
+  });
+
+  it('formats human-readable giveback-profit stop messages', () => {
+    const message = formatLoopTerminalConditionMessage({
+      kind: 'giveback_profit',
+      threshold: 40,
+      sessionPnlApe: 101.5,
+      maxSessionPnlApe: 502.41,
+      givebackApe: 400.91,
+    }, {
+      currentBalanceApe: 1101.5,
+      startingBalanceApe: 1000,
+      gamesPlayed: 12,
+    });
+
+    assert.ok(message.includes('Profit given back! Session P&L: +101.50 APE'));
+    assert.ok(message.includes('Gave back 400.91 APE from max P&L +502.41 APE'));
+    assert.ok(message.includes('Games played: 12'));
   });
 
   it('formats human-readable min-profit stop messages', () => {
