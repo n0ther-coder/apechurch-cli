@@ -1,21 +1,66 @@
 # @n0ther/apechurch-cli
 
-> Summary: Hardened, fully AI agents playable Ape Church fork for GitHub and npm readers. Highlights encrypted-only wallet handling, stronger auto gameplay, expanded game support, on-chain history reporting, and operator-focused CLI tooling.
+> Summary: Hardened, fully AI agents playable Ape Church CLI for GitHub and npm readers. Highlights encrypted-only wallet handling, stronger auto gameplay, expanded game support, on-chain history reporting, and operator-focused CLI tooling.
 
 Encrypted-only, fully AI agents playable gambling CLI for [Ape Church](https://ape.church) on ApeChain.
 
-Private keys stay local, are stored on disk only in encrypted form in this hardened build, and are never sent by the CLI to Ape Church services in plaintext. The fork also expands game coverage, improves auto gameplay for stateful games, and adds deeper on-chain reporting and machine-friendly flows for AI agents and terminal-first users.
+Private keys stay local, are stored on disk only in encrypted form in this hardened build, and are never sent by the CLI to Ape Church services in plaintext. This standalone project also expands game coverage, improves auto gameplay for stateful games, and adds deeper on-chain reporting and machine-friendly flows for AI agents and terminal-first users.
+
+## Standalone Project Status
+
+This package started from the original Ape Church CLI codebase, but it has been reshaped deeply enough that it should now be treated as its own project rather than a simple downstream patch set. The goal is still the same ecosystem and the same live ApeChain games, but the implementation has moved toward a hardened, automation-ready operator CLI.
+
+Concrete examples from this repository:
+
+- **Safer local custody:** `bin/cli.js` and `lib/wallet.js` enforce encrypted wallet storage, local password prompts, multi-wallet selection, password rotation, and local signing paths instead of treating private-key handling as a disposable setup step.
+- **A maintained game registry:** `registry.js` centralizes supported games, aliases, verified ABI metadata, RTP references, VRF fee behavior, and display names, so the CLI can expose consistent help, JSON, docs, and automation behavior across the catalog.
+- **Verified, richer game coverage:** `docs/verification/` and `lib/games/` back the ABI-verified labels used by the CLI, while the supported game list now covers 22 implemented games and 26 tracked history contracts.
+- **Stateful game engines:** `lib/stateful/blackjack/`, `lib/stateful/video-poker/`, `lib/stateful/hi-lo-nebula/`, and `lib/stateful/cash-dash/` include resumable local state, command-specific actions, display layers, auto-play, and solver/strategy code rather than simple one-shot contract calls.
+- **Operator-grade history and reporting:** `lib/wallet-analysis.js`, `lib/history.js`, `lib/scores.js`, and the `history`, `scoreboard`, and `fees` commands build local per-wallet caches, reconstruct game variants, report real wallet economics, and keep offline reads fast.
+- **AI-agent and bot runtime:** `lib/bots.js` exposes `ctx.playJson(...)`, `ctx.botJson(...)`, session helpers, nested bot chime propagation, logs, and machine-readable command output so external agents can run the CLI without a browser.
+- **Formal command surface:** `docs/COMMAND_REFERENCE.md`, `docs/GAMES_REFERENCE.md`, and the generated CLI help document the grammar, aliases, JSON modes, and loop controls expected by users and automation.
+
+In short: the original repository is the historical base; this package is now a hardened local signer, game automation layer, analytics cache, and bot-oriented command surface for Ape Church.
+
+## Personal Bots For Humans And AI Agents
+
+`apechurch-cli` treats personal bots as a first-class local extension point. This repository contains the bot loader, runtime helpers, and public contract; personal bot implementations live in a separate local directory or Git repository that you control. A bot is trusted code discovered by the CLI, run through the same encrypted local wallet, and constrained by the same command grammar, wallet guards, and JSON reporting surfaces as manual play.
+
+For human operators, this means private routines can be packaged as named commands instead of fragile shell scripts: recovery play, bankroll routing, game-specific experiments, scheduled loop variants, or multi-step strategies can live under a bot directory with its own `README.md`, `bot.json`, usage help, and run logs. Operators can list available bots, inspect their help, pass standard stop-loss/take-profit controls, and review JSON summaries after each run:
+
+```bash
+apechurch-cli bot --list
+apechurch-cli bot <bot-command> --help
+apechurch-cli bot <bot-command> 10 --take-profit 25 --stop-loss 5
+```
+
+For AI agents, the same surface is intentionally machine-friendly. `lib/bots.js` exposes a narrow runtime context with helpers such as `ctx.play(...)`, `ctx.playJson(...)`, `ctx.botRun(...)`, `ctx.botJson(...)`, `ctx.validatePlayArgs(...)`, and `ctx.validateBotArgs(...)`, so an agent can compose live CLI plays, call nested bots, validate arguments before execution, and consume structured results without scraping terminal output. The bot runtime also tracks nested calls, forwards chimes through parent/child bot chains, and writes per-bot JSON logs under `APECHURCH_CLI_LOG_DIR`.
+
+Bot discovery is local and explicit:
+
+```bash
+# Default personal bot root:
+~/.apechurch-cli/bots
+
+# Or point at any local bot repository or directory you control:
+export APECHURCH_CLI_BOTS_DIR=/path/to/local-bots
+export APECHURCH_CLI_LOG_DIR=/path/to/local-bot-logs
+apechurch-cli bot --list
+```
+
+This design keeps bot strategy private while still giving both humans and AI agents a stable execution contract. The CLI does not need to know whether a bot was written by a person, generated by an agent, or maintained collaboratively; it only requires a manifest, a documented entry point, and well-formed calls back into the public `apechurch-cli` surface. Keep bot repositories private or public as needed, install or clone them wherever convenient, and switch between them by changing `APECHURCH_CLI_BOTS_DIR`. Use [docs/BOTS.md](./docs/BOTS.md) plus `apechurch-cli bot --help` for the public loader contract.
 
 ## Features
 
 ### Supported Games
 
 - **22 implemented games:** `ApeStrong ✔︎`, `Roulette ✔︎`, `Baccarat ✔︎`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough ✔︎`, `Bubblegum Heist ✔︎`, `Geez Diggerz ✔︎`, `Gimboz Smash ✔︎`, `Glyde or Crash ✔︎`, `Reel Pirates`, `Cash Dash ✔︎`, `Hi-Lo Nebula ✔︎`, `Sushi Showdown ✔︎`, `Monkey Match ✔︎`, `Bear-A-Dice ✔︎`, `Blocks ✔︎`, `Primes ✔︎`, `Blackjack ✔︎`, and `Video Poker ✔︎ / Gimboz Poker`. Of these, 21 are ABI-verified; `Reel Pirates` is playable but not ABI-verified.
+- **Personal bot support:** humans and AI agents can package private routines as local bots with manifests, help text, nested calls, JSON summaries, and standard wallet guards
 - **Fully AI agents playable:** browserless CLI flows, local signing, JSON output, formal command grammar, and self-describing game metadata make it straightforward for coding agents and automations to use directly
 - **Improved auto gameplay:** `Blackjack ✔︎`, `Cash Dash ✔︎`, `Hi-Lo Nebula ✔︎`, and `Video Poker ✔︎ / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
 - **Fully on-chain settlement:** every wager is placed on ApeChain and resolved by the live contracts with their on-chain RNG integrations, including Chainlink VRF and Pyth V2 where applicable
 
-### What This Fork Adds
+### What This Project Adds
 
 - **Encrypted-only local signer:** private keys stay encrypted on disk, plaintext wallet export is disabled, and signing happens locally without transmitting the key to Ape Church services
 - **AI-agent-first operator UX:** fully AI agents playable command surface with structured outputs, local history caches, and no browser dependency
@@ -66,13 +111,54 @@ apechurch-cli play --loop
 
 If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses the encrypted wallet and does not ask for the private key again.
 
+## Native Win Chimes
+
+By default, `apechurch-cli` installs the optional native `speaker` package and uses it to play short slot-like win chimes locally. If the native audio backend is missing or cannot start, gameplay continues and the CLI falls back to terminal BEL where the terminal supports it.
+
+`npm audit` currently reports `speaker@0.5.5` for [GHSA-w5fc-gj3h-26rx](https://github.com/advisories/GHSA-w5fc-gj3h-26rx), a denial-of-service advisory with no upstream package fix. For normal `apechurch-cli` use the practical impact should be very low: this CLI is meant to run locally, the worker synthesizes a small PCM buffer in memory, and it does not decode remote audio, process wallet secrets, or expose a network listener. It is still not literally zero risk, because `speaker` is native code and a DoS can still crash or hang the local chime process.
+
+Default install with native chimes:
+
+```bash
+npm install -g @n0ther/apechurch-cli
+```
+
+Security-first install without the native chime backend:
+
+```bash
+npm install -g @n0ther/apechurch-cli --omit=optional
+```
+
+For a local checkout, use the same choice:
+
+```bash
+# Default: native chimes enabled
+npm install
+
+# Security-first: skip optional native dependencies
+npm install --omit=optional
+```
+
+If you already installed the package globally and want to switch to the no-native-chime install, reinstall it explicitly:
+
+```bash
+npm uninstall -g @n0ther/apechurch-cli
+npm install -g @n0ther/apechurch-cli --omit=optional
+```
+
+To keep the package installed normally but silence all chimes for one command:
+
+```bash
+APECHURCH_CLI_SUPPRESS_CHIME=1 apechurch-cli play --auto
+```
+
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `APECHURCH_CLI_CONFIG_DIR` | `~/.apechurch-cli` | Root directory for local CLI config and data, including wallet, profiles, history, state, scores, default bots, and default bot logs |
-| `APECHURCH_CLI_BOTS_DIR` | `$APECHURCH_CLI_CONFIG_DIR/bots` | External bots root; set this to the actual bots checkout/root directory that contains bot folders with `bot.json` |
-| `APECHURCH_CLI_LOG_DIR` | `$APECHURCH_CLI_CONFIG_DIR/log` | Bot log root; run logs are written under per-bot subdirectories such as `log/bob` |
+| `APECHURCH_CLI_BOTS_DIR` | `$APECHURCH_CLI_CONFIG_DIR/bots` | Personal local bot root; set this to the directory that contains bot folders with `bot.json` |
+| `APECHURCH_CLI_LOG_DIR` | `$APECHURCH_CLI_CONFIG_DIR/log` | Bot log root; run logs are written under per-bot subdirectories such as `log/<bot-name>` |
 | `APECHURCH_CLI_PK` | none | Optional fallback for non-interactive fresh install/reinstall only |
 | `APECHURCH_CLI_PASS` | none | Wallet password for non-interactive install/signing; otherwise the CLI prompts locally when needed |
 | `APECHURCH_CLI_PROFILE_URL` | `https://www.ape.church/api/profile` | Username/profile API endpoint override |
@@ -80,13 +166,15 @@ If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses
 | `APECHURCH_CLI_FORCE_COLOR` | unset | Force ANSI color in plain output when set to `1`; equivalent to `--color` |
 | `NO_COLOR` | unset | Disable ANSI color output when set |
 | `APECHURCH_CLI_FORCE_CHIME` | unset | Force win chimes in JSON/nested bot flows when set to `1` |
+| `APECHURCH_CLI_SUPPRESS_CHIME` | unset | Disable win chimes entirely when set to `1` |
 | `APECHURCH_CLI_SUPPRESS_VERSION_BANNER` | unset | Suppress the stderr version banner when set to `1`; nested bot CLI calls set this internally |
 
 ## Reference Docs
 
 - Full CLI command, option, alias, and shared BNF reference: [docs/COMMAND_REFERENCE.md](./docs/COMMAND_REFERENCE.md)
 - Per-game syntax and game-specific grammar: [docs/GAMES_REFERENCE.md](./docs/GAMES_REFERENCE.md)
-- External bot authoring guidelines, directory layout, and security note: [bots/README.md](./bots/README.md)
+- Personal bot development guide: [docs/BOTS.md](./docs/BOTS.md)
+- Personal bot command syntax and runtime helper reference: [docs/COMMAND_REFERENCE.md](./docs/COMMAND_REFERENCE.md#bot-name-args)
 - The House mechanics, current `House Yield` semantics, and planning-grade APY model: [docs/HOUSE_REFERENCE.md](./docs/HOUSE_REFERENCE.md)
 
 ## Profile
@@ -409,7 +497,7 @@ apechurch-cli cash-dash 10              # Prompts for the opening tile
 ```
 
 - `--auto` enables automatic play for stateful games
-- stateful games can be routed through `play`, which is the intended surface for private bot automation
+- stateful games can be routed through `play`, which is the intended surface for personal bot automation
 - blackjack follows the live H17 rule surface: the dealer hits soft 17, and auto-play / estimates model that rule
 - `blackjack --side <ape>` adds a player side bet to the opening deal without changing the in-hand EV solver
 - `blackjack --auto best --solver-max-states <n> --solver-timeout-ms <ms>` controls the exact-EV worker; defaults are `50000` states and `5000` ms, with fallback to simple mode when either guard trips
@@ -445,7 +533,7 @@ apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker (al
 apechurch-cli status                            # Check balance
 apechurch-cli wallet --list                     # List locally available wallet addresses
 apechurch-cli wallet download [address]         # Download supported on-chain history into local cache
-apechurch-cli bot [name] [args...]             # Run a private external bot or list discovered bots
+apechurch-cli bot [name] [args...]             # Run a personal local bot or list discovered bots
 apechurch-cli games                             # List all games
 apechurch-cli game <name>                       # Game details
 apechurch-cli pause                             # Stop autonomous play

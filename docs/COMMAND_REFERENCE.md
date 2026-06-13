@@ -21,7 +21,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | Variable | Default | Scope |
 |----------|---------|-------|
 | `APECHURCH_CLI_CONFIG_DIR` | `~/.apechurch-cli` | Root local config/data directory |
-| `APECHURCH_CLI_BOTS_DIR` | `$APECHURCH_CLI_CONFIG_DIR/bots` | External bots root containing bot folders with `bot.json` |
+| `APECHURCH_CLI_BOTS_DIR` | `$APECHURCH_CLI_CONFIG_DIR/bots` | Personal local bot root containing bot folders with `bot.json` |
 | `APECHURCH_CLI_LOG_DIR` | `$APECHURCH_CLI_CONFIG_DIR/log` | Bot log directory exposed to bot runtime contexts |
 | `APECHURCH_CLI_PK` | none | Optional fallback for non-interactive fresh install/reinstall |
 | `APECHURCH_CLI_PASS` | none | Wallet password for non-interactive install/signing |
@@ -30,6 +30,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `APECHURCH_CLI_FORCE_COLOR` | unset | Force ANSI color in plain output when set to `1`; equivalent to `--color` |
 | `NO_COLOR` | unset | Disable ANSI color output |
 | `APECHURCH_CLI_FORCE_CHIME` | unset | Force win chimes in JSON/nested bot flows when set to `1` |
+| `APECHURCH_CLI_SUPPRESS_CHIME` | unset | Disable win chimes entirely when set to `1` |
 | `APECHURCH_CLI_SUPPRESS_VERSION_BANNER` | unset | Suppress the stderr version banner when set to `1`; nested bot CLI calls set this internally |
 
 ## Top-Level Commands
@@ -530,9 +531,9 @@ These options are accepted by the `play` command for both stateless and stateful
 <bot-name> ::= <token>
 ```
 
-`bot` discovers external bot folders from `$APECHURCH_CLI_CONFIG_DIR/bots` by default, where `APECHURCH_CLI_CONFIG_DIR` defaults to `~/.apechurch-cli`. Set `APECHURCH_CLI_BOTS_DIR` when the bot root lives elsewhere; its value must be the actual bots root that contains bot folders with `bot.json`, not a parent directory. Bot logs belong under `APECHURCH_CLI_LOG_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/log`. Each bot is defined by `bot.json` plus an entry module. Use `bot --list` to inspect discovery, `bot --help` for the shared loader help, then `bot <name> ...` to execute one bot. Use `bot <name> -h` or `bot <name> --help` for bot-specific help.
+`bot` discovers personal local bot folders from `$APECHURCH_CLI_CONFIG_DIR/bots` by default, where `APECHURCH_CLI_CONFIG_DIR` defaults to `~/.apechurch-cli`. Set `APECHURCH_CLI_BOTS_DIR` when the bot root lives elsewhere, including a separate private or public Git repository; its value must be the actual local bot root that contains bot folders with `bot.json`, not a parent directory. Bot logs belong under `APECHURCH_CLI_LOG_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/log`. Each bot is defined by `bot.json` plus an entry module. Use `bot --list` to inspect discovery, `bot --help` for the shared loader help, then `bot <name> ...` to execute one bot. Use `bot <name> -h` or `bot <name> --help` for bot-specific help.
 
-The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. External bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape>`, `--fallback-bot <name>`, and standard loop controls. `--take-profit` and `--stop-loss` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive absolute thresholds from the bot's starting balance, while a lone `--stop-loss` derives the bot's relative bankroll as `starting balance - stop-loss`. `--max-routines` limits the main bot's own routines and is not forwarded; `--preflight` delays the main bot before balance reads and is not forwarded; `--max-games` remains a game loop option and is invalid when passed to a bot. See [bots/README.md](../bots/README.md) for authoring guidelines, manifest rules, output conventions, and the security note.
+The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. Local bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape>`, `--fallback-bot <name>`, and standard loop controls. `--take-profit` and `--stop-loss` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive absolute thresholds from the bot's starting balance, while a lone `--stop-loss` derives the bot's relative bankroll as `starting balance - stop-loss`. `--max-routines` limits the main bot's own routines and is not forwarded; `--preflight` delays the main bot before balance reads and is not forwarded; `--max-games` remains a game loop option and is invalid when passed to a bot. Bot code is trusted local code, so only run bots from directories you control. See [BOTS.md](./BOTS.md) for the public bot development guide.
 
 The runtime surface is intentionally narrow: bots receive positional args plus gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `validatePlayArgs(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, `validateBotArgs(name, tokens)`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and bot-specific `bot.logDir`. Bot summary logs are written under `paths.logDir/<bot-name>/` with a `.json` extension; if a bot throws or receives `SIGINT`/`SIGTERM`, the CLI writes a minimal best-effort JSON log with `status: "error"` or `status: "interrupted"` before returning control.
 

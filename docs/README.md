@@ -18,12 +18,12 @@ Everything else lives under `docs/` or next to the code it explains.
 | File | Audience | Usefulness | Keep? | Notes |
 |------|----------|------------|-------|-------|
 | `docs/COMMAND_REFERENCE.md` | Users / maintainers | High | Yes | Canonical CLI command surface, including top-level commands, supported aliases, options, and shared BNF. |
+| `docs/BOTS.md` | Users / maintainers | High | Yes | Public guide for developing personal local bots against the CLI bot loader and runtime helpers. |
 | `docs/ADDING_GAMES.md` | Maintainers | High | Yes | Source of truth for extending the game registry and CLI handlers. |
 | `docs/ABI_VERIFICATION.md` | Maintainers | High | Yes | Promotion checklist for deciding when a supported game may be marked `ABI verified` and shown with `✔︎`. |
 | `docs/GAMES_REFERENCE.md` | Users / maintainers | High | Yes | Comparison-first syntax and RTP summary for supported games, with a compact appendix for public-but-unsupported titles. |
 | `docs/HOUSE_REFERENCE.md` | Users / maintainers | High | Yes | The House mechanics, meaning of `House Yield`, and the repo's planning-grade APY model and sensitivity bounds. |
 | `docs/PUBLISHING.md` | Maintainers | High | Yes | Release and packaging checklist. |
-| `bots/README.md` | Maintainers / private-bot authors | Medium | Yes | Canonical external bot authoring guidelines in the bot repository root. |
 | `docs/FEATURES.md` | Marketing / product | Medium | Maybe | Useful as a product snapshot, but some sections overlap with `README.md`. |
 | `docs/THESIS.md` | Marketing / narrative | Low | Maybe | Positioning document, not operational documentation. |
 | `docs/verification/README.md` | Maintainers | High | Yes | Index of the canonical per-game ABI verification notes. |

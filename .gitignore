@@ -38,3 +38,6 @@ robots.txt
 /_unversioned_data/
 /_local_only/*
 !/_local_only/.keep
+
+# Optional local APECHURCH_CLI_BOTS_DIR checkout
+/bots/
