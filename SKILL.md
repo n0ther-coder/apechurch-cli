@@ -87,7 +87,7 @@ apechurch-cli play --auto
 apechurch-cli play --loop
 ```
 
-On a fresh install/reinstall, `apechurch-cli install` prompts securely for the private key with hidden input. If `~/.apechurch-cli/wallet.json` already exists, the encrypted wallet is reused and the private key is not requested again. `APECHURCH_CLI_PK` remains an optional non-interactive fallback, `APECHURCH_CLI_PASS` is required for non-interactive install/signing, and `APECHURCH_CLI_PROFILE_URL` overrides the default username/profile API.
+On a fresh install/reinstall, `apechurch-cli install` prompts securely for the private key with hidden input unless `~/.apechurch-cli/wallets/current.json` already points to an encrypted `wallets/<address>.json` entry. `APECHURCH_CLI_PK` remains an optional non-interactive fallback, `APECHURCH_CLI_PASS` is required for non-interactive install/signing, and `APECHURCH_CLI_PROFILE_URL` overrides the default username/profile API.
 
 ---
 
@@ -741,7 +741,7 @@ apechurch-cli video-poker payouts  # Show payout table
 | `apechurch-cli wallet new` | Create and select a new wallet |
 | `apechurch-cli wallet select [address]` | Switch to a stored wallet |
 | `apechurch-cli wallet download [address]` | Download supported on-chain history into local cache |
-| `apechurch-cli wallet new-password` | Re-encrypt the local wallet with a new password |
+| `apechurch-cli wallet password` | Re-encrypt the local wallet with a new password |
 | `apechurch-cli send APE <amount> <address>` | Send APE |
 | `apechurch-cli send GP <amount> <address>` | Send Gimbo Points |
 
@@ -1066,13 +1066,13 @@ apechurch-cli status --json | jq '.paused'
 
 ## Security
 
-Your encrypted wallet material is stored at `~/.apechurch-cli/wallet.json`.
+Your selected encrypted wallet is tracked by `~/.apechurch-cli/wallets/current.json`, which points to `wallets/<address>.json`. Encrypted wallet material lives in the address-specific entry; if that entry is a symlink, normal filesystem resolution applies.
 
 ⚠️ **CRITICAL:**
 - Never share your private key
 - Never paste it into prompts or third-party tools
 - The CLI handles all signing locally
-- Consider using `wallet new-password` periodically to rotate local password protection
+- Consider using `wallet password` periodically to rotate local password protection
 
 ---
 

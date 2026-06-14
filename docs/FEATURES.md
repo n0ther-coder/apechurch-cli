@@ -32,7 +32,7 @@
   - `history` — Read cached history, recent games, aggregate stats, and per-game breakdowns
   - `wallet new` — Create and select a new wallet
   - `wallet select` — Switch between stored wallets
-  - `wallet new-password` — Rotate the local wallet password in place
+  - `wallet password` — Rotate the local wallet password in place
   - `wallet hints` — View or update password hints
   - `wallet status` — Check encrypted-wallet status
 

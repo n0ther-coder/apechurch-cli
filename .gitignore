@@ -41,3 +41,5 @@ robots.txt
 
 # Optional local APECHURCH_CLI_BOTS_DIR checkout
 /bots/
+# Ignore also symlinks
+/bots

@@ -10,7 +10,7 @@ Last updated: 2026-02-03 (v1.0.2)
 SUMMARY OF WORK COMPLETED
 -------------------------
 1) CLI Core (bin/cli.js)
-- Encrypted wallet storage at ~/.apechurch-cli/wallet.json (install command; private key supplied only via env).
+- Encrypted wallet storage now lives at ~/.apechurch-cli/wallets/<address>.json with ~/.apechurch-cli/wallets/current.json as the selected-wallet pointer.
 - Install now copies skill files into ~/.apechurch-cli/skill/:
   - SKILL.md, HEARTBEAT.md, STRATEGY.md, skill.json
 - Install now attempts auto-registration via SIWE:
@@ -118,7 +118,7 @@ LOW PRIORITY / FUTURE
 GO-LIVE CHECKLIST
 -----------------
 1) Run install and confirm:
-   - encrypted wallet stored at ~/.apechurch-cli/wallet.json
+   - encrypted wallet stored at ~/.apechurch-cli/wallets/<address>.json and selected by ~/.apechurch-cli/wallets/current.json
    - skill files copied to ~/.apechurch-cli/skill/
    - username registered via SIWE to https://www.ape.church/api/profile
 2) Fund agent address via relay bridge.

@@ -224,7 +224,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
                   | "new"
                   | "select"
                   | "download"
-                  | "new-password"
+                  | "password"
                   | "hints"
                   | "reset"
 <wallet-option> ::= "-y"
@@ -237,12 +237,13 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 ```
 
 `[address]` is used by `wallet select [address]` and `wallet download [address]`.
+The selected wallet is tracked by `wallets/current.json`, which points to `wallets/<address>.json`. Encrypted wallet material lives only in the address-specific entry; if that entry is a symlink, normal filesystem resolution applies.
 
 | Option | Meaning | Applies To |
 |--------|---------|------------|
 | `-y`, `--yes` | Skip confirmation prompts | mainly `reset` |
 | `--list` | List locally available wallet addresses | command-level |
-| `--json` | Emit JSON output | `status`, `download`, `select`, `new`, `new-password` |
+| `--json` | Emit JSON output | `status`, `download`, `select`, `new`, `password` |
 | `--from-block <n>` | Start block for history download/backfill; `download --from-block 0` rebuilds the history file | `download` |
 | `--to-block <n>` | End block for history download | `download` |
 | `--chunk-size <n>` | Block span per log query | `download` |

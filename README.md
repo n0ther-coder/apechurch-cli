@@ -109,7 +109,7 @@ apechurch-cli play --auto
 apechurch-cli play --loop
 ```
 
-If `~/.apechurch-cli/wallet.json` already exists, `apechurch-cli install` reuses the encrypted wallet and does not ask for the private key again.
+The selected wallet is tracked by `~/.apechurch-cli/wallets/current.json`, which points to `wallets/<address>.json`. Encrypted wallet material lives only in address-specific entries under `~/.apechurch-cli/wallets/`; if an entry is a symlink, normal filesystem resolution applies.
 
 ## Native Win Chimes
 

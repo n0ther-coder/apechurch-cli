@@ -45,6 +45,24 @@ function setupNoWalletHome() {
   fs.mkdirSync(NO_WALLET_HOME, { recursive: true });
 }
 
+function writeSelectedWalletFixture(configDir, address) {
+  const normalized = address.toLowerCase();
+  const walletsDir = path.join(configDir, 'wallets');
+  fs.mkdirSync(walletsDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(walletsDir, `${normalized}.json`),
+    JSON.stringify({ address }, null, 2)
+  );
+  fs.writeFileSync(
+    path.join(walletsDir, 'current.json'),
+    JSON.stringify({
+      version: 1,
+      address,
+      wallet_file: `${normalized}.json`,
+    }, null, 2)
+  );
+}
+
 function setupHistoryFixtureHome() {
   const apechurchDir = path.join(HISTORY_FIXTURE_HOME, '.apechurch-cli');
   const historyDir = path.join(apechurchDir, 'history');
@@ -53,10 +71,7 @@ function setupHistoryFixtureHome() {
   fs.mkdirSync(historyDir, { recursive: true });
   fs.mkdirSync(gamesDir, { recursive: true });
 
-  fs.writeFileSync(
-    path.join(apechurchDir, 'wallet.json'),
-    JSON.stringify({ address: HISTORY_FIXTURE_WALLET }, null, 2)
-  );
+  writeSelectedWalletFixture(apechurchDir, HISTORY_FIXTURE_WALLET);
   fs.writeFileSync(
     path.join(gamesDir, `${HISTORY_FIXTURE_WALLET.toLowerCase()}_games.json`),
     JSON.stringify({ 'video-poker': ['11', '12'] }, null, 2)
@@ -111,10 +126,7 @@ function resetBotFixtures() {
 function writeConfigOverrideProfile({ address = CONFIG_OVERRIDE_WALLET, currentGpPerApe = 7.5 } = {}) {
   const normalized = address.toLowerCase();
   fs.mkdirSync(path.join(CONFIG_OVERRIDE_ROOT, 'profiles'), { recursive: true });
-  fs.writeFileSync(
-    path.join(CONFIG_OVERRIDE_ROOT, 'wallet.json'),
-    JSON.stringify({ address }, null, 2)
-  );
+  writeSelectedWalletFixture(CONFIG_OVERRIDE_ROOT, address);
   fs.writeFileSync(
     path.join(CONFIG_OVERRIDE_ROOT, 'profiles', `${normalized}_profile.json`),
     JSON.stringify({ currentGpPerApe }, null, 2)
@@ -365,7 +377,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(!stdout.includes('send wAPE') && !stdout.includes('send WAPE'), 'Should not list wAPE as transferable');
     });
 
-    it('blackjack --help keeps --human hidden and documents generic auto-play', () => {
+    it('blackjack --help documents hidden timing options and generic auto-play', () => {
       const { stdout } = cli('blackjack --help');
       assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
       assert.ok(stdout.includes('--solver [mode]'), 'Should show blackjack manual solver option');
@@ -384,10 +396,10 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--min-bet <ape>'), 'Should show minimum bet floor option');
       assert.ok(stdout.includes('bankroll-fraction=<0..1>'), 'Should document bankroll fraction strategy syntax');
       assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
-      assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
+      assert.ok(stdout.includes('--human [range]'), 'Should document the supported human timing option');
     });
 
-    it('video-poker --help keeps --human hidden and documents generic auto-play', () => {
+    it('video-poker --help documents hidden timing options and generic auto-play', () => {
       const { stdout } = cli('video-poker --help');
       assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
       assert.ok(stdout.includes('--take-profit <ape>'), 'Should show take-profit stop option');
@@ -402,10 +414,10 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--min-bet <ape>'), 'Should show minimum bet floor option');
       assert.ok(stdout.includes('bankroll-fraction=<0..1>'), 'Should document bankroll fraction strategy syntax');
       assert.ok(stdout.includes('Auto-play the hand'), 'Should use generic auto-play description');
-      assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
+      assert.ok(stdout.includes('--human [range]'), 'Should document the supported human timing option');
     });
 
-    it('play --help keeps --human hidden and documents loop controls', () => {
+    it('play --help documents hidden timing options and loop controls', () => {
       const { stdout } = cli('play --help');
       assert.ok(stdout.includes('--loop'), 'Should still show loop option');
       assert.ok(stdout.includes('--delay <seconds>'), 'Should still show delay option');
@@ -422,7 +434,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--bankroll <ape>'), 'Should show bankroll alias');
       assert.ok(stdout.includes('--min-bet <ape>'), 'Should show minimum bet floor option');
       assert.ok(stdout.includes('bankroll-fraction=<0..1>'), 'Should document bankroll fraction strategy syntax');
-      assert.ok(!stdout.includes('--human'), 'Should hide --human from standard help');
+      assert.ok(stdout.includes('--human [range]'), 'Should document the supported human timing option');
     });
 
     it('play accepts --bankroll as a --max-loss alias', () => {

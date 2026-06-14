@@ -42,7 +42,7 @@ Example:
 1. `npm install -g @n0ther/apechurch-cli`
    - Requires Node.js >= 18
 2. `apechurch-cli install`
-   - Prompts securely for the private key on a fresh install/reinstall without an existing `~/.apechurch-cli/wallet.json`
+   - Prompts securely for the private key on a fresh install/reinstall without an existing `~/.apechurch-cli/wallets/current.json` selector pointing to an encrypted wallet entry
    - `APECHURCH_CLI_PK` is an optional non-interactive fallback only
    - `APECHURCH_CLI_PASS` is required for non-interactive install/signing
    - Optional: `APECHURCH_CLI_CONFIG_DIR` to override the local config/data root

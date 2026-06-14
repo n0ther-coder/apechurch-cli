@@ -51,8 +51,8 @@
  * └──────────────────────────────────────────────────────────────────────────┘
  *
  * Data Storage:
- * - wallet.json        - Currently selected encrypted wallet
- * - wallets/          - Archived/selectable wallet copies
+ * - wallets/current.json - Current wallet selector, no private key material
+ * - wallets/<address>.json - Selectable encrypted wallet entries
  * - profiles/         - Per-wallet usernames, persona, preferences
  * - states/           - Per-wallet local stats and betting state
  * - history/          - Per-wallet cached game histories and sync state
@@ -99,6 +99,7 @@ import {
   REGISTER_AGENT_ABI,
   USER_INFO_ABI,
   WAPE_TOKEN_CONTRACT,
+  WALLETS_DIR,
   GP_TOKEN_CONTRACT,
   GP_TOKEN_ABI,
   GP_DECIMALS,
@@ -166,7 +167,6 @@ import {
   getConfiguredPrivateKey,
   getWalletAddress,
   getWalletPublicMetadata,
-  archiveCurrentWallet,
   findStoredWallet,
   listStoredWallets,
   selectStoredWallet,
@@ -349,7 +349,6 @@ program
   .name(BINARY_NAME)
   .version(VERSION_DISPLAY, '-V, --version', 'output the current version')
   .option('--color', 'Force ANSI color in plain output, even when output is piped');
-program.addHelpText('after', TOP_LEVEL_ENVIRONMENT_HELP);
 const GAME_LIST = listGames().join(' | ');
 const cliPath = path.join(__dirname, 'cli.js');
 const discoveredBots = discoverBotDefinitions();
@@ -460,6 +459,56 @@ const FEES_HELP_BNF_LINES = Object.freeze([
   '<address> ::= "0x" <40-hex-chars>',
   '<integer> ::= <digit>+',
   '<number> ::= <integer> [ "." <digit>+ ]',
+]);
+const INLINE_HELP_OPTION_LINE = '-h, --help             Show this inline help for the command';
+const COMMON_BNF_LINES = Object.freeze([
+  '<address> ::= "0x" <40-hex-chars>',
+  '<ape> ::= <number>                              ; decimal APE amount; value > 0',
+  '<ape-nonnegative> ::= <number>                  ; decimal APE amount; value >= 0',
+  '<points> ::= <number>                           ; decimal GP per APE rate; value > 0',
+  '<block> ::= <integer>                           ; block number >= 0',
+  '<count> ::= <integer>                           ; value > 0',
+  '<seconds> ::= <number>                          ; value > 0',
+  '<human-range> ::= <integer> "-" <integer>        ; inclusive seconds range, for example 2-17',
+  '<username> ::= <token>                          ; letters, numbers, underscores; max 32 chars',
+  '<persona> ::= "conservative" | "balanced" | "aggressive" | "degen"',
+  '<display> ::= "full" | "simple" | "json"',
+  '<asset> ::= "APE" | "GP"',
+  '<game-id> ::= <token>                           ; local unfinished-game identifier',
+]);
+const LOOP_HELP_OPTION_LINES = Object.freeze([
+  '--loop                  Keep playing until a stop condition is reached',
+  '--delay <seconds>       Fixed delay between looped games',
+  '--human [range]         Add humanized random delay; bare flag uses weighted 3-9s',
+  '--max-games <count>     Stop after N completed loop games',
+  '--take-profit <ape>     Stop when wallet balance reaches this absolute target',
+  '--min-profit <ape>      Stop when session P&L reaches this profit',
+  '--target-x <x>          Stop when one game pays at least this multiplier',
+  '--target-profit <ape>   Stop when one game pays at least this payout',
+  '--retrace <ape>         Stop when one game loses at least this amount',
+  '--recover-loss <ape>    Stop after net P&L rebounds this amount from its low',
+  '--giveback-profit <ape> Stop after net P&L gives back this amount from its high',
+  '--stop-loss <ape>       Stop when wallet balance drops to this absolute threshold',
+  '--max-loss <ape>        Stop when session P&L reaches this loss',
+  '--bankroll <ape>        Alias for --max-loss',
+  '--bet-strategy <name>   Loop bet progression strategy',
+  '--max-bet <ape>         Maximum loop wager cap',
+  '--min-bet <ape>         Minimum loop wager floor',
+]);
+const BET_STRATEGY_HELP_LINES = Object.freeze([
+  '<bet-strategy> ::= "flat" | "martingale" | "reverse-martingale" | "fibonacci" | "dalembert" | "bankroll-fraction=" <fraction>',
+  '<fraction> ::= <number>                         ; decimal strictly between 0 and 1',
+]);
+const STATEFUL_SHARED_HELP_OPTION_LINES = Object.freeze([
+  '--game <id>             Select a specific unfinished game id for resume/action',
+  '--display <mode>        Render mode: full, simple, json',
+  '--json                  Emit JSON output only',
+  '-v, --verbose           Show technical progress logs',
+  '--gp-ape <points>       Override local GP estimation for this run',
+]);
+const STATEFUL_SHARED_BNF_LINES = Object.freeze([
+  '<stateful-common-option> ::= "--game" <game-id> | "--display" <display> | "--json" | "-v" | "--verbose" | "--gp-ape" <points>',
+  '<stateful-loop-option> ::= "--loop" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--take-profit" <ape> | "--min-profit" <ape> | "--target-x" <number> | "--target-profit" <ape> | "--retrace" <ape> | "--recover-loss" <ape> | "--giveback-profit" <ape> | "--stop-loss" <ape-nonnegative> | "--max-loss" <ape> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape>',
 ]);
 
 function isPositiveApeToken(value) {
@@ -649,6 +698,376 @@ function formatHelpOptionGroup(title, lines = []) {
   return `${title}:\n  ${lines.join('\n  ')}`;
 }
 
+function formatInlineHelpLines(lines = [], fallback = 'None.') {
+  const values = Array.isArray(lines) && lines.length > 0 ? lines : [fallback];
+  return values
+    .map((line) => String(line).split('\n').join('\n  '))
+    .join('\n  ');
+}
+
+function formatInlineHelpSection(title, lines = [], fallback = 'None.') {
+  return `${title}:\n  ${formatInlineHelpLines(lines, fallback)}`;
+}
+
+function withHelpOption(lines = []) {
+  return [...lines, INLINE_HELP_OPTION_LINE];
+}
+
+function formatCommandHelpAppendix({
+  actions = [],
+  parameters = [],
+  options = [],
+  bnf = [],
+  examples = [],
+  notes = [],
+} = {}) {
+  return `
+${formatInlineHelpSection('Actions', actions)}
+
+${formatInlineHelpSection('Parameters', parameters)}
+
+${formatInlineHelpSection('Options', withHelpOption(options))}
+
+${formatInlineHelpSection('Grammar (BNF)', bnf)}
+
+${formatInlineHelpSection('Examples', examples)}
+
+${formatInlineHelpSection('Notes', notes)}
+`;
+}
+
+function formatTopLevelHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. Choose one top-level command from the command list above.'],
+    parameters: [
+      '<command>    One top-level command such as install, wallet, play, history, or blackjack',
+      '<args...>    Command-specific arguments; run `<command> --help` for that command grammar',
+    ],
+    options: [
+      '-V, --version          Output CLI version and git metadata when available',
+      '--color                Force ANSI color in plain output, even when output is piped',
+    ],
+    bnf: [
+      '<top-level-command> ::= "install" | "uninstall" | "wallet" | "status" | "pause" | "continue" | "register" | "profile" | "bet" | "play" | "bot" | "contest" | "history" | "scoreboard" | "fees" | "games" | "game" | "commands" | "help" | "send" | "house" | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
+      `<cli> ::= "${BINARY_NAME}" [ "--color" ] <top-level-command> <command-args>*`,
+      `<version-command> ::= "${BINARY_NAME}" ( "-V" | "--version" ) [ "--json" ]`,
+    ],
+    examples: [
+      `${BINARY_NAME} wallet --help`,
+      `${BINARY_NAME} play --help`,
+      `${BINARY_NAME} blackjack --help`,
+      `${BINARY_NAME} help commands`,
+    ],
+    notes: [
+      'Inline help is command-specific. Prefer `<command> --help` when you need actions, parameters, options, BNF, and examples.',
+      TOP_LEVEL_ENVIRONMENT_HELP.trim(),
+    ],
+  });
+}
+
+function formatInstallHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `install` performs setup or reinstall behavior directly.'],
+    parameters: ['None.'],
+    options: [
+      '--username <name>      Initial username for the selected wallet profile',
+      '--persona <name>       Initial persona: conservative, balanced, aggressive, or degen',
+      '-y, --quick            Skip optional interactive prompts and use defaults',
+    ],
+    bnf: [
+      '<install-command> ::= "install" <install-option>*',
+      '<install-option> ::= "--username" <username> | "--persona" <persona> | "-y" | "--quick"',
+      '<username> ::= <token>                          ; letters, numbers, underscores; max 32 chars',
+      '<persona> ::= "conservative" | "balanced" | "aggressive" | "degen"',
+    ],
+    examples: [
+      `${BINARY_NAME} install`,
+      `${BINARY_NAME} install --username smith --persona balanced`,
+      `${BINARY_NAME} install --quick`,
+    ],
+    notes: [
+      'Fresh install/reinstall prompts securely for the private key when no encrypted wallet exists.',
+      `${PRIVATE_KEY_ENV_VAR} is only a non-interactive fallback for fresh install/reinstall.`,
+      `${PASS_ENV_VAR} supplies the local wallet password for non-interactive install/signing.`,
+      `${PROFILE_URL_ENV_VAR} overrides the username/profile API endpoint.`,
+    ],
+  });
+}
+
+function formatUninstallHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `uninstall` removes local CLI data after confirmation.'],
+    parameters: ['None.'],
+    options: ['-y, --yes              Skip the confirmation prompt'],
+    bnf: ['<uninstall-command> ::= "uninstall" [ "-y" | "--yes" ]'],
+    examples: [
+      `${BINARY_NAME} uninstall`,
+      `${BINARY_NAME} uninstall --yes`,
+    ],
+    notes: [
+      `Deletes local data under ${APECHURCH_DIR}.`,
+      'Make sure you still control the original private key outside this local installation before removing the encrypted wallet.',
+    ],
+  });
+}
+
+function formatWalletHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: [
+      'status                 Show encrypted-wallet status and local signing metadata',
+      'new                    Import/create and select another encrypted local wallet',
+      'select [address]       Select a stored wallet; prompts interactively when address is omitted',
+      'download [address]     Download supported on-chain history into the local per-wallet cache',
+      'password               Re-encrypt the selected local wallet with a new password',
+      'hints                  View or update up to three local password hints',
+      'reset                  Delete local wallet/config data; requires reinstall',
+      'export/decrypt/unlock/lock are intentionally disabled in this hardened build',
+    ],
+    parameters: [
+      '[action]               Wallet action; omitted action prints the available action list',
+      '[address]              0x wallet address for `select` or `download`; defaults to current wallet for `download`',
+    ],
+    options: [
+      '-y, --yes              Skip confirmation prompts where supported, mainly reset',
+      '--list                 List locally available wallet addresses',
+      '--json                 Emit JSON output where supported',
+      '--from-block <n>       Start block for wallet history download/backfill',
+      '--to-block <n>         End block for wallet history download; default is latest',
+      '--chunk-size <n>       Block span per history log query',
+    ],
+    bnf: [
+      '<wallet-command> ::= "wallet" [ <wallet-action> [ <address> ] ] <wallet-option>*',
+      '<wallet-action> ::= "status" | "new" | "select" | "download" | "password" | "hints" | "reset"',
+      '<wallet-option> ::= "-y" | "--yes" | "--list" | "--json" | "--from-block" <block> | "--to-block" <block> | "--chunk-size" <count>',
+      '<address> ::= "0x" <40-hex-chars>',
+      '<block> ::= <integer>                         ; block number >= 0',
+      '<count> ::= <integer>                         ; value > 0',
+    ],
+    examples: [
+      `${BINARY_NAME} wallet status`,
+      `${BINARY_NAME} wallet --list`,
+      `${BINARY_NAME} wallet new`,
+      `${BINARY_NAME} wallet select 0x1234567890abcdef1234567890abcdef12345678`,
+      `${BINARY_NAME} wallet download`,
+      `${BINARY_NAME} wallet download 0x1234567890abcdef1234567890abcdef12345678 --from-block 0`,
+      `${BINARY_NAME} wallet password`,
+      `${BINARY_NAME} wallet reset --yes`,
+    ],
+    notes: [
+      `Current wallet selector: ${WALLET_FILE}`,
+      `Encrypted wallet entries: ${WALLETS_DIR}/<address>.json.`,
+      'If an address entry is a symlink, normal filesystem resolution applies; the CLI only follows the selected wallets/<address>.json path.',
+      `History downloads write to ${path.join(APECHURCH_DIR, 'history')}/<wallet>_history.json.`,
+      'The private key is never exported by this CLI; signing decrypts locally only when needed.',
+    ],
+  });
+}
+
+function formatStatusHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `status` reads the selected wallet/profile state directly.'],
+    parameters: ['None.'],
+    options: ['--json                 Emit JSON output only'],
+    bnf: ['<status-command> ::= "status" [ "--json" ]'],
+    examples: [
+      `${BINARY_NAME} status`,
+      `${BINARY_NAME} status --json`,
+    ],
+    notes: ['Shows wallet balance, GP balance, house balance when present, username, persona, pause state, and unfinished games.'],
+  });
+}
+
+function formatPauseHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `pause` sets the local profile pause flag to true.'],
+    parameters: ['None.'],
+    options: [],
+    bnf: ['<pause-command> ::= "pause"'],
+    examples: [`${BINARY_NAME} pause`],
+    notes: ['Outputs a JSON status payload.'],
+  });
+}
+
+function formatContinueHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `continue` sets the local profile pause flag to false.'],
+    parameters: ['None.'],
+    options: [],
+    bnf: ['<continue-command> ::= "continue"'],
+    examples: [`${BINARY_NAME} continue`],
+    notes: ['Outputs a JSON status payload.'],
+  });
+}
+
+function formatRegisterHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `register` registers or updates username/persona directly.'],
+    parameters: ['None.'],
+    options: [
+      '--username <name>      Username to register; generated/current username is used when omitted',
+      '--persona <name>       Persona: conservative, balanced, aggressive, or degen',
+    ],
+    bnf: [
+      '<register-command> ::= "register" <register-option>*',
+      '<register-option> ::= "--username" <username> | "--persona" <persona>',
+      '<username> ::= <token>                          ; letters, numbers, underscores; max 32 chars',
+      '<persona> ::= "conservative" | "balanced" | "aggressive" | "degen"',
+    ],
+    examples: [
+      `${BINARY_NAME} register --username smith`,
+      `${BINARY_NAME} register --username smith --persona aggressive`,
+    ],
+    notes: ['Requires the selected local wallet because registration signs locally.'],
+  });
+}
+
+function formatProfileHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: [
+      'show                   Show the effective local profile for the selected wallet',
+      'set                    Update one or more profile fields',
+      'omitted                Defaults to show',
+    ],
+    parameters: ['[action]               Profile action: show or set'],
+    options: [
+      '--username <name>      Register or change username for the selected wallet; requires set',
+      '--persona <name>       Persona: conservative, balanced, aggressive, or degen; requires set',
+      '--referral <address>   Local-only referral address attached to future game transactions; requires set',
+      '--card-display <mode>  Card display mode: full, simple, json; requires set',
+      '--gp-ape <points>      Persist wallet-specific current GP/APE override; requires set',
+      '--no-gp-ape            Clear wallet-specific current GP/APE override; requires set',
+      '--json                 Emit JSON output',
+    ],
+    bnf: [
+      '<profile-command> ::= "profile" [ <profile-action> ] <profile-option>*',
+      '<profile-action> ::= "show" | "set"',
+      '<profile-option> ::= "--username" <username> | "--persona" <persona> | "--referral" <address> | "--card-display" <display> | "--gp-ape" <points> | "--no-gp-ape" | "--json"',
+      '<username> ::= <token>                          ; letters, numbers, underscores; max 32 chars',
+      '<persona> ::= "conservative" | "balanced" | "aggressive" | "degen"',
+      '<display> ::= "full" | "simple" | "json"',
+      '<address> ::= "0x" <40-hex-chars>',
+      '<points> ::= <number>                           ; decimal GP per APE rate; value > 0',
+    ],
+    examples: [
+      `${BINARY_NAME} profile`,
+      `${BINARY_NAME} profile show --json`,
+      `${BINARY_NAME} profile set [options]`,
+      `${BINARY_NAME} profile set --username smith`,
+      `${BINARY_NAME} profile set --persona aggressive --card-display simple`,
+      `${BINARY_NAME} profile set --referral 0x1234567890abcdef1234567890abcdef12345678`,
+      `${BINARY_NAME} profile set --gp-ape 7.5`,
+      `${BINARY_NAME} profile set --no-gp-ape`,
+    ],
+    notes: [
+      'Mutating flags require the explicit `profile set` action.',
+      '--referral is local-only and affects future game transactions only.',
+    ],
+  });
+}
+
+function formatBetHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `bet` places one stateless wager selected by --game.'],
+    parameters: ['None. `bet` uses required named options instead of positional parameters.'],
+    options: [
+      '--game <type>          Required stateless game key or alias',
+      '--amount <ape>         Required wager amount',
+      '--risk <risk>          Bear Dice, Blocks, Plinko, Monkey Match, and Primes risk',
+      '--balls <balls>        Plinko ball count',
+      '--spins <spins>        Slot spin count',
+      '--bet <bet>            Roulette or baccarat bet payload',
+      '--range <range>        ApeStrong range or Gimboz Smash inside range',
+      '--multiplier <x>       Glyde or Crash target multiplier',
+      '--out-range <range>    Gimboz Smash outside range to exclude',
+      '--picks <picks>        Keno or Speed Keno pick count',
+      '--numbers <numbers>    Keno or Speed Keno numbers as one token, or random',
+      '--games <games>        Speed Keno batch count',
+      '--runs <runs>          Bear Dice, Primes, or Blocks run count',
+      '--rolls <rolls>        Bear-A-Dice roll count',
+      '--timeout <ms>         Max wait for result; 0 means no wait',
+      '--x-gameId <uint256>   Expert override for generated gameData gameId',
+      '--x-ref <address>      Expert override for referral address in gameData',
+      '--x-userRandomWord <bytes32> Expert override for generated userRandomWord',
+      '--gp-ape <points>      Override local GP estimation for this run',
+    ],
+    bnf: [
+      '<bet-command> ::= "bet" "--game" <stateless-game> "--amount" <ape> <bet-option>*',
+      '<bet-option> ::= "--risk" <risk> | "--balls" <balls> | "--spins" <spins> | "--bet" <token> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--games" <games> | "--runs" <runs> | "--rolls" <rolls> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--gp-ape" <points>',
+      ...SIMPLE_GAME_HELP_BNF_LINES,
+    ],
+    examples: [
+      `${BINARY_NAME} bet --game roulette --amount 10 --bet RED`,
+      `${BINARY_NAME} bet --game jungle-plinko --amount 10 --risk 2 --balls 50`,
+      `${BINARY_NAME} bet --game keno --amount 5 --picks 5 --numbers 1,7,13,25,40`,
+      `${BINARY_NAME} bet --game gimboz-smash --amount 10 --range 45-55`,
+      `${BINARY_NAME} bet --game glyde-or-crash --amount 10 --multiplier 2x --timeout 0`,
+    ],
+    notes: [
+      'Use `play` for loop mode, stateful games, or random stateless selection.',
+      `Run ${BINARY_NAME} game <name> for per-game parameter details.`,
+    ],
+  });
+}
+
+function formatPlayHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: [
+      'None at the play-command level.',
+      'When [game] is stateful, the next positional token is forwarded as that game action.',
+      'Stateful forwarded actions: blackjack hit/stand/double/split/insurance/surrender/resume/status/clear; cash-dash resume/status/payouts/table/clear/guess/tile/pick/random/cashout; hi-lo-nebula resume/status/payouts/table/clear/high/lower/same/cashout; video-poker resume/status/payouts/table/clear.',
+    ],
+    parameters: [
+      '[game]                 Stateless or stateful game key/alias; omit only with --auto for random stateless selection',
+      '[amount]               Wager amount, or stateful action when [game] is stateful',
+      '[config...]            Game-specific positional config, or stateful action payload such as Cash Dash tile',
+    ],
+    options: [
+      '--game <name>          Game key/alias when not using positional [game]',
+      '--amount <ape>         Wager amount when not using positional [amount]',
+      ...PLAY_STATELESS_OPTION_LINES,
+      ...PLAY_STATEFUL_OPTION_LINES,
+      '--strategy <name>      Persona for automatic stateless game/config selection',
+      ...LOOP_HELP_OPTION_LINES,
+      '--gp-ape <points>      Override local GP estimation for this run',
+      '-v, --verbose          Show technical progress logs',
+      '--json                 Emit JSON output only',
+      '--validate-only        Validate arguments and print JSON without starting a game',
+    ],
+    bnf: [
+      '<play-command> ::= "play" [ <play-positional> ] <play-option>*',
+      '<play-positional> ::= <stateless-game> [ <ape> <token>* ] | <stateful-game> [ <stateful-head> ] [ <token> ]',
+      '<stateful-head> ::= <ape> | "resume" | "status" | "clear" | "payouts" | "table" | <token>',
+      '<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>',
+      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--balls" <balls> | "--spins" <spins> | "--bet" <token> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--games" <games> | "--runs" <runs> | "--rolls" <rolls> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
+      '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count>',
+      '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--take-profit" <ape> | "--min-profit" <ape> | "--target-x" <number> | "--target-profit" <ape> | "--retrace" <ape> | "--recover-loss" <ape> | "--giveback-profit" <ape> | "--stop-loss" <ape-nonnegative> | "--max-loss" <ape> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
+      ...SIMPLE_GAME_HELP_BNF_LINES,
+      ...COMMON_BNF_LINES.filter((line) => !line.startsWith('<ape') && !line.startsWith('<points>')),
+    ],
+    examples: [
+      `${BINARY_NAME} play --auto`,
+      `${BINARY_NAME} play roulette 10 RED`,
+      `${BINARY_NAME} play jungle-plinko 10 2 50`,
+      `${BINARY_NAME} play keno 5 --picks 5 --numbers 1,7,13,25,40`,
+      `${BINARY_NAME} play blackjack 10 --auto best`,
+      `${BINARY_NAME} play cash-dash guess 3 --game-id 123`,
+      `${BINARY_NAME} play video-poker 25 --auto best --loop --max-games 20`,
+      `${BINARY_NAME} play roulette 10 RED --loop --min-profit 25 --max-loss 20`,
+      `${BINARY_NAME} play roulette --bet RED --loop --bankroll 500 --bet-strategy bankroll-fraction=0.09 --max-bet 100 --min-bet 5`,
+      `${BINARY_NAME} play roulette 10 RED --validate-only`,
+    ],
+    notes: [
+      'Stateless game options apply only to fire-and-forget games routed through stateless game handlers.',
+      'Stateful game options apply only to blackjack, cash-dash, hi-lo-nebula, and video-poker when routed through play.',
+      'Shared play / loop options apply across selected stateless and stateful play surfaces.',
+      'Pass `--numbers` as a single CLI token, for example `--numbers 1,7,13,25,40`.',
+      'Bare `play` does not auto-run a random game; use `play --auto` or pass a game.',
+      'For stateful resume/action through `play`, prefer `--game-id <id>` because `--game <name>` selects the target game.',
+      `Run ${BINARY_NAME} game <name> for per-game config grammar.`,
+    ],
+  });
+}
+
 function formatPathEnvNotice(label, resolvedPath, envVar) {
   const rawValue = process.env[envVar];
   return rawValue
@@ -699,44 +1118,496 @@ function printBotList() {
   console.log(lines.join('\n'));
 }
 
-function formatPlayHelpAppendix() {
-  return `${formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES)}
-Option groups:
-  Stateless game options apply only to fire-and-forget games routed through the stateless game handlers.
-  Stateful game options apply only to blackjack, cash-dash, hi-lo-nebula, and video-poker when routed through play.
+function formatBotHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: [
+      'omitted                List discovered bots and loader paths',
+      '<name>                 Run the named discovered bot',
+      '<name> -h/--help       Forward help to the named bot',
+    ],
+    parameters: [
+      '[name]                 Bot command name from a discovered bot.json manifest',
+      '[args...]              Opaque tokens forwarded to the selected bot',
+    ],
+    options: [
+      '--list                 List discovered bots',
+      '--validate-only        Validate bot invocation without running it',
+      '<bot options...>       Any unrecognized options after [name] are forwarded to the bot',
+    ],
+    bnf: [
+      '<bot-command> ::= "bot" [ <bot-name> ] [ <token>* ] <bot-loader-option>*',
+      '<bot-loader-option> ::= "-h" | "--help" | "--list" | "--validate-only"',
+      '<bot-name> ::= <token>',
+      '<token> ::= <one-shell-token>',
+    ],
+    examples: BOT_HELP_EXAMPLES,
+    notes: [
+      formatBotDirectoryNotice(),
+      `${BOTS_DIR_ENV_VAR} overrides the external bots root and should point directly at the directory containing bot folders.`,
+      `${LOG_DIR_ENV_VAR} overrides the bot log directory.`,
+      `${PASS_ENV_VAR} supplies the wallet password for non-interactive live bot signing.`,
+      `${RPC_URL_ENV_VAR} overrides ApeChain RPC URL(s); the default RPC remains a fallback.`,
+      'Bot code is trusted local code. Only run bots from directories you control.',
+      'Bot-specific options are documented by each bot, not by the loader.',
+      formatBotLoadErrors(),
+    ].filter(Boolean),
+  });
+}
 
-${formatHelpOptionGroup('Stateless game options', PLAY_STATELESS_OPTION_LINES)}
+function formatContestHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: [
+      'omitted                Show contest info and current wallet eligibility/status',
+      'register               Register the selected wallet for the contest',
+    ],
+    parameters: ['[action]               Contest action; only register is accepted'],
+    options: ['--json                 Emit JSON output'],
+    bnf: ['<contest-command> ::= "contest" [ "register" ] [ "--json" ]'],
+    examples: [
+      `${BINARY_NAME} contest`,
+      `${BINARY_NAME} contest --json`,
+      `${BINARY_NAME} contest register`,
+    ],
+    notes: [
+      `Entry fee: ${CONTEST_ENTRY_FEE} APE.`,
+      `Eligibility limit: total wagered must be below ${CONTEST_WAGER_LIMIT} APE.`,
+      `Contest end date: ${CONTEST_END_DATE.toISOString()}.`,
+    ],
+  });
+}
 
-${formatHelpOptionGroup('Stateful game options', PLAY_STATEFUL_OPTION_LINES)}
+function formatHistoryHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: [
+      'omitted                Read cached history for [address] or the selected local wallet',
+      '--list                 List wallets with local cached history files',
+      '--refresh              Refresh local history from chain before rendering',
+    ],
+    parameters: ['[address]              Wallet address to inspect; defaults to selected local wallet'],
+    options: [
+      '--list                 List wallet addresses with local cached history files',
+      '--limit <n>            Number of recent cached games to show',
+      '--all                  Show all cached games instead of the recent slice',
+      '--ids                  Show game IDs in history lines and scoreboard tables',
+      '--stats                Show only aggregate history stats',
+      '--breakdown [game]     Show stats split by game, optionally filtered to one game',
+      '--leaderboard          Show weekly wAPE wagered leaderboard',
+      '--scoreboard           Append cached wallet scoreboard derived from history',
+      '--url                  Show scoreboard game URLs in terminal tables',
+      '--offline              Read local cache only; skip RPC enrichment and balance reads',
+      '--refresh              Refresh local history from chain before showing it',
+      '--from-block <n>       Start block for --refresh sync/backfill',
+      '--to-block <n>         End block for --refresh sync; default is latest',
+      '--chunk-size <n>       Block range per log query during refresh',
+      '--json                 Emit JSON output',
+    ],
+    bnf: [
+      '<history-command> ::= "history" [ <address> ] <history-option>*',
+      '<history-option> ::= "--list" | "--limit" <count> | "--all" | "--ids" | "--stats" | "--breakdown" [ <token> ] | "--leaderboard" | "--scoreboard" | "--url" | "--offline" | "--refresh" | "--from-block" <block> | "--to-block" <block> | "--chunk-size" <count> | "--json"',
+      '<address> ::= "0x" <40-hex-chars>',
+      '<block> ::= <integer>                         ; block number >= 0',
+      '<count> ::= <integer>                         ; value > 0',
+    ],
+    examples: [
+      `${BINARY_NAME} history`,
+      `${BINARY_NAME} history --list`,
+      `${BINARY_NAME} history 0x1234567890abcdef1234567890abcdef12345678 --limit 25`,
+      `${BINARY_NAME} history --stats`,
+      `${BINARY_NAME} history --breakdown video-poker`,
+      `${BINARY_NAME} history --scoreboard --ids`,
+      `${BINARY_NAME} history --refresh --from-block 0`,
+    ],
+    notes: [
+      '`--offline` cannot be combined with `--refresh`.',
+      '`--url` and `--ids` affect terminal scoreboard reference columns; JSON keeps both fields.',
+      `Use ${BINARY_NAME} wallet download --from-block 0 to rebuild history from genesis.`,
+    ],
+  });
+}
 
-${formatHelpOptionGroup('Shared play / loop options', PLAY_SHARED_OPTION_LINES)}
-`;
+function formatScoreboardHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: [
+      'omitted                Build/read cached scoreboards for [address] or the selected local wallet',
+      '--list                 List wallets with cached scoreboards or derivable history',
+      '--refresh              Refresh local history before rebuilding the scoreboard',
+    ],
+    parameters: ['[address]              Wallet address to inspect; defaults to selected local wallet'],
+    options: [
+      '--list                 List wallet addresses with local cached scoreboards or history',
+      '--ids                  Show game IDs in terminal scoreboard tables',
+      '--url                  Show game URLs in terminal scoreboard tables',
+      '--refresh              Refresh local history from chain before showing scoreboard',
+      '--from-block <n>       Start block for --refresh sync/backfill',
+      '--to-block <n>         End block for --refresh sync; default is latest',
+      '--chunk-size <n>       Block range per log query during refresh',
+      '--json                 Emit JSON output',
+    ],
+    bnf: [
+      '<scoreboard-command> ::= "scoreboard" [ <address> ] <scoreboard-option>*',
+      '<scoreboard-option> ::= "--list" | "--ids" | "--url" | "--refresh" | "--from-block" <block> | "--to-block" <block> | "--chunk-size" <count> | "--json"',
+      '<address> ::= "0x" <40-hex-chars>',
+      '<block> ::= <integer>                         ; block number >= 0',
+      '<count> ::= <integer>                         ; value > 0',
+    ],
+    examples: [
+      `${BINARY_NAME} scoreboard`,
+      `${BINARY_NAME} scoreboard --list`,
+      `${BINARY_NAME} scoreboard 0x1234567890abcdef1234567890abcdef12345678 --url`,
+      `${BINARY_NAME} scoreboard --refresh --from-block 0 --json`,
+    ],
+    notes: [
+      'Renders Highest Multipliers and Biggest Payouts Top 20 tables derived from cached history.',
+      'If both --ids and --url are passed in terminal mode, the last one wins for the reference column.',
+    ],
+  });
 }
 
 function formatFeesHelpAppendix() {
-  return `
-Actions:
-  scan    Read observed GameEnded logs for one game and update the compact per-game fee log.
-          Stores global game aggregates and exact aggregates only for --wallet or the current wallet.
-  report  Read the local compact fee log and compare the target wallet against the rest of the game.
-          Does not call the RPC.
-
-Storage:
-  Files are written to ${LOG_DIR}/fees/<canonical-game-key>.json.
-  Game aliases resolve to the canonical registry key, so aliases do not create duplicate logs.
-  The default cap is ${DEFAULT_FEE_ANALYSIS_CAP_BYTES / (1024 * 1024)} MiB per game.
-
-Grammar (BNF):
-  ${FEES_HELP_BNF_LINES.join('\n  ')}
-
-Examples:
-  ${BINARY_NAME} fees scan primes
-  ${BINARY_NAME} fees scan jungle --max-chunks 10
-  ${BINARY_NAME} fees scan primes --yes --json
-  ${BINARY_NAME} fees report primes
-  ${BINARY_NAME} fees report primes --wallet 0x1111111111111111111111111111111111111111 --json
-`;
+  return formatCommandHelpAppendix({
+    actions: [
+      'scan    Read observed GameEnded logs for one game and update compact fee aggregates',
+      'report  Read the local compact fee log and compare the selected wallet to the rest of the game',
+      'omitted                Defaults to report, but <game> is still required',
+    ],
+    parameters: [
+      '[action]               Fee action: scan or report',
+      '[game]                 Game key, alias, or display name to scan/report',
+    ],
+    options: [
+      '--wallet <address>     Wallet to compare/store exact target aggregates; defaults to current wallet',
+      '--from-block <n>       Start block for explicit scan range',
+      '--to-block <n>         End block for scan range; default is latest',
+      '--floor-block <n>      Oldest block for automatic backfill',
+      '--chunk-size <n>       Block range per fee log query',
+      '--max-chunks <n>       Max chunks this run; 0 means unlimited/full backfill',
+      '--min-games <n>        Minimum games for wallet leaderboards in reports',
+      '--cap-mb <n>           Per-game fee log cap in MiB',
+      '-y, --yes              Skip unlimited scan confirmation',
+      '--json                 Emit JSON output',
+    ],
+    bnf: FEES_HELP_BNF_LINES,
+    examples: [
+      `${BINARY_NAME} fees scan primes`,
+      `${BINARY_NAME} fees scan jungle --max-chunks 10`,
+      `${BINARY_NAME} fees scan primes --yes --json`,
+      `${BINARY_NAME} fees report primes`,
+      `${BINARY_NAME} fees report primes --wallet 0x1111111111111111111111111111111111111111 --json`,
+    ],
+    notes: [
+      `Storage: ${LOG_DIR}/fees/<canonical-game-key>.json.`,
+      `Default cap: ${DEFAULT_FEE_ANALYSIS_CAP_BYTES / (1024 * 1024)} MiB per game.`,
+      'The report action does not call the RPC.',
+    ],
+  });
 }
+
+function formatGamesHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `games` lists the supported game catalog directly.'],
+    parameters: ['None.'],
+    options: [
+      '--stats                Append the full Game Stats catalog, using local history when available',
+      '--json                 Emit JSON output',
+    ],
+    bnf: ['<games-command> ::= "games" <games-option>*', '<games-option> ::= "--stats" | "--json"'],
+    examples: [
+      `${BINARY_NAME} games`,
+      `${BINARY_NAME} games --stats`,
+      `${BINARY_NAME} games --json`,
+    ],
+    notes: ['Use `game <name>` for one game\'s aliases, parameters, and contract metadata.'],
+  });
+}
+
+function formatGameHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `game` prints metadata and grammar for one selected game.'],
+    parameters: ['<name>                 Supported canonical game key, alias, or display name'],
+    options: ['--json                 Emit JSON output'],
+    bnf: [
+      '<game-command> ::= "game" <game-name> [ "--json" ]',
+      '<game-name> ::= <stateless-game> | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
+      '<stateless-game> ::= <game-key> | <game-alias>',
+    ],
+    examples: [
+      `${BINARY_NAME} game roulette`,
+      `${BINARY_NAME} game jungle-plinko`,
+      `${BINARY_NAME} game blackjack`,
+      `${BINARY_NAME} game video-poker --json`,
+    ],
+    notes: ['The output includes per-game parameters, BNF where configured, examples, aliases, ABI status, and contract address.'],
+  });
+}
+
+function formatCommandsHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `commands` prints the terminal command index directly.'],
+    parameters: ['None.'],
+    options: [],
+    bnf: ['<commands-command> ::= "commands"'],
+    examples: [`${BINARY_NAME} commands`],
+    notes: ['For exhaustive command-specific inline help, run `<command> --help`.'],
+  });
+}
+
+function formatHelpCommandAppendix() {
+  return formatCommandHelpAppendix({
+    actions: [
+      'omitted                List available help topics',
+      'loop                   Loop mode and safety controls',
+      'strategies             Betting strategies',
+      'auto                   Stateful auto-play and solver modes',
+      'wallet                 Wallet security and history download workflow',
+      'history                History cache and reporting workflow',
+      'house                  The House staking system',
+      'commands               Command-specific help workflow and command index',
+    ],
+    parameters: ['[topic]                Help topic name'],
+    options: ['--json                 Emit JSON output with topic metadata/content'],
+    bnf: [
+      '<help-command> ::= "help" [ <help-topic> ] [ "--json" ]',
+      '<help-topic> ::= "loop" | "strategies" | "auto" | "wallet" | "history" | "house" | "commands"',
+    ],
+    examples: [
+      `${BINARY_NAME} help`,
+      `${BINARY_NAME} help loop`,
+      `${BINARY_NAME} help commands`,
+      `${BINARY_NAME} help wallet --json`,
+    ],
+    notes: ['Use `<command> --help` for the complete inline reference for a specific command.'],
+  });
+}
+
+function formatSendHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `send` transfers the selected asset directly.'],
+    parameters: [
+      '<asset>                Transfer asset: APE or GP',
+      '<amount>               APE decimal amount, or GP whole-number amount',
+      '<destination>          Destination 0x wallet address',
+    ],
+    options: ['--json                 Emit JSON output only'],
+    bnf: [
+      '<send-command> ::= "send" <asset> <amount> <address> [ "--json" ]',
+      '<asset> ::= "APE" | "GP"',
+      '<amount> ::= <ape> | <gp-amount>',
+      '<gp-amount> ::= <integer>                       ; whole number because GP has 0 decimals',
+      '<address> ::= "0x" <40-hex-chars>',
+    ],
+    examples: [
+      `${BINARY_NAME} send APE 10 0x1234567890abcdef1234567890abcdef12345678`,
+      `${BINARY_NAME} send GP 250 0x1234567890abcdef1234567890abcdef12345678 --json`,
+    ],
+    notes: ['wAPE is not transferable through this CLI because the tracker contract does not expose transfer().'],
+  });
+}
+
+function formatHouseHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: [
+      'omitted/status/info    Show global House stats and selected-wallet position',
+      'deposit <amount>       Deposit APE into The House',
+      'withdraw <amount>      Withdraw staked APE after the lock period',
+    ],
+    parameters: [
+      '[action]               House action: status, info, deposit, or withdraw',
+      '[amount]               Decimal APE amount for deposit/withdraw',
+    ],
+    options: ['--json                 Emit JSON output only'],
+    bnf: [
+      '<house-command> ::= "house" [ <house-action> [ <ape> ] ] [ "--json" ]',
+      '<house-action> ::= "status" | "info" | "deposit" | "withdraw"',
+      '<ape> ::= <number>                              ; decimal APE amount; value > 0',
+    ],
+    examples: [
+      `${BINARY_NAME} house`,
+      `${BINARY_NAME} house status --json`,
+      `${BINARY_NAME} house deposit 100`,
+      `${BINARY_NAME} house withdraw 50`,
+    ],
+    notes: [
+      `Deposit lock time: ${HOUSE_LOCK_TIME / 60} minutes.`,
+      `Withdraw fee: ${(HOUSE_WITHDRAW_FEE * 100).toFixed(0)}%.`,
+      'The displayed house_yield is the current HOUSE price multiplier since launch, not annualized APY.',
+    ],
+  });
+}
+
+function formatStatefulCommandHelpAppendix(gameKey) {
+  const gameHelp = {
+    blackjack: {
+      actions: [
+        '<amount>               Start a new blackjack hand with this APE bet',
+        'resume                 Resume unfinished blackjack games',
+        'status                 Show the current blackjack game state',
+        'hit                    Draw another card',
+        'stand                  Keep current hand',
+        'double                 Double bet, take one card, then stand',
+        'split                  Split an eligible pair into two hands',
+        'insurance              Take insurance when dealer shows Ace',
+        'surrender              Forfeit half the bet where available',
+        'clear                  Clear locally tracked unfinished blackjack games',
+      ],
+      parameters: [
+        '[action]               Bet amount or blackjack action',
+        '[amount]               Optional second positional value; used only by action forms that need it',
+      ],
+      options: [
+        ...STATEFUL_SHARED_HELP_OPTION_LINES,
+        '--auto [mode]          Auto-play the hand: simple, best, or max',
+        '--solver [mode]        Show manual suggested action: simple, best, or max',
+        '--side <ape>           Player side bet amount; value >= 0',
+        '--solver-max-states <n> Best/max exact-EV search state cap',
+        '--solver-timeout-ms <ms> Best/max exact-EV worker timeout',
+        ...LOOP_HELP_OPTION_LINES,
+      ],
+      bnf: [
+        '<blackjack-command> ::= ( "blackjack" | "bj" ) [ <blackjack-head> ] [ <ape> ] <blackjack-option>*',
+        '<blackjack-head> ::= <ape> | "resume" | "status" | "hit" | "stand" | "double" | "split" | "insurance" | "surrender" | "clear"',
+        '<blackjack-option> ::= <stateful-common-option> | "--auto" [ <blackjack-auto-mode> ] | "--solver" [ <blackjack-auto-mode> ] | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | <stateful-loop-option>',
+        '<blackjack-auto-mode> ::= "simple" | "best" | "max"',
+        ...STATEFUL_SHARED_BNF_LINES,
+        ...BET_STRATEGY_HELP_LINES,
+        ...COMMON_BNF_LINES,
+      ],
+      examples: [
+        `${BINARY_NAME} blackjack 10`,
+        `${BINARY_NAME} bj 25 --side 1`,
+        `${BINARY_NAME} blackjack 25 --auto best`,
+        `${BINARY_NAME} blackjack 25 --solver max`,
+        `${BINARY_NAME} blackjack hit --game 123`,
+        `${BINARY_NAME} blackjack 10 --auto --loop --take-profit 500`,
+      ],
+      notes: ['Dealer hits soft 17. best/max modes use the exact-EV worker and fall back to simple mode on cap/timeout.'],
+    },
+    'cash-dash': {
+      actions: [
+        '<amount>               Start a new Cash Dash run with this APE bet',
+        'resume                 Resume unfinished Cash Dash games',
+        'status                 Show current game state',
+        'payouts/table          Show verified row payout table',
+        'guess/tile/pick <tile> Continue with a tile pick',
+        'random/r               Pick a random tile in the active row',
+        'cashout/cash/c         Bank current winnings and end the run',
+        'clear                  Clear locally tracked unfinished Cash Dash games',
+      ],
+      parameters: [
+        '[action]               Bet amount or Cash Dash action',
+        '[amount]               Tile payload for guess/tile/pick, or unused for other actions',
+      ],
+      options: [
+        ...STATEFUL_SHARED_HELP_OPTION_LINES,
+        '--auto [mode]          Auto-play the run: simple or best',
+        '--solver               Show best continuation suggestion in manual mode',
+        '--tile <tile>          Opening tile: 1-7 or random',
+        '--cashout-after <rows> Auto-play cashes out after N safe rows',
+        ...LOOP_HELP_OPTION_LINES,
+      ],
+      bnf: [
+        '<cash-dash-command> ::= ( "cash-dash" | "cashdash" | "dash" ) [ <cash-dash-head> ] [ <cash-dash-tile> ] <cash-dash-option>*',
+        '<cash-dash-head> ::= <ape> | "resume" | "status" | "payouts" | "table" | "clear" | "guess" | "tile" | "pick" | "random" | "r" | "cashout" | "cash" | "c"',
+        '<cash-dash-tile> ::= "random" | "r" | <integer>',
+        '<cash-dash-option> ::= <stateful-common-option> | "--auto" [ <auto-mode> ] | "--solver" | "--tile" <cash-dash-tile> | "--cashout-after" <count> | <stateful-loop-option>',
+        '<auto-mode> ::= "simple" | "best"',
+        ...STATEFUL_SHARED_BNF_LINES,
+        ...BET_STRATEGY_HELP_LINES,
+        ...COMMON_BNF_LINES,
+      ],
+      examples: [
+        `${BINARY_NAME} cash-dash 25`,
+        `${BINARY_NAME} cashdash 25 --tile 3`,
+        `${BINARY_NAME} dash 25 --auto best --cashout-after 3`,
+        `${BINARY_NAME} cash-dash guess 2`,
+        `${BINARY_NAME} cash-dash cashout --game 123`,
+        `${BINARY_NAME} cash-dash 25 --auto best --loop --max-games 20`,
+      ],
+      notes: ['Each row has one hidden death tile. Cashout becomes available after a safe resolved row.'],
+    },
+    'hi-lo-nebula': {
+      actions: [
+        '<amount>               Start a new Hi-Lo Nebula run with this APE bet',
+        'resume                 Resume unfinished Hi-Lo Nebula games',
+        'status                 Show current game state',
+        'payouts/table          Show verified payout table',
+        'higher/high/h          Guess next rank is higher',
+        'lower/low/l            Guess next rank is lower',
+        'same/push/s            Guess next rank is the same',
+        'cashout/cash/c         Bank current winnings and end the run',
+        'clear                  Clear locally tracked unfinished Hi-Lo Nebula games',
+      ],
+      parameters: [
+        '[action]               Bet amount or Hi-Lo Nebula action',
+        '[amount]               Optional second positional value; normally unused',
+      ],
+      options: [
+        ...STATEFUL_SHARED_HELP_OPTION_LINES,
+        '--auto [mode]          Auto-play the run: simple, best, or winston-ladder',
+        '--solver [mode]        Show manual continuation suggestion; defaults to best',
+        ...LOOP_HELP_OPTION_LINES,
+      ],
+      bnf: [
+        '<hi-lo-nebula-command> ::= ( "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" ) [ <hi-lo-nebula-head> ] [ <ape> ] <hi-lo-nebula-option>*',
+        '<hi-lo-nebula-head> ::= <ape> | "resume" | "status" | "payouts" | "table" | "clear" | "higher" | "high" | "h" | "lower" | "low" | "l" | "same" | "push" | "s" | "cashout" | "cash" | "c"',
+        '<hi-lo-nebula-option> ::= <stateful-common-option> | "--auto" [ <hi-lo-auto-mode> ] | "--solver" [ <hi-lo-auto-mode> ] | <stateful-loop-option>',
+        '<hi-lo-auto-mode> ::= "simple" | "best" | "winston-ladder"',
+        ...STATEFUL_SHARED_BNF_LINES,
+        ...BET_STRATEGY_HELP_LINES,
+        ...COMMON_BNF_LINES,
+      ],
+      examples: [
+        `${BINARY_NAME} hi-lo-nebula 25`,
+        `${BINARY_NAME} hilo 25 --solver best`,
+        `${BINARY_NAME} nebula 25 --auto winston-ladder`,
+        `${BINARY_NAME} hi-lo-nebula lower`,
+        `${BINARY_NAME} hi-lo-nebula cashout --game 123`,
+        `${BINARY_NAME} hi-lo-nebula 25 --auto best --loop --max-loss 20`,
+      ],
+      notes: ['Ranks 2..A are sampled uniformly with replacement. best mode accounts for VRF and live jackpot snapshot.'],
+    },
+    'video-poker': {
+      actions: [
+        '<amount>               Start a new Video Poker hand; valid bets are 1, 5, 10, 25, 50, 100 APE',
+        'resume                 Resume unfinished Video Poker hands',
+        'status                 Show current game state',
+        'payouts/table          Show payout table',
+        'clear                  Clear locally tracked unfinished Video Poker hands',
+      ],
+      parameters: [
+        '[action]               Fixed bet amount or Video Poker action',
+        '[amount]               Optional second positional value; normally unused',
+      ],
+      options: [
+        ...STATEFUL_SHARED_HELP_OPTION_LINES,
+        '--auto [mode]          Auto-play the hand: simple or best',
+        '--solver               Show best-EV hold suggestion in interactive play',
+        ...LOOP_HELP_OPTION_LINES,
+      ],
+      bnf: [
+        '<video-poker-command> ::= ( "video-poker" | "vp" ) [ <video-poker-head> ] [ <video-poker-bet> ] <video-poker-option>*',
+        '<video-poker-head> ::= <video-poker-bet> | "resume" | "status" | "payouts" | "table" | "clear"',
+        '<video-poker-bet> ::= "1" | "5" | "10" | "25" | "50" | "100"',
+        '<video-poker-option> ::= <stateful-common-option> | "--auto" [ <auto-mode> ] | "--solver" | <stateful-loop-option>',
+        '<auto-mode> ::= "simple" | "best"',
+        ...STATEFUL_SHARED_BNF_LINES,
+        ...BET_STRATEGY_HELP_LINES,
+        ...COMMON_BNF_LINES,
+      ],
+      examples: [
+        `${BINARY_NAME} video-poker 10`,
+        `${BINARY_NAME} vp 100`,
+        `${BINARY_NAME} video-poker 25 --auto best`,
+        `${BINARY_NAME} video-poker resume --game 123`,
+        `${BINARY_NAME} video-poker 25 --auto best --loop --giveback-profit 40`,
+      ],
+      notes: ['Max bet 100 APE is jackpot eligible on Royal Flush. best mode enumerates hold combinations and redraw outcomes.'],
+    },
+  }[gameKey];
+
+  return formatCommandHelpAppendix(gameHelp);
+}
+
+program.addHelpText('after', formatTopLevelHelpAppendix());
 
 function printConfigBnf(cfg = {}) {
   const lines = Array.isArray(cfg?.bnf)
@@ -926,18 +1797,6 @@ function prepareCurrentWalletForSwitch({ json = false } = {}) {
     } else {
       console.error(`\n❌ ${message}\n`);
       console.error(`${formatUnfinishedGamesSection(unfinishedGames)}\n`);
-    }
-    process.exit(1);
-  }
-
-  try {
-    archiveCurrentWallet();
-  } catch (error) {
-    const message = `Current wallet could not be archived safely: ${sanitizeError(error)}`;
-    if (json) {
-      console.log(JSON.stringify({ error: message }));
-    } else {
-      console.error(`\n❌ ${message}\n`);
     }
     process.exit(1);
   }
@@ -2757,16 +3616,7 @@ program
   .option('--username <name>', 'Username for your bot')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
   .option('-y, --quick', 'Skip optional interactive prompts, use defaults')
-  .addHelpText('after', `
-Install:
-  Fresh install/reinstall prompts securely for the private key (hidden input)
-
-Environment:
-  ${CONFIG_DIR_ENV_VAR}   Root config/data directory (default: ~/.apechurch-cli)
-  ${PRIVATE_KEY_ENV_VAR}   Optional fallback for non-interactive install/reinstall
-  ${PASS_ENV_VAR}          Required for non-interactive install/signing; optional otherwise
-  ${PROFILE_URL_ENV_VAR}   Optional override for the username/profile API endpoint
-`)
+  .addHelpText('after', formatInstallHelpAppendix())
   .action(async (opts) => {
     const isInteractive = !opts.quick && !opts.username;
 
@@ -2779,12 +3629,11 @@ Environment:
     if (existingWallet && isWalletEncrypted()) {
       address = getWalletAddress();
       ensureWalletScopedData(address);
-      archiveCurrentWallet();
       console.log(`
 ✅ Using existing encrypted wallet: ${address}`);
     } else if (existingWallet) {
       console.error(`
-❌ Existing wallet.json is not in a supported encrypted format.
+❌ Selected wallet is not in a supported encrypted format.
    See LEGACY.md for the manual migration procedure.
 `);
       process.exit(1);
@@ -2798,7 +3647,6 @@ Environment:
         address = result.address;
         createdWallet = true;
         ensureWalletScopedData(address);
-        archiveCurrentWallet();
         console.log(`
 ✅ Imported wallet into encrypted-only storage: ${address}`);
       } catch (error) {
@@ -2888,7 +3736,8 @@ Registering \"${username}\"...`);
     }
     console.log(`  PERSONA:       ${persona}`);
     console.log('');
-    console.log(`  WALLET FILE:   ${WALLET_FILE}`);
+    console.log(`  WALLET SELECTOR: ${WALLET_FILE}`);
+    console.log(`  WALLET ENTRIES:  ${WALLETS_DIR}/<address>.json`);
     console.log('  STORAGE:       encrypted-only, no plaintext private key on disk');
     console.log('  SIGNING:       local-only, just-in-time decryption per signature');
     console.log('');
@@ -2926,6 +3775,7 @@ program
   .command('uninstall')
   .description(`Remove local ${BINARY_NAME} data from this machine`)
   .option('-y, --yes', 'Skip confirmation')
+  .addHelpText('after', formatUninstallHelpAppendix())
   .action(async (opts) => {
     if (!fs.existsSync(APECHURCH_DIR)) {
       console.log(`\nNo local ${BINARY_NAME} data found. Nothing to remove.\n`);
@@ -2934,8 +3784,8 @@ program
 
     if (!opts.yes) {
       console.log('\n⚠️  This will delete:');
-      console.log(`   - Wallet at ${WALLET_FILE}`);
-      console.log(`   - Archived wallets, profiles, state, history, and unfinished games under ${APECHURCH_DIR}`);
+      console.log(`   - Wallet selector at ${WALLET_FILE}`);
+      console.log(`   - Wallet entries, profiles, state, history, and unfinished games under ${APECHURCH_DIR}`);
       console.log('\n   Make sure you still control the original private key outside this local installation.');
       console.log(`   Reinstall will prompt for the private key on this local machine.`);
       console.log(`   Fallback for non-interactive reinstall only: ${PRIVATE_KEY_ENV_VAR}.\n`);
@@ -2967,6 +3817,7 @@ program
   .option('--from-block <n>', 'Start block for wallet history download or backfill')
   .option('--to-block <n>', 'End block for wallet history download (default latest)')
   .option('--chunk-size <n>', 'Block range per log query for wallet history download', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
+  .addHelpText('after', formatWalletHelpAppendix())
   .action(async (action, address, opts) => {
     if (opts.list) {
       const wallets = listStoredWallets();
@@ -3051,7 +3902,6 @@ program
       try {
         const result = createEncryptedWalletFromPrivateKey(privateKey, password, hints);
         ensureWalletScopedData(result.address);
-        const archived = archiveCurrentWallet();
 
         if (opts.json) {
           console.log(JSON.stringify({
@@ -3059,7 +3909,8 @@ program
             action: 'new',
             address: result.address,
             previous_address: previousAddress || null,
-            archive_file: archived?.filePath || null,
+            wallet_file: result.filePath || null,
+            selector_file: WALLET_FILE,
           }));
         } else {
           console.log('\n✅ Wallet created and selected.');
@@ -3067,9 +3918,10 @@ program
             console.log(`   Previous wallet saved: ${previousAddress}`);
           }
           console.log(`   Current wallet:        ${result.address}`);
-          if (archived?.filePath) {
-            console.log(`   Archive file:          ${archived.filePath}`);
+          if (result.filePath) {
+            console.log(`   Wallet file:           ${result.filePath}`);
           }
+          console.log(`   Selector file:         ${WALLET_FILE}`);
           console.log('');
         }
       } catch (error) {
@@ -3168,7 +4020,7 @@ program
       return;
     }
 
-    if (action === 'new-password') {
+    if (action === 'password') {
       if (!walletExists()) {
         const message = `No wallet found. Run: ${BINARY_NAME} install`;
         if (opts.json) console.log(JSON.stringify({ error: message }));
@@ -3182,7 +4034,7 @@ program
         process.exit(1);
       }
       if (!process.stdin.isTTY || !process.stderr.isTTY) {
-        const message = 'wallet new-password requires an interactive terminal for secure hidden prompts.';
+        const message = 'wallet password requires an interactive terminal for secure hidden prompts.';
         if (opts.json) console.log(JSON.stringify({ error: message }));
         else console.error(`\n❌ ${message}\n`);
         process.exit(1);
@@ -3214,8 +4066,6 @@ program
           else console.error(`\n❌ ${result.error}\n`);
           process.exit(1);
         }
-
-        archiveCurrentWallet();
 
         if (opts.json) {
           console.log(JSON.stringify({
@@ -3272,7 +4122,6 @@ program
 
       try {
         setWalletHints(newHints);
-        archiveCurrentWallet();
       } catch (error) {
         console.error(`
 ❌ ${sanitizeError(error)}
@@ -3357,12 +4206,13 @@ program
 
     if (!action) {
       console.log(`Missing wallet action. Use: ${BINARY_NAME} wallet --list`);
-      console.log('Available: status, new, select, download, new-password, hints, reset');
+      console.log('Available: status, new, select, download, password, hints, reset');
       return;
     }
 
     console.log(`Unknown wallet action: ${action}`);
-    console.log('Available: status, new, select, download, new-password, hints, reset');
+    console.log('Available: status, new, select, download, password, hints, reset');
+    process.exitCode = 1;
   });
 
 // ============================================================================
@@ -3370,7 +4220,9 @@ program
 // ============================================================================
 program
   .command('status')
+  .description('Show current wallet, balance, profile, and unfinished local games')
   .option('--json', 'Output JSON only')
+  .addHelpText('after', formatStatusHelpAppendix())
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: opts.json });
     const profile = loadProfile(account.address);
@@ -3465,6 +4317,7 @@ program
 program
   .command('pause')
   .description('Pause autonomous play')
+  .addHelpText('after', formatPauseHelpAppendix())
   .action(() => {
     const profile = loadProfile();
     saveProfile({ ...profile, paused: true });
@@ -3474,6 +4327,7 @@ program
 program
   .command('continue')
   .description('Continue autonomous play')
+  .addHelpText('after', formatContinueHelpAppendix())
   .action(() => {
     const profile = loadProfile();
     saveProfile({ ...profile, paused: false });
@@ -3488,6 +4342,7 @@ program
   .description('Register or change username')
   .option('--username <name>', 'New username')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
+  .addHelpText('after', formatRegisterHelpAppendix())
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: true });
     const profile = loadProfile();
@@ -3515,39 +4370,7 @@ program
 program
   .command('profile [action]')
   .description('Profile management (show, set)')
-  .addHelpText('after', `
-Actions:
-  ${BINARY_NAME} profile
-                                   Show the effective local profile for the selected wallet
-  ${BINARY_NAME} profile show
-                                   Show the effective local profile for the selected wallet
-  ${BINARY_NAME} profile set [options]
-                                   Update one or more profile fields
-
-Notes:
-  Omit the action to default to show.
-  Mutating flags like --username, --persona, --referral, --card-display, --gp-ape, and --no-gp-ape
-  require the explicit ${BINARY_NAME} profile set action.
-  --referral is local-only: it is attached to future game transactions, not to SIWE username registration,
-  and it does not affect past plays.
-
-Values:
-  --username <name>                Register or change username (same as ${BINARY_NAME} register --username)
-  --persona <name>                conservative | balanced | aggressive | degen
-  --card-display <mode>           full | simple | json
-  --referral <address>            0x-prefixed wallet address for future game transactions
-  --gp-ape <points>               Wallet-specific current GP/APE override (positive number)
-  --no-gp-ape                     Clear the wallet-specific current GP/APE override
-
-Examples:
-  ${BINARY_NAME} profile
-  ${BINARY_NAME} profile show
-  ${BINARY_NAME} profile set --username smith
-  ${BINARY_NAME} profile set --persona aggressive
-  ${BINARY_NAME} profile set --card-display simple --referral 0x1234...abcd
-  ${BINARY_NAME} profile set --gp-ape 7.5
-  ${BINARY_NAME} profile set --no-gp-ape
-`)
+  .addHelpText('after', formatProfileHelpAppendix())
   .option('--username <name>', `Register or change username (same as ${BINARY_NAME} register --username)`)
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
   .option('--referral <address>', 'Referral wallet address for future game transactions')
@@ -3665,6 +4488,7 @@ Examples:
 // ============================================================================
 program
   .command('bet')
+  .description('Place one manual stateless-game wager')
   .requiredOption('--game <type>', GAME_LIST)
   .requiredOption('--amount <ape>', 'Wager amount')
   .option('--risk <risk>', 'Risk level for Bear Dice, Blocks, Plinko, Monkey Match, and Primes', '0')
@@ -3684,7 +4508,7 @@ program
   .option('--x-ref <address>', 'Expert: override referral address in gameData')
   .option('--x-userRandomWord <bytes32>', 'Expert: override generated userRandomWord in gameData')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
-  .addHelpText('after', formatHelpBnfSection(SIMPLE_GAME_HELP_BNF_LINES))
+  .addHelpText('after', formatBetHelpAppendix())
   .action(async (opts) => {
     const gameEntry = resolveGame(opts.game);
     const rawCliArgs = process.argv.slice(2);
@@ -5077,25 +5901,7 @@ const botCommand = program
   .option('-h, --help', 'Show bot loader help, or pass help through to a named bot')
   .option('--list', 'List discovered bots')
   .addOption(new Option('--validate-only', 'Validate bot arguments without running').hideHelp())
-  .addHelpText('after', `
-Examples:
-  ${BOT_HELP_EXAMPLES.join('\n  ')}
-
-${formatBotDirectoryNotice()}
-
-Environment:
-  ${CONFIG_DIR_ENV_VAR}
-      Root config/data directory. Default: ~/.apechurch-cli.
-  ${BOTS_DIR_ENV_VAR}
-      External bots root. Set this to the actual bots checkout/root directory.
-      Default: ${CONFIG_DIR_ENV_VAR}/bots.
-  ${LOG_DIR_ENV_VAR}
-      Bot log directory. Default: ${CONFIG_DIR_ENV_VAR}/log.
-  ${PASS_ENV_VAR}
-      Wallet password for non-interactive signing during live bot runs.
-  ${RPC_URL_ENV_VAR}
-      Custom ApeChain RPC URL(s); the default RPC remains a fallback.
-`)
+  .addHelpText('after', formatBotHelpAppendix())
   .action(async (name, args, opts) => {
     if (opts.help && !name) {
       botCommand.outputHelp();
@@ -5152,6 +5958,7 @@ program
   .command('contest [action]')
   .description('Agent contest info and registration')
   .option('--json', 'JSON output')
+  .addHelpText('after', formatContestHelpAppendix())
   .action(async (action, opts) => {
     const now = new Date();
     const contestEnded = now >= CONTEST_END_DATE;
@@ -5419,6 +6226,7 @@ program
   .option('--to-block <n>', 'End block for --refresh sync (default latest)')
   .option('--chunk-size <n>', 'Block range per log query for --refresh sync', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .option('--json', 'JSON output')
+  .addHelpText('after', formatHistoryHelpAppendix())
   .action(async (address, opts, command) => {
     if (opts.list) {
       const addresses = listHistoryWalletAddresses();
@@ -5658,6 +6466,7 @@ program
   .option('--to-block <n>', 'End block for --refresh sync (default latest)')
   .option('--chunk-size <n>', 'Block range per log query for --refresh sync', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .option('--json', 'JSON output')
+  .addHelpText('after', formatScoreboardHelpAppendix())
   .action(async (address, opts, command) => {
     if (opts.list) {
       const addresses = [...new Set([
@@ -5867,8 +6676,10 @@ program
 // ============================================================================
 program
   .command('games')
+  .description('List supported games')
   .option('--stats', 'Append the full Game Stats catalog, using local history when available')
   .option('--json', 'JSON output')
+  .addHelpText('after', formatGamesHelpAppendix())
   .action(async (opts) => {
     const localWalletAddress = getWalletAddress();
     let history = loadHistory(localWalletAddress || undefined);
@@ -5912,7 +6723,9 @@ program
 // ============================================================================
 program
   .command('game <name>')
+  .description('Show metadata and grammar for one game')
   .option('--json', 'JSON output')
+  .addHelpText('after', formatGameHelpAppendix())
   .action((name, opts) => {
     const matchedCatalogEntry = resolveCatalogGameEntry(name);
 
@@ -6379,6 +7192,7 @@ ${'═'.repeat(60)}
 program
   .command('commands')
   .description('Show the compact command index')
+  .addHelpText('after', formatCommandsHelpAppendix())
   .action(() => {
     console.log(`
 🦍 APE CHURCH CLI - COMMAND INDEX
@@ -6400,7 +7214,7 @@ WALLET
   ${BINARY_NAME} wallet select [address]
                                    Select a stored wallet
   ${BINARY_NAME} wallet download [address]  Download on-chain history into the local per-wallet cache
-  ${BINARY_NAME} wallet new-password  Re-encrypt local wallet with a new password
+  ${BINARY_NAME} wallet password      Re-encrypt local wallet with a new password
   ${BINARY_NAME} wallet hints         View or update password hints (up to 3)
   ${BINARY_NAME} wallet reset         Delete local wallet data files (requires reinstall)
   ${BINARY_NAME} send APE <amt> <to>  Send APE (native currency) to an address
@@ -6581,7 +7395,7 @@ ASSETS
 DETAILED HELP
   ${BINARY_NAME} help <topic>         Get detailed help on a topic
 
-  Topics: loop, strategies, auto, wallet, history, house
+  Topics: loop, strategies, auto, wallet, history, house, commands
 `);
   });
 
@@ -7034,8 +7848,11 @@ ${'═'.repeat(70)}
   WALLET MANAGEMENT
 ${'═'.repeat(70)}
 
-  Wallet path:
+  Wallet selector:
     ${WALLET_FILE}
+
+  Encrypted wallet entries:
+    ${WALLETS_DIR}/<address>.json
 
   Config directory:
     ${APECHURCH_DIR}
@@ -7058,7 +7875,7 @@ ${'─'.repeat(70)}
                                    Select a stored wallet
   ${BINARY_NAME} wallet download [address]
                                    Download supported on-chain history into the local cache
-  ${BINARY_NAME} wallet new-password  Re-encrypt the local wallet with a new password
+  ${BINARY_NAME} wallet password      Re-encrypt the local wallet with a new password
   ${BINARY_NAME} wallet hints         View/update password hints
   ${BINARY_NAME} wallet reset         Delete local wallet data files
 
@@ -7174,8 +7991,8 @@ ${'─'.repeat(70)}
   Fresh install/reinstall prompts for the private key with hidden input:
     ${BINARY_NAME} install
 
-  If ${WALLET_FILE} already exists, install reuses it and
-  does not ask for the private key again.
+  If ${WALLET_FILE} points to an encrypted wallet entry, install reuses
+  that selected wallet and does not ask for the private key again.
 
   Optional non-interactive fallback:
     export ${PRIVATE_KEY_ENV_VAR}="0x..."
@@ -7446,12 +8263,48 @@ ${'─'.repeat(70)}
 
 ${'═'.repeat(70)}
 `,
+
+  commands: `
+${'═'.repeat(70)}
+  COMMAND HELP
+${'═'.repeat(70)}
+
+  Every top-level command has its own inline reference:
+
+    ${BINARY_NAME} <command> --help
+
+  Each command help is structured with:
+    • Actions
+    • Parameters
+    • Options
+    • Grammar (BNF)
+    • Examples
+    • Notes
+
+${'─'.repeat(70)}
+  COMMON ENTRY POINTS
+${'─'.repeat(70)}
+
+  ${BINARY_NAME} --help
+  ${BINARY_NAME} commands
+  ${BINARY_NAME} wallet --help
+  ${BINARY_NAME} play --help
+  ${BINARY_NAME} bot --help
+  ${BINARY_NAME} history --help
+  ${BINARY_NAME} blackjack --help
+  ${BINARY_NAME} cash-dash --help
+  ${BINARY_NAME} hi-lo-nebula --help
+  ${BINARY_NAME} video-poker --help
+
+${'═'.repeat(70)}
+`,
 };
 
 program
   .command('help [topic]')
-  .description('Get detailed help on a topic (loop, strategies, auto, wallet, history, house)')
+  .description('Get detailed help on a topic (loop, strategies, auto, wallet, history, house, commands)')
   .option('--json', 'JSON output')
+  .addHelpText('after', formatHelpCommandAppendix())
   .action((topic, opts) => {
     const topics = Object.keys(HELP_TOPICS);
     
@@ -7472,9 +8325,10 @@ ${'═'.repeat(60)}
   ${BINARY_NAME} help wallet       Wallet security and encryption
   ${BINARY_NAME} help history      History download, cache, and reporting
   ${BINARY_NAME} help house        The House staking system
+  ${BINARY_NAME} help commands     Command-specific inline help workflow
 
   Also see:
-    ${BINARY_NAME} commands        Full command reference
+    ${BINARY_NAME} commands        Compact command index
     ${BINARY_NAME} games           List all games
     ${BINARY_NAME} game <name>     Detailed game info
 
@@ -7509,6 +8363,7 @@ program
   .command('send <asset> <amount> <destination>')
   .description('Send APE or GP to an address')
   .option('--json', 'JSON output only')
+  .addHelpText('after', formatSendHelpAppendix())
   .action(async (asset, amount, destination, opts) => {
     // Validate destination address
     const dest = destination.trim();
@@ -7738,6 +8593,7 @@ program
   .command('house [action] [amount]')
   .description('The House - stake APE, earn from player losses')
   .option('--json', 'JSON output only')
+  .addHelpText('after', formatHouseHelpAppendix())
   .action(async (action, amount, opts) => {
     const { publicClient } = createClients();
 
@@ -8053,6 +8909,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
+  .addHelpText('after', formatStatefulCommandHelpAppendix('blackjack'))
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('blackjack', action, amount, opts);
   });
@@ -8091,6 +8948,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
+  .addHelpText('after', formatStatefulCommandHelpAppendix('cash-dash'))
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('cash-dash', action, amount, opts);
   });
@@ -8128,6 +8986,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
+  .addHelpText('after', formatStatefulCommandHelpAppendix('hi-lo-nebula'))
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('hi-lo-nebula', action, amount, opts);
   });
@@ -8163,6 +9022,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
+  .addHelpText('after', formatStatefulCommandHelpAppendix('video-poker'))
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('video-poker', action, amount, opts);
   });

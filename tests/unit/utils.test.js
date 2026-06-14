@@ -57,6 +57,22 @@ describe('Utils', () => {
       // Should not expose full error internals in some cases
       assert.ok(typeof result === 'string');
     });
+
+    it('extracts useful nested viem/RPC details from generic contract errors', () => {
+      const error = {
+        shortMessage: 'An unknown error occurred while executing the contract function "play".',
+        details: '',
+        cause: {
+          shortMessage: 'Execution reverted for an unknown reason.',
+          details: 'execution reverted: Invalid Ether Sent For BuyIn Gas',
+        },
+      };
+
+      assert.strictEqual(
+        sanitizeError(error),
+        'Transaction reverted: Invalid Ether Sent For BuyIn Gas'
+      );
+    });
   });
 
   describe('randomUint256', () => {

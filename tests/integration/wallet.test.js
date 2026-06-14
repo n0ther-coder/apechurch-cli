@@ -7,12 +7,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { privateKeyToAccount } from 'viem/accounts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.join(__dirname, '../..');
 const CLI_PATH = path.join(__dirname, '../../bin/cli.js');
 const MULTI_WALLET_HOME = path.join(__dirname, '../tmp-wallet-multi-home');
 const TEST_PASSWORD = 'correct horse battery staple';
@@ -60,6 +61,19 @@ function readJson(home, relativePath) {
   return JSON.parse(fs.readFileSync(path.join(home, relativePath), 'utf8'));
 }
 
+function currentWalletSelectorPath() {
+  return path.join('.apechurch-cli', 'wallets', 'current.json');
+}
+
+function nodeEval(code, options = {}) {
+  return execFileSync(process.execPath, ['--input-type=module', '-e', code], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    timeout: options.timeout || 30000,
+    ...options,
+  });
+}
+
 describe('Wallet Integration Tests', () => {
   it('wallet status reports encryption-related state', () => {
     const { stdout } = cli('wallet status');
@@ -89,10 +103,10 @@ describe('Wallet Integration Tests', () => {
     );
   });
 
-  it('wallet new-password is exposed and fails safely when unavailable', () => {
-    const { stdout, stderr, code } = cli('wallet new-password');
+  it('wallet password is exposed and fails safely when unavailable', () => {
+    const { stdout, stderr, code } = cli('wallet password');
     const out = stdout + stderr;
-    assert.ok(code !== 0, 'wallet new-password should not silently succeed in non-interactive tests');
+    assert.ok(code !== 0, 'wallet password should not silently succeed in non-interactive tests');
     assert.ok(
       out.includes('No wallet found') ||
       out.includes('Wallet is not encrypted') ||
@@ -113,8 +127,13 @@ describe('Wallet Integration Tests', () => {
     assert.strictEqual(data.address, ADDRESS_ONE);
 
     const apechurchDir = path.join(MULTI_WALLET_HOME, '.apechurch-cli');
-    assert.ok(fs.existsSync(path.join(apechurchDir, 'wallet.json')), 'Should create wallet.json');
+    assert.ok(fs.existsSync(path.join(apechurchDir, 'wallets', 'current.json')), 'Should create wallets/current.json');
+    assert.ok(!fs.existsSync(path.join(apechurchDir, 'wallet.json')), 'Should not create legacy wallet.json');
     assert.ok(fs.existsSync(path.join(apechurchDir, 'wallets', `${ADDRESS_ONE.toLowerCase()}.json`)), 'Should archive the current wallet');
+    const selector = readJson(MULTI_WALLET_HOME, currentWalletSelectorPath());
+    assert.strictEqual(selector.address, ADDRESS_ONE, 'current.json should point at the selected wallet address');
+    assert.strictEqual(selector.wallet_file, `${ADDRESS_ONE.toLowerCase()}.json`, 'current.json should point at wallets/<address>.json');
+    assert.ok(!('ciphertext' in selector), 'current.json should not contain encrypted private key material');
     assert.ok(fs.existsSync(path.join(apechurchDir, 'profiles', `${ADDRESS_ONE.toLowerCase()}_profile.json`)), 'Should initialize a per-wallet profile file');
     assert.ok(fs.existsSync(path.join(apechurchDir, 'states', `${ADDRESS_ONE.toLowerCase()}_state.json`)), 'Should initialize a per-wallet state file');
     assert.ok(fs.existsSync(path.join(apechurchDir, 'games', `${ADDRESS_ONE.toLowerCase()}_games.json`)), 'Should initialize a per-wallet active games file');
@@ -157,8 +176,9 @@ describe('Wallet Integration Tests', () => {
     assert.strictEqual(restoredProfile.currentGpPerApe, 7.5, 'Selecting the original wallet should restore its current GP rate');
     assert.strictEqual(restoredProfile.effectiveGpPerApe, 7.5, 'Wallet-specific GP rate should override the base rate');
 
-    const currentWallet = readJson(MULTI_WALLET_HOME, '.apechurch-cli/wallet.json');
-    assert.strictEqual(currentWallet.address, ADDRESS_ONE, 'wallet.json should now point to the selected wallet');
+    const currentWallet = readJson(MULTI_WALLET_HOME, currentWalletSelectorPath());
+    assert.strictEqual(currentWallet.address, ADDRESS_ONE, 'current.json should now point to the selected wallet');
+    assert.strictEqual(currentWallet.wallet_file, `${ADDRESS_ONE.toLowerCase()}.json`);
   });
 
   it('wallet select is blocked when the current wallet still has unfinished games', () => {
@@ -187,8 +207,9 @@ describe('Wallet Integration Tests', () => {
     assert.ok(Array.isArray(data.unfinished_games), 'Should surface the unfinished games in JSON mode');
     assert.ok(data.unfinished_games.length > 0, 'Should include at least one unfinished game entry');
 
-    const currentWallet = readJson(MULTI_WALLET_HOME, '.apechurch-cli/wallet.json');
-    assert.strictEqual(currentWallet.address, ADDRESS_TWO, 'wallet.json should remain unchanged after a blocked switch');
+    const currentWallet = readJson(MULTI_WALLET_HOME, currentWalletSelectorPath());
+    assert.strictEqual(currentWallet.address, ADDRESS_TWO, 'current.json should remain unchanged after a blocked switch');
+    assert.strictEqual(currentWallet.wallet_file, `${ADDRESS_TWO.toLowerCase()}.json`);
   });
 
   it('wallet --list shows all locally available wallet addresses', () => {
@@ -209,5 +230,69 @@ describe('Wallet Integration Tests', () => {
     assert.ok(listed.wallets.some((wallet) => wallet.address === ADDRESS_ONE), 'Should include the first wallet');
     assert.ok(listed.wallets.some((wallet) => wallet.address === ADDRESS_TWO), 'Should include the second wallet');
     assert.ok(listed.wallets.some((wallet) => wallet.address === ADDRESS_TWO && wallet.current), 'Should mark the current wallet');
+  });
+
+  it('wallet select creates current.json from an existing wallet entry', () => {
+    resetMultiWalletHome();
+
+    cli('wallet new --json', {
+      env: multiWalletEnv({ APECHURCH_CLI_PK: PRIVATE_KEY_ONE }),
+    });
+
+    const apechurchDir = path.join(MULTI_WALLET_HOME, '.apechurch-cli');
+    fs.rmSync(path.join(apechurchDir, 'wallets', 'current.json'), { force: true });
+
+    const selected = JSON.parse(cli(`wallet select ${ADDRESS_ONE} --json`, {
+      env: multiWalletEnv(),
+    }).stdout);
+
+    assert.strictEqual(selected.success, true);
+    assert.strictEqual(selected.changed, true);
+    assert.strictEqual(selected.address, ADDRESS_ONE);
+
+    const currentWallet = readJson(MULTI_WALLET_HOME, currentWalletSelectorPath());
+    assert.strictEqual(currentWallet.address, ADDRESS_ONE);
+    assert.strictEqual(currentWallet.wallet_file, `${ADDRESS_ONE.toLowerCase()}.json`);
+  });
+
+  it('uses current.json to sign through the selected wallets/<address>.json entry', () => {
+    resetMultiWalletHome();
+
+    const localPassword = 'local machine password';
+    const apechurchDir = path.join(MULTI_WALLET_HOME, '.apechurch-cli');
+    const archiveFile = path.join(apechurchDir, 'wallets', `${ADDRESS_ONE.toLowerCase()}.json`);
+
+    cli('wallet new --json', {
+      env: multiWalletEnv({
+        APECHURCH_CLI_PK: PRIVATE_KEY_ONE,
+        APECHURCH_CLI_PASS: localPassword,
+      }),
+    });
+    const localWallet = fs.readFileSync(archiveFile, 'utf8');
+    const selector = readJson(MULTI_WALLET_HOME, currentWalletSelectorPath());
+    assert.strictEqual(selector.wallet_file, `${ADDRESS_ONE.toLowerCase()}.json`);
+
+    const machineRelative = path.join('gimboz.uni.eth', '@Azathoth', `${ADDRESS_ONE.toLowerCase()}.json`);
+    const machineWallet = path.join(apechurchDir, 'wallets', machineRelative);
+    fs.mkdirSync(path.dirname(machineWallet), { recursive: true });
+    fs.writeFileSync(machineWallet, localWallet, { mode: 0o600 });
+    fs.rmSync(archiveFile, { force: true });
+    fs.symlinkSync(machineRelative, archiveFile);
+
+    const output = nodeEval(`
+      const wallet = await import('./lib/wallet.js');
+      const account = wallet.getWallet();
+      const signature = await account.signMessage({ message: 'current selector wallet' });
+      console.log(JSON.stringify({
+        address: account.address,
+        signatureLooksValid: /^0x[0-9a-fA-F]{130}$/.test(signature),
+      }));
+    `, {
+      env: multiWalletEnv({ APECHURCH_CLI_PASS: localPassword }),
+    });
+    const signed = JSON.parse(output);
+
+    assert.strictEqual(signed.address, ADDRESS_ONE);
+    assert.strictEqual(signed.signatureLooksValid, true);
   });
 });
