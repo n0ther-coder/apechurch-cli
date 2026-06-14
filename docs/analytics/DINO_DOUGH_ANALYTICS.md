@@ -1,10 +1,25 @@
 # Dino Dough Analytics
 
-> Summary: Exact reel model, selected live payout rows, and exact RTP for Dino Dough. The full payout distribution and variance are not locally reproducible because the complete ordered paytable snapshot is not persisted in this repo.
+> Summary: Exact per-spin payout distribution for the live Dino Dough reel snapshot, using the complete ordered `getPayout(symbol0, symbol1, symbol2)` matrix.
 
 Dino Dough is a three-reel ordered slots game. Each spin consumes three VRF words, maps one word to each reel, and pays `getPayout(symbol0, symbol1, symbol2)` for the exact left-to-right symbol triple.
 
-Spin count only changes floor-division dust against the total wager. The model below is per spin.
+Spin count only changes floor-division dust against the total wager. The probabilities below are per spin.
+
+## Reading This Table
+
+- Probabilities aggregate all ordered symbol triples with the same payout.
+- Payouts are shown as gross multipliers of the per-spin wager.
+- Many payout rows are fractional because the live contract stores the slot paytable in basis points, not in whole-number multipliers.
+
+## Summary Stats
+
+- Exact RTP: `97.89751366817333%`
+- Positive payout (`> 0x`): `36.59972299%`
+- Net profit (`> 1x`): `22.46865432%`
+- Break-even (`= 1x`): `0.00%`
+- Partial refund (`0x < payout < 1x`): `14.13106867%`
+- Loss (`0x`): `63.40027701%`
 
 ## Exact Reel Snapshot
 
@@ -28,30 +43,281 @@ payout(a, b, c) = getPayout(a, b, c) / 10_000
 
 ## Selected Exact Payout Rows
 
-Only selected `getPayout(...)` rows are persisted in the docs today.
+The complete ordered `6 * 6 * 6` `getPayout(...)` matrix is persisted below.
 
 | Ordered triple | Multiplier |
 |----------------|-----------:|
 | `0,0,0` | `333x` |
 | `0,0,1` | `60x` |
+| `0,0,2` | `35x` |
+| `0,0,3` | `30x` |
+| `0,0,4` | `25x` |
+| `0,0,5` | `20x` |
 | `0,1,0` | `60x` |
-| `1,0,0` | `60x` |
-| `2,0,0` | `53.3333x` |
-| `1,1,1` | `50x` |
 | `0,1,1` | `40x` |
-| `3,0,0` | `40x` |
+| `0,1,2` | `15x` |
+| `0,1,3` | `15x` |
+| `0,1,4` | `15x` |
+| `0,1,5` | `10x` |
+| `0,2,0` | `20x` |
+| `0,2,1` | `10x` |
+| `0,2,2` | `2.5x` |
+| `0,2,3` | `2.5x` |
+| `0,2,4` | `2.5x` |
+| `0,2,5` | `0x` |
+| `0,3,0` | `20x` |
+| `0,3,1` | `10x` |
+| `0,3,2` | `2.5x` |
+| `0,3,3` | `2.5x` |
+| `0,3,4` | `0x` |
+| `0,3,5` | `0x` |
+| `0,4,0` | `17.7777x` |
+| `0,4,1` | `8.8888x` |
+| `0,4,2` | `2.2222x` |
+| `0,4,3` | `2.2222x` |
+| `0,4,4` | `2.2222x` |
+| `0,4,5` | `0x` |
+| `0,5,0` | `16x` |
+| `0,5,1` | `8x` |
+| `0,5,2` | `2x` |
+| `0,5,3` | `2x` |
+| `0,5,4` | `0x` |
+| `0,5,5` | `1.25x` |
+| `1,0,0` | `60x` |
 | `1,0,1` | `40x` |
+| `1,0,2` | `12x` |
+| `1,0,3` | `12x` |
+| `1,0,4` | `12x` |
+| `1,0,5` | `8x` |
 | `1,1,0` | `40x` |
+| `1,1,1` | `50x` |
+| `1,1,2` | `7x` |
+| `1,1,3` | `7x` |
+| `1,1,4` | `7x` |
+| `1,1,5` | `4x` |
+| `1,2,0` | `13.3333x` |
+| `1,2,1` | `6.6666x` |
+| `1,2,2` | `1.75x` |
+| `1,2,3` | `1.75x` |
+| `1,2,4` | `0x` |
+| `1,2,5` | `0x` |
+| `1,3,0` | `13.3333x` |
+| `1,3,1` | `6.6666x` |
+| `1,3,2` | `1.75x` |
+| `1,3,3` | `1.75x` |
+| `1,3,4` | `0x` |
+| `1,3,5` | `0x` |
+| `1,4,0` | `11.8518x` |
+| `1,4,1` | `5.9259x` |
+| `1,4,2` | `0x` |
+| `1,4,3` | `1.25x` |
+| `1,4,4` | `1.25x` |
+| `1,4,5` | `0x` |
+| `1,5,0` | `10.6666x` |
+| `1,5,1` | `5.3333x` |
+| `1,5,2` | `1.25x` |
+| `1,5,3` | `0x` |
+| `1,5,4` | `0x` |
+| `1,5,5` | `0.75x` |
+| `2,0,0` | `53.3333x` |
+| `2,0,1` | `26.6666x` |
+| `2,0,2` | `6.6666x` |
+| `2,0,3` | `6.6666x` |
+| `2,0,4` | `6.6666x` |
+| `2,0,5` | `4.8484x` |
+| `2,1,0` | `26.6666x` |
+| `2,1,1` | `13.3333x` |
+| `2,1,2` | `3.3333x` |
+| `2,1,3` | `3.3333x` |
+| `2,1,4` | `3.3333x` |
+| `2,1,5` | `2.4242x` |
+| `2,2,0` | `6.6666x` |
+| `2,2,1` | `3.3333x` |
+| `2,2,2` | `5x` |
+| `2,2,3` | `0.75x` |
+| `2,2,4` | `0.75x` |
+| `2,2,5` | `0.5x` |
+| `2,3,0` | `6.6666x` |
+| `2,3,1` | `3.3333x` |
+| `2,3,2` | `0x` |
+| `2,3,3` | `0x` |
+| `2,3,4` | `0x` |
+| `2,3,5` | `0x` |
+| `2,4,0` | `5.9259x` |
+| `2,4,1` | `2.9629x` |
+| `2,4,2` | `0.5x` |
+| `2,4,3` | `0x` |
+| `2,4,4` | `0x` |
+| `2,4,5` | `0x` |
+| `2,5,0` | `5.3333x` |
+| `2,5,1` | `2.6666x` |
+| `2,5,2` | `0.5x` |
+| `2,5,3` | `0x` |
+| `2,5,4` | `0x` |
+| `2,5,5` | `0x` |
+| `3,0,0` | `40x` |
+| `3,0,1` | `20x` |
+| `3,0,2` | `5x` |
+| `3,0,3` | `5x` |
+| `3,0,4` | `5x` |
+| `3,0,5` | `0x` |
+| `3,1,0` | `20x` |
+| `3,1,1` | `10x` |
+| `3,1,2` | `2.5x` |
+| `3,1,3` | `2.5x` |
+| `3,1,4` | `2.5x` |
+| `3,1,5` | `1.8181x` |
+| `3,2,0` | `5x` |
+| `3,2,1` | `2.5x` |
+| `3,2,2` | `0.5x` |
+| `3,2,3` | `0.5x` |
+| `3,2,4` | `0x` |
+| `3,2,5` | `0x` |
+| `3,3,0` | `5x` |
+| `3,3,1` | `2.5x` |
+| `3,3,2` | `0.5x` |
+| `3,3,3` | `4x` |
+| `3,3,4` | `0x` |
+| `3,3,5` | `0x` |
+| `3,4,0` | `0x` |
+| `3,4,1` | `0x` |
+| `3,4,2` | `0x` |
+| `3,4,3` | `0x` |
+| `3,4,4` | `0x` |
+| `3,4,5` | `0x` |
+| `3,5,0` | `0x` |
+| `3,5,1` | `0x` |
+| `3,5,2` | `0x` |
+| `3,5,3` | `0x` |
+| `3,5,4` | `0x` |
+| `3,5,5` | `0x` |
+| `4,0,0` | `35.5555x` |
+| `4,0,1` | `17.7777x` |
+| `4,0,2` | `4.4444x` |
+| `4,0,3` | `4.4444x` |
+| `4,0,4` | `4.4444x` |
+| `4,0,5` | `0x` |
+| `4,1,0` | `17.7777x` |
+| `4,1,1` | `8.8888x` |
+| `4,1,2` | `0x` |
+| `4,1,3` | `0x` |
+| `4,1,4` | `2.2222x` |
+| `4,1,5` | `0x` |
+| `4,2,0` | `4.4444x` |
+| `4,2,1` | `2.2222x` |
+| `4,2,2` | `0x` |
+| `4,2,3` | `0x` |
+| `4,2,4` | `0x` |
+| `4,2,5` | `0x` |
+| `4,3,0` | `4.4444x` |
+| `4,3,1` | `2.2222x` |
+| `4,3,2` | `0x` |
+| `4,3,3` | `0x` |
+| `4,3,4` | `0x` |
+| `4,3,5` | `0x` |
+| `4,4,0` | `3.9506x` |
+| `4,4,1` | `1.9753x` |
+| `4,4,2` | `0x` |
+| `4,4,3` | `0x` |
+| `4,4,4` | `3x` |
+| `4,4,5` | `0x` |
+| `4,5,0` | `3.5555x` |
+| `4,5,1` | `0x` |
+| `4,5,2` | `0x` |
+| `4,5,3` | `0x` |
+| `4,5,4` | `0x` |
+| `4,5,5` | `0x` |
+| `5,0,0` | `32x` |
+| `5,0,1` | `16x` |
+| `5,0,2` | `4x` |
+| `5,0,3` | `4x` |
+| `5,0,4` | `4x` |
+| `5,0,5` | `2.909x` |
+| `5,1,0` | `16x` |
+| `5,1,1` | `8x` |
+| `5,1,2` | `2x` |
+| `5,1,3` | `2x` |
+| `5,1,4` | `0x` |
+| `5,1,5` | `0x` |
+| `5,2,0` | `4x` |
+| `5,2,1` | `2x` |
+| `5,2,2` | `0.5x` |
+| `5,2,3` | `0x` |
+| `5,2,4` | `0.5x` |
+| `5,2,5` | `0x` |
+| `5,3,0` | `4x` |
+| `5,3,1` | `2x` |
+| `5,3,2` | `0x` |
+| `5,3,3` | `0x` |
+| `5,3,4` | `0x` |
+| `5,3,5` | `0x` |
+| `5,4,0` | `3.5555x` |
+| `5,4,1` | `1.7777x` |
+| `5,4,2` | `0x` |
+| `5,4,3` | `0x` |
+| `5,4,4` | `0x` |
+| `5,4,5` | `0x` |
+| `5,5,0` | `3.2x` |
+| `5,5,1` | `1.75x` |
+| `5,5,2` | `0.5x` |
+| `5,5,3` | `0.5x` |
+| `5,5,4` | `0.5x` |
+| `5,5,5` | `2x` |
 
-## Exact RTP
+## Exact Distribution
 
-The full live `getPayout(symbol0, symbol1, symbol2)` matrix was read on **2026-04-09** and used to compute:
-
-| Metric | Value |
-|--------|------:|
-| Exact per-spin RTP | `97.89751366817333%` |
-| Displayed rounded RTP | `97.90%` |
-| Max persisted payout | `333x` |
+| Payout | Probability |
+|--------|------------:|
+| `333x` | `0.00364485%` |
+| `60x` | `0.02004665%` |
+| `53.3333x` | `0.01093454%` |
+| `50x` | `0.02186908%` |
+| `40x` | `0.05102785%` |
+| `35.5555x` | `0.01640181%` |
+| `35x` | `0.02915877%` |
+| `32x` | `0.01822423%` |
+| `30x` | `0.02915877%` |
+| `26.6666x` | `0.04373815%` |
+| `25x` | `0.02915877%` |
+| `20x` | `0.15672839%` |
+| `17.7777x` | `0.09841085%` |
+| `16x` | `0.10934539%` |
+| `15x` | `0.17495262%` |
+| `13.3333x` | `0.13121446%` |
+| `12x` | `0.13121446%` |
+| `11.8518x` | `0.04920542%` |
+| `10.6666x` | `0.05467269%` |
+| `10x` | `0.25513923%` |
+| `8.8888x` | `0.13121446%` |
+| `8x` | `0.20593381%` |
+| `7x` | `0.26242893%` |
+| `6.6666x` | `0.61233416%` |
+| `5.9259x` | `0.19682169%` |
+| `5.3333x` | `0.21869077%` |
+| `5x` | `1.28298586%` |
+| `4.8484x` | `0.12027992%` |
+| `4.4444x` | `0.65607231%` |
+| `4x` | `1.78232979%` |
+| `3.9506x` | `0.14761627%` |
+| `3.5555x` | `0.32803616%` |
+| `3.3333x` | `0.87476308%` |
+| `3.2x` | `0.18224231%` |
+| `3x` | `1.18093016%` |
+| `2.9629x` | `0.19682169%` |
+| `2.909x` | `0.20046654%` |
+| `2.6666x` | `0.21869077%` |
+| `2.5x` | `2.33270156%` |
+| `2.4242x` | `0.24055985%` |
+| `2.2222x` | `1.57457355%` |
+| `2x` | `3.75419157%` |
+| `1.9753x` | `0.29523254%` |
+| `1.8181x` | `0.32074646%` |
+| `1.7777x` | `0.32803616%` |
+| `1.75x` | `1.76410555%` |
+| `1.25x` | `1.62560140%` |
+| `0.75x` | `2.00102056%` |
+| `0.5x` | `12.13004811%` |
+| `0x` | `63.40027701%` |
 
 If the buy-in is not evenly divisible across `numSpins`, Solidity floor division scales effective RTP by:
 
@@ -61,14 +327,15 @@ floor(totalBetAmount / numSpins) * numSpins / totalBetAmount
 
 ## Variance
 
-Exact variance is not currently recoverable from local files. Variance needs the second moment:
+Variance is computed over `X = payout / total stake`. With multiple spins, the total wager is split evenly and independent spin payouts are averaged, so session variance is the per-spin variance divided by `numSpins`. The table ignores Solidity floor-division dust for wagers that are not evenly divisible by `numSpins`.
 
-```text
-E[X^2] = sum_(a,b,c) P(a,b,c) * payout(a,b,c)^2
-Var(X) = E[X^2] - E[X]^2
-```
+The exact denominator for one spin is `190^3 = 6,859,000` ordered reel-stop triples.
 
-The repo records `E[X]` as exact RTP and selected high-value rows, but it does not persist the complete `6 * 6 * 6` ordered paytable snapshot needed to recompute `E[X^2]`. A future exact analytics note should first snapshot every `getPayout(a,b,c)` row from the live contract, especially because `oddsLocked = false` at the recorded read time.
+| Spins | RTP | Variance | Std. Dev. |
+|------:|----:|---------:|----------:|
+| `1` | `97.89751366817333%` | `11.815361` | `3.437348` |
+| `5` | `97.89751366817333%` | `2.363072` | `1.537229` |
+| `15` | `97.89751366817333%` | `0.787691` | `0.887519` |
 
 ## Sources
 

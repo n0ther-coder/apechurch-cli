@@ -367,7 +367,7 @@ Definitions:
 
 ## Omitted Or Policy-Dependent Rows
 
-- Bubblegum Heist and Dino Dough have exact per-spin RTP in the local docs, but the complete ordered paytable snapshot is not persisted, so exact variance is not recoverable from local files.
+- Bubblegum Heist has exact per-spin RTP in the local docs, but the complete ordered paytable snapshot is not persisted, so exact variance is not recoverable from local files. Dino Dough now persists its exact per-spin distribution and variance in its analytics note, but this comparison snapshot has not been expanded with Dino multi-spin rows.
 - Reel Pirates has only observed running statistics in the current public source set; exact RTP and variance are not defensible without the verified settlement source or a complete stochastic surface snapshot.
 - Blackjack main-hand, Hi-Lo Nebula whole-run, Cash Dash whole-run, and Video Poker pre-draw strategy are policy/state dependent. Baccarat arbitrary main-plus-tie splits are parameter-dependent, so only documented split examples are listed.
 - Glyde or Crash has a large target surface; this summary lists the exact representative targets documented in its analytics note, not every possible basis-point target.

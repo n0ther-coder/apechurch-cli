@@ -338,7 +338,7 @@ Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` 
 **Compare:**
 - Exact RTP: **`97.89751366817333%`** per spin.
 - Max payout: `333x`.
-- Operational note: much deeper ordered paytable than the public crop suggests; use the verification note for the full reel and triple matrix.
+- Operational note: much deeper ordered paytable than the public crop suggests; use the analytics note for the full ordered triple matrix.
 
 ## Geez Diggerz ✔︎
 
@@ -859,7 +859,7 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 These two tables are intentionally **game-level** and use **one single supported mode per row**. In the first table, each game is represented by the mode with its highest exact `win rate`; in the second, each game is represented by the mode with its highest exact `max X`. In both tables, `win rate`, `RTP`, and `max X` therefore refer to the **same game and the same mode**.
 
-`Win rate` here means **exact net-profit frequency** (`payout > 1x`), which matches the CLI's `win_rate` semantics rather than merely counting any positive payout. `RTP` is the exact expected return for that same selected mode, and `max X` is the exact gross multiplier for that same selected mode. Equivalent tied modes may be represented by one documented mode label. For `Video Poker`, the ordering uses the fixed `250x` royal-flush base and excludes the live progressive jackpot uplift. These tables exclude `Blackjack`, `Cash Dash`, `Hi-Lo Nebula`, `Dino Dough`, and `Bubblegum Heist` because the local repo does not currently keep a comparable exact net-profit win-rate surface for them in reusable form.
+`Win rate` here means **exact net-profit frequency** (`payout > 1x`), which matches the CLI's `win_rate` semantics rather than merely counting any positive payout. `RTP` is the exact expected return for that same selected mode, and `max X` is the exact gross multiplier for that same selected mode. Equivalent tied modes may be represented by one documented mode label. For `Video Poker`, the ordering uses the fixed `250x` royal-flush base and excludes the live progressive jackpot uplift. These tables exclude `Blackjack`, `Cash Dash`, and `Hi-Lo Nebula` because the local repo does not currently keep a comparable exact net-profit win-rate surface for them in reusable form. `Bubblegum Heist` still lacks the complete persisted paytable surface, while `Dino Dough` is documented exactly in its analytics note but has not been folded into these fixed top-10 summaries.
 
 For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODDS.md](./GAMES_PAYOUTS_VS_ODDS.md).
 

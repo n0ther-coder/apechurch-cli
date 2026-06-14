@@ -21,7 +21,7 @@ These notes belong under `docs/analytics/` when the repo has a defensible exact 
 | Blocks ✔︎ | [BLOCKS_ANALYTICS.md](./BLOCKS_ANALYTICS.md) | Exhaustive `3x3` max-of-a-kind enumeration plus consecutive-roll compounding gives exact `Low` / `High` survival matrices through `5` rolls. |
 | Bubblegum Heist ✔︎ | [BUBBLEGUM_HEIST_ANALYTICS.md](./BUBBLEGUM_HEIST_ANALYTICS.md) | Exact reel model, selected payout rows, exact RTP, and an explicit blocker for full variance until the whole paytable is snapshotted. |
 | Cash Dash ✔︎ | [CASH_DASH_ANALYTICS.md](./CASH_DASH_ANALYTICS.md) | Exact row-level and fixed-depth cash-out analytics; whole-run RTP remains policy-dependent. |
-| Dino Dough ✔︎ | [DINO_DOUGH_ANALYTICS.md](./DINO_DOUGH_ANALYTICS.md) | Exact reel model, selected payout rows, exact RTP, and an explicit blocker for full variance until the whole paytable is snapshotted. |
+| Dino Dough ✔︎ | [DINO_DOUGH_ANALYTICS.md](./DINO_DOUGH_ANALYTICS.md) | Complete ordered paytable, exact per-spin distribution, summary stats, exact RTP, and variance. |
 | Primes ✔︎ | [PRIMES_ANALYTICS.md](./PRIMES_ANALYTICS.md) | Each difficulty has only three exact outcome classes: zero, prime, or dead run. |
 | Geez Diggerz ✔︎ | [GEEZ_DIGGERZ_ANALYTICS.md](./GEEZ_DIGGERZ_ANALYTICS.md) | The full live ordered-triple matrix compresses cleanly to `16` payout rows after the symmetric reel snapshot. |
 | Gimboz Smash ✔︎ | [GIMBOZ_SMASH_ANALYTICS.md](./GIMBOZ_SMASH_ANALYTICS.md) | Exact one-or-two interval play collapses to a compact cover-count table because interval placement does not change EV. |
