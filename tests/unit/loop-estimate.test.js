@@ -202,7 +202,7 @@ describe('Loop Estimate Helpers', () => {
       availableApe: 99,
       gameEntry,
       wagerApe: 10,
-      config: { spins: 5 },
+      config: { split: 5 },
       vrfFeeApe: 0.1,
     });
 

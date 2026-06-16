@@ -21,7 +21,20 @@ describe('Slots config resolution', () => {
     },
   };
 
-  it('prefers explicit --spins over every fallback', () => {
+  it('prefers explicit --split over every fallback', () => {
+    const config = resolveSlotsConfig({
+      opts: { split: '12' },
+      positionalConfig: { spins: 9 },
+      strategyConfig: { slots: { spins: [7, 12] } },
+      randomIntInclusive: () => 8,
+      gameEntry,
+      preferGameDefault: true,
+    });
+
+    assert.deepStrictEqual(config, { split: 12 });
+  });
+
+  it('accepts --spins as a slots-only alias for --split', () => {
     const config = resolveSlotsConfig({
       opts: { spins: '12' },
       positionalConfig: { spins: 9 },
@@ -31,7 +44,7 @@ describe('Slots config resolution', () => {
       preferGameDefault: true,
     });
 
-    assert.deepStrictEqual(config, { spins: 12 });
+    assert.deepStrictEqual(config, { split: 12 });
   });
 
   it('prefers positional spins over the registry default', () => {
@@ -44,7 +57,7 @@ describe('Slots config resolution', () => {
       preferGameDefault: true,
     });
 
-    assert.deepStrictEqual(config, { spins: 6 });
+    assert.deepStrictEqual(config, { split: 6 });
   });
 
   it('uses the game default for manual fixed-game play when requested', () => {
@@ -57,7 +70,7 @@ describe('Slots config resolution', () => {
       preferGameDefault: true,
     });
 
-    assert.deepStrictEqual(config, { spins: 10 });
+    assert.deepStrictEqual(config, { split: 10 });
   });
 
   it('keeps strategy-driven randomness when the game default is not preferred', () => {
@@ -70,7 +83,7 @@ describe('Slots config resolution', () => {
       preferGameDefault: false,
     });
 
-    assert.deepStrictEqual(config, { spins: 8 });
+    assert.deepStrictEqual(config, { split: 8 });
   });
 });
 

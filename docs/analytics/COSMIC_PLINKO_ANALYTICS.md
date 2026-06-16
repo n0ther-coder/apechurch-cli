@@ -82,7 +82,7 @@ Variance is computed over `X = payout / total stake`. With multiple balls, the t
 
 ## Scoreboard
 
-#### `play cosmic 120 --risk high --balls 30 --loop --max-games 100`
+#### `play cosmic 120 --risk high --split 30 --loop --max-games 100`
 
 |      payout | game title    | game mode        |     bet | multiplier | datetime UTC             |
 |-------------|---------------|------------------|---------|------------|--------------------------|

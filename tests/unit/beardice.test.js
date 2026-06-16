@@ -6,7 +6,7 @@ import assert from 'node:assert';
 import { formatBearDiceSettledDetails, resolveBearDiceConfig } from '../../lib/games/beardice.js';
 
 describe('Bear-A-Dice helpers', () => {
-  it('keeps 5 rolls for Master risk when explicitly requested by label', () => {
+  it('keeps 5 survive attempts for Master risk when explicitly requested by label', () => {
     const config = resolveBearDiceConfig(
       {},
       { risk: 'Master', rolls: '5' },
@@ -34,11 +34,11 @@ describe('Bear-A-Dice helpers', () => {
 
     assert.deepStrictEqual(config, {
       difficulty: 4,
-      rolls: 5,
+      survive: 5,
     });
   });
 
-  it('accepts --runs as an alias for --rolls', () => {
+  it('reads legacy runs as an internal survive fallback', () => {
     const config = resolveBearDiceConfig(
       {},
       { risk: 'Medium', runs: '1' },
@@ -63,11 +63,11 @@ describe('Bear-A-Dice helpers', () => {
 
     assert.deepStrictEqual(config, {
       difficulty: 1,
-      rolls: 1,
+      survive: 1,
     });
   });
 
-  it('rejects conflicting --rolls and --runs aliases', () => {
+  it('rejects conflicting legacy roll-count aliases', () => {
     assert.throws(
       () => resolveBearDiceConfig(
         {},
@@ -84,13 +84,13 @@ describe('Bear-A-Dice helpers', () => {
           },
         }
       ),
-      /Conflicting Bear-A-Dice roll count/
+      /Conflicting Bear-A-Dice legacy survival count/
     );
   });
 
   it('preserves preselected bear dice config values instead of overriding them', () => {
     const config = resolveBearDiceConfig(
-      { difficulty: 4, rolls: 5 },
+      { difficulty: 4, survive: 5 },
       {},
       {},
       { bearDice: { rolls: [1, 2] } },
@@ -99,7 +99,7 @@ describe('Bear-A-Dice helpers', () => {
 
     assert.deepStrictEqual(config, {
       difficulty: 4,
-      rolls: 5,
+      survive: 5,
     });
   });
 

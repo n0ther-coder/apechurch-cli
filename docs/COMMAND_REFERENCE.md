@@ -330,7 +330,8 @@ Notes:
                   "--amount" <ape>
                   <bet-option>*
 <bet-option> ::= "--risk" <token>
-               | "--balls" <integer>
+               | "--split" <integer>
+               | "--survive" <integer>
                | "--spins" <integer>
                | "--bet" <token>
                | "--range" <range>
@@ -338,9 +339,6 @@ Notes:
                | "--out-range" <out-range>
                | "--picks" <integer>
                | "--numbers" <token>
-               | "--games" <count>
-               | "--runs" <count>
-               | "--rolls" <count>
                | "--timeout" <integer>
                | "--x-gameId" <uint256>
                | "--x-ref" <address>
@@ -353,17 +351,15 @@ Notes:
 | `--game <type>` | Stateless game key |
 | `--amount <ape>` | Wager amount |
 | `--risk <risk>` | Public risk level for Bear-A-Dice, Blocks, Plinko, Monkey Match, or Primes |
-| `--balls <balls>` | Plinko ball count |
-| `--spins <spins>` | Slot spin count |
+| `--split <count>` | Independent split attempts for Plinko, Primes, Speed Keno, and slots |
+| `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
+| `--spins <count>` | Slots-only alias for `--split` |
 | `--bet <bet>` | Roulette or baccarat bet payload |
 | `--range <range>` | ApeStrong range, or Gimboz Smash one-or-two target intervals |
 | `--multiplier <x>` | Glyde or Crash target multiplier |
 | `--out-range <range>` | Gimboz Smash outside bet expressed as one excluded range |
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token, for example `1,7,13,25,40` or `random` |
-| `--games <games>` | Speed Keno batch count |
-| `--runs <runs>` | Bear Dice, Primes, or Blocks run count |
-| `--rolls <rolls>` | Bear-A-Dice or Blocks roll count |
 | `--timeout <ms>` | Wait time for a result; `0` means no wait limit |
 | `--x-gameId <uint256>` | Expert override for the generated `gameId` in `gameData` |
 | `--x-ref <address>` | Expert override for the referral address in `gameData` |
@@ -380,7 +376,8 @@ Notes:
 <play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>
 <play-stateless-option> ::= "--auto"
                           | "--risk" <token>
-                          | "--balls" <integer>
+                          | "--split" <integer>
+                          | "--survive" <integer>
                           | "--spins" <integer>
                           | "--bet" <token>
                           | "--range" <range>
@@ -388,9 +385,6 @@ Notes:
                           | "--out-range" <out-range>
                           | "--picks" <integer>
                           | "--numbers" <token>
-                          | "--games" <count>
-                          | "--runs" <count>
-                          | "--rolls" <count>
                           | "--timeout" <integer>
                           | "--x-gameId" <uint256>
                           | "--x-ref" <address>
@@ -433,7 +427,7 @@ Notes:
 
 The positional tail after `<ape>` is game-specific. See [GAMES_REFERENCE.md](./GAMES_REFERENCE.md) or `apechurch-cli game <name>` for the exact grammar per stateless game.
 
-When using `--bet-strategy bankroll-fraction=<fraction>`, omit the positional wager amount. Prefer named game-configuration flags such as `--bet RED`, `--range 50`, or `--runs 5` so numeric config values are not mistaken for an explicit wager amount.
+When using `--bet-strategy bankroll-fraction=<fraction>`, omit the positional wager amount. Prefer named game-configuration flags such as `--bet RED`, `--range 50`, or `--survive 5` so numeric config values are not mistaken for an explicit wager amount.
 
 Stateful games can also be routed through `play`, for example `apechurch-cli play blackjack 10 --auto`, `apechurch-cli play cash-dash 10 --tile 3`, or `apechurch-cli play video-poker 10 --auto best`. Direct commands such as `apechurch-cli blackjack 10` remain supported. When a stateful action needs an unfinished-game id through `play`, prefer `--game-id <id>` because `--game <name>` is already used for selecting the target game.
 
@@ -447,17 +441,15 @@ These options apply only to fire-and-forget games handled by the stateless game 
 |--------|---------|
 | `--auto` | Opt into automatic random stateless game/config selection when no game is specified |
 | `--risk <risk>` | Public risk level for Bear-A-Dice, Blocks, Plinko, Monkey Match, or Primes |
-| `--balls <balls>` | Plinko ball count |
-| `--spins <spins>` | Slot spin count |
+| `--split <count>` | Independent split attempts for Plinko, Primes, Speed Keno, and slots |
+| `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
+| `--spins <count>` | Slots-only alias for `--split` |
 | `--bet <bet>` | Roulette or baccarat bet payload |
 | `--range <range>` | ApeStrong range, or Gimboz Smash one-or-two target intervals |
 | `--multiplier <x>` | Glyde or Crash target multiplier |
 | `--out-range <range>` | Gimboz Smash outside bet expressed as one excluded range |
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token |
-| `--games <games>` | Speed Keno batch count |
-| `--runs <runs>` | Bear Dice, Primes, or Blocks run count |
-| `--rolls <rolls>` | Bear-A-Dice or Blocks roll count |
 | `--timeout <ms>` | Wait time for a stateless result; `0` returns the pending play response |
 | `--x-gameId <uint256>` | Expert override for the generated `gameId` in `gameData` |
 | `--x-ref <address>` | Expert override for the referral address in `gameData` |

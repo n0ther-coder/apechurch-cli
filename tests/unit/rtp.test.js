@@ -162,14 +162,14 @@ describe('RTP Helpers', () => {
     assert.strictEqual(bestVariant.calculated.value, 97.8377);
   });
 
-  it('uses the on-chain Jungle Plinko mode table even when balls are specified', () => {
+  it('uses the on-chain Jungle Plinko mode table even when split count is specified', () => {
     const expected = getConfiguredGameExpectedRtpReference({
       game: 'jungle-plinko',
-      config: { mode: 4, balls: 50 },
+      config: { mode: 4, split: 50 },
     });
     const maxPayout = getConfiguredGameMaxPayoutReference({
       game: 'jungle-plinko',
-      config: { mode: 4, balls: 50 },
+      config: { mode: 4, split: 50 },
     });
 
     assert.strictEqual(expected.display, '97.99%');
@@ -178,14 +178,14 @@ describe('RTP Helpers', () => {
     assert.strictEqual(maxPayout.display, '1,000x');
   });
 
-  it('uses the on-chain Cosmic Plinko mode table even when balls are specified', () => {
+  it('uses the on-chain Cosmic Plinko mode table even when split count is specified', () => {
     const expected = getConfiguredGameExpectedRtpReference({
       game: 'cosmic',
-      config: { mode: 2, balls: 30 },
+      config: { mode: 2, split: 30 },
     });
     const maxPayout = getConfiguredGameMaxPayoutReference({
       game: 'cosmic-plinko',
-      config: { mode: 2, balls: 30 },
+      config: { mode: 2, split: 30 },
     });
 
     assert.strictEqual(expected.display, '97.80%');
@@ -227,14 +227,14 @@ describe('RTP Helpers', () => {
     assert.strictEqual(maxPayout.display, '10,000x');
   });
 
-  it('uses the verified Blocks mode and roll table when runs are specified', () => {
+  it('uses the verified Blocks mode and roll table when survive attempts are specified', () => {
     const expected = getConfiguredGameExpectedRtpReference({
       game: 'blocks',
-      config: { mode: 1, runs: 5 },
+      config: { mode: 1, survive: 5 },
     });
     const maxPayout = getConfiguredGameMaxPayoutReference({
       game: 'blocks',
-      config: { mode: 1, runs: 5 },
+      config: { mode: 1, survive: 5 },
     });
 
     assert.strictEqual(expected.display, '91.93%');
@@ -246,11 +246,11 @@ describe('RTP Helpers', () => {
   it('uses the verified Bear-A-Dice payout table for configured RTP and max payout', () => {
     const expected = getConfiguredGameExpectedRtpReference({
       game: 'bear-dice',
-      config: { difficulty: 4, rolls: 5 },
+      config: { difficulty: 4, survive: 5 },
     });
     const maxPayout = getConfiguredGameMaxPayoutReference({
       game: 'bear-dice',
-      config: { difficulty: 4, rolls: 5 },
+      config: { difficulty: 4, survive: 5 },
     });
 
     assert.strictEqual(expected.display, '97.80%');
@@ -260,10 +260,10 @@ describe('RTP Helpers', () => {
     assert.strictEqual(maxPayout.display, '1,847,949.193x');
   });
 
-  it('canonicalizes Plinko variants to risk mode only, ignoring balls', () => {
+  it('canonicalizes Plinko variants to risk mode only, ignoring split count', () => {
     const jungle = resolveConfiguredGameVariant({
       game: 'jungle-plinko',
-      config: { mode: 0, balls: 10 },
+      config: { mode: 0, split: 10 },
     });
     const cosmic = resolveConfiguredGameVariant({
       game: 'cosmic-plinko',
@@ -287,10 +287,10 @@ describe('RTP Helpers', () => {
     });
   });
 
-  it('canonicalizes Primes variants to difficulty only, ignoring runs', () => {
+  it('canonicalizes Primes variants to difficulty only, ignoring split count', () => {
     const primes = resolveConfiguredGameVariant({
       game: 'primes',
-      config: { difficulty: 3, runs: 20 },
+      config: { difficulty: 3, split: 20 },
     });
 
     assert.deepStrictEqual(primes, {
@@ -302,10 +302,10 @@ describe('RTP Helpers', () => {
     });
   });
 
-  it('canonicalizes Blocks variants by risk mode and runs', () => {
+  it('canonicalizes Blocks variants by risk mode and survive count', () => {
     const blocks = resolveConfiguredGameVariant({
       game: 'blocks',
-      config: { mode: 1, runs: 5 },
+      config: { mode: 1, survive: 5 },
     });
 
     assert.deepStrictEqual(blocks, {
@@ -313,7 +313,7 @@ describe('RTP Helpers', () => {
       variantKey: 'blocks:mode:hard:rolls:5',
       variantLabel: 'High / 5 rolls',
       rtpGame: 'blocks',
-      rtpConfig: { mode: 1, runs: 5 },
+      rtpConfig: { mode: 1, survive: 5 },
     });
   });
 
@@ -353,7 +353,7 @@ describe('RTP Helpers', () => {
   it('canonicalizes Bear-A-Dice variants by exact difficulty and roll count', () => {
     const variant = resolveConfiguredGameVariant({
       game: 'bear-dice',
-      config: { difficulty: 4, rolls: 5 },
+      config: { difficulty: 4, survive: 5 },
     });
 
     assert.deepStrictEqual(variant, {
@@ -361,7 +361,7 @@ describe('RTP Helpers', () => {
       variantKey: 'bear-dice:difficulty:4:rolls:5',
       variantLabel: 'Master / 5 rolls',
       rtpGame: 'bear-dice',
-      rtpConfig: { difficulty: 4, rolls: 5 },
+      rtpConfig: { difficulty: 4, survive: 5 },
     });
   });
 
@@ -382,7 +382,7 @@ describe('RTP Helpers', () => {
       variantKey: 'bear-dice:difficulty:1:rolls:5',
       variantLabel: 'Medium / 5 rolls',
       rtpGame: 'bear-dice',
-      rtpConfig: { difficulty: 1, rolls: 5 },
+      rtpConfig: { difficulty: 1, survive: 5 },
     });
     assert.deepStrictEqual(monkey, {
       gameKey: 'monkey-match',
@@ -547,35 +547,35 @@ describe('RTP Helpers', () => {
   it('uses the verified live slot tables for all supported slot games', () => {
     const dino = getConfiguredGameExpectedRtpReference({
       game: 'dino-dough',
-      config: { spins: 15 },
+      config: { split: 15 },
     });
     const bubblegum = getConfiguredGameExpectedRtpReference({
       game: 'bubblegum-heist',
-      config: { spins: 7 },
+      config: { split: 7 },
     });
     const geez = getConfiguredGameExpectedRtpReference({
       game: 'geez-diggerz',
-      config: { spins: 9 },
+      config: { split: 9 },
     });
     const sushi = getConfiguredGameExpectedRtpReference({
       game: 'sushi-showdown',
-      config: { spins: 5 },
+      config: { split: 5 },
     });
     const dinoMaxPayout = getConfiguredGameMaxPayoutReference({
       game: 'dino-dough',
-      config: { spins: 3 },
+      config: { split: 3 },
     });
     const bubblegumMaxPayout = getConfiguredGameMaxPayoutReference({
       game: 'bubblegum-heist',
-      config: { spins: 10 },
+      config: { split: 10 },
     });
     const geezMaxPayout = getConfiguredGameMaxPayoutReference({
       game: 'geez-diggerz',
-      config: { spins: 1 },
+      config: { split: 1 },
     });
     const sushiMaxPayout = getConfiguredGameMaxPayoutReference({
       game: 'sushi-showdown',
-      config: { spins: 12 },
+      config: { split: 12 },
     });
 
     assert.strictEqual(dino.display, '97.90%');

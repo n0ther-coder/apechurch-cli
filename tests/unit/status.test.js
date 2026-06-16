@@ -580,13 +580,13 @@ describe('Status Helpers', () => {
           game: 'Bear-A-Dice ✔︎ (Medium / 5 rolls)',
           group_key: 'bear-dice:difficulty:1:rolls:5',
           variant_label: 'Medium / 5 rolls',
-          rtp_config: { difficulty: 1, rolls: 5 },
+          rtp_config: { difficulty: 1, survive: 5 },
         },
         {
           game: 'Blocks ✔︎ (Low / 3 rolls)',
           group_key: 'blocks:mode:easy:rolls:3',
           variant_label: 'Low / 3 rolls',
-          rtp_config: { mode: 0, runs: 3 },
+          rtp_config: { mode: 0, survive: 3 },
         },
         {
           game: 'Monkey Match ✔︎ (Low)',

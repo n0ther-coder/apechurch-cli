@@ -44,7 +44,7 @@
 - **Dice / Number / Crash:** ApeStrong, Bear-A-Dice, Primes, Glyde or Crash
 - **Other:** Cash Dash, Gimboz Smash, Monkey Match
 - **History-only wallet tracking:** Blizzard Blitz, Gimboz of the Galaxy, Rico's Revenge, Cult Quest
-- Full game customization (difficulty, risk, runs, picks, rolls, bets)
+- Full game customization (difficulty, risk, split attempts, survive attempts, picks, bets)
 - Single plays or continuous loop mode
 - Strategy presets: Conservative → Degen
 

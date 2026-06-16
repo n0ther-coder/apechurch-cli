@@ -339,7 +339,7 @@ Here `Y` is the one-roll multiplier, including `0x` for losing sums.
 
 ## Scoreboard
 
-#### `play bear 10 --risk Master --rolls 2`
+#### `play bear 10 --risk Master --survive 2`
 
 | multiplier | game title    | game mode        |     bet |      payout | datetime UTC             |
 |------------|---------------|------------------|---------|-------------|--------------------------|

@@ -555,13 +555,13 @@ describe('Wallet History Analysis', () => {
           game: 'Bear-A-Dice ✔︎ (Medium / 5 rolls)',
           variant_key: 'bear-dice:difficulty:1:rolls:5',
           variant_label: 'Medium / 5 rolls',
-          rtp_config: { difficulty: 1, rolls: 5 },
+          rtp_config: { difficulty: 1, survive: 5 },
         },
         {
           game: 'Blocks ✔︎ (Low / 3 rolls)',
           variant_key: 'blocks:mode:easy:rolls:3',
           variant_label: 'Low / 3 rolls',
-          rtp_config: { mode: 0, runs: 3 },
+          rtp_config: { mode: 0, survive: 3 },
         },
         {
           game: 'Monkey Match ✔︎ (Low)',
@@ -669,11 +669,11 @@ describe('Wallet History Analysis', () => {
       assert.deepStrictEqual(result.games[0].config, {
         mode: 1,
         modeName: 'High',
-        runs: 4,
+        survive: 4,
       });
       assert.strictEqual(result.games[0].variant_key, 'blocks:mode:hard:rolls:4');
       assert.strictEqual(result.games[0].variant_label, 'High / 4 rolls');
-      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1, runs: 4 });
+      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1, survive: 4 });
     });
 
     it('normalizes saved records locally when config already contains the canonical risk metadata', async () => {
@@ -703,7 +703,7 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(result.inferred, 1);
       assert.strictEqual(result.games[0].variant_key, 'blocks:mode:easy:rolls:3');
       assert.strictEqual(result.games[0].variant_label, 'Low / 3 rolls');
-      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 0, runs: 3 });
+      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 0, survive: 3 });
     });
 
     it('reconstructs history-only game variant metadata from cached play calldata', async () => {
@@ -902,11 +902,11 @@ describe('Wallet History Analysis', () => {
       assert.deepStrictEqual(result.games[0].config, {
         mode: 0,
         modeName: 'Low',
-        runs: 2,
+        survive: 2,
       });
       assert.strictEqual(result.games[0].variant_key, 'blocks:mode:easy:rolls:2');
       assert.strictEqual(result.games[0].variant_label, 'Low / 2 rolls');
-      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 0, runs: 2 });
+      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 0, survive: 2 });
     });
 
     it('falls back to getGameInfo when the saved tx is not the original play calldata', async () => {
@@ -951,14 +951,14 @@ describe('Wallet History Analysis', () => {
       assert.deepStrictEqual(result.games[0].config, {
         difficulty: 4,
         difficultyName: 'Master',
-        rolls: 5,
+        survive: 5,
       });
       assert.strictEqual(result.games[0].variant_key, 'bear-dice:difficulty:4:rolls:5');
       assert.strictEqual(result.games[0].variant_label, 'Master / 5 rolls');
       assert.deepStrictEqual(result.games[0].rtp_config, {
         difficulty: 4,
         difficultyName: 'Master',
-        rolls: 5,
+        survive: 5,
       });
     });
 
@@ -1233,30 +1233,30 @@ describe('Wallet History Analysis', () => {
       assert.deepStrictEqual(result.games[0].config, {
         mode: 1,
         modeName: 'High',
-        runs: 5,
+        survive: 5,
       });
       assert.strictEqual(result.games[0].variant_key, 'blocks:mode:hard:rolls:5');
       assert.strictEqual(result.games[0].variant_label, 'High / 5 rolls');
-      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1, runs: 5 });
+      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1, survive: 5 });
 
       assert.deepStrictEqual(result.games[1].config, {
         difficulty: 3,
         difficultyName: 'Extreme',
-        runs: 9,
+        split: 9,
       });
       assert.strictEqual(result.games[1].variant_key, 'primes:mode:extreme');
       assert.strictEqual(result.games[1].variant_label, 'Extreme');
       assert.deepStrictEqual(result.games[1].rtp_config, { difficulty: 3 });
 
       assert.deepStrictEqual(result.games[2].config, {
-        games: 4,
+        split: 4,
         picks: 3,
         numbers: [1, 7, 20],
       });
       assert.strictEqual(result.games[2].variant_key, 'speed-keno:picks:3');
       assert.strictEqual(result.games[2].variant_label, 'Picks 3');
       assert.deepStrictEqual(result.games[2].rtp_config, {
-        games: 4,
+        split: 4,
         picks: 3,
         numbers: [1, 7, 20],
       });
@@ -1264,7 +1264,7 @@ describe('Wallet History Analysis', () => {
       assert.deepStrictEqual(result.games[3].config, {
         mode: 2,
         modeName: 'High',
-        balls: 12,
+        split: 12,
       });
       assert.strictEqual(result.games[3].variant_key, 'cosmic-plinko:mode:2');
       assert.strictEqual(result.games[3].variant_label, 'High');
@@ -1442,7 +1442,7 @@ describe('Wallet History Analysis', () => {
       assert.deepStrictEqual(result.games[4].config, {
         mode: 1,
         modeName: 'Moderate',
-        balls: 8,
+        split: 8,
       });
       assert.strictEqual(result.games[4].variant_key, 'jungle-plinko:mode:1');
       assert.strictEqual(result.games[4].variant_label, 'Moderate');
@@ -1460,18 +1460,18 @@ describe('Wallet History Analysis', () => {
       });
 
       assert.deepStrictEqual(result.games[6].config, {
-        spins: 3,
+        split: 3,
       });
       assert.strictEqual(result.games[6].variant_key, 'dino-dough:spins:3');
       assert.strictEqual(result.games[6].variant_label, '3 spins');
-      assert.deepStrictEqual(result.games[6].rtp_config, { spins: 3 });
+      assert.deepStrictEqual(result.games[6].rtp_config, { split: 3 });
 
       assert.deepStrictEqual(result.games[7].config, {
-        spins: 5,
+        split: 5,
       });
       assert.strictEqual(result.games[7].variant_key, 'geez-diggerz:spins:5');
       assert.strictEqual(result.games[7].variant_label, '5 spins');
-      assert.deepStrictEqual(result.games[7].rtp_config, { spins: 5 });
+      assert.deepStrictEqual(result.games[7].rtp_config, { split: 5 });
     });
   });
 
@@ -2267,11 +2267,11 @@ describe('Wallet History Analysis', () => {
       assert.deepStrictEqual(analysis.recent_games[0].config, {
         mode: 0,
         modeName: 'Low',
-        runs: 3,
+        survive: 3,
       });
       assert.strictEqual(analysis.recent_games[0].variant_key, 'blocks:mode:easy:rolls:3');
       assert.strictEqual(analysis.recent_games[0].variant_label, 'Low / 3 rolls');
-      assert.deepStrictEqual(analysis.recent_games[0].rtp_config, { mode: 0, runs: 3 });
+      assert.deepStrictEqual(analysis.recent_games[0].rtp_config, { mode: 0, survive: 3 });
     });
 
     it('reconstructs history-only games from play fallback logs and settlement logs', async () => {

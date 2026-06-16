@@ -313,8 +313,10 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--auto'), 'Should document explicit automatic random play');
       assert.ok(stdout.includes('--timeout <ms>'), 'Should document stateless result timeout');
       assert.ok(stdout.includes('<keno-numbers> ::= "random" | <keno-number> ( "," <keno-number> )*'), 'Should document Keno numbers grammar');
-      assert.ok(stdout.includes('<runs> ::= <integer>'), 'Should document Primes run grammar');
-      assert.ok(stdout.includes('<rolls> ::= <integer>                              ; 1 <= value <= 5'), 'Should document the verified 1-5 Bear-A-Dice roll range');
+      assert.ok(stdout.includes('<split> ::= <integer>'), 'Should document split attempt grammar');
+      assert.ok(stdout.includes('<survive> ::= <integer>'), 'Should document survival attempt grammar');
+      assert.ok(!stdout.includes('--rolls <rolls>'), 'Should not advertise old roll flags');
+      assert.ok(!stdout.includes('--runs <runs>'), 'Should not advertise old run flags');
       assert.ok(!stdout.includes('<= 3 when difficulty >= 3'), 'Should not mention the removed fake Bear-A-Dice 3-roll cap');
       assert.ok(stdout.includes('--numbers 1,7,13,25,40'), 'Should document the single-token numbers form');
     });
@@ -453,13 +455,23 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(!stdout.includes('No wallet found'));
     });
 
-    it('play validate-only accepts --rolls as a Blocks run-count alias', () => {
-      const { stdout, code } = cli('play blocks --risk Low --rolls 1 10 --loop --max-games 10 --validate-only --json');
+    it('play validate-only accepts --survive for Blocks survival count', () => {
+      const { stdout, code } = cli('play blocks --risk Low --survive 1 10 --loop --max-games 10 --validate-only --json');
       const payload = JSON.parse(stdout);
 
       assert.strictEqual(code, 0);
       assert.strictEqual(payload.game, 'blocks');
-      assert.deepStrictEqual(payload.config, { mode: 0, runs: 1 });
+      assert.deepStrictEqual(payload.config, { mode: 0, survive: 1 });
+      assert.ok(!stdout.includes('No wallet found'));
+    });
+
+    it('play validate-only rejects old Blocks roll-count flags with a rename hint', () => {
+      const { stdout, code } = cli('play blocks --risk Low --rolls 1 10 --loop --max-games 10 --validate-only --json');
+      const payload = JSON.parse(stdout);
+
+      assert.strictEqual(code, 1);
+      assert.match(payload.error, /Option --rolls was renamed/);
+      assert.match(payload.error, /--survive/);
       assert.ok(!stdout.includes('No wallet found'));
     });
 
@@ -563,8 +575,12 @@ describe('CLI Commands Integration Tests', () => {
   describe('games command', () => {
     it('lists available games', () => {
       const { stdout } = cli('games');
-      assert.ok(stdout.includes('Simple Games:'), 'Should separate simple games');
       assert.ok(stdout.includes('Stateful Games:'), 'Should separate stateful games');
+      assert.ok(stdout.includes('Single Attempt Games:'), 'Should separate single-attempt games');
+      assert.ok(stdout.includes('Survive Games:'), 'Should separate survive games');
+      assert.ok(stdout.includes('Split Bet Games:'), 'Should separate split-bet games');
+      assert.ok(stdout.includes('Classic Slot Machines:'), 'Should separate classic slot machines');
+      assert.ok(stdout.includes('Slot Machines With Sub-Game:'), 'Should separate slot machines with sub-games');
       assert.ok(stdout.includes('ApeStrong ✔︎'), 'Should list verified ApeStrong');
       assert.ok(stdout.includes('Roulette ✔︎'), 'Should list verified Roulette');
       assert.ok(stdout.includes('Baccarat ✔︎'), 'Should list verified Baccarat');
@@ -583,41 +599,65 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Blocks ✔︎'), 'Should list verified Blocks');
       assert.ok(stdout.includes('Primes ✔︎'), 'Should list verified Primes');
       assert.ok(stdout.includes('Sushi Showdown ✔︎'), 'Should list verified Sushi Showdown');
-      const simpleOrder = [
+
+      const assertSectionOrder = (sectionTitle, titles) => {
+        let lastIndex = stdout.indexOf(`${sectionTitle}:`);
+        assert.ok(lastIndex >= 0, `${sectionTitle} should be present`);
+        for (const title of titles) {
+          const currentIndex = stdout.indexOf(title);
+          assert.ok(currentIndex > lastIndex, `${title} should appear in alphabetical order within ${sectionTitle}`);
+          lastIndex = currentIndex;
+        }
+      };
+
+      assertSectionOrder('Stateful Games', [
+        'Blackjack ✔︎',
+        'Cash Dash ✔︎',
+        'Hi-Lo Nebula ✔︎',
+        'Video Poker ✔︎',
+      ]);
+      assertSectionOrder('Single Attempt Games', [
         'ApeStrong ✔︎',
         'Baccarat ✔︎',
-        'Bear-A-Dice ✔︎',
-        'Blocks ✔︎',
-        'Bubblegum Heist ✔︎',
-        'Cosmic Plinko ✔︎',
-        'Dino Dough ✔︎',
-        'Geez Diggerz ✔︎',
         'Gimboz Smash ✔︎',
         'Glyde or Crash ✔︎',
-        'Jungle Plinko ✔︎',
         'Keno ✔︎',
         'Monkey Match ✔︎',
-        'Primes ✔︎',
         'Roulette ✔︎',
+      ]);
+      assertSectionOrder('Survive Games', [
+        'Bear-A-Dice ✔︎',
+        'Blocks ✔︎',
+      ]);
+      assertSectionOrder('Split Bet Games', [
+        'Cosmic Plinko ✔︎',
+        'Jungle Plinko ✔︎',
+        'Primes ✔︎',
         'Speed Keno ✔︎',
+      ]);
+      assertSectionOrder('Classic Slot Machines', [
+        'Bubblegum Heist ✔︎',
+        'Dino Dough ✔︎',
+        'Geez Diggerz ✔︎',
         'Sushi Showdown ✔︎',
-      ];
-      let lastIndex = stdout.indexOf('Simple Games:');
-      for (const title of simpleOrder) {
-        const currentIndex = stdout.indexOf(title);
-        assert.ok(currentIndex > lastIndex, `${title} should appear in alphabetical order within simple games`);
-        lastIndex = currentIndex;
-      }
+      ]);
+      assertSectionOrder('Slot Machines With Sub-Game', [
+        'Reel Pirates',
+      ]);
+    });
 
-      const statefulHeaderIndex = stdout.indexOf('Stateful Games:');
-      const blackjackIndex = stdout.indexOf('Blackjack ✔︎');
-      const cashDashIndex = stdout.indexOf('Cash Dash ✔︎');
-      const hiLoNebulaIndex = stdout.indexOf('Hi-Lo Nebula ✔︎');
-      const videoPokerIndex = stdout.indexOf('Video Poker ✔︎');
-      assert.ok(blackjackIndex > statefulHeaderIndex, 'Blackjack should appear in the stateful section');
-      assert.ok(cashDashIndex > blackjackIndex, 'Cash Dash should appear after Blackjack');
-      assert.ok(hiLoNebulaIndex > cashDashIndex, 'Hi-Lo Nebula should appear after Cash Dash');
-      assert.ok(videoPokerIndex > hiLoNebulaIndex, 'Stateful games should be ordered alphabetically');
+    it('--list returns plain play command forms in grouped order', () => {
+      const { stdout } = cli('games --list');
+      const lines = stdout.trim().split('\n');
+
+      assert.ok(lines.every((line) => line.startsWith('[play] ')), 'Should only print play-list lines');
+      assert.ok(lines.includes('[play] blocks <ape> --risk <risk> --survive <survive>'), 'Should use --survive for Blocks');
+      assert.ok(lines.includes('[play] primes <ape> --risk <risk> --split <split>'), 'Should use --split for Primes');
+      assert.ok(lines.includes('[play] reel-pirates <ape> --split <split>'), 'Should use --split for Reel Pirates');
+      assert.ok(!stdout.includes('--rolls'), 'Should not advertise old roll flags');
+      assert.ok(!stdout.includes('--runs'), 'Should not advertise old run flags');
+      assert.ok(!stdout.includes('--balls'), 'Should not advertise old ball flags');
+      assert.ok(!stdout.includes('--games'), 'Should not advertise old game-count flags');
     });
 
     it('--stats appends the full Game Stats catalog', () => {
@@ -665,30 +705,30 @@ describe('CLI Commands Integration Tests', () => {
       assert.deepStrictEqual(
         data.games.map((entry) => entry.key),
         [
+          'blackjack',
+          'cash-dash',
+          'hi-lo-nebula',
+          'video-poker',
           'ape-strong',
           'baccarat',
-          'bear-dice',
-          'blackjack',
-          'blocks',
-          'bubblegum-heist',
-          'cash-dash',
-          'cosmic-plinko',
-          'dino-dough',
-          'geez-diggerz',
           'gimboz-smash',
           'glyde-or-crash',
-          'hi-lo-nebula',
-          'jungle-plinko',
           'keno',
           'monkey-match',
-          'primes',
-          'reel-pirates',
           'roulette',
+          'bear-dice',
+          'blocks',
+          'cosmic-plinko',
+          'jungle-plinko',
+          'primes',
           'speed-keno',
+          'bubblegum-heist',
+          'dino-dough',
+          'geez-diggerz',
           'sushi-showdown',
-          'video-poker',
+          'reel-pirates',
         ],
-        'Games JSON should be ordered alphabetically by game title'
+        'Games JSON should be ordered by catalog group and alphabetically inside each group'
       );
     });
 
@@ -707,10 +747,14 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('ApeStrong') || stdout.includes('ape-strong'), 'Should show game name');
     });
 
-    it('shows alphabetized available games when the name is invalid', () => {
+    it('shows grouped available games when the name is invalid', () => {
       const { stdout } = cli('game nope');
-      assert.ok(stdout.includes('Simple: ape-strong | baccarat | bear-dice | blocks | bubblegum-heist | cosmic-plinko | dino-dough | geez-diggerz | gimboz-smash | glyde-or-crash | jungle-plinko | keno | monkey-match | primes | reel-pirates | roulette | speed-keno | sushi-showdown'));
-      assert.ok(stdout.includes('Stateful: blackjack | cash-dash | hi-lo-nebula | video-poker'));
+      assert.ok(stdout.includes('Stateful Games: blackjack | cash-dash | hi-lo-nebula | video-poker'));
+      assert.ok(stdout.includes('Single Attempt Games: ape-strong | baccarat | gimboz-smash | glyde-or-crash | keno | monkey-match | roulette'));
+      assert.ok(stdout.includes('Survive Games: bear-dice | blocks'));
+      assert.ok(stdout.includes('Split Bet Games: cosmic-plinko | jungle-plinko | primes | speed-keno'));
+      assert.ok(stdout.includes('Classic Slot Machines: bubblegum-heist | dino-dough | geez-diggerz | sushi-showdown'));
+      assert.ok(stdout.includes('Slot Machines With Sub-Game: reel-pirates'));
     });
 
     it('returns the full alphabetized available catalog in JSON when the name is invalid', () => {
@@ -1099,7 +1143,7 @@ describe('CLI Commands Integration Tests', () => {
     it('hides internal registry metadata from game helpers', () => {
       const { stdout } = cli('game pirates');
 
-      assert.ok(stdout.includes('--spins'), 'Should still show the public spin parameter');
+      assert.ok(stdout.includes('--split'), 'Should show the canonical split parameter');
       assert.ok(!stdout.includes('--gameDataOrder'), 'Should not show internal encoding metadata as a CLI option');
     });
 

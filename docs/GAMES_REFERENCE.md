@@ -20,25 +20,25 @@ Ordering: alphabetical by game title.
 |------|------------------|-------------|---------|
 | ApeStrong ✔︎ | `play ape-strong <amt> <range>` | `--game ape-strong --amount X --range Y` | `apestrong`, `strong` |
 | Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` | - |
-| Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --rolls Z` (`--runs Z` alias) | `bear`, `dice` |
+| Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --survive Z` | `bear`, `dice` |
 | Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` | `bj` |
-| Blocks ✔︎ | `play blocks <amt> <risk> <runs>` | `--game blocks --amount X --risk Y --runs Z` (`--rolls Z` alias) | - |
-| Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` | `bubblegumheist`, `bubblegum`, `heist` |
+| Blocks ✔︎ | `play blocks <amt> <risk> <survive>` | `--game blocks --amount X --risk Y --survive Z` | - |
+| Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <split>` | `--game bubblegum-heist --amount X --split Y` (`--spins Y` alias) | `bubblegumheist`, `bubblegum`, `heist` |
 | Cash Dash ✔︎ | `cash-dash <amt>` | `cash-dash <amt> --auto --cashout-after N` | `cashdash`, `dash` |
-| Cosmic Plinko ✔︎ | `play cosmic-plinko <amt> <risk> <balls>` | `--game cosmic-plinko --amount X --risk Y --balls Z` | `cosmic` |
-| Dino Dough ✔︎ | `play dino-dough <amt> <spins>` | `--game dino-dough --amount X --spins Y` | `dinodough`, `dino` |
-| Geez Diggerz ✔︎ | `play geez-diggerz <amt> <spins>` | `--game geez-diggerz --amount X --spins Y` | `geezdiggerz`, `geez`, `diggerz` |
+| Cosmic Plinko ✔︎ | `play cosmic-plinko <amt> <risk> <split>` | `--game cosmic-plinko --amount X --risk Y --split Z` | `cosmic` |
+| Dino Dough ✔︎ | `play dino-dough <amt> <split>` | `--game dino-dough --amount X --split Y` (`--spins Y` alias) | `dinodough`, `dino` |
+| Geez Diggerz ✔︎ | `play geez-diggerz <amt> <split>` | `--game geez-diggerz --amount X --split Y` (`--spins Y` alias) | `geezdiggerz`, `geez`, `diggerz` |
 | Gimboz Smash ✔︎ | `play gimboz-smash <amt> <range>` | `--game gimboz-smash --amount X --range Y` | `gimbozsmash`, `smash` |
 | Glyde or Crash ✔︎ | `play glyde-or-crash <amt> <multiplier>` | `--game glyde-or-crash --amount X --multiplier Y` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` | `hilonebula`, `hilo`, `nebula` |
-| Jungle Plinko ✔︎ | `play jungle-plinko <amt> <risk> <balls>` | `--game jungle-plinko --amount X --risk Y --balls Z` | `jungleplinko`, `jungle` |
+| Jungle Plinko ✔︎ | `play jungle-plinko <amt> <risk> <split>` | `--game jungle-plinko --amount X --risk Y --split Z` | `jungleplinko`, `jungle` |
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` | - |
 | Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --risk Y` | `monkeymatch`, `monkey` |
-| Primes ✔︎ | `play primes <amt> <risk> <runs>` | `--game primes --amount X --risk Y --runs Z` | - |
-| Reel Pirates | `play reel-pirates <amt> <spins>` | `--game reel-pirates --amount X --spins Y` | `reelpirates`, `pirates`, `reel` |
+| Primes ✔︎ | `play primes <amt> <risk> <split>` | `--game primes --amount X --risk Y --split Z` | - |
+| Reel Pirates | `play reel-pirates <amt> <split>` | `--game reel-pirates --amount X --split Y` (`--spins Y` alias) | `reelpirates`, `pirates`, `reel` |
 | Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` | - |
-| Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --games Z` | `speedkeno`, `skeno`, `speed` |
-| Sushi Showdown ✔︎ | `play sushi-showdown <amt> <spins>` | `--game sushi-showdown --amount X --spins Y` | `sushishowdown`, `sushi` |
+| Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --split Z` | `speedkeno`, `skeno`, `speed` |
+| Sushi Showdown ✔︎ | `play sushi-showdown <amt> <split>` | `--game sushi-showdown --amount X --split Y` (`--spins Y` alias) | `sushishowdown`, `sushi` |
 | Video Poker ✔︎ / Gimboz Poker | `video-poker <amt>` | `video-poker <amt> --auto best` | `vp` |
 
 ## Grammar Conventions
@@ -166,12 +166,12 @@ Classic baccarat with contract-backed combined bets. You can play `PLAYER`, `BAN
 
 All-or-nothing compounded `2d6` survival game. You pick a risk level and `1-5` rolls; every safe sum compounds the payout, and the first losing sum zeroes the whole run.
 
-**Command:** `apechurch-cli play bear-dice <amount> [--risk <0-4|Easy|Medium|Hard|Expert|Master>] [--rolls <1-5>|--runs <1-5>]`
+**Command:** `apechurch-cli play bear-dice <amount> [--risk <0-4|Easy|Medium|Hard|Expert|Master>] [--survive <1-5>]`
 
 ```bnf
 <amount> ::= <ape>
 <risk> ::= <integer> | "Easy" | "Medium" | "Hard" | "Expert" | "Master"  ; 0 <= value <= 4
-<rolls> ::= <integer>              ; 1 <= value <= 5
+<survive> ::= <integer>            ; 1 <= value <= 5
 ```
 
 **Compare:**
@@ -228,13 +228,12 @@ These recent completed games were read through `getGameInfo(gameId)` on the live
 
 Consecutive-roll `3x3` max-of-a-kind game. Each roll resolves a full `9`-tile board, and the payout depends only on the largest same-color count, not on tile adjacency. For the chosen risk and roll count, every surviving roll compounds the current payout, while any dead count ends the whole game at `0x`.
 
-**Command:** `apechurch-cli play blocks <amount> <risk> <runs>` or `apechurch-cli play blocks <amount> --risk <risk> --rolls <runs>`
+**Command:** `apechurch-cli play blocks <amount> <risk> <survive>` or `apechurch-cli play blocks <amount> --risk <risk> --survive <survive>`
 
 ```bnf
 <amount> ::= <ape>
 <risk> ::= <integer> | "Low" | "High"  ; value ∈ {0, 1}
-<runs> ::= <integer>               ; 1 <= value <= 5
-<rolls> ::= <integer>              ; alias for <runs>, 1 <= value <= 5
+<survive> ::= <integer>            ; 1 <= value <= 5
 ```
 
 **Compare:**
@@ -305,12 +304,12 @@ Stateful row-by-row tile ladder. Starting a run places the first tile guess imme
 
 Asymmetric weighted-bucket Plinko with a narrower risk range than Jungle. Ball count `1-30` mainly changes variance; the exact EV surface is risk-driven.
 
-**Command:** `apechurch-cli play cosmic-plinko <amount> <risk> <balls>`
+**Command:** `apechurch-cli play cosmic-plinko <amount> <risk> <split>`
 
 ```bnf
 <amount> ::= <ape>
 <risk> ::= <integer> | "Low" | "Modest" | "High"  ; 0 <= value <= 2
-<balls> ::= <integer>              ; 1 <= value <= 30
+<split> ::= <integer>              ; 1 <= value <= 30
 ```
 
 **Compare:**
@@ -456,12 +455,12 @@ Stateful sequential card-prediction game with explicit `HIGHER`, `LOWER`, `SAME`
 
 Weighted-bucket Plinko, not a peg-by-peg physics sim. Mode controls the bucket table; ball count mainly changes variance and the tiny floor-division dust from splitting the wager across `1-100` balls.
 
-**Command:** `apechurch-cli play jungle-plinko <amount> <risk> <balls>`
+**Command:** `apechurch-cli play jungle-plinko <amount> <risk> <split>`
 
 ```bnf
 <amount> ::= <ape>
 <risk> ::= <integer> | "Low" | "Moderate" | "High" | "Degen" | "Ultra Degen"  ; 0 <= value <= 4
-<balls> ::= <integer>              ; 1 <= value <= 100
+<split> ::= <integer>              ; 1 <= value <= 100
 ```
 
 **Compare:**
@@ -526,12 +525,12 @@ Five independent monkey draws scored as multiplicity hands. There is no redraw o
 
 Batched prime-or-zero number game. Risk controls the numeric range and fixed multipliers; run count only changes variance and floor-division dust.
 
-**Command:** `apechurch-cli play primes <amount> <risk> <runs>`
+**Command:** `apechurch-cli play primes <amount> <risk> <split>`
 
 ```bnf
 <amount> ::= <ape>
 <risk> ::= <integer> | "Easy" | "Medium" | "Hard" | "Extreme"  ; 0 <= value <= 3
-<runs> ::= <integer>               ; 1 <= value <= 20
+<split> ::= <integer>              ; 1 <= value <= 20
 ```
 
 **Compare:**
@@ -550,11 +549,11 @@ Batched prime-or-zero number game. Risk controls the numeric range and fixed mul
 
 Pirate-themed match-anywhere cascade slot. The public docs describe regular-symbol pays at `8-9`, `10-11`, and `12+` identical symbols anywhere on the board; `4+` scatter chests trigger `5` free spins; bonus multipliers are additive and can reach `100x`.
 
-**Command:** `apechurch-cli play reel-pirates <amount> <spins>`
+**Command:** `apechurch-cli play reel-pirates <amount> <split>`
 
 ```bnf
 <amount> ::= <ape>
-<spins> ::= <integer>              ; optional, default 5; 1 <= value <= 15; amount >= spins * 2.5 APE
+<split> ::= <integer>              ; optional, default 5; 1 <= value <= 15; amount >= split * 2.5 APE
 ```
 
 **Compare:**
@@ -597,12 +596,12 @@ American roulette on a `38`-pocket wheel. The contract supports single numbers, 
 
 Fast batched keno on a `1-20` board. You choose `1-5` picks and batch `1-20` mini-games into one tx; batch count changes fee efficiency and variance, while pick count changes actual EV.
 
-**Command:** `apechurch-cli play speed-keno <amount> [--picks <1-5>] [--games <1-20>] [--numbers <list|random>]`
+**Command:** `apechurch-cli play speed-keno <amount> [--picks <1-5>] [--split <1-20>] [--numbers <list|random>]`
 
 ```bnf
 <amount> ::= <ape>
 <picks> ::= <integer>              ; 1 <= value <= 5
-<games> ::= <integer>              ; 1 <= value <= 20
+<split> ::= <integer>              ; 1 <= value <= 20
 <numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*
 <speed-keno-number> ::= <integer>  ; 1 <= value <= 20
 ```

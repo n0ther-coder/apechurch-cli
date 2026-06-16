@@ -263,7 +263,7 @@ apechurch-cli play video-poker 10 --auto best
 
 Keep option families separate when building command tokens:
 
-- Stateless game options configure one-shot contract games, for example `--risk`, `--balls`, `--spins`, `--range`, `--numbers`, `--runs`, and expert `--x-*` payload overrides.
+- Stateless game options configure one-shot contract games, for example `--risk`, `--split`, `--survive`, slots-only `--spins`, `--range`, `--numbers`, and expert `--x-*` payload overrides.
 - Stateful game options configure multi-step games, for example `--game-id`, `--display`, `--side`, `--solver`, `--tile`, and `--cashout-after`.
 - Bot-level loop controls are parsed by the bot and forwarded only where the standard bot contract says to forward them. Do not pass unrelated CLI loop controls such as `--loop` or `--bet-strategy` unless the bot specifically supports and documents them.
 

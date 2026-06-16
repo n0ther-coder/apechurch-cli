@@ -42,7 +42,7 @@ describe('Manual fixed-game defaults', () => {
 
     assert.deepStrictEqual(apeStrong, { range: 50 });
     assert.deepStrictEqual(keno, { picks: 5 });
-    assert.deepStrictEqual(speedKeno, { games: 5, picks: 3 });
+    assert.deepStrictEqual(speedKeno, { split: 5, picks: 3 });
   });
 
   it('uses the registry defaults for Plinko, Blocks, and Primes when requested', () => {
@@ -71,14 +71,14 @@ describe('Manual fixed-game defaults', () => {
       { preferGameDefault: true }
     );
 
-    assert.deepStrictEqual(plinko, { mode: 0, balls: 50 });
-    assert.deepStrictEqual(blocks, { mode: 0, runs: 1 });
-    assert.deepStrictEqual(primes, { difficulty: 0, runs: 10 });
+    assert.deepStrictEqual(plinko, { mode: 0, split: 50 });
+    assert.deepStrictEqual(blocks, { mode: 0, survive: 1 });
+    assert.deepStrictEqual(primes, { difficulty: 0, split: 10 });
   });
 
-  it('accepts --rolls as a Blocks alias for --runs', () => {
+  it('accepts --survive for Blocks survival count', () => {
     const blocks = getBlocksConfig(
-      { risk: 'Low', rolls: '1' },
+      { risk: 'Low', survive: '1' },
       {},
       {
         config: {
@@ -98,10 +98,10 @@ describe('Manual fixed-game defaults', () => {
       randomIntInclusive
     );
 
-    assert.deepStrictEqual(blocks, { mode: 0, runs: 1 });
+    assert.deepStrictEqual(blocks, { mode: 0, survive: 1 });
   });
 
-  it('rejects conflicting Blocks --runs and --rolls values', () => {
+  it('rejects conflicting legacy Blocks roll-count values', () => {
     assert.throws(
       () => getBlocksConfig(
         { runs: '2', rolls: '3' },
@@ -110,7 +110,7 @@ describe('Manual fixed-game defaults', () => {
         { blocks: { mode: [0, 1], runs: [2, 4] } },
         randomIntInclusive
       ),
-      /Conflicting Blocks roll count/
+      /Conflicting Blocks legacy survival count/
     );
   });
 
@@ -141,7 +141,7 @@ describe('Manual fixed-game defaults', () => {
     );
 
     assert.deepStrictEqual(monkey, { mode: 1 });
-    assert.deepStrictEqual(bear, { difficulty: 0, rolls: 1 });
+    assert.deepStrictEqual(bear, { difficulty: 0, survive: 1 });
     assert.deepStrictEqual(gimbozSmash, {
       targets: '1-50',
       intervals: [{ start: 1, end: 50 }],
@@ -282,6 +282,6 @@ describe('Manual fixed-game defaults', () => {
     );
 
     assert.deepStrictEqual(monkey, { mode: 2 });
-    assert.deepStrictEqual(bear, { difficulty: 3, rolls: 1 });
+    assert.deepStrictEqual(bear, { difficulty: 3, survive: 1 });
   });
 });

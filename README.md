@@ -334,6 +334,7 @@ Text output includes:
 
 | Option | Description |
 |--------|-------------|
+| `-l`, `--list` | Print only plain `[play] <game> <parameters>` lines |
 | `--stats` | Append the full `Game Stats` catalog after the game summary, using local history when available |
 | `--json` | Emit the game registry as JSON |
 
@@ -352,23 +353,23 @@ Coverage and limits:
 | ApeStrong ✔︎ | `play ape-strong 10 50` | `apestrong`, `strong` | Pick-your-odds dice |
 | Roulette ✔︎ | `play roulette 10 RED` | - | American roulette |
 | Baccarat ✔︎ | `play baccarat 10 BANKER` | - | Classic baccarat |
-| Jungle Plinko ✔︎ | `play jungle-plinko 10 2 50` | `jungleplinko`, `jungle` | Drop balls for multipliers |
-| Cosmic Plinko ✔︎ | `play cosmic-plinko 10 1 10` | `cosmic` | Asymmetric plinko with higher top-end payouts |
+| Jungle Plinko ✔︎ | `play jungle-plinko 10 --risk 2 --split 50` | `jungleplinko`, `jungle` | Drop balls for multipliers |
+| Cosmic Plinko ✔︎ | `play cosmic-plinko 10 --risk 1 --split 10` | `cosmic` | Asymmetric plinko with higher top-end payouts |
 | Keno ✔︎ | `play keno 10` | - | Pick numbers 1-40 |
-| Speed Keno ✔︎ | `play speed-keno 10` | `speedkeno`, `skeno`, `speed` | Fast batched keno |
-| Dino Dough ✔︎ | `play dino-dough 10 10` | `dinodough`, `dino` | Slot machine |
-| Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | `bubblegumheist`, `bubblegum`, `heist` | Slot machine |
+| Speed Keno ✔︎ | `play speed-keno 10 --split 5` | `speedkeno`, `skeno`, `speed` | Fast batched keno |
+| Dino Dough ✔︎ | `play dino-dough 10 --split 10` | `dinodough`, `dino` | Slot machine |
+| Bubblegum Heist ✔︎ | `play bubblegum-heist 10 --split 10` | `bubblegumheist`, `bubblegum`, `heist` | Slot machine |
 | Cash Dash ✔︎ | `cash-dash 10 --auto` | `cashdash`, `dash` | Stateful death-tile ladder game with cash-out |
-| Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | `geezdiggerz`, `geez`, `diggerz` | Slot machine |
+| Geez Diggerz ✔︎ | `play geez-diggerz 10 --split 10` | `geezdiggerz`, `geez`, `diggerz` | Slot machine |
 | Gimboz Smash ✔︎ | `play gimboz-smash 10 1-50` or `play gimboz-smash 10 --out-range 45-50` | `gimbozsmash`, `smash` | One-or-two interval target game on a 1-100 board |
 | Glyde or Crash ✔︎ | `play glyde-or-crash 10 2x` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` | Target a crash multiplier |
-| Reel Pirates | `play reel-pirates 20` | `reelpirates`, `pirates`, `reel` | Match-anywhere cascade slot |
+| Reel Pirates | `play reel-pirates 20 --split 5` | `reelpirates`, `pirates`, `reel` | Match-anywhere cascade slot |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula 10 --auto winston-ladder` | `hilonebula`, `hilo`, `nebula` | Stateful higher/lower/same card streak game with cash-out and ladder auto-play |
-| Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | `sushishowdown`, `sushi` | Slot machine |
+| Sushi Showdown ✔︎ | `play sushi-showdown 10 --split 10` | `sushishowdown`, `sushi` | Slot machine |
 | Monkey Match ✔︎ | `play monkey-match 10` | `monkeymatch`, `monkey` | Poker hands from barrels |
 | Bear-A-Dice ✔︎ | `play bear-dice 10` | `bear`, `dice` | Avoid unlucky numbers |
-| Blocks ✔︎ | `play blocks 10 1 5` | - | 3x3 max-of-a-kind board with consecutive all-or-nothing rolls (`--rolls` aliases run count) |
-| Primes ✔︎ | `play primes 10 0 20` | - | Prime-or-zero number draws with batched runs |
+| Blocks ✔︎ | `play blocks 10 --risk 1 --survive 5` | - | 3x3 max-of-a-kind board with consecutive all-or-nothing survival attempts |
+| Primes ✔︎ | `play primes 10 --risk 0 --split 20` | - | Prime-or-zero number draws with split-bet runs |
 | Blackjack ✔︎ | `blackjack 25 --side 1 --auto` | `bj` | H17 card game with auto-play and optional player side bet |
 | Video Poker ✔︎ / Gimboz Poker | `video-poker 10 --auto` | `vp` | Jacks or Better with auto-play and solver tools |
 
@@ -519,6 +520,7 @@ apechurch-cli cash-dash 10              # Prompts for the opening tile
 # Stateless games
 apechurch-cli play --auto                        # Auto-select random stateless game/config
 apechurch-cli play [game] [amount] [config...]  # Play a specific stateless game
+apechurch-cli games --list                       # Plain play-line catalog
 
 # Stateful games
 apechurch-cli play blackjack <amount> [--auto [simple|best|max]] [--solver [simple|best|max]] [--solver-max-states <n>] [--solver-timeout-ms <ms>]
