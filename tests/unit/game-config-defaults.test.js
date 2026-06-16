@@ -34,7 +34,7 @@ describe('Manual fixed-game defaults', () => {
     const speedKeno = getSpeedKenoConfig(
       {},
       {},
-      { config: { picks: { default: 3 }, games: { default: 5 } } },
+      { config: { picks: { default: 3 }, games: { default: 20 } } },
       {},
       randomIntInclusive,
       { preferGameDefault: true }
@@ -42,14 +42,14 @@ describe('Manual fixed-game defaults', () => {
 
     assert.deepStrictEqual(apeStrong, { range: 50 });
     assert.deepStrictEqual(keno, { picks: 5 });
-    assert.deepStrictEqual(speedKeno, { split: 5, picks: 3 });
+    assert.deepStrictEqual(speedKeno, { split: 20, picks: 3 });
   });
 
   it('uses the registry defaults for Plinko, Blocks, and Primes when requested', () => {
     const plinko = getPlinkoConfig(
       {},
       {},
-      { config: { mode: { default: 0, min: 0, max: 4 }, balls: { default: 50, min: 1, max: 100 } } },
+      { config: { mode: { default: 0, min: 0, max: 4 }, balls: { default: 100, min: 1, max: 100 } } },
       { plinko: { mode: [1, 3], balls: [20, 80] } },
       randomIntInclusive,
       { preferGameDefault: true }
@@ -65,15 +65,15 @@ describe('Manual fixed-game defaults', () => {
     const primes = getPrimesConfig(
       {},
       {},
-      { config: { difficulty: { default: 0 }, runs: { default: 10 } } },
+      { config: { difficulty: { default: 0 }, runs: { default: 20 } } },
       { primes: { difficulty: [1, 2], runs: [4, 12] } },
       randomIntInclusive,
       { preferGameDefault: true }
     );
 
-    assert.deepStrictEqual(plinko, { mode: 0, split: 50 });
+    assert.deepStrictEqual(plinko, { mode: 0, split: 100 });
     assert.deepStrictEqual(blocks, { mode: 0, survive: 1 });
-    assert.deepStrictEqual(primes, { difficulty: 0, split: 10 });
+    assert.deepStrictEqual(primes, { difficulty: 0, split: 20 });
   });
 
   it('accepts --survive for Blocks survival count', () => {

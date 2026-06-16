@@ -16,7 +16,7 @@ describe('Slots config resolution', () => {
       spins: {
         min: 1,
         max: 15,
-        default: 10,
+        default: 15,
       },
     },
   };
@@ -70,7 +70,7 @@ describe('Slots config resolution', () => {
       preferGameDefault: true,
     });
 
-    assert.deepStrictEqual(config, { split: 10 });
+    assert.deepStrictEqual(config, { split: 15 });
   });
 
   it('keeps strategy-driven randomness when the game default is not preferred', () => {
@@ -142,7 +142,7 @@ describe('Slots VRF fee config', () => {
       config: {
         minBetPerSpinApe: 2.5,
         gameDataOrder: 'spins-first',
-        spins: { min: 1, max: 15, default: 10 },
+        spins: { min: 1, max: 15, default: 15 },
       },
       vrf: { type: 'slots-dynamic', baseGas: 550000, perUnitGas: 200000, executorFee: 'per-spin' },
     };

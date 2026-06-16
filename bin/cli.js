@@ -1008,7 +1008,7 @@ function formatBetHelpAppendix() {
     ],
     examples: [
       `${BINARY_NAME} bet --game roulette --amount 10 --bet RED`,
-      `${BINARY_NAME} bet --game jungle-plinko --amount 10 --risk 2 --split 50`,
+      `${BINARY_NAME} bet --game jungle-plinko --amount 10 --risk 0 --split 100`,
       `${BINARY_NAME} bet --game keno --amount 5 --picks 5 --numbers 1,7,13,25,40`,
       `${BINARY_NAME} bet --game gimboz-smash --amount 10 --range 45-55`,
       `${BINARY_NAME} bet --game glyde-or-crash --amount 10 --multiplier 2x --timeout 0`,
@@ -1060,7 +1060,7 @@ function formatPlayHelpAppendix() {
     examples: [
       `${BINARY_NAME} play --auto`,
       `${BINARY_NAME} play roulette 10 RED`,
-      `${BINARY_NAME} play jungle-plinko 10 --risk 2 --split 50`,
+      `${BINARY_NAME} play jungle-plinko 10 --risk 0 --split 100`,
       `${BINARY_NAME} play keno 5 --picks 5 --numbers 1,7,13,25,40`,
       `${BINARY_NAME} play blackjack 10 --auto best`,
       `${BINARY_NAME} play cash-dash guess 3 --game-id 123`,
@@ -7710,7 +7710,7 @@ ${'─'.repeat(70)}
 
   Stateless games:
     • ${BINARY_NAME} play roulette 10 RED --loop
-    • ${BINARY_NAME} play jungle-plinko 10 --risk 2 --split 50 --loop
+    • ${BINARY_NAME} play jungle-plinko 10 --risk 0 --split 100 --loop
 
   Stateful games:
     • ${BINARY_NAME} play blackjack 10 --loop --auto

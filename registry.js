@@ -272,7 +272,7 @@ export const GAME_REGISTRY = [
       balls: {
         min: 1,
         max: 100,
-        default: 50,
+        default: 100,
         cliName: 'split',
         description: 'Number of independent ball drops. Wager is split across all drops. Higher split count = smoother variance.',
         bnf: [
@@ -326,7 +326,7 @@ export const GAME_REGISTRY = [
       balls: {
         min: 1,
         max: 30,
-        default: 10,
+        default: 30,
         cliName: 'split',
         description: 'Number of independent ball drops. Wager is split across all drops. Higher split count = smoother variance.',
         bnf: [
@@ -402,7 +402,7 @@ export const GAME_REGISTRY = [
       spins: {
         min: 1,
         max: 15,
-        default: 10,
+        default: 15,
         cliName: 'split',
         description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance. Slots also accept --spins as an alias.',
         bnf: [
@@ -432,7 +432,7 @@ export const GAME_REGISTRY = [
       spins: {
         min: 1,
         max: 15,
-        default: 10,
+        default: 15,
         cliName: 'split',
         description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance. Slots also accept --spins as an alias.',
         bnf: [
@@ -462,7 +462,7 @@ export const GAME_REGISTRY = [
       spins: {
         min: 1,
         max: 15,
-        default: 10,
+        default: 15,
         cliName: 'split',
         description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance. Slots also accept --spins as an alias.',
         bnf: [
@@ -574,7 +574,7 @@ export const GAME_REGISTRY = [
       spins: {
         min: 1,
         max: 15,
-        default: 10,
+        default: 15,
         cliName: 'split',
         description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance. Slots also accept --spins as an alias.',
         bnf: [
@@ -604,7 +604,7 @@ export const GAME_REGISTRY = [
       spins: {
         min: 1,
         max: 15,
-        default: 5,
+        default: 15,
         cliName: 'split',
         description: 'Number of independent paid base spins in the session. Wager is split across all base spins; total wager must be at least 2.5 APE per spin. Slots also accept --spins as an alias.',
         bnf: [
@@ -658,7 +658,7 @@ export const GAME_REGISTRY = [
       games: {
         min: 1,
         max: 20,
-        default: 5,
+        default: 20,
         cliName: 'split',
         description: 'Number of independent Speed Keno games to batch (1-20). Wager is split across all games.',
         bnf: [
@@ -812,7 +812,7 @@ export const GAME_REGISTRY = [
       runs: {
         min: 1,
         max: 20,
-        default: 10,
+        default: 20,
         cliName: 'split',
         description: 'Number of independent Primes runs to batch. The wager is split evenly across all runs.',
         bnf: [

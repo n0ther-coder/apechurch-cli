@@ -553,7 +553,7 @@ Pirate-themed match-anywhere cascade slot. The public docs describe regular-symb
 
 ```bnf
 <amount> ::= <ape>
-<split> ::= <integer>              ; optional, default 5; 1 <= value <= 15; amount >= split * 2.5 APE
+<split> ::= <integer>              ; optional, default 15; 1 <= value <= 15; amount >= split * 2.5 APE
 ```
 
 **Compare:**
