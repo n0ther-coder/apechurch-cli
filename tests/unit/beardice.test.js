@@ -67,6 +67,27 @@ describe('Bear-A-Dice helpers', () => {
     });
   });
 
+  it('rejects conflicting --rolls and --runs aliases', () => {
+    assert.throws(
+      () => resolveBearDiceConfig(
+        {},
+        { rolls: '2', runs: '3' },
+        {},
+        { bearDice: { rolls: [1, 5] } },
+        () => 1,
+        {
+          gameEntry: {
+            config: {
+              difficulty: { default: 0 },
+              rolls: { default: 1 },
+            },
+          },
+        }
+      ),
+      /Conflicting Bear-A-Dice roll count/
+    );
+  });
+
   it('preserves preselected bear dice config values instead of overriding them', () => {
     const config = resolveBearDiceConfig(
       { difficulty: 4, rolls: 5 },

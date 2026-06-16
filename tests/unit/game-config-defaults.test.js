@@ -76,6 +76,44 @@ describe('Manual fixed-game defaults', () => {
     assert.deepStrictEqual(primes, { difficulty: 0, runs: 10 });
   });
 
+  it('accepts --rolls as a Blocks alias for --runs', () => {
+    const blocks = getBlocksConfig(
+      { risk: 'Low', rolls: '1' },
+      {},
+      {
+        config: {
+          mode: {
+            default: 0,
+            min: 0,
+            max: 1,
+            options: [
+              { value: 0, label: 'Low' },
+              { value: 1, label: 'High' },
+            ],
+          },
+          runs: { default: 1, min: 1, max: 5 },
+        },
+      },
+      { blocks: { mode: [0, 1], runs: [2, 4] } },
+      randomIntInclusive
+    );
+
+    assert.deepStrictEqual(blocks, { mode: 0, runs: 1 });
+  });
+
+  it('rejects conflicting Blocks --runs and --rolls values', () => {
+    assert.throws(
+      () => getBlocksConfig(
+        { runs: '2', rolls: '3' },
+        {},
+        { config: { mode: { default: 0, min: 0, max: 1 }, runs: { default: 1, min: 1, max: 5 } } },
+        { blocks: { mode: [0, 1], runs: [2, 4] } },
+        randomIntInclusive
+      ),
+      /Conflicting Blocks roll count/
+    );
+  });
+
   it('uses the registry defaults for Monkey Match, Bear-A-Dice, and Gimboz Smash when requested', () => {
     const monkey = getMonkeyMatchConfig(
       {},

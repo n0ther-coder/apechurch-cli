@@ -363,7 +363,7 @@ Notes:
 | `--numbers <numbers>` | Keno numbers as one token, for example `1,7,13,25,40` or `random` |
 | `--games <games>` | Speed Keno batch count |
 | `--runs <runs>` | Bear Dice, Primes, or Blocks run count |
-| `--rolls <rolls>` | Bear-A-Dice roll count |
+| `--rolls <rolls>` | Bear-A-Dice or Blocks roll count |
 | `--timeout <ms>` | Wait time for a result; `0` means no wait limit |
 | `--x-gameId <uint256>` | Expert override for the generated `gameId` in `gameData` |
 | `--x-ref <address>` | Expert override for the referral address in `gameData` |
@@ -457,7 +457,7 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--numbers <numbers>` | Keno numbers as one token |
 | `--games <games>` | Speed Keno batch count |
 | `--runs <runs>` | Bear Dice, Primes, or Blocks run count |
-| `--rolls <rolls>` | Bear-A-Dice roll count |
+| `--rolls <rolls>` | Bear-A-Dice or Blocks roll count |
 | `--timeout <ms>` | Wait time for a stateless result; `0` returns the pending play response |
 | `--x-gameId <uint256>` | Expert override for the generated `gameId` in `gameData` |
 | `--x-ref <address>` | Expert override for the referral address in `gameData` |

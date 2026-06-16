@@ -22,7 +22,7 @@ Ordering: alphabetical by game title.
 | Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` | - |
 | Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --rolls Z` (`--runs Z` alias) | `bear`, `dice` |
 | Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` | `bj` |
-| Blocks ✔︎ | `play blocks <amt> <risk> <runs>` | `--game blocks --amount X --risk Y --runs Z` | - |
+| Blocks ✔︎ | `play blocks <amt> <risk> <runs>` | `--game blocks --amount X --risk Y --runs Z` (`--rolls Z` alias) | - |
 | Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <spins>` | `--game bubblegum-heist --amount X --spins Y` | `bubblegumheist`, `bubblegum`, `heist` |
 | Cash Dash ✔︎ | `cash-dash <amt>` | `cash-dash <amt> --auto --cashout-after N` | `cashdash`, `dash` |
 | Cosmic Plinko ✔︎ | `play cosmic-plinko <amt> <risk> <balls>` | `--game cosmic-plinko --amount X --risk Y --balls Z` | `cosmic` |
@@ -228,12 +228,13 @@ These recent completed games were read through `getGameInfo(gameId)` on the live
 
 Consecutive-roll `3x3` max-of-a-kind game. Each roll resolves a full `9`-tile board, and the payout depends only on the largest same-color count, not on tile adjacency. For the chosen risk and roll count, every surviving roll compounds the current payout, while any dead count ends the whole game at `0x`.
 
-**Command:** `apechurch-cli play blocks <amount> <risk> <runs>`
+**Command:** `apechurch-cli play blocks <amount> <risk> <runs>` or `apechurch-cli play blocks <amount> --risk <risk> --rolls <runs>`
 
 ```bnf
 <amount> ::= <ape>
 <risk> ::= <integer> | "Low" | "High"  ; value ∈ {0, 1}
 <runs> ::= <integer>               ; 1 <= value <= 5
+<rolls> ::= <integer>              ; alias for <runs>, 1 <= value <= 5
 ```
 
 **Compare:**

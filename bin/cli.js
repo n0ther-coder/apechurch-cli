@@ -405,7 +405,7 @@ const PLAY_STATELESS_OPTION_LINES = Object.freeze([
   '--numbers <numbers>     Keno / Speed Keno numbers as one token; e.g. --numbers 1,7,13,25,40',
   '--games <games>         Speed Keno batch count',
   '--runs <runs>           Bear Dice / Primes / Blocks run count',
-  '--rolls <rolls>         Bear-A-Dice roll count',
+  '--rolls <rolls>         Bear-A-Dice / Blocks roll count',
   '--timeout <ms>          Max wait for a stateless game result; 0 returns pending',
   '--x-gameId <uint256>    Expert stateless gameData override',
   '--x-ref <address>       Expert stateless referral override',
@@ -983,7 +983,7 @@ function formatBetHelpAppendix() {
       '--numbers <numbers>    Keno or Speed Keno numbers as one token, or random',
       '--games <games>        Speed Keno batch count',
       '--runs <runs>          Bear Dice, Primes, or Blocks run count',
-      '--rolls <rolls>        Bear-A-Dice roll count',
+      '--rolls <rolls>        Bear-A-Dice / Blocks roll count',
       '--timeout <ms>         Max wait for result; 0 means no wait',
       '--x-gameId <uint256>   Expert override for generated gameData gameId',
       '--x-ref <address>      Expert override for referral address in gameData',
@@ -4504,7 +4504,7 @@ program
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--games <games>', 'Speed Keno game count (batching)')
   .option('--runs <runs>', 'Bear Dice / Primes / Blocks run count (batching)')
-  .option('--rolls <rolls>', 'Bear-A-Dice roll count')
+  .option('--rolls <rolls>', 'Bear-A-Dice / Blocks roll count')
   .option('--timeout <ms>', 'Max wait for result (0 = no wait)', '0')
   .option('--x-gameId <uint256>', 'Expert: override generated gameId in gameData')
   .option('--x-ref <address>', 'Expert: override referral address in gameData')
@@ -4626,7 +4626,7 @@ program
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
   .option('--games <games>', 'Speed Keno game count (batching)')
   .option('--runs <runs>', 'Bear Dice / Primes / Blocks run count (batching)')
-  .option('--rolls <rolls>', 'Bear-A-Dice roll count')
+  .option('--rolls <rolls>', 'Bear-A-Dice / Blocks roll count')
   .option('--timeout <ms>', 'Max wait for a stateless game result (0 = no wait)', '30000')
   .option('--x-gameId <uint256>', 'Expert: override generated gameId in gameData')
   .option('--x-ref <address>', 'Expert: override referral address in gameData')

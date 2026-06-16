@@ -453,6 +453,16 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(!stdout.includes('No wallet found'));
     });
 
+    it('play validate-only accepts --rolls as a Blocks run-count alias', () => {
+      const { stdout, code } = cli('play blocks --risk Low --rolls 1 10 --loop --max-games 10 --validate-only --json');
+      const payload = JSON.parse(stdout);
+
+      assert.strictEqual(code, 0);
+      assert.strictEqual(payload.game, 'blocks');
+      assert.deepStrictEqual(payload.config, { mode: 0, runs: 1 });
+      assert.ok(!stdout.includes('No wallet found'));
+    });
+
     it('play validate-only reports invalid blackjack solver timeout values', () => {
       const { stdout, code } = cli('play blackjack 10 --auto best --solver-timeout-ms nope --validate-only --json');
       const payload = JSON.parse(stdout);
