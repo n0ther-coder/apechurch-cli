@@ -112,17 +112,18 @@ export const GAME_REGISTRY = [
     aliases: ['apestrong', 'strong'],
     slug: 'ape-strong',
     type: 'apestrong',
-    description: 'Pick your odds! Choose a range (5-95) — roll under to win. Higher range = more likely to win, lower payout.',
+    description: 'Pick your odds! Choose a cover (5-95) — roll under to win. Higher cover = more likely to win, lower payout.',
     contract: APESTRONG_CONTRACT,
     abiVerified: true,
     config: {
       range: {
+        cliName: 'cover',
         min: 5,
         max: 95,
         default: 50,
         description: 'Win probability (%). Roll under this number to win. Lower = riskier, bigger payout.',
         bnf: [
-          '<range> ::= <integer>',
+          '<cover> ::= <integer>',
           '; semantic constraint: 5 <= value <= 95',
         ],
         examples: [
@@ -485,16 +486,16 @@ export const GAME_REGISTRY = [
     aliases: ['gimbozsmash', 'smash'],
     slug: 'gimboz-smash',
     type: 'gimbozsmash',
-    description: 'Pick one or two inclusive target intervals on a 1-100 board, or express an outside bet via one excluded range. Exact payout depends only on the final covered numbers, not on where those intervals sit.',
+    description: 'Pick one or two inclusive target intervals on a 1-100 board, randomize a cover count, or express an outside bet via one excluded range. Exact payout depends only on the final covered numbers, not on where those intervals sit.',
     contract: GIMBOZ_SMASH_CONTRACT,
     abiVerified: true,
     config: {
       range: {
         default: '1-50',
-        description: 'One or two inclusive target ranges on the public 1-100 board. Total covered numbers across all intervals must stay within 1-95.',
+        description: 'One or two inclusive target ranges on the public 1-100 board. Total covered numbers across all intervals must stay within 1-95. Single numbers must be written as n-n.',
         bnf: [
           '<range> ::= <target-range> | <target-range> "," <target-range>',
-          '<target-range> ::= <integer> [ "-" <integer> ]',
+          '<target-range> ::= <integer> "-" <integer>',
           '; semantic constraint: every endpoint is within 1..100, each range is inclusive, and total covered numbers across all ranges is within 1..95',
         ],
         examples: [
@@ -502,6 +503,20 @@ export const GAME_REGISTRY = [
           '20-80',
           '1-20,81-100',
           '1-6,94-100',
+        ],
+      },
+      cover: {
+        min: 1,
+        max: 95,
+        description: 'Randomly choose one valid inside or outside placement with exactly this many winning numbers. Placement selection is uniform across all valid inside and outside encodings.',
+        bnf: [
+          '<cover> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 95',
+        ],
+        examples: [
+          1,
+          50,
+          95,
         ],
       },
       outRange: {

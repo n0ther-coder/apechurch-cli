@@ -936,11 +936,33 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(!stdout.includes('Node.js v'));
     });
 
+    it('rejects single-number Gimboz Smash ranges with a cover explanation', () => {
+      const { stdout, code } = cli('play gimboz-smash 10 --range 50');
+
+      assert.notStrictEqual(code, 0);
+      assert.ok(stdout.includes('A single number is ambiguous for Gimboz Smash'));
+      assert.ok(stdout.includes('Use --cover 50'));
+      assert.ok(stdout.includes('--range 50-50'));
+      assert.ok(!stdout.includes('No wallet found'));
+      assert.ok(!stdout.includes('file:///'));
+      assert.ok(!stdout.includes('Node.js v'));
+    });
+
     it('rejects conflicting Gimboz Smash range and out-range input without crashing', () => {
       const { stdout, code } = cli('play gimboz-smash 10 --range 1-50 --out-range 45-50');
 
       assert.notStrictEqual(code, 0);
-      assert.ok(stdout.includes('Invalid Gimboz Smash config: choose either --range or --out-range, not both.'));
+      assert.ok(stdout.includes('Invalid Gimboz Smash config: choose only one of --range, --out-range, or --cover.'));
+      assert.ok(!stdout.includes('No wallet found'));
+      assert.ok(!stdout.includes('file:///'));
+      assert.ok(!stdout.includes('Node.js v'));
+    });
+
+    it('rejects conflicting Gimboz Smash cover and range input without crashing', () => {
+      const { stdout, code } = cli('play gimboz-smash 10 --cover 50 --range 1-50');
+
+      assert.notStrictEqual(code, 0);
+      assert.ok(stdout.includes('Invalid Gimboz Smash config: choose only one of --range, --out-range, or --cover.'));
       assert.ok(!stdout.includes('No wallet found'));
       assert.ok(!stdout.includes('file:///'));
       assert.ok(!stdout.includes('Node.js v'));
@@ -962,6 +984,36 @@ describe('CLI Commands Integration Tests', () => {
       assert.notStrictEqual(code, 0);
       assert.ok(stdout.includes('No wallet found'));
       assert.ok(!stdout.includes('Invalid Gimboz Smash config'));
+      assert.ok(!stdout.includes('file:///'));
+      assert.ok(!stdout.includes('Node.js v'));
+    });
+
+    it('accepts valid Gimboz Smash cover input without tripping config conflicts', () => {
+      const { stdout, code } = cli('play gimboz-smash 10 --cover 50');
+
+      assert.notStrictEqual(code, 0);
+      assert.ok(stdout.includes('No wallet found'));
+      assert.ok(!stdout.includes('Invalid Gimboz Smash config'));
+      assert.ok(!stdout.includes('file:///'));
+      assert.ok(!stdout.includes('Node.js v'));
+    });
+
+    it('rejects old ApeStrong --range input before wallet lookup', () => {
+      const { stdout, code } = cli('play ape-strong 10 --range 50');
+
+      assert.notStrictEqual(code, 0);
+      assert.ok(stdout.includes('Option --range was renamed for ApeStrong. Use --cover <cover> instead.'));
+      assert.ok(!stdout.includes('No wallet found'));
+      assert.ok(!stdout.includes('file:///'));
+      assert.ok(!stdout.includes('Node.js v'));
+    });
+
+    it('accepts ApeStrong --cover input before wallet lookup', () => {
+      const { stdout, code } = cli('play ape-strong 10 --cover 50');
+
+      assert.notStrictEqual(code, 0);
+      assert.ok(stdout.includes('No wallet found'));
+      assert.ok(!stdout.includes('Option --range was renamed'));
       assert.ok(!stdout.includes('file:///'));
       assert.ok(!stdout.includes('Node.js v'));
     });

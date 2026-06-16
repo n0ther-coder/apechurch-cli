@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
+  buildRandomGimbozSmashConfigFromCover,
   formatGimbozSmashSettledDetails,
   parseGimbozSmashInput,
   parseGimbozSmashOutRange,
@@ -80,6 +81,42 @@ describe('Gimboz Smash helpers', () => {
     });
   });
 
+  it('rejects single-number --range input with a cover hint', () => {
+    assert.throws(
+      () => parseGimbozSmashTargets('50'),
+      /Use --cover 50 .* --range 50-50/i,
+    );
+  });
+
+  it('randomizes --cover across inside and outside Gimboz placements', () => {
+    assert.deepStrictEqual(
+      buildRandomGimbozSmashConfigFromCover('50', () => 0),
+      {
+        targets: '1-50',
+        intervals: [{ start: 1, end: 50 }],
+        numWinIntervals: 1,
+        winCount: 50,
+        winChance: '50%',
+        payout: '1.95x',
+        cover: 50,
+      },
+    );
+
+    assert.deepStrictEqual(
+      buildRandomGimbozSmashConfigFromCover('50', () => 51),
+      {
+        targets: '51-100',
+        intervals: [{ start: 51, end: 100 }],
+        numWinIntervals: 1,
+        winCount: 50,
+        winChance: '50%',
+        payout: '1.95x',
+        outRange: '1-50',
+        cover: 50,
+      },
+    );
+  });
+
   it('rejects unsupported interval counts and over-wide coverage', () => {
     assert.throws(
       () => parseGimbozSmashTargets('1-10,20-30,40-50'),
@@ -95,7 +132,7 @@ describe('Gimboz Smash helpers', () => {
     );
     assert.throws(
       () => parseGimbozSmashInput({ range: '1-50', outRange: '45-50' }),
-      /choose either --range or --out-range/i,
+      /choose only one of --range, --out-range, or --cover/i,
     );
   });
 

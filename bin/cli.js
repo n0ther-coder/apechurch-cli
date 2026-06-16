@@ -370,9 +370,10 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<split> ::= <integer>                              ; independent split attempts; 1 <= value <= game max',
   '<survive> ::= <integer>                            ; all-or-nothing survival attempts; 1 <= value <= game max',
   '<spins> ::= <integer>                              ; slots-only alias for <split>',
-  '<range> ::= <integer> | <target-range> | <target-range> "," <target-range> ; ApeStrong uses 5..95, Gimboz Smash uses one or two inclusive target ranges on 1..100',
+  '<cover> ::= <integer>                             ; ApeStrong uses 5..95; Gimboz Smash randomizes a 1..95 inside/outside cover',
+  '<range> ::= <target-range> | <target-range> "," <target-range> ; Gimboz Smash inside target ranges on 1..100',
   '<multiplier> ::= <number> [ "x" ]                ; 1.01 <= value <= 10000 and at most 4 decimal places',
-  '<target-range> ::= <integer> [ "-" <integer> ]     ; each endpoint is within 1..100, each range is inclusive, total covered numbers across all ranges is within 1..95',
+  '<target-range> ::= <integer> "-" <integer>         ; each endpoint is within 1..100, each range is inclusive, total covered numbers across all ranges is within 1..95',
   '<out-range> ::= <target-range>                     ; one excluded inclusive range for Gimboz Smash outside bets; excluded coverage must be within 5..95',
   '<picks> ::= <integer>                              ; 1 <= value <= 10 for Keno, 1 <= value <= 5 for Speed Keno',
   '<uint256> ::= <integer> | "0x" <hex>               ; expert override for gameData gameId',
@@ -397,7 +398,8 @@ const PLAY_STATELESS_OPTION_LINES = Object.freeze([
   '--survive <count>       All-or-nothing survival attempts for Bear Dice and Blocks',
   '--spins <count>         Slots-only alias for --split',
   '--bet <bet>             Roulette/Baccarat bet payload',
-  '--range <range>         ApeStrong range or Gimboz Smash inside range',
+  '--cover <cover>         ApeStrong cover or Gimboz Smash random cover',
+  '--range <range>         Gimboz Smash inside range',
   '--multiplier <x>        Glyde or Crash target multiplier',
   '--out-range <range>     Gimboz Smash outside range to exclude',
   '--picks <picks>         Keno / Speed Keno pick count',
@@ -990,7 +992,8 @@ function formatBetHelpAppendix() {
       '--survive <count>      All-or-nothing survival attempts for Bear Dice and Blocks',
       '--spins <count>        Slots-only alias for --split',
       '--bet <bet>            Roulette or baccarat bet payload',
-      '--range <range>        ApeStrong range or Gimboz Smash inside range',
+      '--cover <cover>        ApeStrong cover or Gimboz Smash random cover',
+      '--range <range>        Gimboz Smash inside range',
       '--multiplier <x>       Glyde or Crash target multiplier',
       '--out-range <range>    Gimboz Smash outside range to exclude',
       '--picks <picks>        Keno or Speed Keno pick count',
@@ -1003,7 +1006,7 @@ function formatBetHelpAppendix() {
     ],
     bnf: [
       '<bet-command> ::= "bet" "--game" <stateless-game> "--amount" <ape> <bet-option>*',
-      '<bet-option> ::= "--risk" <risk> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--gp-ape" <points>',
+      '<bet-option> ::= "--risk" <risk> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--gp-ape" <points>',
       ...SIMPLE_GAME_HELP_BNF_LINES,
     ],
     examples: [
@@ -1051,7 +1054,7 @@ function formatPlayHelpAppendix() {
       '<play-positional> ::= <stateless-game> [ <ape> <token>* ] | <stateful-game> [ <stateful-head> ] [ <token> ]',
       '<stateful-head> ::= <ape> | "resume" | "status" | "clear" | "payouts" | "table" | <token>',
       '<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>',
-      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
+      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
       '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count>',
       '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--take-profit" <ape> | "--min-profit" <ape> | "--target-x" <number> | "--target-profit" <ape> | "--retrace" <ape> | "--recover-loss" <ape> | "--giveback-profit" <ape> | "--stop-loss" <ape-nonnegative> | "--max-loss" <ape> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
       ...SIMPLE_GAME_HELP_BNF_LINES,
@@ -2682,6 +2685,18 @@ function getAttemptOptionUsageError({ gameEntry = null, rawArgs = [], opts = {} 
     && parseInt(opts.split, 10) !== parseInt(opts.spins, 10)
   ) {
     return 'Conflicting slot split count: --split and --spins must match, or only one may be provided.';
+  }
+
+  if (rawArgsIncludeOption(rawArgs, '--range') && gameEntry?.type === 'apestrong') {
+    return 'Option --range was renamed for ApeStrong. Use --cover <cover> instead.';
+  }
+
+  if (
+    rawArgsIncludeOption(rawArgs, '--cover')
+    && gameEntry
+    && !['apestrong', 'gimbozsmash'].includes(gameEntry.type)
+  ) {
+    return `Option --cover is only for ApeStrong and Gimboz Smash. ${gameEntry.name} does not support cover.`;
   }
 
   if (opts.survive !== undefined && gameEntry && !SURVIVE_GAME_TYPES.includes(gameEntry.type)) {
@@ -4636,7 +4651,8 @@ program
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
   .option('--spins <count>', 'Slots-only alias for --split')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
-  .option('--range <range>', 'ApeStrong range or Gimboz Smash inside range', '50')
+  .option('--cover <cover>', 'ApeStrong cover or Gimboz Smash random cover')
+  .option('--range <range>', 'Gimboz Smash inside range')
   .option('--multiplier <x>', 'Glyde or Crash target multiplier')
   .option('--out-range <range>', 'Gimboz Smash outside range to exclude from the winning set (for example 45-50)')
   .option('--picks <picks>', 'Keno pick count', '5')
@@ -4659,12 +4675,14 @@ program
       console.error(JSON.stringify({ error: attemptOptionUsageError }));
       process.exit(1);
     }
-    const explicitGimbozRange = rawCliArgs.includes('--range') ? opts.range : undefined;
-    if (gameEntry?.type === 'gimbozsmash' && (explicitGimbozRange !== undefined || opts.outRange !== undefined)) {
+    const explicitGimbozRange = rawArgsIncludeOption(rawCliArgs, '--range') ? opts.range : undefined;
+    const explicitGimbozCover = rawArgsIncludeOption(rawCliArgs, '--cover') ? opts.cover : undefined;
+    if (gameEntry?.type === 'gimbozsmash' && (explicitGimbozRange !== undefined || opts.outRange !== undefined || explicitGimbozCover !== undefined)) {
       try {
         parseGimbozSmashInput({
           range: explicitGimbozRange,
           outRange: opts.outRange,
+          cover: explicitGimbozCover,
         });
       } catch (error) {
         console.error(JSON.stringify({ error: sanitizeError(error) }));
@@ -4727,7 +4745,8 @@ program
         survive: opts.survive,
         spins: opts.spins,
         bet: opts.bet,
-        range: gameEntry?.type === 'gimbozsmash' ? explicitGimbozRange : opts.range,
+        range: gameEntry?.type === 'apestrong' ? opts.cover : (gameEntry?.type === 'gimbozsmash' ? explicitGimbozRange : undefined),
+        cover: gameEntry?.type === 'gimbozsmash' ? explicitGimbozCover : undefined,
         multiplier: opts.multiplier,
         outRange: opts.outRange,
         picks: opts.picks,
@@ -4763,7 +4782,8 @@ program
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
   .option('--spins <count>', 'Slots-only alias for --split')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
-  .option('--range <range>', 'ApeStrong range or Gimboz Smash inside range')
+  .option('--cover <cover>', 'ApeStrong cover or Gimboz Smash random cover')
+  .option('--range <range>', 'Gimboz Smash inside range')
   .option('--multiplier <x>', 'Glyde or Crash target multiplier')
   .option('--out-range <range>', 'Gimboz Smash outside range to exclude from the winning set (for example 45-50)')
   .option('--picks <picks>', 'Keno pick count')
@@ -4836,6 +4856,7 @@ program
       '--balls',
       '--spins',
       '--bet',
+      '--cover',
       '--range',
       '--multiplier',
       '--out-range',
@@ -5084,16 +5105,16 @@ program
     }
 
     if (fixedGame?.type === 'apestrong') {
-      const explicitRange = opts.range ?? positionalConfig.range;
-      if (explicitRange !== undefined) {
+      const explicitCover = opts.cover ?? positionalConfig.range;
+      if (explicitCover !== undefined) {
         try {
-          const normalizedRange = ensureIntRange(
-            explicitRange,
-            'range',
+          const normalizedCover = ensureIntRange(
+            explicitCover,
+            'cover',
             fixedGame.config.range.min,
             fixedGame.config.range.max
           );
-          positionalConfig.range = normalizedRange;
+          positionalConfig.range = normalizedCover;
         } catch (error) {
           console.error(JSON.stringify({ error: sanitizeError(error) }));
           process.exit(1);
@@ -5119,11 +5140,13 @@ program
     if (fixedGame?.type === 'gimbozsmash') {
       const explicitRange = opts.range ?? positionalConfig.range;
       const explicitOutRange = opts.outRange ?? positionalConfig.outRange;
-      if (explicitRange !== undefined || explicitOutRange !== undefined) {
+      const explicitCover = opts.cover ?? positionalConfig.cover;
+      if (explicitRange !== undefined || explicitOutRange !== undefined || explicitCover !== undefined) {
         try {
           parseGimbozSmashInput({
             range: explicitRange,
             outRange: explicitOutRange,
+            cover: explicitCover,
           });
         } catch (error) {
           const message = sanitizeError(error);
@@ -5403,7 +5426,7 @@ program
             gameConfig.bet = cfg.defaultBet === 'random' ? (Math.random() < 0.5 ? 'PLAYER' : 'BANKER') : cfg.defaultBet;
           }
         } else if (!preferGameDefault && gameEntry.type === 'apestrong') {
-          if (opts.range !== undefined) gameConfig.range = parseInt(opts.range);
+          if (opts.cover !== undefined) gameConfig.range = parseInt(opts.cover, 10);
           else if (positionalConfig.range !== undefined) gameConfig.range = positionalConfig.range;
           else if (gameConfig.range === undefined) {
             const [min, max] = strategyConfig.apestrong?.range || [40, 60];
@@ -5423,9 +5446,11 @@ program
             : gameConfig;
         } else if (!preferGameDefault && gameEntry.type === 'gimbozsmash') {
           if (
-            opts.range !== undefined
+            opts.cover !== undefined
+            || opts.range !== undefined
             || opts.outRange !== undefined
             || positionalConfig.range !== undefined
+            || positionalConfig.cover !== undefined
             || positionalConfig.outRange !== undefined
             || gameConfig.targets === undefined
           ) {
@@ -7510,7 +7535,7 @@ EXAMPLES
   ${BINARY_NAME} play blocks 10 1 5
   ${BINARY_NAME} play primes 10 0 20
   ${BINARY_NAME} play roulette 50 RED
-  ${BINARY_NAME} play ape-strong 10 50
+  ${BINARY_NAME} play ape-strong 10 --cover 50
   ${BINARY_NAME} play glyde-or-crash 10 2x
 
   # Loop with safety limits

@@ -350,7 +350,7 @@ Coverage and limits:
 
 | Game | Command | Aliases | Description |
 |------|---------|---------|-------------|
-| ApeStrong ✔︎ | `play ape-strong 10 50` | `apestrong`, `strong` | Pick-your-odds dice |
+| ApeStrong ✔︎ | `play ape-strong 10 --cover 50` | `apestrong`, `strong` | Pick-your-odds dice |
 | Roulette ✔︎ | `play roulette 10 RED` | - | American roulette |
 | Baccarat ✔︎ | `play baccarat 10 BANKER` | - | Classic baccarat |
 | Jungle Plinko ✔︎ | `play jungle-plinko 10 --risk 0 --split 100` | `jungleplinko`, `jungle` | Drop balls for multipliers |
@@ -361,7 +361,7 @@ Coverage and limits:
 | Bubblegum Heist ✔︎ | `play bubblegum-heist 10 --split 15` | `bubblegumheist`, `bubblegum`, `heist` | Slot machine |
 | Cash Dash ✔︎ | `cash-dash 10 --auto` | `cashdash`, `dash` | Stateful death-tile ladder game with cash-out |
 | Geez Diggerz ✔︎ | `play geez-diggerz 10 --split 15` | `geezdiggerz`, `geez`, `diggerz` | Slot machine |
-| Gimboz Smash ✔︎ | `play gimboz-smash 10 1-50` or `play gimboz-smash 10 --out-range 45-50` | `gimbozsmash`, `smash` | One-or-two interval target game on a 1-100 board |
+| Gimboz Smash ✔︎ | `play gimboz-smash 10 1-50`, `play gimboz-smash 10 --cover 50`, or `play gimboz-smash 10 --out-range 45-50` | `gimbozsmash`, `smash` | One-or-two interval target game on a 1-100 board |
 | Glyde or Crash ✔︎ | `play glyde-or-crash 10 2x` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` | Target a crash multiplier |
 | Reel Pirates | `play reel-pirates 40 --split 15` | `reelpirates`, `pirates`, `reel` | Match-anywhere cascade slot |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula 10 --auto winston-ladder` | `hilonebula`, `hilo`, `nebula` | Stateful higher/lower/same card streak game with cash-out and ladder auto-play |
@@ -409,8 +409,8 @@ apechurch-cli play roulette 10 RED --loop --min-profit 25
 apechurch-cli play roulette 10 RED --loop --max-loss 20
 
 # Stop after any big hit
-apechurch-cli play ape-strong 10 50 --loop --target-x 3.9
-apechurch-cli play ape-strong 10 50 --loop --target-profit 39
+apechurch-cli play ape-strong 10 --cover 50 --loop --target-x 3.9
+apechurch-cli play ape-strong 10 --cover 50 --loop --target-profit 39
 apechurch-cli play roulette 10 RED --loop --retrace 10
 
 # Stop after a net P&L rebound from the session low or retrace from the session high
@@ -418,7 +418,7 @@ apechurch-cli play roulette 10 RED --loop --recover-loss 25
 apechurch-cli play roulette 10 RED --loop --giveback-profit 40
 
 # Specific game
-apechurch-cli play ape-strong 10 50 --loop --take-profit 150
+apechurch-cli play ape-strong 10 --cover 50 --loop --take-profit 150
 ```
 
 | Option | Description |
@@ -471,7 +471,7 @@ apechurch-cli play roulette --bet RED --loop --bankroll 500 --bet-strategy bankr
 | `bankroll-fraction=<n>` | Bet fraction `n` of remaining bankroll each game; requires `--bankroll`/`--max-loss` or `--stop-loss`, and conflicts with an explicit wager amount |
 
 `bankroll-fraction=<n>` uses remaining bankroll as `--bankroll + session P&L`; when only `--stop-loss` is supplied, the bankroll is derived from `starting balance - stop-loss`. `--max-bet` caps the dynamic wager and `--min-bet` floors it.
-When using bankroll-fraction, omit the wager amount and use named game configuration flags such as `--bet RED` or `--range 50`.
+When using bankroll-fraction, omit the wager amount and use named game configuration flags such as `--bet RED` or `--cover 50`.
 
 ## Stateful Games
 

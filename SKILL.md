@@ -200,7 +200,7 @@ Sync and cache behavior:
 
 | Game | Command | Type | Key Parameters |
 |------|---------|------|----------------|
-| ApeStrong ✔︎ | `play ape-strong 10 50` | Dice | `--range 5-95` |
+| ApeStrong ✔︎ | `play ape-strong 10 --cover 50` | Dice | `--cover 5-95` |
 | Roulette ✔︎ | `play roulette 10 RED` | Table | `--bet RED,BLACK,0-36,00` |
 | Baccarat ✔︎ | `play baccarat 10 BANKER` | Table | `--bet PLAYER,BANKER,TIE` |
 | Jungle Plinko ✔︎ | `play jungle 10 2 50` | Plinko | `--mode 0-4` `--balls 1-100` |
@@ -225,10 +225,10 @@ Sync and cache behavior:
 Pick your win probability. Roll under your number to win.
 
 ```bash
-apechurch-cli play ape-strong <amount> <range>
-apechurch-cli play ape-strong 10 50      # 50% chance, 1.95x payout
-apechurch-cli play ape-strong 10 25      # 25% chance, 3.9x payout
-apechurch-cli play ape-strong 10 75      # 75% chance, 1.2999x payout
+apechurch-cli play ape-strong <amount> --cover <cover>
+apechurch-cli play ape-strong 10 --cover 50      # 50% chance, 1.95x payout
+apechurch-cli play ape-strong 10 --cover 25      # 25% chance, 3.9x payout
+apechurch-cli play ape-strong 10 --cover 75      # 75% chance, 1.2999x payout
 ```
 
 | Range | Win Chance | Payout |
@@ -477,7 +477,7 @@ Play continuously with safety controls.
 
 ```bash
 apechurch-cli play --loop                    # Random games, default settings
-apechurch-cli play ape-strong 10 50 --loop   # Specific game
+apechurch-cli play ape-strong 10 --cover 50 --loop   # Specific game
 apechurch-cli play --loop --delay 5          # 5 seconds between games
 ```
 
@@ -494,7 +494,7 @@ apechurch-cli play --loop --stop-loss 50
 apechurch-cli play --loop --max-games 100
 
 # Combine them all
-apechurch-cli play ape-strong 10 50 --loop --target 200 --stop-loss 50 --max-games 100
+apechurch-cli play ape-strong 10 --cover 50 --loop --target 200 --stop-loss 50 --max-games 100
 ```
 
 | Option | Description |
@@ -544,7 +544,7 @@ Control bet sizing based on win/loss patterns.
 
 ```bash
 # Martingale with 10 APE base bet
-apechurch-cli play ape-strong 10 50 --loop --bet-strategy martingale
+apechurch-cli play ape-strong 10 --cover 50 --loop --bet-strategy martingale
 
 # Martingale with safety cap
 apechurch-cli play roulette 10 RED --loop --bet-strategy martingale --max-bet 100
@@ -980,7 +980,7 @@ The agent will:
 Target a specific game with fixed parameters.
 
 ```bash
-apechurch-cli play ape-strong 10 50 --loop --target 150 --stop-loss 80
+apechurch-cli play ape-strong 10 --cover 50 --loop --target 150 --stop-loss 80
 ```
 
 ### Pattern 3: Martingale Recovery

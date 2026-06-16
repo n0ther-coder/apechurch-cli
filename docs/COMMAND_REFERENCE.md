@@ -87,10 +87,11 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 <help-topic> ::= "loop" | "strategies" | "auto" | "wallet" | "history" | "house"
 <asset> ::= "APE" | "GP"
 <game-id> ::= <token>                             ; local unfinished-game identifier
-<range> ::= <integer> | <target-range> | <target-range> "," <target-range>
-                                                ; ApeStrong uses 5..95, Gimboz Smash uses one or two inclusive target ranges on 1..100
+<cover> ::= <integer>                           ; ApeStrong uses 5..95; Gimboz Smash randomizes a 1..95 inside/outside cover
+<range> ::= <target-range> | <target-range> "," <target-range>
+                                                ; Gimboz Smash uses one or two inclusive target ranges on 1..100
 <multiplier> ::= <number> [ "x" ]                ; 1.01 <= value <= 10000 and at most 4 decimal places
-<target-range> ::= <integer> [ "-" <integer> ]    ; each endpoint is within 1..100, each range is inclusive, total covered numbers across all ranges is within 1..95
+<target-range> ::= <integer> "-" <integer>      ; each endpoint is within 1..100, each range is inclusive, total covered numbers across all ranges is within 1..95
 <out-range> ::= <target-range>                    ; one excluded inclusive range for Gimboz Smash outside bets; excluded coverage is within 5..95
 <simple-game-key> ::= "ape-strong"
                     | "roulette"
@@ -334,6 +335,7 @@ Notes:
                | "--survive" <integer>
                | "--spins" <integer>
                | "--bet" <token>
+               | "--cover" <cover>
                | "--range" <range>
                | "--multiplier" <multiplier>
                | "--out-range" <out-range>
@@ -355,7 +357,8 @@ Notes:
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--spins <count>` | Slots-only alias for `--split` |
 | `--bet <bet>` | Roulette or baccarat bet payload |
-| `--range <range>` | ApeStrong range, or Gimboz Smash one-or-two target intervals |
+| `--cover <cover>` | ApeStrong cover, or a randomized Gimboz Smash cover |
+| `--range <range>` | Gimboz Smash one-or-two target intervals |
 | `--multiplier <x>` | Glyde or Crash target multiplier |
 | `--out-range <range>` | Gimboz Smash outside bet expressed as one excluded range |
 | `--picks <picks>` | Keno pick count |
@@ -380,6 +383,7 @@ Notes:
                           | "--survive" <integer>
                           | "--spins" <integer>
                           | "--bet" <token>
+                          | "--cover" <cover>
                           | "--range" <range>
                           | "--multiplier" <multiplier>
                           | "--out-range" <out-range>
@@ -427,7 +431,7 @@ Notes:
 
 The positional tail after `<ape>` is game-specific. See [GAMES_REFERENCE.md](./GAMES_REFERENCE.md) or `apechurch-cli game <name>` for the exact grammar per stateless game.
 
-When using `--bet-strategy bankroll-fraction=<fraction>`, omit the positional wager amount. Prefer named game-configuration flags such as `--bet RED`, `--range 50`, or `--survive 5` so numeric config values are not mistaken for an explicit wager amount.
+When using `--bet-strategy bankroll-fraction=<fraction>`, omit the positional wager amount. Prefer named game-configuration flags such as `--bet RED`, `--cover 50`, or `--survive 5` so numeric config values are not mistaken for an explicit wager amount.
 
 Stateful games can also be routed through `play`, for example `apechurch-cli play blackjack 10 --auto`, `apechurch-cli play cash-dash 10 --tile 3`, or `apechurch-cli play video-poker 10 --auto best`. Direct commands such as `apechurch-cli blackjack 10` remain supported. When a stateful action needs an unfinished-game id through `play`, prefer `--game-id <id>` because `--game <name>` is already used for selecting the target game.
 
@@ -445,7 +449,8 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--spins <count>` | Slots-only alias for `--split` |
 | `--bet <bet>` | Roulette or baccarat bet payload |
-| `--range <range>` | ApeStrong range, or Gimboz Smash one-or-two target intervals |
+| `--cover <cover>` | ApeStrong cover, or a randomized Gimboz Smash cover |
+| `--range <range>` | Gimboz Smash one-or-two target intervals |
 | `--multiplier <x>` | Glyde or Crash target multiplier |
 | `--out-range <range>` | Gimboz Smash outside bet expressed as one excluded range |
 | `--picks <picks>` | Keno pick count |

@@ -216,6 +216,41 @@ describe('Manual fixed-game defaults', () => {
     });
   });
 
+  it('accepts ApeStrong --cover input as the named range surface', () => {
+    const apeStrong = getApestrongConfig(
+      { cover: '25' },
+      {},
+      { config: { range: { default: 50 } } },
+      { apestrong: { range: [40, 60] } },
+      randomIntInclusive,
+      { preferGameDefault: true }
+    );
+
+    assert.deepStrictEqual(apeStrong, { range: 25 });
+  });
+
+  it('accepts Gimboz Smash --cover input as a randomized cover surface', () => {
+    const gimbozSmash = getGimbozSmashConfig(
+      { cover: '50' },
+      {},
+      { config: { range: { default: '1-50' } } },
+      {},
+      () => 51,
+      { preferGameDefault: true }
+    );
+
+    assert.deepStrictEqual(gimbozSmash, {
+      targets: '51-100',
+      intervals: [{ start: 51, end: 100 }],
+      numWinIntervals: 1,
+      winCount: 50,
+      winChance: '50%',
+      payout: '1.95x',
+      outRange: '1-50',
+      cover: 50,
+    });
+  });
+
   it('keeps low-risk defaults even when game-default preference is disabled', () => {
     const apeStrong = getApestrongConfig(
       {},

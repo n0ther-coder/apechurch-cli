@@ -18,7 +18,7 @@ Ordering: alphabetical by game title.
 
 | Game | Positional Syntax | Flag Syntax | Aliases |
 |------|------------------|-------------|---------|
-| ApeStrong ✔︎ | `play ape-strong <amt> <range>` | `--game ape-strong --amount X --range Y` | `apestrong`, `strong` |
+| ApeStrong ✔︎ | `play ape-strong <amt> --cover <cover>` | `--game ape-strong --amount X --cover Y` | `apestrong`, `strong` |
 | Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` | - |
 | Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --survive Z` | `bear`, `dice` |
 | Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` | `bj` |
@@ -28,7 +28,7 @@ Ordering: alphabetical by game title.
 | Cosmic Plinko ✔︎ | `play cosmic-plinko <amt> <risk> <split>` | `--game cosmic-plinko --amount X --risk Y --split Z` | `cosmic` |
 | Dino Dough ✔︎ | `play dino-dough <amt> <split>` | `--game dino-dough --amount X --split Y` (`--spins Y` alias) | `dinodough`, `dino` |
 | Geez Diggerz ✔︎ | `play geez-diggerz <amt> <split>` | `--game geez-diggerz --amount X --split Y` (`--spins Y` alias) | `geezdiggerz`, `geez`, `diggerz` |
-| Gimboz Smash ✔︎ | `play gimboz-smash <amt> <range>` | `--game gimboz-smash --amount X --range Y` | `gimbozsmash`, `smash` |
+| Gimboz Smash ✔︎ | `play gimboz-smash <amt> <range>` | `--game gimboz-smash --amount X --range Y` or `--cover N` | `gimbozsmash`, `smash` |
 | Glyde or Crash ✔︎ | `play glyde-or-crash <amt> <multiplier>` | `--game glyde-or-crash --amount X --multiplier Y` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` | `hilonebula`, `hilo`, `nebula` |
 | Jungle Plinko ✔︎ | `play jungle-plinko <amt> <risk> <split>` | `--game jungle-plinko --amount X --risk Y --split Z` | `jungleplinko`, `jungle` |
@@ -116,13 +116,13 @@ Ordering for supported game sections below: alphabetical by game title.
 **Verification notes:** [APESTRONG_CONTRACT.md](./verification/APESTRONG_CONTRACT.md)
 **Analytics:** [APESTRONG_ANALYTICS.md](./analytics/APESTRONG_ANALYTICS.md)
 
-Range-based one-word VRF game. You choose a win probability `5-95`; the contract wins on `winningNumber < range` and settles from a live payout table rather than a closed-form multiplier.
+Range-based one-word VRF game. You choose a win probability cover `5-95`; the contract wins on `winningNumber < range` and settles from a live payout table rather than a closed-form multiplier.
 
-**Command:** `apechurch-cli play ape-strong <amount> <range>`
+**Command:** `apechurch-cli play ape-strong <amount> --cover <cover>`
 
 ```bnf
 <amount> ::= <ape>
-<range> ::= <integer>              ; 5 <= value <= 95
+<cover> ::= <integer>              ; 5 <= value <= 95
 ```
 
 **Compare:**
@@ -372,14 +372,15 @@ Verified ordered `3`-reel slot with `6` live symbol indexes and the same cumulat
 **Verification notes:** [GIMBOZ_SMASH_CONTRACT.md](./verification/GIMBOZ_SMASH_CONTRACT.md)
 **Analytics:** [GIMBOZ_SMASH_ANALYTICS.md](./analytics/GIMBOZ_SMASH_ANALYTICS.md)
 
-Verified one-or-two-interval target game on a public `1-100` board. The CLI accepts human-facing inclusive intervals such as `20-80` or `1-20,81-100`, and it also accepts outside-style input via `--out-range 45-50`, which it rewrites into explicit winning intervals before encoding the contract payload. Exact payout depends only on the total covered numbers across all declared intervals, not on where those intervals sit on the board.
+Verified one-or-two-interval target game on a public `1-100` board. The CLI accepts human-facing inclusive intervals such as `20-80` or `1-20,81-100`, accepts randomized cover input via `--cover 50`, and also accepts outside-style input via `--out-range 45-50`, which it rewrites into explicit winning intervals before encoding the contract payload. Exact payout depends only on the total covered numbers across all declared intervals, not on where those intervals sit on the board.
 
-**Command:** `apechurch-cli play gimboz-smash <amount> <range>` or `apechurch-cli play gimboz-smash <amount> --out-range <range>`
+**Command:** `apechurch-cli play gimboz-smash <amount> <range>`, `apechurch-cli play gimboz-smash <amount> --cover <cover>`, or `apechurch-cli play gimboz-smash <amount> --out-range <range>`
 
 ```bnf
 <amount> ::= <ape>
+<cover> ::= <integer>              ; 1 <= value <= 95
 <range> ::= <target-range> | <target-range> "," <target-range>
-<target-range> ::= <integer> [ "-" <integer> ]
+<target-range> ::= <integer> "-" <integer>
 ; semantic constraint: every endpoint is within 1..100, each range is inclusive, and total covered numbers across all ranges is within 1..95
 <out-range> ::= <target-range>
 ; semantic constraint: the excluded outside range is inclusive and must cover between 5 and 95 numbers
@@ -388,7 +389,7 @@ Verified one-or-two-interval target game on a public `1-100` board. The CLI acce
 **Compare:**
 - Exact RTP: `97.4918% - 97.50%` across every supported cover count.
 - Max payout: `97.5x` when you cover exactly `1` number.
-- Operational note: the live contract still stores winning intervals directly, so `--out-range` is a CLI convenience that rewrites outside bets into the explicit target ranges required by the contract.
+- Operational note: the live contract still stores winning intervals directly, so `--cover` and `--out-range` are CLI conveniences that rewrite into the explicit target ranges required by the contract. `--cover` chooses uniformly across every valid inside and outside placement for that cover count.
 - ApeStrong and Gimboz Smash are not identical across the whole shared surface: at `75`, Gimboz Smash is `1.3x` / `97.5000%` RTP vs. ApeStrong `1.2999x` / `97.4925%`; at `95`, Gimboz Smash is `1.0263x` / `97.4985%` vs. ApeStrong `1.025x` / `97.3750%`.
 
 ## Glyde or Crash ✔︎
@@ -946,7 +947,7 @@ The ladder matters because the bonus GP is not small relative to the early level
 ### Worked Examples
 
 1. **Level 0 bootstrap**
-   Command: `apechurch-cli play ape-strong 10 75 --loop --bet-strategy flat --delay 3 --max-games 100`
+   Command: `apechurch-cli play ape-strong 10 --cover 75 --loop --bet-strategy flat --delay 3 --max-games 100`
    Volume: `1,000 APE`
    Expected Loss (`Best ~ Worst`): `25 ~ 50 APE`
    GP Obtained (`Half / Std / Double`): `3,500 / 6,000 / 11,000 GP`
@@ -970,7 +971,7 @@ The ladder matters because the bonus GP is not small relative to the early level
    GP/APE Ratio (`Half / Std / Double`): `4.0 / 6.5 / 11.5`
 
 4. **Clear Level 15**
-   Command: `apechurch-cli play ape-strong 75 75 --loop --bet-strategy flat --delay 3 --max-games 200`
+   Command: `apechurch-cli play ape-strong 75 --cover 75 --loop --bet-strategy flat --delay 3 --max-games 200`
    Volume: `15,000 APE`
    Expected Loss (`Best ~ Worst`): `376 ~ 750 APE`
    GP Obtained (`Half / Std / Double`): `52,500 / 90,000 / 165,000 GP`
@@ -978,7 +979,7 @@ The ladder matters because the bonus GP is not small relative to the early level
    GP/APE Ratio (`Half / Std / Double`): `3.5 / 6.0 / 11.0`
 
 5. **50k bonus tier baseline**
-   Command: `apechurch-cli play ape-strong 50 75 --loop --bet-strategy flat --delay 3 --max-games 1000`
+   Command: `apechurch-cli play ape-strong 50 --cover 75 --loop --bet-strategy flat --delay 3 --max-games 1000`
    Volume: `50,000 APE`
    Expected Loss (`Best ~ Worst`): `1,254 ~ 2,500 APE`
    GP Obtained (`Half / Std / Double`): `205,000 / 330,000 / 580,000 GP`
@@ -994,7 +995,7 @@ The ladder matters because the bonus GP is not small relative to the early level
    GP/APE Ratio (`Half / Std / Double`): `4.3 / 6.8 / 11.8`
 
 7. **250k marathon tier**
-   Command: `apechurch-cli play ape-strong 100 75 --loop --bet-strategy flat --delay 3 --max-games 2500`
+   Command: `apechurch-cli play ape-strong 100 --cover 75 --loop --bet-strategy flat --delay 3 --max-games 2500`
    Volume: `250,000 APE`
    Expected Loss (`Best ~ Worst`): `6,269 ~ 12,500 APE`
    GP Obtained (`Half / Std / Double`): `1,100,000 / 1,725,000 / 2,975,000 GP`

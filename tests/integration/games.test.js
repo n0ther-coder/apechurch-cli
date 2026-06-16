@@ -82,7 +82,7 @@ describe('Live Game Tests', () => {
 
   describe('ApeStrong (Simple)', { skip: SKIP_REASON }, () => {
     it('plays a game with 50% odds', async () => {
-      const { stdout, code } = cli(`play ape-strong ${TEST_BET} 50 --json`, { timeout: 45000 });
+      const { stdout, code } = cli(`play ape-strong ${TEST_BET} --cover 50 --json`, { timeout: 45000 });
       
       const data = JSON.parse(stdout);
       
@@ -93,7 +93,7 @@ describe('Live Game Tests', () => {
 
     it('handles different odds values', async () => {
       // Test with 25% odds (higher payout)
-      const { stdout, code } = cli(`play ape-strong ${TEST_BET} 25 --json`, { timeout: 45000 });
+      const { stdout, code } = cli(`play ape-strong ${TEST_BET} --cover 25 --json`, { timeout: 45000 });
       
       const data = JSON.parse(stdout);
       assert.ok('tx' in data, 'Should complete transaction');
@@ -164,7 +164,7 @@ describe('Live Game Tests', () => {
 
   describe('Loop Mode', { skip: SKIP_REASON }, () => {
     it('--max-games stops after specified count', async () => {
-      const { stdout } = cli(`play ape-strong ${TEST_BET} 50 --loop --max-games 2 --json`, { timeout: 120000 });
+      const { stdout } = cli(`play ape-strong ${TEST_BET} --cover 50 --loop --max-games 2 --json`, { timeout: 120000 });
       
       // Should have completed 2 games
       // Count occurrences of "tx" in output
@@ -176,7 +176,7 @@ describe('Live Game Tests', () => {
   describe('Result Verification', { skip: SKIP_REASON }, () => {
     it('history shows recent game', async () => {
       // First play a game
-      cli(`play ape-strong ${TEST_BET} 50`, { timeout: 45000 });
+      cli(`play ape-strong ${TEST_BET} --cover 50`, { timeout: 45000 });
       
       // Then check history
       const { stdout } = cli('history --json --limit 1 --offline');
@@ -195,7 +195,7 @@ describe('Live Game Tests', () => {
 describe('Error Handling in Games', () => {
   describe('Invalid inputs', () => {
     it('rejects negative bet amount', () => {
-      const { stdout, stderr, code } = cli('play ape-strong -5 50');
+      const { stdout, stderr, code } = cli('play ape-strong -5 --cover 50');
       const output = stdout + stderr;
       
       assert.ok(output.includes('Invalid') || output.includes('error') || code !== 0,
@@ -203,7 +203,7 @@ describe('Error Handling in Games', () => {
     });
 
     it('rejects zero bet amount', () => {
-      const { stdout, stderr, code } = cli('play ape-strong 0 50');
+      const { stdout, stderr, code } = cli('play ape-strong 0 --cover 50');
       const output = stdout + stderr;
       
       assert.ok(output.includes('Invalid') || output.includes('error') || output.includes('must be') || code !== 0,
@@ -226,18 +226,18 @@ describe('Error Handling in Games', () => {
         'Should reject invalid roulette bet');
     });
 
-    it('rejects ape-strong range out of bounds', () => {
-      const { stdout, stderr, code } = cli('play ape-strong 1 101');
+    it('rejects ape-strong cover out of bounds', () => {
+      const { stdout, stderr, code } = cli('play ape-strong 1 --cover 101');
       const output = stdout + stderr;
       
       assert.ok(output.includes('Invalid') || output.includes('range') || output.includes('5-95') || code !== 0,
-        'Should reject range > 95');
+        'Should reject cover > 95');
     });
   });
 
   describe('Strategy validation', () => {
     it('rejects invalid betting strategy', () => {
-      const { stdout, stderr, code } = cli('play ape-strong 1 50 --loop --bet-strategy invalid --max-games 1');
+      const { stdout, stderr, code } = cli('play ape-strong 1 --cover 50 --loop --bet-strategy invalid --max-games 1');
       const output = stdout + stderr;
       
       assert.ok(output.includes('Unknown') || output.includes('strategy') || code !== 0,
@@ -248,7 +248,7 @@ describe('Error Handling in Games', () => {
       const strategies = ['flat', 'martingale', 'reverse-martingale', 'fibonacci', 'dalembert'];
       
       for (const strat of strategies) {
-        const { code, stderr } = cli(`play ape-strong 1 50 --loop --bet-strategy ${strat} --max-games 0`);
+        const { code, stderr } = cli(`play ape-strong 1 --cover 50 --loop --bet-strategy ${strat} --max-games 0`);
         // Should not error on strategy validation (may error on other things)
         assert.ok(!stderr.includes(`Unknown betting strategy`), 
           `Strategy ${strat} should be valid`);
