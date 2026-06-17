@@ -69,6 +69,7 @@ describe('Bot Session Helpers', () => {
       '--gp-ape',
       '7.5',
       '--human',
+      '--resilient',
       '--delay=6',
       '--preflight',
       '12.5',
@@ -86,6 +87,7 @@ describe('Bot Session Helpers', () => {
       maxGames: '2',
       gpApe: '7.5',
       human: true,
+      resilient: true,
       delay: '6',
       preflight: '12.5',
     });
@@ -93,6 +95,7 @@ describe('Bot Session Helpers', () => {
 
     assert.strictEqual(parseStandardBotArgs(['--delay=0']).loopControls.delay, '0');
     assert.strictEqual(parseStandardBotArgs(['--preflight=0']).loopControls.preflight, '0');
+    assert.strictEqual(parseStandardBotArgs(['--resilient=false']).loopControls.resilient, false);
   });
 
   it('allows --stop-loss 0 while keeping other APE loop controls positive', () => {
@@ -211,6 +214,7 @@ describe('Bot Session Helpers', () => {
       '300',
       '--gp-ape',
       '7.5',
+      '--resilient',
       '--human',
       '--delay',
       '6',
@@ -223,7 +227,7 @@ describe('Bot Session Helpers', () => {
 
     assert.deepStrictEqual(
       getStandardBotCliForwardTokens(parsed.loopControls, runtime),
-      ['--take-profit', '1400', '--stop-loss', '300', '--gp-ape', '7.5', '--human'],
+      ['--take-profit', '1400', '--stop-loss', '300', '--gp-ape', '7.5', '--resilient', '--human'],
     );
     assert.strictEqual(parsed.loopControls.maxLoss, '700');
   });
@@ -262,6 +266,7 @@ describe('Bot Session Helpers', () => {
       '3',
       '--giveback-profit',
       '4',
+      '--resilient',
       '--max-routines',
       '9',
     ]);
@@ -285,6 +290,7 @@ describe('Bot Session Helpers', () => {
         '4',
         '--stop-loss',
         '92',
+        '--resilient',
       ],
     );
   });

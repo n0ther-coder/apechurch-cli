@@ -419,6 +419,7 @@ const PLAY_STATEFUL_OPTION_LINES = Object.freeze([
   '--solver [mode]         Solver suggestions for supported stateful games',
   '--tile <tile>           Cash Dash opening tile: 1-7 or random',
   '--cashout-after <rows>  Cash Dash auto-play cashout depth',
+  '--resilient             Retry transient network/RPC failures conservatively',
 ]);
 const DEPRECATED_ATTEMPT_OPTIONS = Object.freeze(['--balls', '--games', '--runs', '--rolls']);
 const SPLIT_GAME_TYPES = Object.freeze(['plinko', 'primes', 'speedkeno', 'slots']);
@@ -433,6 +434,7 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--game <name>           Stateless or stateful game key',
   '--amount <ape>          Wager amount',
   '--loop                  Repeat the selected gameplay surface until stopped',
+  '--resilient             Conservative retry mode for transient network/RPC failures',
   '--delay <seconds>       Delay between looped games',
   '--max-games <count>     Stop after N games',
   '--take-profit <ape>     Stop when balance reaches the target',
@@ -512,10 +514,11 @@ const STATEFUL_SHARED_HELP_OPTION_LINES = Object.freeze([
   '--json                  Emit JSON output only',
   '-v, --verbose           Show technical progress logs',
   '--gp-ape <points>       Override local GP estimation for this run',
+  '--resilient             Retry transient network/RPC failures conservatively',
 ]);
 const STATEFUL_SHARED_BNF_LINES = Object.freeze([
-  '<stateful-common-option> ::= "--game" <game-id> | "--display" <display> | "--json" | "-v" | "--verbose" | "--gp-ape" <points>',
-  '<stateful-loop-option> ::= "--loop" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--take-profit" <ape> | "--min-profit" <ape> | "--target-x" <number> | "--target-profit" <ape> | "--retrace" <ape> | "--recover-loss" <ape> | "--giveback-profit" <ape> | "--stop-loss" <ape-nonnegative> | "--max-loss" <ape> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape>',
+  '<stateful-common-option> ::= "--game" <game-id> | "--display" <display> | "--json" | "-v" | "--verbose" | "--gp-ape" <points> | "--resilient"',
+  '<stateful-loop-option> ::= "--loop" | "--resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--take-profit" <ape> | "--min-profit" <ape> | "--target-x" <number> | "--target-profit" <ape> | "--retrace" <ape> | "--recover-loss" <ape> | "--giveback-profit" <ape> | "--stop-loss" <ape-nonnegative> | "--max-loss" <ape> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape>',
 ]);
 
 function isPositiveApeToken(value) {
@@ -1055,8 +1058,8 @@ function formatPlayHelpAppendix() {
       '<stateful-head> ::= <ape> | "resume" | "status" | "clear" | "payouts" | "table" | <token>',
       '<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>',
       '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
-      '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count>',
-      '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--take-profit" <ape> | "--min-profit" <ape> | "--target-x" <number> | "--target-profit" <ape> | "--retrace" <ape> | "--recover-loss" <ape> | "--giveback-profit" <ape> | "--stop-loss" <ape-nonnegative> | "--max-loss" <ape> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
+      '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count> | "--resilient"',
+      '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--take-profit" <ape> | "--min-profit" <ape> | "--target-x" <number> | "--target-profit" <ape> | "--retrace" <ape> | "--recover-loss" <ape> | "--giveback-profit" <ape> | "--stop-loss" <ape-nonnegative> | "--max-loss" <ape> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
       ...SIMPLE_GAME_HELP_BNF_LINES,
       ...COMMON_BNF_LINES.filter((line) => !line.startsWith('<ape') && !line.startsWith('<points>')),
     ],
@@ -4806,6 +4809,7 @@ program
   .option('--cashout-after <rows>', 'Cash Dash auto-play cashes out after N safe rows')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
+  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
@@ -4878,6 +4882,7 @@ program
       '--cashout-after',
       '--strategy',
       '--loop',
+      '--resilient',
       '--delay',
       '--human',
       '--max-games',
@@ -5685,6 +5690,7 @@ program
           xRef: opts.xRef,
           xUserRandomWord: opts.xUserRandomWord,
           gpPerApe,
+          resilient: Boolean(opts.resilient),
         });
 
         // Update state based on result
@@ -9093,6 +9099,7 @@ program
   .option('--solver-max-states <n>', 'Best-EV search state cap for --auto/--solver best/max (defaults 50000/150000)')
   .option('--solver-timeout-ms <ms>', 'Best-EV worker timeout for --auto/--solver best/max (defaults 5000/30000)')
   .option('--delay <seconds>', 'Fixed delay between looped games')
+  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
   .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
@@ -9132,6 +9139,7 @@ program
   .option('--tile <tile>', 'Opening tile: 1-7 or random; manual mode prompts when omitted')
   .option('--cashout-after <rows>', 'Auto-play cashes out after N safe rows')
   .option('--delay <seconds>', 'Fixed delay between looped games')
+  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
   .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
@@ -9170,6 +9178,7 @@ program
   .option('--auto [mode]', 'Auto-play the run')
   .option('--solver [mode]', 'Show a continuation suggestion in manual mode')
   .option('--delay <seconds>', 'Fixed delay between looped games')
+  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
   .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
@@ -9206,6 +9215,7 @@ program
   .option('--auto [mode]', 'Auto-play the hand')
   .option('--solver', 'Show best-EV hold suggestion in interactive video poker')
   .option('--delay <seconds>', 'Fixed delay between looped games')
+  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
   .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
