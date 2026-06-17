@@ -321,7 +321,7 @@ describe('Bot Session Helpers', () => {
     );
   });
 
-  it('triggers recover-loss from the net P&L session low', () => {
+  it('triggers recover-loss only after armed net P&L returns to break-even or profit', () => {
     const parsed = parseStandardBotArgs(['--recover-loss', '100']);
     const state = createStandardBotLoopState();
 
@@ -337,6 +337,8 @@ describe('Bot Session Helpers', () => {
       null,
     );
 
+    assert.equal(state.recoverLossArmed, true);
+
     assert.strictEqual(
       getStandardBotLoopCondition({
         loopControls: parsed.loopControls,
@@ -349,7 +351,7 @@ describe('Bot Session Helpers', () => {
       null,
     );
 
-    assert.deepStrictEqual(
+    assert.strictEqual(
       getStandardBotLoopCondition({
         loopControls: parsed.loopControls,
         totalPnlWei: 500n * 10n ** 18n,
@@ -358,19 +360,31 @@ describe('Bot Session Helpers', () => {
         executions: 3,
         state,
       }),
+      null,
+    );
+
+    assert.deepStrictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: 500n * 10n ** 18n,
+        currentBalanceApe: '1000',
+        startingBalanceApe: '1000',
+        executions: 4,
+        state,
+      }),
       {
         kind: 'recover_loss',
         threshold_ape: '100',
-        pnl_ape: '-79',
+        pnl_ape: '0',
         min_pnl_ape: '-180',
-        recovered_ape: '101',
+        recovered_ape: '180',
         pnl_basis: 'net',
-        executions: 3,
+        executions: 4,
       },
     );
   });
 
-  it('triggers giveback-profit from the net P&L session high', () => {
+  it('triggers giveback-profit only after armed net P&L returns to break-even or loss', () => {
     const parsed = parseStandardBotArgs(['--giveback-profit', '400']);
     const state = createStandardBotLoopState();
 
@@ -386,7 +400,9 @@ describe('Bot Session Helpers', () => {
       null,
     );
 
-    assert.deepStrictEqual(
+    assert.equal(state.givebackProfitArmed, true);
+
+    assert.strictEqual(
       getStandardBotLoopCondition({
         loopControls: parsed.loopControls,
         totalPnlWei: -1n * 10n ** 18n,
@@ -395,14 +411,26 @@ describe('Bot Session Helpers', () => {
         executions: 9,
         state,
       }),
+      null,
+    );
+
+    assert.deepStrictEqual(
+      getStandardBotLoopCondition({
+        loopControls: parsed.loopControls,
+        totalPnlWei: -1n * 10n ** 18n,
+        currentBalanceApe: '1000',
+        startingBalanceApe: '1000',
+        executions: 10,
+        state,
+      }),
       {
         kind: 'giveback_profit',
         threshold_ape: '400',
-        pnl_ape: '102.4',
+        pnl_ape: '0',
         max_pnl_ape: '502.41',
-        giveback_ape: '400.01',
+        giveback_ape: '502.41',
         pnl_basis: 'net',
-        executions: 9,
+        executions: 10,
       },
     );
   });

@@ -440,8 +440,8 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--target-x <x>          Stop when one game pays at least this multiplier',
   '--target-profit <ape>   Stop when one game pays at least this payout',
   '--retrace <ape>         Stop when one game loses at least this amount',
-  '--recover-loss <ape>    Stop after net P&L rebounds from its session low',
-  '--giveback-profit <ape> Stop after net P&L gives back from its session high',
+  '--recover-loss <ape>    Arm at -<ape> net P&L; stop at break-even/profit',
+  '--giveback-profit <ape> Arm at +<ape> net P&L; stop at break-even/loss',
   '--stop-loss <ape>       Stop when balance drops to the threshold',
   '--max-loss <ape>        Stop when session P&L reaches the loss limit',
   '--bankroll <ape>        Alias for --max-loss',
@@ -493,8 +493,8 @@ const LOOP_HELP_OPTION_LINES = Object.freeze([
   '--target-x <x>          Stop when one game pays at least this multiplier',
   '--target-profit <ape>   Stop when one game pays at least this payout',
   '--retrace <ape>         Stop when one game loses at least this amount',
-  '--recover-loss <ape>    Stop after net P&L rebounds this amount from its low',
-  '--giveback-profit <ape> Stop after net P&L gives back this amount from its high',
+  '--recover-loss <ape>    Arm at -<ape> net P&L; stop at break-even/profit',
+  '--giveback-profit <ape> Arm at +<ape> net P&L; stop at break-even/loss',
   '--stop-loss <ape>       Stop when wallet balance drops to this absolute threshold',
   '--max-loss <ape>        Stop when session P&L reaches this loss',
   '--bankroll <ape>        Alias for --max-loss',
@@ -4814,8 +4814,8 @@ program
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
-  .option('--recover-loss <ape>', 'Stop when net session P&L rebounds this amount from its low (use with --loop)')
-  .option('--giveback-profit <ape>', 'Stop when net session P&L gives back this amount from its high (use with --loop)')
+  .option('--recover-loss <ape>', 'Arm when net session P&L reaches -<ape>; stop at break-even/profit (use with --loop)')
+  .option('--giveback-profit <ape>', 'Arm when net session P&L reaches +<ape>; stop at break-even/loss (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
@@ -6978,8 +6978,8 @@ ${'─'.repeat(60)}
   --target-x <x>  Stop when a hand pays at least this multiplier
   --target-profit <ape>  Stop when a hand pays at least this payout
   --retrace <ape>  Stop when a hand loses at least this amount
-  --recover-loss <ape>  Stop after net P&L rebounds from its session low
-  --giveback-profit <ape>  Stop after net P&L gives back from its session high
+  --recover-loss <ape>  Arm at -<ape> net P&L; stop at break-even/profit
+  --giveback-profit <ape>  Arm at +<ape> net P&L; stop at break-even/loss
   --stop-loss <ape>  Stop when balance drops to this amount
   --max-loss <ape>  Stop when session P&L reaches this loss
   --bankroll <ape>  Alias for --max-loss
@@ -7026,7 +7026,7 @@ ${'─'.repeat(60)}
   ${BINARY_NAME} blackjack 10 --auto --loop --target-x 2.5
                                            Stop after any 2.5x-or-better hand
   ${BINARY_NAME} blackjack 10 --auto --loop --recover-loss 25
-                                           Stop once a 25 APE drawdown gets recovered
+                                           Stop once a 25 APE drawdown returns to break-even/profit
   ${BINARY_NAME} blackjack 10 --auto --loop --min-profit 40
                                            Stop once session P&L reaches +40 APE
 
@@ -7085,8 +7085,8 @@ ${'─'.repeat(60)}
   --max-loss <ape> Stop when session P&L reaches this loss
   --bankroll <ape> Alias for --max-loss
   --retrace <ape> Stop when a run loses at least this amount
-  --recover-loss <ape> Stop after net P&L rebounds from its session low
-  --giveback-profit <ape> Stop after net P&L gives back from its session high
+  --recover-loss <ape> Arm at -<ape> net P&L; stop at break-even/profit
+  --giveback-profit <ape> Arm at +<ape> net P&L; stop at break-even/loss
   --bet-strategy <name> Betting strategy for loop mode; supports bankroll-fraction=<0..1>
   --max-bet <ape> Maximum bet amount for progressive strategies
   --min-bet <ape> Minimum bet amount floor for dynamic strategies
@@ -7177,8 +7177,8 @@ ${'─'.repeat(60)}
   --max-loss <ape> Stop when session P&L reaches this loss
   --bankroll <ape> Alias for --max-loss
   --retrace <ape> Stop when a run loses at least this amount
-  --recover-loss <ape> Stop after net P&L rebounds from its session low
-  --giveback-profit <ape> Stop after net P&L gives back from its session high
+  --recover-loss <ape> Arm at -<ape> net P&L; stop at break-even/profit
+  --giveback-profit <ape> Arm at +<ape> net P&L; stop at break-even/loss
   --bet-strategy <name> Betting strategy for loop mode; supports bankroll-fraction=<0..1>
   --max-bet <ape> Maximum bet amount for progressive strategies
   --min-bet <ape> Minimum bet amount floor for dynamic strategies
@@ -7276,8 +7276,8 @@ ${'─'.repeat(60)}
   --target-x <x>  Stop when a hand pays at least this multiplier
   --target-profit <ape>  Stop when a hand pays at least this payout
   --retrace <ape>  Stop when a hand loses at least this amount
-  --recover-loss <ape>  Stop after net P&L rebounds from its session low
-  --giveback-profit <ape>  Stop after net P&L gives back from its session high
+  --recover-loss <ape>  Arm at -<ape> net P&L; stop at break-even/profit
+  --giveback-profit <ape>  Arm at +<ape> net P&L; stop at break-even/loss
   --stop-loss <ape>  Stop when balance drops to this amount
   --max-loss <ape>  Stop when session P&L reaches this loss
   --bankroll <ape>  Alias for --max-loss
@@ -7510,8 +7510,8 @@ LOOP OPTIONS
   --target-x <x>          Stop when one game pays at least Xx
   --target-profit <ape>   Stop when one game pays at least this payout
   --retrace <ape>         Stop when one game loses at least this amount
-  --recover-loss <ape>    Stop when net session P&L rebounds this amount from its low
-  --giveback-profit <ape> Stop when net session P&L gives back this amount from its high
+  --recover-loss <ape>    Arm at -<ape> net P&L; stop at break-even/profit
+  --giveback-profit <ape> Arm at +<ape> net P&L; stop at break-even/loss
   --stop-loss <ape>       Stop when balance drops to limit
   --max-loss <ape>        Stop when session P&L reaches the loss limit
   --bankroll <ape>        Alias for --max-loss
@@ -7638,12 +7638,12 @@ ${'─'.repeat(70)}
   --retrace <ape>        Stop when a single game loses at least this amount
                          Example: --retrace 25 (stop on any 25+ APE loss)
 
-  --recover-loss <ape>   Track the lowest net session P&L;
-                         stop once current net P&L rebounds by <ape>
+  --recover-loss <ape>   Arm once net session P&L reaches -<ape> or worse;
+                         stop once current net P&L returns to break-even/profit
                          Example: --recover-loss 25
 
-  --giveback-profit <ape> Track the highest net session P&L;
-                          stop once current net P&L gives back <ape>
+  --giveback-profit <ape> Arm once net session P&L reaches +<ape> or better;
+                          stop once current net P&L returns to break-even/loss
                           Example: --giveback-profit 40
                        
   --stop-loss <ape>    Stop when balance DROPS to this amount
@@ -7721,8 +7721,8 @@ ${'─'.repeat(70)}
     • Hitting --target-x on a single game
     • Hitting --target-profit on a single game
     • Hitting --retrace on a single game loss
-    • Rebounding from the --recover-loss net P&L low
-    • Giving back from the --giveback-profit net P&L high
+    • Returning to break-even/profit after --recover-loss is armed
+    • Returning to break-even/loss after --giveback-profit is armed
     • Hitting --stop-loss floor
     • Hitting --max-loss session P&L
     • Completing --max-games
@@ -9101,8 +9101,8 @@ program
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
-  .option('--recover-loss <ape>', 'Stop when net session P&L rebounds this amount from its low (use with --loop)')
-  .option('--giveback-profit <ape>', 'Stop when net session P&L gives back this amount from its high (use with --loop)')
+  .option('--recover-loss <ape>', 'Arm when net session P&L reaches -<ape>; stop at break-even/profit (use with --loop)')
+  .option('--giveback-profit <ape>', 'Arm when net session P&L reaches +<ape>; stop at break-even/loss (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
@@ -9140,8 +9140,8 @@ program
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
-  .option('--recover-loss <ape>', 'Stop when net session P&L rebounds this amount from its low (use with --loop)')
-  .option('--giveback-profit <ape>', 'Stop when net session P&L gives back this amount from its high (use with --loop)')
+  .option('--recover-loss <ape>', 'Arm when net session P&L reaches -<ape>; stop at break-even/profit (use with --loop)')
+  .option('--giveback-profit <ape>', 'Arm when net session P&L reaches +<ape>; stop at break-even/loss (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
@@ -9178,8 +9178,8 @@ program
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
-  .option('--recover-loss <ape>', 'Stop when net session P&L rebounds this amount from its low (use with --loop)')
-  .option('--giveback-profit <ape>', 'Stop when net session P&L gives back this amount from its high (use with --loop)')
+  .option('--recover-loss <ape>', 'Arm when net session P&L reaches -<ape>; stop at break-even/profit (use with --loop)')
+  .option('--giveback-profit <ape>', 'Arm when net session P&L reaches +<ape>; stop at break-even/loss (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
@@ -9214,8 +9214,8 @@ program
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
   .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
   .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
-  .option('--recover-loss <ape>', 'Stop when net session P&L rebounds this amount from its low (use with --loop)')
-  .option('--giveback-profit <ape>', 'Stop when net session P&L gives back this amount from its high (use with --loop)')
+  .option('--recover-loss <ape>', 'Arm when net session P&L reaches -<ape>; stop at break-even/profit (use with --loop)')
+  .option('--giveback-profit <ape>', 'Arm when net session P&L reaches +<ape>; stop at break-even/loss (use with --loop)')
   .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')

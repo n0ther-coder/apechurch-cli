@@ -413,7 +413,7 @@ apechurch-cli play ape-strong 10 --cover 50 --loop --target-x 3.9
 apechurch-cli play ape-strong 10 --cover 50 --loop --target-profit 39
 apechurch-cli play roulette 10 RED --loop --retrace 10
 
-# Stop after a net P&L rebound from the session low or retrace from the session high
+# Stop after net P&L arms at a drawdown/run-up, then returns to break-even
 apechurch-cli play roulette 10 RED --loop --recover-loss 25
 apechurch-cli play roulette 10 RED --loop --giveback-profit 40
 
@@ -428,8 +428,8 @@ apechurch-cli play ape-strong 10 --cover 50 --loop --take-profit 150
 | `--target-x <x>` | Stop when one game pays at least this multiplier |
 | `--target-profit <ape>` | Stop when one game pays at least this payout |
 | `--retrace <ape>` | Stop when one game loses at least this amount |
-| `--recover-loss <ape>` | Stop when net session P&L rebounds this amount from its session low |
-| `--giveback-profit <ape>` | Stop when net session P&L gives back this amount from its session high |
+| `--recover-loss <ape>` | Arm when net session P&L reaches `-<ape>` or worse; stop when it returns to break-even/profit |
+| `--giveback-profit <ape>` | Arm when net session P&L reaches `+<ape>` or better; stop when it returns to break-even/loss |
 | `--stop-loss <ape>` | Stop when balance drops to limit; if used without `--bankroll`/`--max-loss`, the session bankroll is derived as `starting balance - stop-loss` |
 | `--max-loss <ape>`, `--bankroll <ape>` | Stop when session P&L reaches the loss limit; if used without `--stop-loss`, the wallet stop-loss is derived as `starting balance - bankroll` |
 | `--max-games <n>` | Stop after N games |

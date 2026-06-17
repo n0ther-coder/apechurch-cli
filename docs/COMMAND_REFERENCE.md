@@ -494,8 +494,8 @@ These options are accepted by the `play` command for both stateless and stateful
 | `--target-x <x>` | Stop loop when one game pays at least the target multiplier |
 | `--target-profit <ape>` | Stop loop when one game pays at least the target payout |
 | `--retrace <ape>` | Stop loop when one game loses at least this amount |
-| `--recover-loss <ape>` | Stop loop when session P&L returns to break-even/profit after a drawdown of at least this size |
-| `--giveback-profit <ape>` | Stop loop when session P&L returns to break-even/loss after a run-up of at least this size |
+| `--recover-loss <ape>` | Stop loop when net session P&L returns to break-even/profit after a drawdown of at least this size |
+| `--giveback-profit <ape>` | Stop loop when net session P&L returns to break-even/loss after a run-up of at least this size |
 | `--stop-loss <ape>` | Stop before a play/loop iteration when wallet balance is at or below the threshold. If set without `--max-loss`/`--bankroll`, the session bankroll is derived as `starting balance - stop-loss` |
 | `--max-loss <ape>`, `--bankroll <ape>` | Stop loop when session P&L reaches the loss limit. If set without `--stop-loss`, the wallet stop-loss is derived as `starting balance - bankroll` |
 | `--bet-strategy <name>` | Loop bet progression, including `bankroll-fraction=<0..1>` |

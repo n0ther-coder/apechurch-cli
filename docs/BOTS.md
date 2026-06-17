@@ -182,7 +182,7 @@ Unless a bot has more specific implementation instructions, and documents those 
 - `--take-profit <ape>` and `--stop-loss <ape>`: absolute wallet balance thresholds for the complete bot run. Bots should forward these exact absolute values to every CLI play and nested bot call so execution can stop inside a child ladder as soon as the wallet crosses either boundary.
 - `--min-profit <ape>` and `--max-loss <ape>`: relative gross P&L shortcuts for the complete bot run. At startup, derive absolute wallet `--take-profit` and `--stop-loss` thresholds from the current wallet balance and forward those derived absolute values to every CLI play and nested bot call.
 - `--bankroll <ape>`: alias for `--max-loss`, used by bots or strategies that express their loss budget as bankroll instead of max loss.
-- `--recover-loss <ape>` and `--giveback-profit <ape>`: net wallet P&L trailing controls for the complete bot run.
+- `--recover-loss <ape>` and `--giveback-profit <ape>`: net wallet P&L controls for the complete bot run. `--recover-loss` arms after P&L reaches `-<ape>` or worse and stops at break-even/profit; `--giveback-profit` arms after P&L reaches `+<ape>` or better and stops at break-even/loss.
 - `--max-routines <count>`: limits routines of the main bot only. Do not forward this option to games, nested bots, or child games.
 - `--gp-ape <points>`: forwarded to each CLI play launched by the bot.
 - `--human [range]`: bots propagate this to every child CLI play and nested bot. Bots that manage child run loops may also apply it internally between child runs.

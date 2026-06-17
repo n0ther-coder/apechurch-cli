@@ -674,8 +674,8 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `cash-dash`, `hi-lo-neb
 --target-x <x>            # Stop after any single-game payout multiplier at or above X
 --target-profit <ape>     # Stop after any single-game payout amount at or above this APE
 --retrace <ape>           # Stop after any single-game loss at or above this APE
---recover-loss <ape>      # Stop once a drawdown of at least this size gets back to break-even/profit
---giveback-profit <ape>   # Stop once a run-up of at least this size falls back to break-even/loss
+--recover-loss <ape>      # Stop once net P&L reaches -<ape>, then gets back to break-even/profit
+--giveback-profit <ape>   # Stop once net P&L reaches +<ape>, then falls back to break-even/loss
 --stop-loss <ape>         # Stop at loss limit
 --max-loss <ape>          # Stop at target session loss
 --max-games <n>           # Stop after N games
