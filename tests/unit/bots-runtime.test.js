@@ -48,12 +48,20 @@ describe('Bot Runtime Context', () => {
     assert.deepStrictEqual(payload.args, ['ape-strong', '1', '60', '--resilient', '--json']);
   });
 
-  it('does not add inherited --resilient when the bot-level flag is false', async () => {
-    const ctx = createContext(['--resilient=false']);
+  it('does not add inherited --resilient when the bot-level flag is disabled', async () => {
+    const ctx = createContext(['--no-resilient']);
 
     const payload = await ctx.playJson(['ape-strong', '1', '60']);
 
     assert.deepStrictEqual(payload.args, ['ape-strong', '1', '60', '--json']);
+  });
+
+  it('lets a direct playJson call opt out of inherited --resilient', async () => {
+    const ctx = createContext(['--resilient']);
+
+    const payload = await ctx.playJson(['ape-strong', '1', '60', '--no-resilient']);
+
+    assert.deepStrictEqual(payload.args, ['ape-strong', '1', '60', '--no-resilient', '--json']);
   });
 
   it('adds bot-level --resilient to direct play validation calls', async () => {

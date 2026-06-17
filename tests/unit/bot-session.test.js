@@ -95,7 +95,7 @@ describe('Bot Session Helpers', () => {
 
     assert.strictEqual(parseStandardBotArgs(['--delay=0']).loopControls.delay, '0');
     assert.strictEqual(parseStandardBotArgs(['--preflight=0']).loopControls.preflight, '0');
-    assert.strictEqual(parseStandardBotArgs(['--resilient=false']).loopControls.resilient, false);
+    assert.strictEqual(parseStandardBotArgs(['--no-resilient']).loopControls.resilient, false);
   });
 
   it('allows --stop-loss 0 while keeping other APE loop controls positive', () => {
