@@ -446,6 +446,13 @@ describe('CLI Commands Integration Tests', () => {
       assert.match(payload.error, /Invalid --bankroll value/);
     });
 
+    it('play rejects --resilient values in favor of --no-resilient', () => {
+      const { stdout, code } = cli('play ape-strong 1 --resilient=false --validate-only --json');
+
+      assert.strictEqual(code, 1);
+      assert.match(stdout, /unknown option '--resilient=false'|--resilient does not accept a value/);
+    });
+
     it('play validate-only checks game option values without requiring a wallet', () => {
       const { stdout, code } = cli('play cosmic-plinko 1 --risk Wrong --validate-only --json');
       const payload = JSON.parse(stdout);

@@ -1008,11 +1008,13 @@ function formatBetHelpAppendix() {
       '--x-gameId <uint256>   Expert override for generated gameData gameId',
       '--x-ref <address>      Expert override for referral address in gameData',
       '--x-userRandomWord <bytes32> Expert override for generated userRandomWord',
+      '--resilient            Retry transient network/RPC failures conservatively',
+      '--no-resilient         Disable inherited resilient retry mode',
       '--gp-ape <points>      Override local GP estimation for this run',
     ],
     bnf: [
       '<bet-command> ::= "bet" "--game" <stateless-game> "--amount" <ape> <bet-option>*',
-      '<bet-option> ::= "--risk" <risk> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--gp-ape" <points>',
+      '<bet-option> ::= "--risk" <risk> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
       ...SIMPLE_GAME_HELP_BNF_LINES,
     ],
     examples: [
@@ -2426,6 +2428,10 @@ function allowsMissingStatefulStartAmount(opts = {}) {
 }
 
 async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
+  if (rejectResilientValueOption(process.argv.slice(2), opts)) {
+    return;
+  }
+
   switch (gameKey) {
     case 'blackjack': {
       const blackjack = await import('../lib/stateful/blackjack/index.js');
@@ -2663,6 +2669,21 @@ function failPlayValidation(error) {
 
 function rawArgsIncludeOption(rawArgs = [], optionName) {
   return rawArgs.some((arg) => arg === optionName || String(arg).startsWith(`${optionName}=`));
+}
+
+function getResilientValueOptionError(rawArgs = []) {
+  const deprecated = rawArgs.find((arg) => String(arg).startsWith('--resilient='));
+  if (!deprecated) return null;
+  return `Option --resilient does not accept a value. Use --resilient to enable retry mode or --no-resilient to disable it.`;
+}
+
+function rejectResilientValueOption(rawArgs = [], opts = {}) {
+  const error = getResilientValueOptionError(rawArgs);
+  if (!error) return false;
+  if (opts.json) console.error(JSON.stringify({ error }));
+  else console.error(`\n❌ ${error}\n`);
+  process.exitCode = 1;
+  return true;
 }
 
 function getDeprecatedAttemptOptionMessage(optionName, gameEntry = null) {
@@ -4674,11 +4695,16 @@ program
   .option('--x-gameId <uint256>', 'Expert: override generated gameId in gameData')
   .option('--x-ref <address>', 'Expert: override referral address in gameData')
   .option('--x-userRandomWord <bytes32>', 'Expert: override generated userRandomWord in gameData')
+  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
+  .option('--no-resilient', 'Disable inherited resilient retry mode')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .addHelpText('after', formatBetHelpAppendix())
   .action(async (opts) => {
     const gameEntry = resolveGame(opts.game);
     const rawCliArgs = process.argv.slice(2);
+    if (rejectResilientValueOption(rawCliArgs, { json: true })) {
+      return;
+    }
     const attemptOptionUsageError = getAttemptOptionUsageError({ gameEntry, rawArgs: rawCliArgs, opts });
     if (attemptOptionUsageError) {
       console.error(JSON.stringify({ error: attemptOptionUsageError }));
@@ -4766,6 +4792,7 @@ program
         xRef: opts.xRef,
         xUserRandomWord: opts.xUserRandomWord,
         gpPerApe,
+        resilient: Boolean(opts.resilient),
       });
       console.log(JSON.stringify(response));
     } catch (error) {
@@ -4839,6 +4866,10 @@ program
   .addOption(new Option('--validate-only', 'Validate play arguments without starting a game').hideHelp())
   .addHelpText('after', formatPlayHelpAppendix())
   .action(async (gameArg, amountArg, configArgs, opts) => {
+    if (rejectResilientValueOption(process.argv.slice(2), opts)) {
+      return;
+    }
+
     const loopMode = Boolean(opts.loop);
     let humanTiming;
     let loopDelaySeconds;
@@ -6132,6 +6163,12 @@ const botCommand = program
       const rawArgs = Array.isArray(args) ? [...args] : [];
       if (opts.help) {
         rawArgs.push('--help');
+      }
+
+      if (rejectResilientValueOption(rawArgs, {
+        json: rawArgs.includes('--json'),
+      })) {
+        return;
       }
 
       if (opts.validateOnly) {
