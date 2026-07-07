@@ -1,5 +1,5 @@
 /**
- * Unit Tests: script watch helpers.
+ * Unit Tests: JSON command script helpers.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
@@ -7,13 +7,17 @@ import path from 'node:path';
 import { parseEther } from 'viem';
 
 import {
+  buildScriptPayloadFromArgs,
   getBalanceConditionResult,
+  normalizeScriptCommand,
+  parseWatchArgv,
   parseWatchOptions,
+  renderScriptCommand,
   resolveScriptFile,
   validateScriptName,
-} from '../../lib/script-watch.js';
+} from '../../lib/scripts.js';
 
-describe('Script Watch Helpers', () => {
+describe('Command Script Helpers', () => {
   it('parses default and explicit watch options', () => {
     const defaults = parseWatchOptions({});
 
@@ -21,11 +25,13 @@ describe('Script Watch Helpers', () => {
     assert.strictEqual(defaults.ifBalanceOverWei, null);
     assert.strictEqual(defaults.ifBalanceUnderWei, null);
 
-    const parsed = parseWatchOptions({
-      every: '30',
-      ifBalanceOver: '500.5',
-      ifBalanceUnder: '1500',
-    });
+    const parsed = parseWatchArgv([
+      '--every',
+      '30',
+      '--if-balance-over=500.5',
+      '--if-balance-under',
+      '1500',
+    ]);
 
     assert.strictEqual(parsed.everySeconds, 30);
     assert.strictEqual(parsed.ifBalanceOverWei, parseEther('500.5'));
@@ -49,15 +55,23 @@ describe('Script Watch Helpers', () => {
       () => parseWatchOptions({ ifBalanceOver: '100', ifBalanceUnder: '100' }),
       /--if-balance-over must be lower/,
     );
+    assert.throws(
+      () => parseWatchArgv(['--unknown']),
+      /Unknown script watch option/,
+    );
   });
 
   it('resolves only script names under the script directory', () => {
     const scriptDir = path.join('/tmp', 'apechurch-cli-scripts');
     const resolved = resolveScriptFile('custom_script', scriptDir);
 
-    assert.strictEqual(resolved.name, 'custom_script');
+    assert.strictEqual(resolved.name, 'custom_script.json');
     assert.strictEqual(resolved.scriptDir, scriptDir);
-    assert.strictEqual(resolved.scriptPath, path.join(scriptDir, 'custom_script'));
+    assert.strictEqual(resolved.scriptPath, path.join(scriptDir, 'custom_script.json'));
+
+    const explicit = resolveScriptFile('custom_script.json', scriptDir);
+    assert.strictEqual(explicit.name, 'custom_script.json');
+    assert.strictEqual(explicit.scriptPath, path.join(scriptDir, 'custom_script.json'));
 
     assert.throws(
       () => validateScriptName('../custom_script'),
@@ -66,6 +80,62 @@ describe('Script Watch Helpers', () => {
     assert.throws(
       () => validateScriptName('nested/custom_script'),
       /without path separators/,
+    );
+  });
+
+  it('formats nested assignment tokens as editable JSON command entries', () => {
+    const payload = buildScriptPayloadFromArgs([
+      'bot',
+      'bob',
+      '--spillover',
+      "bot=zen --stop 500 game1='keno --picks 5' --bet1 2 --again1 1x game2='bear --survive 2' --gate2 1.87x game3=blocks --gate3 1.2x game4=monkey",
+    ]);
+
+    assert.deepStrictEqual(payload, {
+      command: [
+        'bot',
+        'bob',
+        '--spillover',
+        {
+          arg: 'bot',
+          value: [
+            'zen --stop 500',
+            "game1='keno --picks 5' --bet1 2 --again1 1x",
+            "game2='bear --survive 2' --gate2 1.87x",
+            'game3=blocks --gate3 1.2x',
+            'game4=monkey',
+          ],
+        },
+      ],
+    });
+  });
+
+  it('normalizes JSON command objects and renders copy-pasteable shell text', () => {
+    const command = normalizeScriptCommand({
+      command: [
+        'bot',
+        'bob',
+        '--spillover',
+        {
+          arg: 'bot',
+          value: [
+            'zen --stop 500',
+            "game1='keno --picks 5'",
+          ],
+        },
+      ],
+    });
+
+    assert.deepStrictEqual(command, [
+      'bot',
+      'bob',
+      '--spillover',
+      "bot=zen --stop 500 game1='keno --picks 5'",
+    ]);
+
+    assert.strictEqual(
+      renderScriptCommand(command),
+      'apechurch-cli bot bob --spillover "bot=zen --stop 500 game1=\'keno --picks 5\'"',
     );
   });
 

@@ -23,7 +23,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `APECHURCH_CLI_CONFIG_DIR` | `~/.apechurch-cli` | Root local config/data directory |
 | `APECHURCH_CLI_BOTS_DIR` | `$APECHURCH_CLI_CONFIG_DIR/bots` | Personal local bot root containing bot folders with `bot.json` |
 | `APECHURCH_CLI_LOG_DIR` | `$APECHURCH_CLI_CONFIG_DIR/log` | Bot log directory exposed to bot runtime contexts |
-| `APECHURCH_CLI_SCR_DIR` | `$APECHURCH_CLI_CONFIG_DIR/scripts` | Custom script directory for executable files launched by `watch` |
+| `APECHURCH_CLI_SCR_DIR` | `$APECHURCH_CLI_CONFIG_DIR/scripts` | Custom script directory for JSON command scripts used by `script` |
 | `APECHURCH_CLI_R2_PREFIX` | unset | Optional object-key prefix for best-effort R2 mirrors of bot JSON logs |
 | `APECHURCH_CLI_R2_NAME` | none | Optional bucket-name fallback for `bucket install <bucket>` |
 | `APECHURCH_CLI_R2_ACCOUNT_ID` | none | Optional account-ID fallback for `bucket install <bucket>` |
@@ -49,7 +49,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `wallet [action] [address]` | - | Wallet management, local wallet listing, and history download |
 | `bucket [action] [bucket]` | - | Encrypted Cloudflare R2 bot log mirror config |
 | `status` | - | Show current wallet, balance, and local state |
-| `watch <nome_script>` | - | Watch and relaunch an executable custom script |
+| `script <action> <nome_script>` | - | Write, read, or watch JSON command scripts |
 | `pause` | - | Pause autonomous play |
 | `continue` | - | Resume autonomous play |
 | `register` | - | Register or update the username/persona |
@@ -292,44 +292,61 @@ Remote R2 object keys mirror the local bot log path relative to `APECHURCH_CLI_L
 <status-command> ::= "status" [ "--json" ]
 ```
 
-### `watch <nome_script>`
+### `script <action> <nome_script>`
 
 ```bnf
-<watch-command> ::= "watch" <nome_script> <watch-option>*
-<watch-option> ::= "--every" <seconds>
-                 | "--if-balance-over" <ape-nonnegative>
-                 | "--if-balance-under" <ape-nonnegative>
-<nome_script> ::= <file-name>                  ; no path separators
+<script-command> ::= "script" ( <script-write> | <script-watch> | <script-read> )
+<script-write> ::= "write" <nome_script> <command-token>+
+<script-watch> ::= "watch" <nome_script> <script-watch-option>*
+<script-read> ::= "read" <nome_script>
+<script-watch-option> ::= "--every" <seconds>
+                        | "--if-balance-over" <ape-nonnegative>
+                        | "--if-balance-under" <ape-nonnegative>
+<nome_script> ::= <file-stem> [ ".json" ]      ; no path separators; suffix is appended when omitted
+<command-token> ::= <token>                    ; stored in JSON by write
 <seconds> ::= <positive-integer>               ; default 60
 <ape-nonnegative> ::= <number>                 ; decimal APE amount; value >= 0
 ```
 
-`watch` launches executable custom scripts from `APECHURCH_CLI_SCR_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/scripts`. The script file is treated as opaque: shell syntax, nested quoting, bot options, and command composition belong inside the executable script rather than in a new CLI argument format.
+`script` requires exactly one action: `write`, `watch`, or `read`; there is no implicit default action. Scripts are JSON command files under `APECHURCH_CLI_SCR_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/scripts`. The `.json` suffix is appended to `<nome_script>` when omitted, so `custom_script` and `custom_script.json` address the same file.
 
-Example `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script`:
+`script write <nome_script> <command-token>+` converts the remaining command tokens into JSON and writes `$APECHURCH_CLI_SCR_DIR/<nome_script>.json` when the suffix is omitted. Tokens shaped like `name=value` with whitespace in the value are stored as multiline `{ "arg": "name", "value": [...] }` entries so nested command payloads remain editable.
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
+Example `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script.json`:
 
-exec apechurch-cli bot bob --color
+```json
+{
+  "command": [
+    "bot",
+    "bob",
+    "--spillover",
+    {
+      "arg": "bot",
+      "value": [
+        "zen --stop 500",
+        "game1='keno --picks 5' --bet1 2 --again1 1x",
+        "game2='bear --survive 2' --gate2 1.87x",
+        "game3=blocks --gate3 1.2x",
+        "game4=monkey"
+      ]
+    }
+  ]
+}
 ```
 
-The script must be executable before `watch` can launch it:
+`script read <nome_script>` reads the JSON file and prints a copy-pasteable plain shell command. It does not execute the command.
+
+`script watch <nome_script>` reads the JSON file and executes it through `apechurch-cli`. `--every <seconds>` controls the poll/retry cadence and defaults to `60`. `--if-balance-over <APE>` gates launches on the selected wallet balance being strictly greater than the amount. `--if-balance-under <APE>` gates launches on the balance being strictly lower than the amount. When both balance conditions are supplied, both must be true.
+
+The watcher records local state per script and does not launch another copy while the previous `custom_script` process group recorded for that script is still alive. This means a plain `apechurch-cli script watch custom_script` relaunches only after the previous script run terminates.
 
 ```bash
-chmod +x "$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script"
-```
-
-`--every <seconds>` controls the poll/retry cadence and defaults to `60`. `--if-balance-over <APE>` gates launches on the selected wallet balance being strictly greater than the amount. `--if-balance-under <APE>` gates launches on the balance being strictly lower than the amount. When both balance conditions are supplied, both must be true.
-
-The watcher records local state per script and does not launch another copy while the previous `custom_script` process group recorded for that script is still alive. This means a plain `apechurch-cli watch custom_script` relaunches only after the previous script run terminates.
-
-```bash
-apechurch-cli watch custom_script
-apechurch-cli watch custom_script --every 60
-apechurch-cli watch custom_script --if-balance-over 500
-apechurch-cli watch custom_script --every 30 --if-balance-over 500 --if-balance-under 1500
+apechurch-cli script write custom_script bot bob --spillover "bot=zen --stop 500 game1='keno --picks 5'"
+apechurch-cli script read custom_script
+apechurch-cli script watch custom_script
+apechurch-cli script watch custom_script --every 60
+apechurch-cli script watch custom_script --if-balance-over 500
+apechurch-cli script watch custom_script --every 30 --if-balance-over 500 --if-balance-under 1500
 ```
 
 ### `pause`

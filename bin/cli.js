@@ -34,7 +34,7 @@
  * │ INFORMATION                                                             │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ status           Show wallet balance and local state                    │
- * │ watch            Supervise an executable local script                   │
+ * │ script           Write, read, and watch local JSON command scripts      │
  * │ history          Read cached per-wallet history, games, stats, scores  │
  * │ scoreboard       Read cached per-wallet leaderboards from history       │
  * │ games            List all available games                               │
@@ -326,7 +326,13 @@ import {
   runBot,
   validateBotInvocation,
 } from '../lib/bots.js';
-import { watchScript } from '../lib/script-watch.js';
+import {
+  parseWatchArgv,
+  readCommandScript,
+  renderScriptCommand,
+  watchCommandScript,
+  writeCommandScript,
+} from '../lib/scripts.js';
 import {
   disableSelectedR2Config,
   getR2PublicMetadata,
@@ -799,7 +805,7 @@ function formatTopLevelHelpAppendix() {
       '--color                Force ANSI color in plain output, even when output is piped',
     ],
     bnf: [
-      '<top-level-command> ::= "install" | "uninstall" | "wallet" | "bucket" | "status" | "watch" | "pause" | "continue" | "register" | "profile" | "bet" | "play" | "bot" | "contest" | "history" | "scoreboard" | "fees" | "games" | "game" | "commands" | "help" | "send" | "house" | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
+      '<top-level-command> ::= "install" | "uninstall" | "wallet" | "bucket" | "status" | "script" | "pause" | "continue" | "register" | "profile" | "bet" | "play" | "bot" | "contest" | "history" | "scoreboard" | "fees" | "games" | "game" | "commands" | "help" | "send" | "house" | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
       `<cli> ::= "${BINARY_NAME}" [ "--color" ] <top-level-command> <command-args>*`,
       `<version-command> ::= "${BINARY_NAME}" ( "-V" | "--version" ) [ "--json" ]`,
     ],
@@ -972,34 +978,47 @@ function formatStatusHelpAppendix() {
   });
 }
 
-function formatWatchHelpAppendix() {
+function formatScriptHelpAppendix() {
   return formatCommandHelpAppendix({
-    actions: ['None. `watch` supervises the named executable script until interrupted.'],
+    actions: [
+      'write <nome_script>   Write a JSON command script from the remaining command tokens',
+      'watch <nome_script>   Watch and relaunch a JSON command script until interrupted',
+      'read <nome_script>    Render a JSON command script as a copy-pasteable shell command',
+    ],
     parameters: [
-      '<nome_script>         Executable file name under the script directory',
+      '<nome_script>         JSON script file name under the script directory; .json is appended when omitted',
+      '<command-token>*      Command tokens saved by write after <nome_script>',
     ],
     options: [
-      '--every <seconds>     Poll/retry interval in integer seconds (default: 60)',
-      '--if-balance-over <APE>   Launch only when wallet balance is strictly greater than this APE amount',
-      '--if-balance-under <APE>  Launch only when wallet balance is strictly less than this APE amount',
+      'watch: --every <seconds>     Poll/retry interval in integer seconds (default: 60)',
+      'watch: --if-balance-over <APE>   Launch only when wallet balance is strictly greater than this APE amount',
+      'watch: --if-balance-under <APE>  Launch only when wallet balance is strictly less than this APE amount',
     ],
     bnf: [
-      '<watch-command> ::= "watch" <nome_script> <watch-option>*',
-      '<watch-option> ::= "--every" <seconds> | "--if-balance-over" <ape-nonnegative> | "--if-balance-under" <ape-nonnegative>',
-      '<nome_script> ::= <file-name>                  ; no path separators',
+      '<script-command> ::= "script" ( <script-write> | <script-watch> | <script-read> )',
+      '<script-write> ::= "write" <nome_script> <command-token>+',
+      '<script-watch> ::= "watch" <nome_script> <script-watch-option>*',
+      '<script-read> ::= "read" <nome_script>',
+      '<script-watch-option> ::= "--every" <seconds> | "--if-balance-over" <ape-nonnegative> | "--if-balance-under" <ape-nonnegative>',
+      '<nome_script> ::= <file-stem> [ ".json" ]      ; no path separators; suffix is appended when omitted',
+      '<command-token> ::= <token>                    ; passed after script name and stored in JSON',
       '<seconds> ::= <positive-integer>               ; default 60',
       '<ape-nonnegative> ::= <non-negative-decimal>',
     ],
     examples: [
-      `${BINARY_NAME} watch custom_script`,
-      `${BINARY_NAME} watch custom_script --every 60`,
-      `${BINARY_NAME} watch custom_script --if-balance-over 500`,
-      `${BINARY_NAME} watch custom_script --every 30 --if-balance-over 500 --if-balance-under 1500`,
+      `${BINARY_NAME} script write custom_script bot bob --spillover "bot=zen --stop 500 game1='keno --picks 5'"`,
+      `${BINARY_NAME} script read custom_script`,
+      `${BINARY_NAME} script watch custom_script`,
+      `${BINARY_NAME} script watch custom_script --every 60`,
+      `${BINARY_NAME} script watch custom_script --if-balance-over 500`,
+      `${BINARY_NAME} script watch custom_script --every 30 --if-balance-over 500 --if-balance-under 1500`,
     ],
     notes: [
       `Scripts are loaded from ${SCR_DIR_ENV_VAR}, defaulting to ${SCR_DIR}.`,
-      'The script file must be executable and should include its own shebang.',
-      'watch treats the script as opaque: command arguments, nested quoting, and bot options stay inside the script file.',
+      'The .json suffix is appended to <nome_script> unless it is already present.',
+      'script requires exactly one action: write, watch, or read.',
+      'script write and script read never execute a command; they only translate between argv and the JSON script format.',
+      'JSON command entries can be strings or objects shaped as { "arg": "name", "value": ["line one", "line two"] }.',
       'watch does not launch another copy while the previous script process group recorded for that script is still alive.',
     ],
   });
@@ -4911,18 +4930,65 @@ program
   });
 
 // ============================================================================
-// COMMAND: WATCH
+// COMMAND: SCRIPT
 // ============================================================================
-program
-  .command('watch <nome_script>')
-  .description('Watch and relaunch an executable script from the configured script directory')
-  .option('--every <seconds>', 'Poll/retry interval in integer seconds', '60')
-  .option('--if-balance-over <APE>', 'Launch only when wallet balance is strictly greater than this APE amount')
-  .option('--if-balance-under <APE>', 'Launch only when wallet balance is strictly less than this APE amount')
-  .addHelpText('after', formatWatchHelpAppendix())
-  .action(async (nomeScript, opts) => {
+const scriptCommand = program
+  .command('script [tokens...]')
+  .description('Write, read, and watch JSON command scripts')
+  .allowUnknownOption(true)
+  .helpOption(false)
+  .addHelpText('after', formatScriptHelpAppendix())
+  .action(async () => {
+    const rawTokens = process.argv.slice(2);
+    const scriptIndex = rawTokens.indexOf('script');
+    const tokens = scriptIndex >= 0 ? rawTokens.slice(scriptIndex + 1) : [];
+    const [action, nomeScript, ...args] = tokens;
+
+    if (action === '--help' || action === '-h') {
+      scriptCommand.outputHelp();
+      return;
+    }
+
+    if (!action) {
+      process.exitCode = 1;
+      console.error('\n❌ Missing script action. Use exactly one of: write, watch, read\n');
+      return;
+    }
+
+    if (!['write', 'watch', 'read'].includes(action)) {
+      process.exitCode = 1;
+      console.error(`\n❌ Unknown script action: ${action}. Use exactly one of: write, watch, read\n`);
+      return;
+    }
+
+    if (!nomeScript) {
+      process.exitCode = 1;
+      console.error(`\n❌ Missing script name for script ${action}.\n`);
+      return;
+    }
+
     try {
-      await watchScript(nomeScript, opts);
+      if (action === 'write') {
+        const result = writeCommandScript(nomeScript, args);
+        console.log(JSON.stringify({
+          status: 'written',
+          script: result.name,
+          path: result.scriptPath,
+        }));
+        return;
+      }
+
+      if (action === 'read') {
+        if (args.length > 0) {
+          throw new Error('script read accepts only <nome_script>.');
+        }
+        const result = readCommandScript(nomeScript);
+        console.log(renderScriptCommand(result.command));
+        return;
+      }
+
+      const watchOptions = parseWatchArgv(args);
+      await watchCommandScript(nomeScript, watchOptions, { cliPath });
     } catch (error) {
       process.exitCode = 1;
       console.error(`\n❌ ${sanitizeError(error)}\n`);
@@ -7922,7 +7988,6 @@ THE HOUSE (Staking)
 STATUS
   ${BINARY_NAME} profile              Show profile
   ${BINARY_NAME} status               Check balance and state
-  ${BINARY_NAME} watch custom_script  Watch and relaunch an executable custom script
   ${BINARY_NAME} profile show         Show profile
   ${BINARY_NAME} profile set          Update profile preferences
   ${BINARY_NAME} profile set --username <name>
@@ -7952,6 +8017,14 @@ PLAY - SHARED LOOP CONTROLS
 EXTERNAL BOTS
   ${BINARY_NAME} bot                List discovered bots and the active bots directory
   ${BINARY_NAME} bot <name> [args...]   Run one external bot through the helper surface
+
+JSON COMMAND SCRIPTS
+  ${BINARY_NAME} script write custom_script <command...>
+                                   Write a JSON command script
+  ${BINARY_NAME} script read custom_script
+                                   Print the copy-pasteable command
+  ${BINARY_NAME} script watch custom_script
+                                   Watch and relaunch a JSON command script
 
 CONTROL
   ${BINARY_NAME} pause                Stop autonomous play

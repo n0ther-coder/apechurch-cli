@@ -20,6 +20,7 @@ const HISTORY_FIXTURE_WALLET = '0x1111111111111111111111111111111111111111';
 const CONFIG_DIR_ENV = 'APECHURCH_CLI_CONFIG_DIR';
 const BOTS_DIR_ENV = 'APECHURCH_CLI_BOTS_DIR';
 const LOG_DIR_ENV = 'APECHURCH_CLI_LOG_DIR';
+const SCR_DIR_ENV = 'APECHURCH_CLI_SCR_DIR';
 const PASS_ENV = 'APECHURCH_CLI_PASS';
 const R2_ACCOUNT_ID_ENV = 'APECHURCH_CLI_R2_ACCOUNT_ID';
 const R2_NAME_ENV = 'APECHURCH_CLI_R2_NAME';
@@ -177,7 +178,7 @@ function stripVersionBanner(output) {
 
 function buildCliEnv(options = {}) {
   const optionEnv = options.env || {};
-  const pathEnvVars = [CONFIG_DIR_ENV, BOTS_DIR_ENV, LOG_DIR_ENV];
+  const pathEnvVars = [CONFIG_DIR_ENV, BOTS_DIR_ENV, LOG_DIR_ENV, SCR_DIR_ENV];
   const secretEnvVars = [
     PASS_ENV,
     R2_ACCOUNT_ID_ENV,
@@ -594,17 +595,52 @@ describe('CLI Commands Integration Tests', () => {
     });
   });
 
-  describe('watch command', () => {
-    it('documents watch usage and BNF inline', () => {
-      const { stdout } = cli('watch --help');
+  describe('script command', () => {
+    it('documents script actions and BNF inline', () => {
+      const { stdout } = cli('script --help');
 
-      assert.ok(stdout.includes('<nome_script>'), 'Should show the watch script parameter');
-      assert.ok(stdout.includes('<watch-command> ::= "watch" <nome_script>'), 'Should include watch BNF');
+      assert.ok(stdout.includes('write <nome_script>'), 'Should document the write action');
+      assert.ok(stdout.includes('watch <nome_script>'), 'Should document the watch action');
+      assert.ok(stdout.includes('read <nome_script>'), 'Should document the read action');
+      assert.ok(stdout.includes('<script-command> ::= "script"'), 'Should include script BNF');
       assert.ok(stdout.includes('--every <seconds>'), 'Should document the interval option');
       assert.ok(stdout.includes('--if-balance-over <APE>'), 'Should document the over-balance gate');
       assert.ok(stdout.includes('--if-balance-under <APE>'), 'Should document the under-balance gate');
       assert.ok(stdout.includes('APECHURCH_CLI_SCR_DIR'), 'Should document the script directory env var');
-      assert.ok(stdout.includes('watch custom_script'), 'Should use custom_script in examples');
+      assert.ok(stdout.includes('script watch custom_script'), 'Should use custom_script in examples');
+    });
+
+    it('writes JSON scripts and reads them back as shell text without execution', () => {
+      const scrDir = path.join(CONFIG_OVERRIDE_ROOT, 'scripts');
+      fs.rmSync(CONFIG_OVERRIDE_ROOT, { recursive: true, force: true });
+
+      const written = cli(
+        'script write custom_script bot bob --spillover "bot=zen --stop 500 game1=\'keno --picks 5\' --bet1 2"',
+        { env: { [SCR_DIR_ENV]: scrDir } },
+      );
+
+      assert.strictEqual(written.code, 0);
+      const writtenPayload = JSON.parse(written.stdout);
+      assert.strictEqual(writtenPayload.status, 'written');
+      assert.strictEqual(writtenPayload.script, 'custom_script.json');
+
+      const stored = JSON.parse(fs.readFileSync(path.join(scrDir, 'custom_script.json'), 'utf8'));
+      assert.deepStrictEqual(stored.command.slice(0, 3), ['bot', 'bob', '--spillover']);
+      assert.deepStrictEqual(stored.command[3], {
+        arg: 'bot',
+        value: [
+          'zen --stop 500',
+          "game1='keno --picks 5' --bet1 2",
+        ],
+      });
+
+      const read = cli('script read custom_script', { env: { [SCR_DIR_ENV]: scrDir } });
+      assert.strictEqual(read.code, 0);
+      assert.match(read.stdout, /^apechurch-cli bot bob --spillover /);
+      assert.ok(read.stdout.includes("bot=zen --stop 500 game1='keno --picks 5' --bet1 2"));
+
+      const explicitRead = cli('script read custom_script.json', { env: { [SCR_DIR_ENV]: scrDir } });
+      assert.strictEqual(explicitRead.stdout, read.stdout);
     });
   });
 

@@ -722,7 +722,7 @@ apechurch-cli video-poker payouts  # Show payout table
 |---------|-------------|
 | `apechurch-cli install` | Setup wallet and register |
 | `apechurch-cli status` | Check balance, address, settings |
-| `apechurch-cli watch custom_script` | Watch and relaunch an executable custom script from `APECHURCH_CLI_SCR_DIR` |
+| `apechurch-cli script write|read|watch custom_script` | Manage JSON command scripts from `APECHURCH_CLI_SCR_DIR` with an implied `.json` suffix |
 | `apechurch-cli play [game] [amount]` | Play a game |
 | `apechurch-cli blackjack|bj <amount>` | Play blackjack |
 | `apechurch-cli video-poker <amount>` | Play video poker |
