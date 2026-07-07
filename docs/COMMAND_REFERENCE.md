@@ -23,6 +23,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `APECHURCH_CLI_CONFIG_DIR` | `~/.apechurch-cli` | Root local config/data directory |
 | `APECHURCH_CLI_BOTS_DIR` | `$APECHURCH_CLI_CONFIG_DIR/bots` | Personal local bot root containing bot folders with `bot.json` |
 | `APECHURCH_CLI_LOG_DIR` | `$APECHURCH_CLI_CONFIG_DIR/log` | Bot log directory exposed to bot runtime contexts |
+| `APECHURCH_CLI_SCR_DIR` | `$APECHURCH_CLI_CONFIG_DIR/scripts` | Custom script directory for executable files launched by `watch` |
 | `APECHURCH_CLI_R2_PREFIX` | unset | Optional object-key prefix for best-effort R2 mirrors of bot JSON logs |
 | `APECHURCH_CLI_R2_NAME` | none | Optional bucket-name fallback for `bucket install <bucket>` |
 | `APECHURCH_CLI_R2_ACCOUNT_ID` | none | Optional account-ID fallback for `bucket install <bucket>` |
@@ -48,6 +49,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `wallet [action] [address]` | - | Wallet management, local wallet listing, and history download |
 | `bucket [action] [bucket]` | - | Encrypted Cloudflare R2 bot log mirror config |
 | `status` | - | Show current wallet, balance, and local state |
+| `watch <nome_script>` | - | Watch and relaunch an executable custom script |
 | `pause` | - | Pause autonomous play |
 | `continue` | - | Resume autonomous play |
 | `register` | - | Register or update the username/persona |
@@ -288,6 +290,46 @@ Remote R2 object keys mirror the local bot log path relative to `APECHURCH_CLI_L
 
 ```bnf
 <status-command> ::= "status" [ "--json" ]
+```
+
+### `watch <nome_script>`
+
+```bnf
+<watch-command> ::= "watch" <nome_script> <watch-option>*
+<watch-option> ::= "--every" <seconds>
+                 | "--if-balance-over" <ape-nonnegative>
+                 | "--if-balance-under" <ape-nonnegative>
+<nome_script> ::= <file-name>                  ; no path separators
+<seconds> ::= <positive-integer>               ; default 60
+<ape-nonnegative> ::= <number>                 ; decimal APE amount; value >= 0
+```
+
+`watch` launches executable custom scripts from `APECHURCH_CLI_SCR_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/scripts`. The script file is treated as opaque: shell syntax, nested quoting, bot options, and command composition belong inside the executable script rather than in a new CLI argument format.
+
+Example `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script`:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec apechurch-cli bot bob --color
+```
+
+The script must be executable before `watch` can launch it:
+
+```bash
+chmod +x "$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script"
+```
+
+`--every <seconds>` controls the poll/retry cadence and defaults to `60`. `--if-balance-over <APE>` gates launches on the selected wallet balance being strictly greater than the amount. `--if-balance-under <APE>` gates launches on the balance being strictly lower than the amount. When both balance conditions are supplied, both must be true.
+
+The watcher records local state per script and does not launch another copy while the previous `custom_script` process group recorded for that script is still alive. This means a plain `apechurch-cli watch custom_script` relaunches only after the previous script run terminates.
+
+```bash
+apechurch-cli watch custom_script
+apechurch-cli watch custom_script --every 60
+apechurch-cli watch custom_script --if-balance-over 500
+apechurch-cli watch custom_script --every 30 --if-balance-over 500 --if-balance-under 1500
 ```
 
 ### `pause`

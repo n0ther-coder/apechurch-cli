@@ -34,6 +34,7 @@
  * │ INFORMATION                                                             │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ status           Show wallet balance and local state                    │
+ * │ watch            Supervise an executable local script                   │
  * │ history          Read cached per-wallet history, games, stats, scores  │
  * │ scoreboard       Read cached per-wallet leaderboards from history       │
  * │ games            List all available games                               │
@@ -130,6 +131,8 @@ import {
   R2_SECRET_ENV_VAR,
   R2_TOKEN_ENV_VAR,
   RPC_URL_ENV_VAR,
+  SCR_DIR,
+  SCR_DIR_ENV_VAR,
   SUPPRESS_VERSION_BANNER_ENV_VAR,
   VIDEO_POKER_CONTRACT,
   ZERO_ADDRESS,
@@ -323,6 +326,7 @@ import {
   runBot,
   validateBotInvocation,
 } from '../lib/bots.js';
+import { watchScript } from '../lib/script-watch.js';
 import {
   disableSelectedR2Config,
   getR2PublicMetadata,
@@ -347,6 +351,7 @@ Environment:
     ${CONFIG_DIR_ENV_VAR}   Root config/data directory (default: ~/.apechurch-cli)
     ${BOTS_DIR_ENV_VAR}     External bots root (default: ${CONFIG_DIR_ENV_VAR}/bots)
     ${LOG_DIR_ENV_VAR}      Bot log directory (default: ${CONFIG_DIR_ENV_VAR}/log)
+    ${SCR_DIR_ENV_VAR}      Custom script directory (default: ${CONFIG_DIR_ENV_VAR}/scripts)
 
   Wallet and profile:
     ${PRIVATE_KEY_ENV_VAR}          Optional fallback for non-interactive install/reinstall
@@ -794,7 +799,7 @@ function formatTopLevelHelpAppendix() {
       '--color                Force ANSI color in plain output, even when output is piped',
     ],
     bnf: [
-      '<top-level-command> ::= "install" | "uninstall" | "wallet" | "bucket" | "status" | "pause" | "continue" | "register" | "profile" | "bet" | "play" | "bot" | "contest" | "history" | "scoreboard" | "fees" | "games" | "game" | "commands" | "help" | "send" | "house" | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
+      '<top-level-command> ::= "install" | "uninstall" | "wallet" | "bucket" | "status" | "watch" | "pause" | "continue" | "register" | "profile" | "bet" | "play" | "bot" | "contest" | "history" | "scoreboard" | "fees" | "games" | "game" | "commands" | "help" | "send" | "house" | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
       `<cli> ::= "${BINARY_NAME}" [ "--color" ] <top-level-command> <command-args>*`,
       `<version-command> ::= "${BINARY_NAME}" ( "-V" | "--version" ) [ "--json" ]`,
     ],
@@ -964,6 +969,39 @@ function formatStatusHelpAppendix() {
       `${BINARY_NAME} status --json`,
     ],
     notes: ['Shows wallet balance, GP balance, house balance when present, username, persona, pause state, and unfinished games.'],
+  });
+}
+
+function formatWatchHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: ['None. `watch` supervises the named executable script until interrupted.'],
+    parameters: [
+      '<nome_script>         Executable file name under the script directory',
+    ],
+    options: [
+      '--every <seconds>     Poll/retry interval in integer seconds (default: 60)',
+      '--if-balance-over <APE>   Launch only when wallet balance is strictly greater than this APE amount',
+      '--if-balance-under <APE>  Launch only when wallet balance is strictly less than this APE amount',
+    ],
+    bnf: [
+      '<watch-command> ::= "watch" <nome_script> <watch-option>*',
+      '<watch-option> ::= "--every" <seconds> | "--if-balance-over" <ape-nonnegative> | "--if-balance-under" <ape-nonnegative>',
+      '<nome_script> ::= <file-name>                  ; no path separators',
+      '<seconds> ::= <positive-integer>               ; default 60',
+      '<ape-nonnegative> ::= <non-negative-decimal>',
+    ],
+    examples: [
+      `${BINARY_NAME} watch custom_script`,
+      `${BINARY_NAME} watch custom_script --every 60`,
+      `${BINARY_NAME} watch custom_script --if-balance-over 500`,
+      `${BINARY_NAME} watch custom_script --every 30 --if-balance-over 500 --if-balance-under 1500`,
+    ],
+    notes: [
+      `Scripts are loaded from ${SCR_DIR_ENV_VAR}, defaulting to ${SCR_DIR}.`,
+      'The script file must be executable and should include its own shebang.',
+      'watch treats the script as opaque: command arguments, nested quoting, and bot options stay inside the script file.',
+      'watch does not launch another copy while the previous script process group recorded for that script is still alive.',
+    ],
   });
 }
 
@@ -4873,6 +4911,25 @@ program
   });
 
 // ============================================================================
+// COMMAND: WATCH
+// ============================================================================
+program
+  .command('watch <nome_script>')
+  .description('Watch and relaunch an executable script from the configured script directory')
+  .option('--every <seconds>', 'Poll/retry interval in integer seconds', '60')
+  .option('--if-balance-over <APE>', 'Launch only when wallet balance is strictly greater than this APE amount')
+  .option('--if-balance-under <APE>', 'Launch only when wallet balance is strictly less than this APE amount')
+  .addHelpText('after', formatWatchHelpAppendix())
+  .action(async (nomeScript, opts) => {
+    try {
+      await watchScript(nomeScript, opts);
+    } catch (error) {
+      process.exitCode = 1;
+      console.error(`\n❌ ${sanitizeError(error)}\n`);
+    }
+  });
+
+// ============================================================================
 // COMMAND: PAUSE / RESUME
 // ============================================================================
 program
@@ -7865,6 +7922,7 @@ THE HOUSE (Staking)
 STATUS
   ${BINARY_NAME} profile              Show profile
   ${BINARY_NAME} status               Check balance and state
+  ${BINARY_NAME} watch custom_script  Watch and relaunch an executable custom script
   ${BINARY_NAME} profile show         Show profile
   ${BINARY_NAME} profile set          Update profile preferences
   ${BINARY_NAME} profile set --username <name>

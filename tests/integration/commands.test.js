@@ -594,6 +594,20 @@ describe('CLI Commands Integration Tests', () => {
     });
   });
 
+  describe('watch command', () => {
+    it('documents watch usage and BNF inline', () => {
+      const { stdout } = cli('watch --help');
+
+      assert.ok(stdout.includes('<nome_script>'), 'Should show the watch script parameter');
+      assert.ok(stdout.includes('<watch-command> ::= "watch" <nome_script>'), 'Should include watch BNF');
+      assert.ok(stdout.includes('--every <seconds>'), 'Should document the interval option');
+      assert.ok(stdout.includes('--if-balance-over <APE>'), 'Should document the over-balance gate');
+      assert.ok(stdout.includes('--if-balance-under <APE>'), 'Should document the under-balance gate');
+      assert.ok(stdout.includes('APECHURCH_CLI_SCR_DIR'), 'Should document the script directory env var');
+      assert.ok(stdout.includes('watch custom_script'), 'Should use custom_script in examples');
+    });
+  });
+
   describe('games command', () => {
     it('lists available games', () => {
       const { stdout } = cli('games');

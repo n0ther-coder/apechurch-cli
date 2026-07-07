@@ -161,6 +161,7 @@ APECHURCH_CLI_SUPPRESS_CHIME=1 apechurch-cli play --auto
 | `APECHURCH_CLI_CONFIG_DIR` | `~/.apechurch-cli` | Root directory for local CLI config and data, including wallet, profiles, history, state, scores, default bots, and default bot logs |
 | `APECHURCH_CLI_BOTS_DIR` | `$APECHURCH_CLI_CONFIG_DIR/bots` | Personal local bot root; set this to the directory that contains bot folders with `bot.json` |
 | `APECHURCH_CLI_LOG_DIR` | `$APECHURCH_CLI_CONFIG_DIR/log` | Bot log root; run logs are written under per-bot subdirectories such as `log/<bot-name>` |
+| `APECHURCH_CLI_SCR_DIR` | `$APECHURCH_CLI_CONFIG_DIR/scripts` | Custom script directory for executable files launched by `apechurch-cli watch` |
 | `APECHURCH_CLI_R2_PREFIX` | unset | Optional object-key prefix for best-effort R2 mirrors of bot JSON logs |
 | `APECHURCH_CLI_R2_NAME` | none | Optional bucket-name fallback for `apechurch-cli bucket install <bucket>` |
 | `APECHURCH_CLI_R2_ACCOUNT_ID` | none | Optional account-ID fallback for `apechurch-cli bucket install <bucket>` |
@@ -541,6 +542,7 @@ apechurch-cli video-poker <amount> [--auto]     # Video Poker / Gimboz Poker (al
 
 # Shared helpers
 apechurch-cli status                            # Check balance
+apechurch-cli watch custom_script               # Watch and relaunch an executable custom script
 apechurch-cli wallet --list                     # List locally available wallet addresses
 apechurch-cli wallet download [address]         # Download supported on-chain history into local cache
 apechurch-cli bot [name] [args...]             # Run a personal local bot or list discovered bots
@@ -554,6 +556,34 @@ apechurch-cli history [address] [--stats] [--breakdown] [--leaderboard] [--score
 apechurch-cli scoreboard [address] [--ids] [--url]     # Read cached leaderboard tables
 apechurch-cli commands                          # Full reference
 ```
+
+Custom scripts are executable files stored under `APECHURCH_CLI_SCR_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/scripts`. `watch` treats the script as opaque, so command arguments, nested quoting, and bot-specific options live in the script itself.
+
+Example `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script`:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec apechurch-cli bot bob --color
+```
+
+Make the file executable before watching it:
+
+```bash
+chmod +x "$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script"
+```
+
+Then start the watcher:
+
+```bash
+apechurch-cli watch custom_script
+apechurch-cli watch custom_script --every 60
+apechurch-cli watch custom_script --if-balance-over 500
+apechurch-cli watch custom_script --every 30 --if-balance-over 500 --if-balance-under 1500
+```
+
+`--every` is an integer number of seconds and defaults to `60`. `--if-balance-over <APE>` requires the selected wallet balance to be strictly greater than the amount, while `--if-balance-under <APE>` requires it to be strictly lower. `watch` does not launch another copy while the previous `custom_script` process group recorded in local state is still alive.
 
 Use `apechurch-cli games` or `apechurch-cli game <name>` to see the current alias set in the terminal.
 
