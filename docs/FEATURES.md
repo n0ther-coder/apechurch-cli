@@ -26,7 +26,7 @@
 - **No unlock cache** — Signing reads the password each time from prompt or `APECHURCH_CLI_PASS`
 - **No plaintext export** — Plaintext key export/storage is disabled
 - **Password hints** — Store up to 3 hints to help remember your password
-- **Environment variable support** — Fresh install/reinstall prompts locally for the private key by default; `APECHURCH_CLI_PK` remains an optional non-interactive fallback, `APECHURCH_CLI_PASS` supports non-interactive local signing, `APECHURCH_CLI_CONFIG_DIR` controls the local config/data root, `APECHURCH_CLI_BOTS_DIR` controls the external bots root, `APECHURCH_CLI_LOG_DIR` controls bot logs, and `APECHURCH_CLI_PROFILE_URL` overrides the username/profile API
+- **Environment variable support** — Fresh install/reinstall prompts locally for the private key by default; `APECHURCH_CLI_PK` remains an optional non-interactive fallback, `APECHURCH_CLI_PASS` supports non-interactive local signing and encrypted R2 credential use, `APECHURCH_CLI_CONFIG_DIR` controls local config/data, `APECHURCH_CLI_BOTS_DIR` controls the external bots root, `APECHURCH_CLI_LOG_DIR` controls bot logs, `APECHURCH_CLI_R2_*` variables support optional R2 log-mirror setup, and `APECHURCH_CLI_PROFILE_URL` overrides the username/profile API
 - **Commands:**
   - `wallet download` — Download supported on-chain history for any wallet into local cache
   - `history` — Read cached history, recent games, aggregate stats, and per-game breakdowns

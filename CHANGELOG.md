@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Optional Cloudflare R2 bot log mirroring with encrypted per-bucket credentials, a new `bucket` setup/status/list/enable command surface with password-gated verbose inspection, and best-effort remote writes that preserve the local bot log path under an optional prefix
 - Blackjack exact-EV auto-play now runs through a worker with `--solver-timeout-ms`, so slow or failing solver branches fall back to simple strategy without blocking the main CLI process
 - Blackjack `--auto max` as a higher-budget exact-EV mode using `150000` solver states and a `30000` ms worker timeout by default
 - Blackjack `--solver [simple|best|max]` manual suggestions, with `best` and `max` showing both worker and simple-strategy choices

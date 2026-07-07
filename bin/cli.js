@@ -17,6 +17,7 @@
  * │ install          Setup the Ape Church Agent (wallet + profile)          │
  * │ uninstall        Remove all Ape Church data from this machine           │
  * │ wallet [action]  Wallet management + per-wallet history download       │
+ * │ bucket [action]  Encrypted R2 bot log mirror configuration             │
  * │ profile <action> Profile management (show, set username/persona)        │
  * │ register         Register username on-chain via SIWE                    │
  * ├──────────────────────────────────────────────────────────────────────────┤
@@ -121,6 +122,13 @@ import {
   PASS_ENV_VAR,
   PROFILE_URL_ENV_VAR,
   PRIVATE_KEY_ENV_VAR,
+  R2_ACCOUNT_ID_ENV_VAR,
+  R2_DIR,
+  R2_KEY_ENV_VAR,
+  R2_NAME_ENV_VAR,
+  R2_PREFIX_ENV_VAR,
+  R2_SECRET_ENV_VAR,
+  R2_TOKEN_ENV_VAR,
   RPC_URL_ENV_VAR,
   SUPPRESS_VERSION_BANNER_ENV_VAR,
   VIDEO_POKER_CONTRACT,
@@ -315,6 +323,15 @@ import {
   runBot,
   validateBotInvocation,
 } from '../lib/bots.js';
+import {
+  disableSelectedR2Config,
+  getR2PublicMetadata,
+  listStoredR2Configs,
+  loadStoredR2ConfigCredentials,
+  normalizeR2BucketName,
+  saveEncryptedR2Config,
+  enableStoredR2Config,
+} from '../lib/r2.js';
 
 // --- CLI Setup ---
 const program = new Command();
@@ -343,6 +360,14 @@ Environment:
     ${FORCE_CHIME_ENV_VAR}   Force win chimes in JSON/nested bot flows when set to 1
     ${SUPPRESS_VERSION_BANNER_ENV_VAR}
                              Suppress the stderr version banner when set to 1
+
+  R2 bot log mirror:
+    ${R2_PREFIX_ENV_VAR}       Optional remote object key prefix for mirrored bot logs
+    ${R2_NAME_ENV_VAR}         Bucket name fallback for ${BINARY_NAME} bucket install
+    ${R2_ACCOUNT_ID_ENV_VAR}   Non-interactive fallback for ${BINARY_NAME} bucket install
+    ${R2_TOKEN_ENV_VAR}        Non-interactive fallback for ${BINARY_NAME} bucket install
+    ${R2_KEY_ENV_VAR}          Non-interactive fallback for ${BINARY_NAME} bucket install
+    ${R2_SECRET_ENV_VAR}       Non-interactive fallback for ${BINARY_NAME} bucket install
 `;
 
 program
@@ -769,7 +794,7 @@ function formatTopLevelHelpAppendix() {
       '--color                Force ANSI color in plain output, even when output is piped',
     ],
     bnf: [
-      '<top-level-command> ::= "install" | "uninstall" | "wallet" | "status" | "pause" | "continue" | "register" | "profile" | "bet" | "play" | "bot" | "contest" | "history" | "scoreboard" | "fees" | "games" | "game" | "commands" | "help" | "send" | "house" | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
+      '<top-level-command> ::= "install" | "uninstall" | "wallet" | "bucket" | "status" | "pause" | "continue" | "register" | "profile" | "bet" | "play" | "bot" | "contest" | "history" | "scoreboard" | "fees" | "games" | "game" | "commands" | "help" | "send" | "house" | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
       `<cli> ::= "${BINARY_NAME}" [ "--color" ] <top-level-command> <command-args>*`,
       `<version-command> ::= "${BINARY_NAME}" ( "-V" | "--version" ) [ "--json" ]`,
     ],
@@ -880,6 +905,50 @@ function formatWalletHelpAppendix() {
       'If an address entry is a symlink, normal filesystem resolution applies; the CLI only follows the selected wallets/<address>.json path.',
       `History downloads write to ${path.join(APECHURCH_DIR, 'history')}/<wallet>_history.json.`,
       'The private key is never exported by this CLI; signing decrypts locally only when needed.',
+    ],
+  });
+}
+
+function formatBucketHelpAppendix() {
+  return formatCommandHelpAppendix({
+    actions: [
+      'install <bucket>       Encrypt credentials for one bucket and enable it',
+      'reinstall <bucket>     Same as install; overwrites the entry and enables it',
+      'status                 Show enabled R2 mirror state without revealing credentials',
+      'list                   List stored bucket entries without revealing credentials',
+      'enable <bucket>        Enable a stored bucket entry for bot log mirroring',
+      'disable                Disable remote mirroring while preserving encrypted entries',
+    ],
+    parameters: [
+      '[action]               R2 action; omitted action defaults to status',
+      '[bucket]               Cloudflare R2 bucket name for install/reinstall/enable',
+    ],
+    options: [
+      '--json                 Emit JSON output where supported',
+      '-v, --verbose          Decrypt and show R2 endpoints plus bucket fallback environment values for status/list',
+    ],
+    bnf: [
+      '<bucket-command> ::= "bucket" [ <bucket-action> [ <bucket> ] ] [ "--json" ] [ "-v" | "--verbose" ]',
+      '<bucket-action> ::= "install" | "reinstall" | "status" | "list" | "enable" | "disable"',
+      '<bucket> ::= <bucket-name>                     ; 3-63 lowercase letters, numbers, dots, or hyphens',
+    ],
+    examples: [
+      `${BINARY_NAME} bucket install apechurch-cli-log`,
+      `${BINARY_NAME} bucket status`,
+      `${BINARY_NAME} bucket status -v`,
+      `${BINARY_NAME} bucket list --json`,
+      `${BINARY_NAME} bucket enable apechurch-cli-log`,
+      `${BINARY_NAME} bucket disable`,
+    ],
+    notes: [
+      `Encrypted R2 entries live under ${R2_DIR}/<bucket>.json with a separate current selector; install/reinstall automatically enables the installed bucket.`,
+      `enable writes the current selector so future bot runs mirror logs to that stored bucket.`,
+      `disable removes only the current selector so future bot runs stop mirroring; encrypted bucket entries are preserved and can be enabled again later.`,
+      `Install checks ${PASS_ENV_VAR} or prompts for the encryption password before account ID and access key ID in clear text, then API token and secret access key with hidden input.`,
+      `${R2_NAME_ENV_VAR} is the bucket-name fallback; ${R2_ACCOUNT_ID_ENV_VAR}, ${R2_TOKEN_ENV_VAR}, ${R2_KEY_ENV_VAR}, and ${R2_SECRET_ENV_VAR} are non-interactive install/reinstall credential fallbacks only.`,
+      `Verbose status/list output requires ${PASS_ENV_VAR} or an interactive password prompt because it prints decrypted fallback values.`,
+      `${R2_PREFIX_ENV_VAR} optionally prefixes mirrored object keys; values are normalized without leading or trailing slashes.`,
+      `During bot runs, remote mirroring is best-effort and only activates when an enabled R2 entry exists and ${PASS_ENV_VAR} is set.`,
     ],
   });
 }
@@ -1388,6 +1457,7 @@ function formatHelpCommandAppendix() {
       'strategies             Betting strategies',
       'auto                   Stateful auto-play and solver modes',
       'wallet                 Wallet security and history download workflow',
+      'bucket                 Encrypted R2 bot log mirror setup',
       'history                History cache and reporting workflow',
       'house                  The House staking system',
       'commands               Command-specific help workflow and command index',
@@ -1396,7 +1466,7 @@ function formatHelpCommandAppendix() {
     options: ['--json                 Emit JSON output with topic metadata/content'],
     bnf: [
       '<help-command> ::= "help" [ <help-topic> ] [ "--json" ]',
-      '<help-topic> ::= "loop" | "strategies" | "auto" | "wallet" | "history" | "house" | "commands"',
+      '<help-topic> ::= "loop" | "strategies" | "auto" | "wallet" | "bucket" | "history" | "house" | "commands"',
     ],
     examples: [
       `${BINARY_NAME} help`,
@@ -1727,7 +1797,10 @@ function prompt(question) {
   });
 }
 
-async function collectPasswordForWalletFile({ commandLabel = `${BINARY_NAME} install` } = {}) {
+async function collectPasswordForWalletFile({
+  commandLabel = `${BINARY_NAME} install`,
+  promptLabel = 'wallet password',
+} = {}) {
   const envPassword = process.env[PASS_ENV_VAR];
   if (envPassword) return envPassword;
 
@@ -1739,13 +1812,13 @@ async function collectPasswordForWalletFile({ commandLabel = `${BINARY_NAME} ins
     process.exit(1);
   }
 
-  const password = await promptSecret('Set wallet password (input hidden): ');
+  const password = await promptSecret(`Set ${promptLabel} (input hidden): `);
   if (!password || password.length < 8) {
     console.error('\n❌ Password must be at least 8 characters\n');
     process.exit(1);
   }
 
-  const confirm = await promptSecret('Confirm wallet password (input hidden): ');
+  const confirm = await promptSecret(`Confirm ${promptLabel} (input hidden): `);
   if (password !== confirm) {
     console.error('\n❌ Passwords do not match\n');
     process.exit(1);
@@ -1800,6 +1873,110 @@ async function collectPrivateKeyForWalletImport({ commandLabel = `${BINARY_NAME}
   }
 
   return privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
+}
+
+async function collectR2CredentialField({
+  envVar,
+  label,
+  commandLabel = `${BINARY_NAME} bucket install`,
+  hidden = false,
+} = {}) {
+  const envValue = String(process.env[envVar] || '').trim();
+  if (envValue) return envValue;
+
+  const outputStream = hidden ? process.stderr : process.stdout;
+  if (!process.stdin.isTTY || !outputStream.isTTY) {
+    const entryType = hidden ? `Secure ${label} entry` : `${label} entry`;
+    throw new Error(`${entryType} requires an interactive terminal. Set ${envVar} only if you must run ${commandLabel} non-interactively.`);
+  }
+
+  const value = String(hidden
+    ? await promptSecret(`${label} (input hidden): `)
+    : await prompt(`${label}: `) || '').trim();
+  if (!value) {
+    throw new Error(`${label} is required.`);
+  }
+  return value;
+}
+
+function resolveR2BucketForInstall(bucket) {
+  return normalizeR2BucketName(bucket || process.env[R2_NAME_ENV_VAR]);
+}
+
+async function collectR2CredentialsForInstall(bucket, {
+  commandLabel = `${BINARY_NAME} bucket install`,
+} = {}) {
+  const normalizedBucket = resolveR2BucketForInstall(bucket);
+  const accountId = await collectR2CredentialField({ envVar: R2_ACCOUNT_ID_ENV_VAR, label: 'R2 account ID', commandLabel });
+  const apiToken = await collectR2CredentialField({ envVar: R2_TOKEN_ENV_VAR, label: 'R2 API token', commandLabel, hidden: true });
+  const accessKeyId = await collectR2CredentialField({ envVar: R2_KEY_ENV_VAR, label: 'R2 access key ID', commandLabel });
+  const secretAccessKey = await collectR2CredentialField({ envVar: R2_SECRET_ENV_VAR, label: 'R2 secret access key', commandLabel, hidden: true });
+
+  return {
+    bucket: normalizedBucket,
+    accountId,
+    apiToken,
+    accessKeyId,
+    secretAccessKey,
+  };
+}
+
+async function collectR2PasswordForVerboseBucketOutput({
+  commandLabel = `${BINARY_NAME} bucket status -v`,
+} = {}) {
+  const envPassword = process.env[PASS_ENV_VAR];
+  if (envPassword) return envPassword;
+
+  if (!process.stdin.isTTY || !process.stderr.isTTY) {
+    throw new Error(`Verbose bucket output requires ${PASS_ENV_VAR} or an interactive terminal for secure password entry. Set ${PASS_ENV_VAR} only if you must run ${commandLabel} non-interactively.`);
+  }
+
+  const password = await promptSecret('R2 encryption password (input hidden): ');
+  if (!password) {
+    throw new Error('R2 encryption password is required.');
+  }
+  return password;
+}
+
+function getR2BucketEnvironmentFallbacks(credentials = {}) {
+  return {
+    [R2_NAME_ENV_VAR]: credentials.bucket || '',
+    [R2_ACCOUNT_ID_ENV_VAR]: credentials.account_id || '',
+    [R2_TOKEN_ENV_VAR]: credentials.api_token || '',
+    [R2_KEY_ENV_VAR]: credentials.access_key_id || '',
+    [R2_SECRET_ENV_VAR]: credentials.secret_access_key || '',
+  };
+}
+
+function sanitizeVerboseValue(value) {
+  return String(value ?? '')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n');
+}
+
+function getR2VerboseBucketDetails(entry, password) {
+  const loaded = loadStoredR2ConfigCredentials(entry, { password });
+  if (!loaded.enabled) {
+    const bucketLabel = entry?.bucket ? ` for ${entry.bucket}` : '';
+    throw new Error(`Failed to decrypt R2 bucket config${bucketLabel}: ${loaded.reason || 'unknown error'}.`);
+  }
+
+  return {
+    bucket: loaded.bucket,
+    enabled: Boolean(entry.isCurrent),
+    endpoints: loaded.endpoints,
+    environment_fallbacks: getR2BucketEnvironmentFallbacks(loaded.credentials),
+  };
+}
+
+function printR2VerboseBucketDetails(details, { indent = '   ' } = {}) {
+  console.log(`${indent}Endpoints:`);
+  console.log(`${indent}  S3 API:          ${details.endpoints.s3_endpoint}`);
+  console.log(`${indent}  Bucket API:      ${details.endpoints.bucket_endpoint}`);
+  console.log(`${indent}Environment fallback values:`);
+  for (const [name, value] of Object.entries(details.environment_fallbacks)) {
+    console.log(`${indent}  ${name}=${sanitizeVerboseValue(value)}`);
+  }
 }
 
 function getCurrentUnfinishedGames(walletAddress = getWalletAddress()) {
@@ -3988,6 +4165,205 @@ program
     } catch (error) {
       console.error(`\n❌ Failed to remove: ${error.message}\n`);
     }
+  });
+
+// ============================================================================
+// COMMAND: BUCKET
+// ============================================================================
+program
+  .command('bucket [action] [bucket]')
+  .description('Cloudflare R2 bot log mirror config')
+  .option('--json', 'JSON output')
+  .option('-v, --verbose', 'Decrypt and show R2 endpoints plus bucket fallback environment values for status/list')
+  .addHelpText('after', formatBucketHelpAppendix())
+  .action(async (action = 'status', bucket, opts) => {
+    const normalizedAction = String(action || 'status').trim().toLowerCase();
+
+    function writeError(message) {
+      if (opts.json) console.log(JSON.stringify({ error: message }));
+      else console.error(`\n❌ ${message}\n`);
+      process.exitCode = 1;
+    }
+
+    if (opts.verbose && !['status', 'list'].includes(normalizedAction)) {
+      writeError('-v/--verbose is only supported with bucket status and bucket list.');
+      return;
+    }
+
+    if (normalizedAction === 'status') {
+      const payload = getR2PublicMetadata();
+      let verboseDetails = null;
+      if (opts.verbose && payload.enabled) {
+        try {
+          const selected = listStoredR2Configs().find((entry) => entry.isCurrent);
+          const password = await collectR2PasswordForVerboseBucketOutput({
+            commandLabel: `${BINARY_NAME} bucket status -v`,
+          });
+          verboseDetails = getR2VerboseBucketDetails(selected, password);
+          payload.verbose = verboseDetails;
+        } catch (error) {
+          writeError(sanitizeError(error));
+          return;
+        }
+      } else if (opts.verbose) {
+        payload.verbose = null;
+      }
+
+      if (opts.json) {
+        console.log(JSON.stringify(payload));
+      } else {
+        console.log('\n☁️  R2 Bot Log Mirror\n');
+        console.log(`   Enabled:                ${payload.enabled ? 'Yes' : 'No'}`);
+        console.log(`   Enabled bucket:         ${payload.enabled_bucket || 'N/A'}`);
+        console.log(`   Stored bucket entries:  ${payload.configs_count}`);
+        console.log(`   Password env var:       ${payload.password_env_var}`);
+        console.log(`   Password env configured:${payload.password_env_configured ? ' Yes' : ' No'}`);
+        console.log(`   Prefix env var:         ${payload.prefix_env_var}`);
+        console.log(`   Prefix configured:      ${payload.prefix_configured ? 'Yes' : 'No'}`);
+        if (opts.verbose) {
+          if (verboseDetails) {
+            console.log('');
+            printR2VerboseBucketDetails(verboseDetails);
+          } else {
+            console.log('   Verbose details:        N/A (no enabled R2 bucket entry)');
+          }
+        }
+        console.log('');
+      }
+      return;
+    }
+
+    if (normalizedAction === 'list') {
+      const storedConfigs = listStoredR2Configs();
+      let verboseByBucket = new Map();
+      if (opts.verbose && storedConfigs.length > 0) {
+        try {
+          const password = await collectR2PasswordForVerboseBucketOutput({
+            commandLabel: `${BINARY_NAME} bucket list -v`,
+          });
+          verboseByBucket = new Map(storedConfigs.map((entry) => {
+            const details = getR2VerboseBucketDetails(entry, password);
+            return [entry.bucket, details];
+          }));
+        } catch (error) {
+          writeError(sanitizeError(error));
+          return;
+        }
+      }
+
+      const configs = storedConfigs.map((entry) => ({
+        bucket: entry.bucket,
+        enabled: Boolean(entry.isCurrent),
+        ...(opts.verbose ? { verbose: verboseByBucket.get(entry.bucket) || null } : {}),
+      }));
+      if (opts.json) {
+        console.log(JSON.stringify({ buckets: configs }));
+      } else if (configs.length === 0) {
+        console.log('\nNo R2 bucket entries configured.\n');
+      } else {
+        console.log('\nStored R2 bucket entries:\n');
+        for (const entry of configs) {
+          console.log(`  ${entry.enabled ? '*' : ' '} ${entry.bucket}`);
+          if (opts.verbose && entry.verbose) {
+            printR2VerboseBucketDetails(entry.verbose, { indent: '      ' });
+          }
+        }
+        console.log('');
+      }
+      return;
+    }
+
+    if (normalizedAction === 'disable') {
+      const result = disableSelectedR2Config();
+      if (result.error) {
+        writeError(result.error);
+        return;
+      }
+      if (opts.json) {
+        console.log(JSON.stringify({ success: true, enabled: false }));
+      } else {
+        console.log('\n✅ R2 bot log mirroring disabled. Stored encrypted bucket entries were preserved.\n');
+      }
+      return;
+    }
+
+    if (normalizedAction === 'enable') {
+      if (!bucket) {
+        writeError(`Usage: ${BINARY_NAME} bucket enable <bucket>`);
+        return;
+      }
+
+      let enabled;
+      try {
+        enabled = enableStoredR2Config(bucket);
+      } catch (error) {
+        writeError(sanitizeError(error));
+        return;
+      }
+      if (enabled.error) {
+        writeError(enabled.error);
+        return;
+      }
+
+      if (opts.json) {
+        console.log(JSON.stringify({
+          success: true,
+          action: 'enable',
+          changed: enabled.changed,
+          bucket: enabled.bucket,
+        }));
+      } else {
+        console.log(enabled.changed
+          ? `\n✅ Enabled R2 bucket entry: ${enabled.bucket}\n`
+          : `\nR2 bucket entry already enabled: ${enabled.bucket}\n`);
+      }
+      return;
+    }
+
+    if (normalizedAction === 'install' || normalizedAction === 'reinstall') {
+      let targetBucket;
+      try {
+        targetBucket = resolveR2BucketForInstall(bucket);
+      } catch (error) {
+        writeError(`Usage: ${BINARY_NAME} bucket ${normalizedAction} <bucket> or set ${R2_NAME_ENV_VAR}`);
+        return;
+      }
+
+      try {
+        const password = await collectPasswordForWalletFile({
+          commandLabel: `${BINARY_NAME} bucket ${normalizedAction}`,
+          promptLabel: 'R2 encryption password',
+        });
+        const credentials = await collectR2CredentialsForInstall(targetBucket, {
+          commandLabel: `${BINARY_NAME} bucket ${normalizedAction}`,
+        });
+        const result = saveEncryptedR2Config(credentials, password);
+
+        if (opts.json) {
+          console.log(JSON.stringify({
+            success: true,
+            action: normalizedAction,
+            bucket: result.bucket,
+            enabled: true,
+            config_file: result.filePath,
+            selector_file: result.selectorFile,
+          }));
+        } else {
+          console.log('\n✅ R2 bot log mirroring configured.');
+          console.log(`   Bucket:        ${result.bucket}`);
+          console.log('   Enabled:       Yes');
+          console.log(`   Config file:   ${result.filePath}`);
+          console.log(`   Selector file: ${result.selectorFile}`);
+          console.log('   Remote path:   <prefix>/<bot>/<log>.json');
+          console.log('');
+        }
+      } catch (error) {
+        writeError(`Failed to configure R2 log mirroring: ${sanitizeError(error)}`);
+      }
+      return;
+    }
+
+    writeError(`Unknown R2 action: ${action}`);
   });
 
 // ============================================================================
@@ -7472,6 +7848,15 @@ WALLET
   ${BINARY_NAME} send APE <amt> <to>  Send APE (native currency) to an address
   ${BINARY_NAME} send GP <amt> <to>   Send GP (Gimbo Points, 0 decimals) to an address
 
+R2 BOT LOG MIRROR
+  ${BINARY_NAME} bucket install <bucket>
+                                   Encrypt one R2 bucket config and enable it
+  ${BINARY_NAME} bucket status [-v]  Show R2 mirror state; -v decrypts verbose values
+  ${BINARY_NAME} bucket list [-v]    List stored R2 bucket entries; -v decrypts verbose values
+  ${BINARY_NAME} bucket enable <bucket>
+                                   Enable a stored R2 bucket entry
+  ${BINARY_NAME} bucket disable      Disable remote mirroring; keep encrypted entries
+
 THE HOUSE (Staking)
   ${BINARY_NAME} house                Show house stats and your position
   ${BINARY_NAME} house deposit <amt>  Deposit APE (15-min lock, 2% withdraw fee)
@@ -7546,6 +7931,12 @@ ENVIRONMENT
   ${LOG_DIR_ENV_VAR}      Bot log directory (default: ${CONFIG_DIR_ENV_VAR}/log)
   ${PRIVATE_KEY_ENV_VAR}          Optional fallback for non-interactive install/reinstall
   ${PASS_ENV_VAR}        Wallet password for non-interactive install/signing
+  ${R2_PREFIX_ENV_VAR}       Optional R2 object key prefix for mirrored bot logs
+  ${R2_ACCOUNT_ID_ENV_VAR}   R2 install fallback: account ID
+  ${R2_NAME_ENV_VAR}         R2 install fallback: bucket name
+  ${R2_TOKEN_ENV_VAR}        R2 install fallback: API token
+  ${R2_KEY_ENV_VAR}          R2 install fallback: access key ID
+  ${R2_SECRET_ENV_VAR}       R2 install fallback: secret access key
   ${PROFILE_URL_ENV_VAR} Optional override for the username/profile API
   ${RPC_URL_ENV_VAR}             Custom ApeChain RPC URL(s); default RPC remains a fallback
   ${FORCE_COLOR_ENV_VAR}   Force ANSI color in plain output when set to 1
@@ -8284,6 +8675,91 @@ ${'─'.repeat(70)}
 ${'═'.repeat(70)}
 `,
 
+  bucket: `
+${'═'.repeat(70)}
+  R2 BOT LOG MIRROR
+${'═'.repeat(70)}
+
+  Bot summary logs are always written locally first under ${LOG_DIR}.
+  R2 mirroring is optional and best-effort. If R2 is not configured, if
+  ${PASS_ENV_VAR} is not set during a bot run, or if upload fails, the local
+  JSON log remains authoritative and the bot continues.
+
+  Encrypted R2 entries:
+    ${R2_DIR}/<bucket>.json
+
+  Current selector:
+    ${R2_DIR}/current.json
+
+${'─'.repeat(70)}
+  CONFIGURE
+${'─'.repeat(70)}
+
+  ${BINARY_NAME} bucket install <bucket>
+    Prompts with hidden input for:
+      • ${PASS_ENV_VAR}-compatible encryption password
+      • API token
+      • Secret access key
+
+    Prompts in clear text for:
+      • Account ID
+      • Access key ID
+
+  ${BINARY_NAME} bucket reinstall <bucket>
+    Rewrites the encrypted bucket entry and enables it.
+
+  install/reinstall auto-enable the installed bucket.
+
+  Non-interactive install/reinstall fallbacks:
+    ${R2_NAME_ENV_VAR} (bucket name)
+    ${R2_ACCOUNT_ID_ENV_VAR}
+    ${R2_TOKEN_ENV_VAR}
+    ${R2_KEY_ENV_VAR}
+    ${R2_SECRET_ENV_VAR}
+    ${PASS_ENV_VAR}
+
+${'─'.repeat(70)}
+  OPERATE
+${'─'.repeat(70)}
+
+  ${BINARY_NAME} bucket status
+  ${BINARY_NAME} bucket list
+  ${BINARY_NAME} bucket status -v
+  ${BINARY_NAME} bucket list -v
+  ${BINARY_NAME} bucket enable <bucket>
+  ${BINARY_NAME} bucket disable
+
+  enable writes the current selector so future bot runs mirror logs to the
+  stored bucket. It does not decrypt or print credentials.
+
+  disable removes only the current selector so future bot runs stop R2
+  mirroring. Encrypted bucket entries are preserved and can be enabled again.
+
+  Normal status/list output and enable/disable never reveal account IDs, API tokens,
+  access key IDs, or secret access keys.
+
+  status -v and list -v intentionally decrypt with ${PASS_ENV_VAR} or an
+  interactive password prompt, then print R2 API endpoints and fallback
+  environment values for each shown bucket entry.
+
+${'─'.repeat(70)}
+  REMOTE PATHS
+${'─'.repeat(70)}
+
+  Object keys mirror the local path relative to ${LOG_DIR}.
+
+  Local:
+    ${LOG_DIR}/bob/bob.20260706120000.json
+
+  Remote:
+    <prefix>/bob/bob.20260706120000.json
+
+  Set ${R2_PREFIX_ENV_VAR} to choose <prefix>. Leading and trailing slashes
+  are ignored.
+
+${'═'.repeat(70)}
+`,
+
   history: `
 ${'═'.repeat(70)}
   HISTORY CACHE & REPORTING
@@ -8540,6 +9016,7 @@ ${'─'.repeat(70)}
   ${BINARY_NAME} --help
   ${BINARY_NAME} commands
   ${BINARY_NAME} wallet --help
+  ${BINARY_NAME} bucket --help
   ${BINARY_NAME} play --help
   ${BINARY_NAME} bot --help
   ${BINARY_NAME} history --help
@@ -8554,7 +9031,7 @@ ${'═'.repeat(70)}
 
 program
   .command('help [topic]')
-  .description('Get detailed help on a topic (loop, strategies, auto, wallet, history, house, commands)')
+  .description('Get detailed help on a topic (loop, strategies, auto, wallet, bucket, history, house, commands)')
   .option('--json', 'JSON output')
   .addHelpText('after', formatHelpCommandAppendix())
   .action((topic, opts) => {
@@ -8575,6 +9052,7 @@ ${'═'.repeat(60)}
   ${BINARY_NAME} help strategies   Betting strategies in detail
   ${BINARY_NAME} help auto         Auto-play for Blackjack/Video Poker
   ${BINARY_NAME} help wallet       Wallet security and encryption
+  ${BINARY_NAME} help bucket       Encrypted R2 bot log mirror setup
   ${BINARY_NAME} help history      History download, cache, and reporting
   ${BINARY_NAME} help house        The House staking system
   ${BINARY_NAME} help commands     Command-specific inline help workflow

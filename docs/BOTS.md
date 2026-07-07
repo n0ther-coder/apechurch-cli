@@ -44,6 +44,8 @@ Bot logs belong under `APECHURCH_CLI_LOG_DIR`, which defaults to `$APECHURCH_CLI
 
 The CLI creates a valid JSON run log as soon as a bot starts, lets bots update it while they run, and closes the same file with the final status. If a bot throws or receives `SIGINT`/`SIGTERM`, the CLI preserves the latest partial summary and writes `status: "error"` or `status: "interrupted"` before returning control. Hard kills such as `SIGKILL` cannot be logged.
 
+Remote R2 mirroring is optional and best-effort. Configure it with `apechurch-cli bucket install <bucket>`; credentials are encrypted locally under `$APECHURCH_CLI_CONFIG_DIR/r2/<bucket>.json` using the same password source as the wallet (`APECHURCH_CLI_PASS` for non-interactive runs). Install/reinstall auto-enable the installed bucket. `apechurch-cli bucket enable <bucket>` enables a stored encrypted entry for future bot runs, and `apechurch-cli bucket disable` stops remote mirroring by removing only the current selector while preserving encrypted entries. When enabled, the remote object key is `<prefix>/<same relative path under APECHURCH_CLI_LOG_DIR>`, so a local `log/bob/bob.<timestamp>.json` mirrors to `<prefix>/bob/bob.<timestamp>.json`. Local logs remain authoritative if R2 upload is unavailable.
+
 ```bash
 export APECHURCH_CLI_CONFIG_DIR=/path/to/local-config
 # Effective bot directory: /path/to/local-config/bots

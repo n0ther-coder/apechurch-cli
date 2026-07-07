@@ -54,6 +54,12 @@ Pure function tests - no network calls, no state changes.
 | `APECHURCH_CLI_CONFIG_DIR=/path/to/config` | Override the local CLI config/data root for isolated test runs |
 | `APECHURCH_CLI_BOTS_DIR=/path/to/bots` | Override the external bot root used by `bot` tests |
 | `APECHURCH_CLI_LOG_DIR=/path/to/log` | Override the bot log directory |
+| `APECHURCH_CLI_R2_PREFIX=prefix` | Optional object-key prefix for best-effort R2 bot log mirrors |
+| `APECHURCH_CLI_R2_NAME=...` | Optional bucket-name fallback for `apechurch-cli bucket install <bucket>` |
+| `APECHURCH_CLI_R2_ACCOUNT_ID=...` | Optional account-ID fallback for `apechurch-cli bucket install <bucket>` |
+| `APECHURCH_CLI_R2_TOKEN=...` | Optional API-token fallback for `apechurch-cli bucket install <bucket>` |
+| `APECHURCH_CLI_R2_KEY=...` | Optional access-key fallback for `apechurch-cli bucket install <bucket>` |
+| `APECHURCH_CLI_R2_SECRET=...` | Optional secret-access-key fallback for `apechurch-cli bucket install <bucket>` |
 | `APECHAIN_RPC_URL=https://...` | Override the ApeChain RPC URL used by wallet/live reads |
 
 ## Live Test Requirements

@@ -23,6 +23,12 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `APECHURCH_CLI_CONFIG_DIR` | `~/.apechurch-cli` | Root local config/data directory |
 | `APECHURCH_CLI_BOTS_DIR` | `$APECHURCH_CLI_CONFIG_DIR/bots` | Personal local bot root containing bot folders with `bot.json` |
 | `APECHURCH_CLI_LOG_DIR` | `$APECHURCH_CLI_CONFIG_DIR/log` | Bot log directory exposed to bot runtime contexts |
+| `APECHURCH_CLI_R2_PREFIX` | unset | Optional object-key prefix for best-effort R2 mirrors of bot JSON logs |
+| `APECHURCH_CLI_R2_NAME` | none | Optional bucket-name fallback for `bucket install <bucket>` |
+| `APECHURCH_CLI_R2_ACCOUNT_ID` | none | Optional account-ID fallback for `bucket install <bucket>` |
+| `APECHURCH_CLI_R2_TOKEN` | none | Optional API-token fallback for `bucket install <bucket>` |
+| `APECHURCH_CLI_R2_KEY` | none | Optional access-key fallback for `bucket install <bucket>` |
+| `APECHURCH_CLI_R2_SECRET` | none | Optional secret-access-key fallback for `bucket install <bucket>` |
 | `APECHURCH_CLI_PK` | none | Optional fallback for non-interactive fresh install/reinstall |
 | `APECHURCH_CLI_PASS` | none | Wallet password for non-interactive install/signing |
 | `APECHURCH_CLI_PROFILE_URL` | `https://www.ape.church/api/profile` | Username/profile API endpoint override |
@@ -40,6 +46,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `install` | - | Install or reinstall the local encrypted wallet bundle |
 | `uninstall` | - | Remove local CLI data |
 | `wallet [action] [address]` | - | Wallet management, local wallet listing, and history download |
+| `bucket [action] [bucket]` | - | Encrypted Cloudflare R2 bot log mirror config |
 | `status` | - | Show current wallet, balance, and local state |
 | `pause` | - | Pause autonomous play |
 | `continue` | - | Resume autonomous play |
@@ -248,6 +255,32 @@ The selected wallet is tracked by `wallets/current.json`, which points to `walle
 | `--from-block <n>` | Start block for history download/backfill; `download --from-block 0` rebuilds the history file | `download` |
 | `--to-block <n>` | End block for history download | `download` |
 | `--chunk-size <n>` | Block span per log query | `download` |
+
+### `bucket [action] [bucket]`
+
+```bnf
+<bucket-command> ::= "bucket" [ <bucket-action> [ <bucket> ] ] [ "--json" ] [ "-v" | "--verbose" ]
+<bucket-action> ::= "install"
+                  | "reinstall"
+                  | "status"
+                  | "list"
+                  | "enable"
+                  | "disable"
+<bucket> ::= <bucket-name>
+```
+
+`bucket install <bucket>` encrypts Cloudflare R2 bot-log mirror credentials into `$APECHURCH_CLI_CONFIG_DIR/r2/<bucket>.json` and enables that bucket for future bot runs. `bucket reinstall <bucket>` overwrites the same encrypted bucket entry and enables it. If `<bucket>` is omitted for install or reinstall, `APECHURCH_CLI_R2_NAME` is used as the bucket-name fallback.
+
+`bucket enable <bucket>` writes the current R2 selector so future bot runs mirror logs to that stored encrypted bucket entry. It does not decrypt or print credentials. `bucket disable` removes only the current selector so future bot runs stop R2 mirroring; encrypted bucket entries are preserved and can be enabled again later.
+
+The encrypted payload stores the account ID, API token, access key ID, and secret access key. During interactive install/reinstall, the account ID and access key ID prompts are visible, while the API token and secret access key prompts use hidden input. These values are never printed by normal `status`, `list`, or JSON command output. `bucket status -v` and `bucket list -v` intentionally decrypt with `APECHURCH_CLI_PASS` or an interactive password prompt, then print R2 API endpoints and fallback environment values such as `APECHURCH_CLI_R2_ACCOUNT_ID=<value>`. `APECHURCH_CLI_R2_ACCOUNT_ID`, `APECHURCH_CLI_R2_TOKEN`, `APECHURCH_CLI_R2_KEY`, and `APECHURCH_CLI_R2_SECRET` are non-interactive credential fallbacks for install/reinstall. `APECHURCH_CLI_PASS` encrypts the local file, is checked before credential prompts during setup, and must also be present during non-interactive bot runs for remote mirroring to activate.
+
+Remote R2 object keys mirror the local bot log path relative to `APECHURCH_CLI_LOG_DIR`: `log/bob/bob.<timestamp>.json` becomes `<prefix>/bob/bob.<timestamp>.json`. Set `APECHURCH_CLI_R2_PREFIX` to choose `<prefix>`. Upload is best-effort; local JSON logs remain authoritative if R2 is unavailable.
+
+| Option | Meaning |
+|--------|---------|
+| `--json` | Emit JSON output; credential fields remain redacted unless combined with `-v` |
+| `-v`, `--verbose` | For `status` and `list`, decrypt and emit endpoint plus fallback environment values |
 
 ## Profile And Identity
 

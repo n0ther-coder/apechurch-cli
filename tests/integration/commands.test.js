@@ -20,6 +20,12 @@ const HISTORY_FIXTURE_WALLET = '0x1111111111111111111111111111111111111111';
 const CONFIG_DIR_ENV = 'APECHURCH_CLI_CONFIG_DIR';
 const BOTS_DIR_ENV = 'APECHURCH_CLI_BOTS_DIR';
 const LOG_DIR_ENV = 'APECHURCH_CLI_LOG_DIR';
+const PASS_ENV = 'APECHURCH_CLI_PASS';
+const R2_ACCOUNT_ID_ENV = 'APECHURCH_CLI_R2_ACCOUNT_ID';
+const R2_NAME_ENV = 'APECHURCH_CLI_R2_NAME';
+const R2_TOKEN_ENV = 'APECHURCH_CLI_R2_TOKEN';
+const R2_KEY_ENV = 'APECHURCH_CLI_R2_KEY';
+const R2_SECRET_ENV = 'APECHURCH_CLI_R2_SECRET';
 const RPC_URL_ENV = 'APECHAIN_RPC_URL';
 const FORCE_COLOR_ENV = 'APECHURCH_CLI_FORCE_COLOR';
 const ANSI_RE = /\x1b\[[0-9;]*m/;
@@ -172,6 +178,15 @@ function stripVersionBanner(output) {
 function buildCliEnv(options = {}) {
   const optionEnv = options.env || {};
   const pathEnvVars = [CONFIG_DIR_ENV, BOTS_DIR_ENV, LOG_DIR_ENV];
+  const secretEnvVars = [
+    PASS_ENV,
+    R2_ACCOUNT_ID_ENV,
+    R2_NAME_ENV,
+    R2_TOKEN_ENV,
+    R2_KEY_ENV,
+    R2_SECRET_ENV,
+  ];
+  const isolatedEnvVars = [...pathEnvVars, ...secretEnvVars];
   const env = {
     ...process.env,
     HOME: optionEnv.HOME || NO_WALLET_HOME,
@@ -179,9 +194,9 @@ function buildCliEnv(options = {}) {
     [FORCE_COLOR_ENV]: '',
   };
 
-  // Integration tests create isolated bot fixtures. Do not let a developer's
-  // shell-level path config override the fixture directories unless a test opts in.
-  for (const envVar of pathEnvVars) {
+  // Integration tests create isolated fixtures. Do not let a developer's
+  // shell-level path or secret config override them unless a test opts in.
+  for (const envVar of isolatedEnvVars) {
     delete env[envVar];
   }
 
@@ -192,7 +207,7 @@ function buildCliEnv(options = {}) {
   mergedEnv.FORCE_COLOR = '0';
   mergedEnv[FORCE_COLOR_ENV] = '';
 
-  for (const envVar of pathEnvVars) {
+  for (const envVar of isolatedEnvVars) {
     if (!Object.prototype.hasOwnProperty.call(optionEnv, envVar)) {
       delete mergedEnv[envVar];
     }
@@ -1218,6 +1233,238 @@ describe('CLI Commands Integration Tests', () => {
       const data = JSON.parse(stdout);
       
       assert.ok('name' in data || 'key' in data, 'Should have game info');
+    });
+  });
+
+  describe('bucket command', () => {
+    it('installs encrypted R2 credentials without printing or storing plaintext secrets', () => {
+      resetBotFixtures();
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [PASS_ENV]: 'test-password-123',
+        [R2_ACCOUNT_ID_ENV]: 'acct-secret-not-printed',
+        [R2_TOKEN_ENV]: 'bearer-secret-not-printed',
+        [R2_KEY_ENV]: 'access-key-not-printed',
+        [R2_SECRET_ENV]: 'secret-key-not-printed',
+      };
+
+      const { stdout, code } = cli('bucket install apechurch-cli-log --json', { env });
+      assert.strictEqual(code, 0);
+      const payload = JSON.parse(stdout.trim());
+      assert.strictEqual(payload.success, true);
+      assert.strictEqual(payload.bucket, 'apechurch-cli-log');
+      assert.strictEqual(payload.enabled, true);
+
+      for (const secret of [
+        'acct-secret-not-printed',
+        'bearer-secret-not-printed',
+        'access-key-not-printed',
+        'secret-key-not-printed',
+      ]) {
+        assert.ok(!stdout.includes(secret), `stdout leaked ${secret}`);
+      }
+
+      const configFile = path.join(CONFIG_OVERRIDE_ROOT, 'r2', 'apechurch-cli-log.json');
+      const rawConfig = fs.readFileSync(configFile, 'utf8');
+      assert.match(rawConfig, /"encrypted": true/);
+      assert.match(rawConfig, /"bucket": "apechurch-cli-log"/);
+      for (const secret of [
+        'acct-secret-not-printed',
+        'bearer-secret-not-printed',
+        'access-key-not-printed',
+        'secret-key-not-printed',
+      ]) {
+        assert.ok(!rawConfig.includes(secret), `config leaked ${secret}`);
+      }
+
+      const status = cli('bucket status --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
+      assert.strictEqual(status.code, 0);
+      const statusPayload = JSON.parse(status.stdout.trim());
+      assert.strictEqual(statusPayload.enabled, true);
+      assert.strictEqual(statusPayload.enabled_bucket, 'apechurch-cli-log');
+      assert.strictEqual(statusPayload.configs_count, 1);
+      assert.ok(!status.stdout.includes('acct-secret-not-printed'));
+      assert.ok(!status.stdout.includes('bearer-secret-not-printed'));
+    });
+
+    it('enables and disables stored R2 bucket entries', () => {
+      resetBotFixtures();
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [PASS_ENV]: 'test-password-123',
+        [R2_ACCOUNT_ID_ENV]: 'acct-secret',
+        [R2_TOKEN_ENV]: 'bearer-secret',
+        [R2_KEY_ENV]: 'access-key',
+        [R2_SECRET_ENV]: 'secret-key',
+      };
+
+      assert.strictEqual(cli('bucket install first-logs --json', { env }).code, 0);
+      assert.strictEqual(cli('bucket install second-logs --json', { env }).code, 0);
+
+      const autoEnabled = cli('bucket status --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
+      assert.strictEqual(autoEnabled.code, 0);
+      assert.strictEqual(JSON.parse(autoEnabled.stdout.trim()).enabled_bucket, 'second-logs');
+
+      const enabled = cli('bucket enable first-logs --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
+      assert.strictEqual(enabled.code, 0);
+      const enabledPayload = JSON.parse(enabled.stdout.trim());
+      assert.strictEqual(enabledPayload.success, true);
+      assert.strictEqual(enabledPayload.action, 'enable');
+      assert.strictEqual(enabledPayload.changed, true);
+      assert.strictEqual(enabledPayload.bucket, 'first-logs');
+
+      const list = cli('bucket list --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
+      assert.strictEqual(list.code, 0);
+      assert.deepStrictEqual(JSON.parse(list.stdout.trim()).buckets, [
+        { bucket: 'first-logs', enabled: true },
+        { bucket: 'second-logs', enabled: false },
+      ]);
+
+      const disabled = cli('bucket disable --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
+      assert.strictEqual(disabled.code, 0);
+      const disabledPayload = JSON.parse(disabled.stdout.trim());
+      assert.strictEqual(disabledPayload.success, true);
+      assert.strictEqual(disabledPayload.enabled, false);
+
+      const status = cli('bucket status --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
+      assert.strictEqual(status.code, 0);
+      assert.strictEqual(JSON.parse(status.stdout.trim()).enabled, false);
+    });
+
+    it('does not keep bucket select as a compatibility alias', () => {
+      resetBotFixtures();
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [PASS_ENV]: 'test-password-123',
+        [R2_ACCOUNT_ID_ENV]: 'acct-secret',
+        [R2_TOKEN_ENV]: 'bearer-secret',
+        [R2_KEY_ENV]: 'access-key',
+        [R2_SECRET_ENV]: 'secret-key',
+      };
+      assert.strictEqual(cli('bucket install first-logs --json', { env }).code, 0);
+
+      const selected = cli('bucket select first-logs --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
+      assert.strictEqual(selected.code, 1);
+      assert.ok(JSON.parse(selected.stdout.trim()).error.includes('Unknown R2 action'));
+    });
+
+    it('uses APECHURCH_CLI_R2_NAME as the bucket-name install fallback', () => {
+      resetBotFixtures();
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [PASS_ENV]: 'test-password-123',
+        [R2_NAME_ENV]: 'apechurch-cli-log',
+        [R2_ACCOUNT_ID_ENV]: 'acct-secret',
+        [R2_TOKEN_ENV]: 'bearer-secret',
+        [R2_KEY_ENV]: 'access-key',
+        [R2_SECRET_ENV]: 'secret-key',
+      };
+
+      const { stdout, code } = cli('bucket install --json', { env });
+      assert.strictEqual(code, 0);
+      const payload = JSON.parse(stdout.trim());
+      assert.strictEqual(payload.success, true);
+      assert.strictEqual(payload.bucket, 'apechurch-cli-log');
+      assert.ok(fs.existsSync(path.join(CONFIG_OVERRIDE_ROOT, 'r2', 'apechurch-cli-log.json')));
+    });
+
+    it('checks the encryption password before collecting R2 credential fields', () => {
+      resetBotFixtures();
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [R2_NAME_ENV]: 'apechurch-cli-log',
+        [R2_ACCOUNT_ID_ENV]: 'acct-secret',
+        [R2_TOKEN_ENV]: 'bearer-secret',
+        [R2_KEY_ENV]: 'access-key',
+        [R2_SECRET_ENV]: 'secret-key',
+      };
+
+      const { stdout, code } = cli('bucket install --json', { env });
+      assert.strictEqual(code, 1);
+      assert.ok(stdout.includes(PASS_ENV));
+      assert.ok(!stdout.includes('R2 account ID'));
+    });
+
+    it('shows decrypted R2 endpoints and bucket fallback values only in verbose status/list', () => {
+      resetBotFixtures();
+      const installEnv = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [PASS_ENV]: 'test-password-123',
+        [R2_ACCOUNT_ID_ENV]: 'acct-secret-not-printed',
+        [R2_TOKEN_ENV]: 'bearer-secret-not-printed',
+        [R2_KEY_ENV]: 'access-key-not-printed',
+        [R2_SECRET_ENV]: 'secret-key-not-printed',
+      };
+      assert.strictEqual(cli('bucket install apechurch-cli-log --json', { env: installEnv }).code, 0);
+
+      const safeStatus = cli('bucket status --json', {
+        env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT },
+      });
+      assert.strictEqual(safeStatus.code, 0);
+      assert.ok(!safeStatus.stdout.includes('acct-secret-not-printed'));
+      assert.ok(!safeStatus.stdout.includes('bearer-secret-not-printed'));
+      assert.ok(!safeStatus.stdout.includes('access-key-not-printed'));
+      assert.ok(!safeStatus.stdout.includes('secret-key-not-printed'));
+
+      const verboseEnv = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [PASS_ENV]: 'test-password-123',
+      };
+      const verboseStatus = cli('bucket status -v --json', { env: verboseEnv });
+      assert.strictEqual(verboseStatus.code, 0);
+      const statusPayload = JSON.parse(verboseStatus.stdout.trim());
+      assert.strictEqual(statusPayload.verbose.bucket, 'apechurch-cli-log');
+      assert.strictEqual(statusPayload.verbose.endpoints.s3_endpoint, 'https://acct-secret-not-printed.r2.cloudflarestorage.com');
+      assert.strictEqual(statusPayload.verbose.endpoints.bucket_endpoint, 'https://acct-secret-not-printed.r2.cloudflarestorage.com/apechurch-cli-log');
+      assert.deepStrictEqual(statusPayload.verbose.environment_fallbacks, {
+        [R2_NAME_ENV]: 'apechurch-cli-log',
+        [R2_ACCOUNT_ID_ENV]: 'acct-secret-not-printed',
+        [R2_TOKEN_ENV]: 'bearer-secret-not-printed',
+        [R2_KEY_ENV]: 'access-key-not-printed',
+        [R2_SECRET_ENV]: 'secret-key-not-printed',
+      });
+
+      const verboseList = cli('bucket list -v --json', { env: verboseEnv });
+      assert.strictEqual(verboseList.code, 0);
+      const listPayload = JSON.parse(verboseList.stdout.trim());
+      assert.strictEqual(listPayload.buckets.length, 1);
+      assert.strictEqual(listPayload.buckets[0].verbose.environment_fallbacks[R2_TOKEN_ENV], 'bearer-secret-not-printed');
+
+      const plainVerbose = cli('bucket status -v', { env: verboseEnv });
+      assert.strictEqual(plainVerbose.code, 0);
+      assert.ok(plainVerbose.stdout.includes('S3 API:'));
+      assert.ok(plainVerbose.stdout.includes('https://acct-secret-not-printed.r2.cloudflarestorage.com'));
+      assert.ok(plainVerbose.stdout.includes(`${R2_TOKEN_ENV}=bearer-secret-not-printed`));
+    });
+
+    it('requires the R2 encryption password for verbose status/list on stored bucket entries', () => {
+      resetBotFixtures();
+      const installEnv = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [PASS_ENV]: 'test-password-123',
+        [R2_ACCOUNT_ID_ENV]: 'acct-secret-not-printed',
+        [R2_TOKEN_ENV]: 'bearer-secret-not-printed',
+        [R2_KEY_ENV]: 'access-key-not-printed',
+        [R2_SECRET_ENV]: 'secret-key-not-printed',
+      };
+      assert.strictEqual(cli('bucket install apechurch-cli-log --json', { env: installEnv }).code, 0);
+
+      const { stdout, code } = cli('bucket status -v --json', {
+        env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT },
+      });
+      assert.strictEqual(code, 1);
+      const payload = JSON.parse(stdout.trim());
+      assert.ok(payload.error.includes(PASS_ENV));
+      assert.ok(!stdout.includes('bearer-secret-not-printed'));
+    });
+
+    it('rejects verbose mode on bucket actions other than status and list', () => {
+      resetBotFixtures();
+      const { stdout, code } = cli('bucket disable -v --json', {
+        env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT },
+      });
+      assert.strictEqual(code, 1);
+      assert.ok(JSON.parse(stdout.trim()).error.includes('status and bucket list'));
     });
   });
 
