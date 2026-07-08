@@ -68,7 +68,7 @@ For `games.test.js`:
 - Funded wallet with **at least 20 APE**
 - Encrypted wallet must be installed locally
 - Password must be provided interactively or via `APECHURCH_CLI_PASS` before signing
-- Each test makes 1 APE minimum bets
+- Most live tests make 1 APE minimum bets; Video Poker uses its 10 APE live minimum
 
 ## Test Commands
 

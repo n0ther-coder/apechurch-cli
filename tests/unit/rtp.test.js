@@ -612,12 +612,12 @@ describe('RTP Helpers', () => {
     });
     const videoPoker = getConfiguredGameMaxPayoutReference({
       game: 'video-poker',
-      config: { betAmountApe: 100, jackpotApe: 25000 },
+      config: { betAmountApe: 400, jackpotApe: 25000 },
     });
 
     assert.strictEqual(roulette.display, '1.025x');
     assert.strictEqual(baccarat.display, '1.8x');
-    assert.strictEqual(videoPoker.display, '500x + 💰');
+    assert.strictEqual(videoPoker.display, '312.5x + 💰');
   });
 
   it('groups video poker variants into base bets and the jackpot tier', () => {
@@ -627,8 +627,8 @@ describe('RTP Helpers', () => {
       variantLabel: variant.variantLabel,
       maxPayout: variant.maxPayout.display,
     })), [
-      { variantLabel: 'Bet 1/5/10/25/50 APE', maxPayout: '250x' },
-      { variantLabel: 'Bet 100 APE', maxPayout: '250x + 💰' },
+      { variantLabel: 'Bet 10/25/50/100/250 APE', maxPayout: '250x' },
+      { variantLabel: 'Bet 400 APE', maxPayout: '250x + 💰' },
     ]);
   });
 

@@ -31,6 +31,9 @@ const RPC_URL_ENV = 'APECHAIN_RPC_URL';
 const FORCE_COLOR_ENV = 'APECHURCH_CLI_FORCE_COLOR';
 const ANSI_RE = /\x1b\[[0-9;]*m/;
 const CONFIG_OVERRIDE_WALLET = '0x2222222222222222222222222222222222222222';
+const BOT_LOG_TX_A = `0x${'a'.repeat(64)}`;
+const BOT_LOG_TX_B = `0x${'b'.repeat(64)}`;
+const BOT_LOG_TX_C = `0x${'c'.repeat(64)}`;
 
 function getBotLogDir(logDir, bot) {
   return path.join(logDir, bot);
@@ -611,11 +614,11 @@ describe('CLI Commands Integration Tests', () => {
     });
 
     it('writes JSON scripts and reads them back as shell text without execution', () => {
-      const scrDir = path.join(CONFIG_OVERRIDE_ROOT, 'scripts');
-      fs.rmSync(CONFIG_OVERRIDE_ROOT, { recursive: true, force: true });
+      const scrDir = path.join(CONFIG_OVERRIDE_ROOT, 'script-write-read-scripts');
+      fs.rmSync(scrDir, { recursive: true, force: true });
 
       const written = cli(
-        'script write custom_script bot bob --spillover "bot=zen --stop 500 game1=\'keno --picks 5\' --bet1 2"',
+        'script write custom_script bot bob --human --spillover "bot=zen --stop 500 game1=\'keno --picks 5\' --bet1 2" --color',
         { env: { [SCR_DIR_ENV]: scrDir } },
       );
 
@@ -625,22 +628,39 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(writtenPayload.script, 'custom_script.json');
 
       const stored = JSON.parse(fs.readFileSync(path.join(scrDir, 'custom_script.json'), 'utf8'));
-      assert.deepStrictEqual(stored.command.slice(0, 3), ['bot', 'bob', '--spillover']);
-      assert.deepStrictEqual(stored.command[3], {
-        arg: 'bot',
-        value: [
-          'zen --stop 500',
-          "game1='keno --picks 5' --bet1 2",
-        ],
-      });
+      assert.deepStrictEqual(stored.command, [
+        {
+          bot: 'bob',
+          '--spillover': {
+            arg: 'bot',
+            value: [
+              'zen --stop 500',
+              "game1='keno --picks 5' --bet1 2",
+            ],
+          },
+        },
+        '--human',
+        '--color',
+      ]);
 
       const read = cli('script read custom_script', { env: { [SCR_DIR_ENV]: scrDir } });
       assert.strictEqual(read.code, 0);
       assert.match(read.stdout, /^apechurch-cli bot bob --spillover /);
+      assert.ok(read.stdout.includes('--human --color'));
       assert.ok(read.stdout.includes("bot=zen --stop 500 game1='keno --picks 5' --bet1 2"));
+      assert.ok(read.stdout.trim().endsWith('--color'));
 
       const explicitRead = cli('script read custom_script.json', { env: { [SCR_DIR_ENV]: scrDir } });
       assert.strictEqual(explicitRead.stdout, read.stdout);
+    });
+
+    it('parses script watch options before attempting to load the JSON script', () => {
+      const watched = cli('script watch custom_script --every 0 --if-balance-over 550');
+      const output = `${watched.stdout}\n${watched.stderr}`;
+
+      assert.notStrictEqual(watched.code, 0);
+      assert.match(output, /--every must be a positive integer/);
+      assert.doesNotMatch(output, /Script not found/);
     });
   });
 
@@ -742,7 +762,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Keno'), 'Should include supported games in the stats table');
       assert.ok(stdout.includes('Picks 1'), 'Should include unplayed exact modes in the catalog');
       assert.ok(stdout.includes('1,000,000.00x'), 'Should include known top payouts for exact modes with fixed decimals');
-      assert.ok(stdout.includes('Bet 1/5/10/25/50 APE'), 'Should group non-jackpot video poker bet tiers');
+      assert.ok(stdout.includes('Bet 10/25/50/100/250 APE'), 'Should group non-jackpot video poker bet tiers');
       assert.ok(stdout.includes('250.00x + 💰'), 'Should mark jackpot-aware max payouts with fixed decimals');
       assert.ok(stdout.includes('Legend:'), 'Should explain the RTP badges');
       assert.ok(stdout.includes('📄 documented'), 'Should explain documented RTP values');
@@ -1773,7 +1793,7 @@ export default async function () {
         script: `export default async function ({ args, bot }) {
   return {
     exitCode: 0,
-    summary: { bot: bot.command, args, status: 'child-ok' },
+    summary: { bot: bot.command, args, status: 'child-ok', tx: '${BOT_LOG_TX_C}' },
   };
 }
 `,
@@ -1801,6 +1821,7 @@ export default async function () {
       assert.strictEqual(code, 0);
       assert.strictEqual(payload.status, 'parent-ok');
       assert.strictEqual(payload.child.status, 'child-ok');
+      assert.strictEqual(payload.child.tx, BOT_LOG_TX_C);
       assert.strictEqual(payload.child.parent_run_id, payload.run_id);
       assert.strictEqual(payload.child.root_run_id, payload.root_run_id);
       assert.strictEqual(payload.child.call_depth, 1);
@@ -1812,6 +1833,7 @@ export default async function () {
       const childFiles = listBotLogFiles(logDir, 'lineage-child');
       assert.strictEqual(childFiles.length, 1);
       const childLog = readBotLogFile(logDir, 'lineage-child', childFiles[0]);
+      assert.strictEqual(childLog.tx, BOT_LOG_TX_C);
       assert.strictEqual(childLog.run_id, payload.child.run_id);
       assert.strictEqual(childLog.parent_run_id, payload.run_id);
       assert.strictEqual(childLog.parent_call_id, payload.nested_bot_calls[0].call_id);
@@ -2048,7 +2070,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(payload.rootLogExists, true);
     });
 
-    it('writes a summary json log for bot runs even without --json', () => {
+    it('does not write a summary json log for bot runs without transactions', () => {
       resetBotFixtures();
       const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
       writeBotFixture({
@@ -2072,6 +2094,33 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(stdout.trim(), '');
 
       const files = listBotLogFiles(logDir, 'summary-bot');
+      assert.strictEqual(files.length, 0);
+    });
+
+    it('writes a summary json log for bot runs with transactions', () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'summary-bot',
+        script: `export default async function ({ bot, args }) {
+  return {
+    exitCode: 0,
+    summary: { bot: bot.command, args, status: 'ok', tx: '${BOT_LOG_TX_A}' },
+  };
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const { stdout, code } = cli('bot summary-bot 7', { env });
+      assert.strictEqual(code, 0);
+      assert.strictEqual(stdout.trim(), '');
+
+      const files = listBotLogFiles(logDir, 'summary-bot');
       assert.strictEqual(files.length, 1);
 
       const payload = readBotLogFile(logDir, 'summary-bot', files[0]);
@@ -2079,6 +2128,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(payload.bot_name, 'summary-bot');
       assert.deepStrictEqual(payload.args, ['7']);
       assert.strictEqual(payload.status, 'ok');
+      assert.strictEqual(payload.tx, BOT_LOG_TX_A);
       assert.deepStrictEqual(payload.gp_rate, {
         base_gp_per_ape: 5,
         current_gp_per_ape: null,
@@ -2094,7 +2144,7 @@ export default async function ({ paths, bot }) {
       assert.match(payload.ended_at_utc, /^\d{4}-\d{2}-\d{2}T/);
     });
 
-    it('prints returned summary json and logs it when --json is requested', () => {
+    it('prints returned summary json without logging it when it has no transactions', () => {
       resetBotFixtures();
       const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
       writeBotFixture({
@@ -2125,7 +2175,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(payload.parent_run_id, null);
 
       const files = listBotLogFiles(logDir, 'summary-bot-json');
-      assert.strictEqual(files.length, 1);
+      assert.strictEqual(files.length, 0);
     });
 
     it('persists the effective GP rate in bot summary logs', () => {
@@ -2138,7 +2188,7 @@ export default async function ({ paths, bot }) {
         script: `export default async function ({ bot, args }) {
   return {
     exitCode: 0,
-    summary: { bot: bot.command, args, status: 'ok' },
+    summary: { bot: bot.command, args, status: 'ok', tx: '${BOT_LOG_TX_B}' },
   };
 }
 `,
@@ -2163,6 +2213,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(files.length, 1);
       const logged = readBotLogFile(logDir, 'gp-rate-bot', files[0]);
       assert.deepStrictEqual(logged.gp_rate, printed.gp_rate);
+      assert.strictEqual(logged.tx, BOT_LOG_TX_B);
     });
 
     it('persists a bot --gp-ape override before the wallet profile rate', () => {
@@ -2198,7 +2249,7 @@ export default async function ({ paths, bot }) {
       });
     });
 
-    it('writes an error json log when a bot throws', () => {
+    it('does not write an error json log when a bot throws before any transaction', () => {
       resetBotFixtures();
       const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
       writeBotFixture({
@@ -2219,17 +2270,7 @@ export default async function ({ paths, bot }) {
       assert.ok(stdout.includes('Bot "error-bot" failed'));
 
       const files = listBotLogFiles(logDir, 'error-bot');
-      assert.strictEqual(files.length, 1);
-
-      const payload = readBotLogFile(logDir, 'error-bot', files[0]);
-      assert.strictEqual(payload.bot, 'error-bot');
-      assert.strictEqual(payload.bot_name, 'error-bot');
-      assert.strictEqual(payload.status, 'error');
-      assert.deepStrictEqual(payload.args, ['--json']);
-      assert.strictEqual(payload.error.name, 'Error');
-      assert.strictEqual(payload.error.message, 'boom');
-      assert.match(payload.started_at_utc, /^\d{4}-\d{2}-\d{2}T/);
-      assert.match(payload.ended_at_utc, /^\d{4}-\d{2}-\d{2}T/);
+      assert.strictEqual(files.length, 0);
     });
 
     it('writes an interrupted json log when a bot receives SIGINT', async () => {
@@ -2242,6 +2283,7 @@ export default async function ({ paths, bot }) {
   updateRunSummary({
     bot: bot.command,
     status: 'running',
+    tx: '${BOT_LOG_TX_A}',
     iterations: [{ n: 1, result: 'recorded-before-signal' }],
   });
   console.log('ready');
@@ -2287,6 +2329,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(runningFiles.length, 1);
       const runningPayload = readBotLogFile(logDir, 'interrupt-bot', runningFiles[0]);
       assert.strictEqual(runningPayload.status, 'running');
+      assert.strictEqual(runningPayload.tx, BOT_LOG_TX_A);
       assert.deepStrictEqual(runningPayload.iterations, [{ n: 1, result: 'recorded-before-signal' }]);
       assert.match(runningPayload.updated_at_utc, /^\d{4}-\d{2}-\d{2}T/);
 
@@ -2313,6 +2356,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(payload.bot_name, 'interrupt-bot');
       assert.strictEqual(payload.status, 'interrupted');
       assert.strictEqual(payload.signal, 'SIGINT');
+      assert.strictEqual(payload.tx, BOT_LOG_TX_A);
       assert.deepStrictEqual(payload.iterations, [{ n: 1, result: 'recorded-before-signal' }]);
     });
 

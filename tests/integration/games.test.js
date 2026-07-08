@@ -23,6 +23,7 @@ const PASS_ENV_VAR = 'APECHURCH_CLI_PASS';
 
 // Minimum bet for tests
 const TEST_BET = '1';
+const VIDEO_POKER_TEST_BET = '10';
 
 /**
  * Run CLI command and return output
@@ -150,7 +151,7 @@ describe('Live Game Tests', () => {
 
   describe('Video Poker (Stateful)', { skip: SKIP_REASON }, () => {
     it('plays auto game to completion', async () => {
-      const { stdout } = cli(`video-poker ${TEST_BET} --auto`, { timeout: 90000 });
+      const { stdout } = cli(`video-poker ${VIDEO_POKER_TEST_BET} --auto`, { timeout: 90000 });
       
       assert.ok(
         stdout.includes('Game complete') || 

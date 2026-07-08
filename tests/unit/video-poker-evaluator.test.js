@@ -55,10 +55,10 @@ describe('Video Poker Evaluator', () => {
   });
 
   it('adds the live jackpot bonus on top of royal payout at max bet', () => {
-    assert.strictEqual(isMaxBetAmount(100), true);
+    assert.strictEqual(isMaxBetAmount(400), true);
     assert.strictEqual(
-      getPayoutApe(HandStatus.ROYAL_FLUSH, { betAmountApe: 100, jackpotApe: 1234 }),
-      26234,
+      getPayoutApe(HandStatus.ROYAL_FLUSH, { betAmountApe: 400, jackpotApe: 1234 }),
+      101234,
     );
   });
 

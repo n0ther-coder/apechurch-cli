@@ -187,7 +187,7 @@ Unless a bot has more specific implementation instructions, and documents those 
 - `--recover-loss <ape>` and `--giveback-profit <ape>`: net wallet P&L controls for the complete bot run. `--recover-loss` arms after P&L reaches `-<ape>` or worse and stops at break-even/profit; `--giveback-profit` arms after P&L reaches `+<ape>` or better and stops at break-even/loss.
 - `--max-routines <count>`: limits routines of the main bot only. Do not forward this option to games, nested bots, or child games.
 - `--gp-ape <points>`: forwarded to each CLI play launched by the bot.
-- `--human [range]`: bots propagate this to every child CLI play and nested bot. Bots that manage child run loops may also apply it internally between child runs.
+- `--human [range]`: bots propagate this to every child CLI play and nested bot. Bare `--human` uses the weighted 3-9s profile; `weighted:3-9` is the explicit serialized form of that profile, while ranges such as `2-17` use a uniform random seconds window. Bots that manage child run loops may also apply it internally between child runs.
 - `--delay <seconds>`: fixed pacing between one bot routine and the next. It is added on top of `--human` at that routine boundary and is never forwarded to child CLI plays or nested bots.
 - `--preflight <seconds>`: delayed start before the bot begins its first routine. It is never forwarded to child CLI plays or nested bots.
 

@@ -8,7 +8,12 @@ import {
   AUTO_MODE_WINSTON_LADDER,
   normalizeAutoMode,
 } from '../../lib/stateful/auto.js';
-import { getLoopDelayMs, resolveLoopDelaySeconds } from '../../lib/stateful/timing.js';
+import {
+  getHumanTimingCliValue,
+  getLoopDelayMs,
+  normalizeHumanTiming,
+  resolveLoopDelaySeconds,
+} from '../../lib/stateful/timing.js';
 
 describe('Stateful Auto Mode', () => {
   it('treats bare --auto as simple mode', () => {
@@ -72,6 +77,20 @@ describe('Stateful Auto Mode', () => {
       assert.ok(delayMs >= 3000, `delay ${delayMs} should be at least 3s`);
       assert.ok(delayMs <= 9000, `delay ${delayMs} should be at most 9s`);
     }
+  });
+
+  it('supports the canonical explicit weighted human timing value', () => {
+    assert.deepStrictEqual(normalizeHumanTiming('weighted:3-9'), {
+      minSeconds: 3,
+      maxSeconds: 9,
+      weighted: true,
+      cliValue: 'weighted:3-9',
+    });
+    assert.strictEqual(getHumanTimingCliValue('weighted:3-9'), 'weighted:3-9');
+    assert.throws(
+      () => normalizeHumanTiming('weighted:2-9'),
+      /Weighted timing currently supports only weighted:3-9/,
+    );
   });
 
   it('adds human delay on top of an explicit fixed delay', () => {

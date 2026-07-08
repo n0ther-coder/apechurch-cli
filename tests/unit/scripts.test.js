@@ -36,6 +36,11 @@ describe('Command Script Helpers', () => {
     assert.strictEqual(parsed.everySeconds, 30);
     assert.strictEqual(parsed.ifBalanceOverWei, parseEther('500.5'));
     assert.strictEqual(parsed.ifBalanceUnderWei, parseEther('1500'));
+
+    const reparsed = parseWatchOptions(parsed);
+    assert.strictEqual(reparsed.everySeconds, 30);
+    assert.strictEqual(reparsed.ifBalanceOverWei, parseEther('500.5'));
+    assert.strictEqual(reparsed.ifBalanceUnderWei, parseEther('1500'));
   });
 
   it('rejects invalid watch options', () => {
@@ -87,55 +92,224 @@ describe('Command Script Helpers', () => {
     const payload = buildScriptPayloadFromArgs([
       'bot',
       'bob',
+      '--resilient',
+      'game=bj --auto max --solver-timeout-ms 180000',
+      'bankroll',
+      '500',
+      'bet',
+      'fractional=0.055',
       '--spillover',
       "bot=zen --stop 500 game1='keno --picks 5' --bet1 2 --again1 1x game2='bear --survive 2' --gate2 1.87x game3=blocks --gate3 1.2x game4=monkey",
+      '--color',
     ]);
 
     assert.deepStrictEqual(payload, {
       command: [
-        'bot',
-        'bob',
-        '--spillover',
         {
-          arg: 'bot',
-          value: [
-            'zen --stop 500',
-            "game1='keno --picks 5' --bet1 2 --again1 1x",
-            "game2='bear --survive 2' --gate2 1.87x",
-            'game3=blocks --gate3 1.2x',
-            'game4=monkey',
-          ],
+          bot: 'bob',
+          game: {
+            arg: 'game',
+            value: [
+              'bj --auto max --solver-timeout-ms 180000',
+            ],
+          },
+          bankroll: '500',
+          bet: 'fractional=0.055',
+          '--spillover': {
+            arg: 'bot',
+            value: [
+              'zen --stop 500',
+              "game1='keno --picks 5' --bet1 2 --again1 1x",
+              "game2='bear --survive 2' --gate2 1.87x",
+              'game3=blocks --gate3 1.2x',
+              'game4=monkey',
+            ],
+          },
         },
+        '--resilient',
+        '--color',
       ],
     });
+  });
+
+  it('freezes optional-value defaults when writing and reading scripts', () => {
+    const payload = buildScriptPayloadFromArgs([
+      'blackjack',
+      '10',
+      '--auto',
+      '--solver',
+      '--human',
+      '--color',
+    ]);
+
+    assert.deepStrictEqual(payload, {
+      command: [
+        {
+          blackjack: '10',
+          '--auto': 'simple',
+          '--solver': 'best',
+          '--human': 'weighted:3-9',
+        },
+        '--color',
+      ],
+    });
+
+    assert.deepStrictEqual(normalizeScriptCommand(payload), [
+      'blackjack',
+      '10',
+      '--auto',
+      'simple',
+      '--solver',
+      'best',
+      '--human',
+      'weighted:3-9',
+      '--color',
+    ]);
+
+    assert.deepStrictEqual(
+      normalizeScriptCommand({
+        command: [
+          {
+            'hi-lo-nebula': '10',
+            '--auto': true,
+            '--solver': true,
+            '--human': true,
+          },
+        ],
+      }),
+      [
+        'hi-lo-nebula',
+        '10',
+        '--auto',
+        'simple',
+        '--solver',
+        'best',
+        '--human',
+        'weighted:3-9',
+      ],
+    );
+  });
+
+  it('keeps boolean solver flags boolean for commands without solver modes', () => {
+    assert.deepStrictEqual(
+      buildScriptPayloadFromArgs([
+        'cash-dash',
+        '10',
+        '--solver',
+        '--auto',
+      ]),
+      {
+        command: [
+          {
+            'cash-dash': '10',
+            '--auto': 'simple',
+          },
+          '--solver',
+        ],
+      },
+    );
+
+    assert.deepStrictEqual(
+      normalizeScriptCommand({
+        command: [
+          {
+            'video-poker': '10',
+            '--solver': true,
+          },
+        ],
+      }),
+      [
+        'video-poker',
+        '10',
+        '--solver',
+      ],
+    );
+  });
+
+  it('freezes known defaults inside structured game argument values', () => {
+    const payload = buildScriptPayloadFromArgs([
+      'bot',
+      'bob',
+      '--human',
+      'game=bj --auto --solver --human',
+    ]);
+
+    assert.deepStrictEqual(payload, {
+      command: [
+        {
+          bot: 'bob',
+          game: {
+            arg: 'game',
+            value: [
+              'bj --auto simple --solver best --human weighted:3-9',
+            ],
+          },
+        },
+        '--human',
+      ],
+    });
+
+    assert.deepStrictEqual(normalizeScriptCommand(payload), [
+      'bot',
+      'bob',
+      'game=bj --auto simple --solver best --human weighted:3-9',
+      '--human',
+    ]);
   });
 
   it('normalizes JSON command objects and renders copy-pasteable shell text', () => {
     const command = normalizeScriptCommand({
       command: [
-        'bot',
-        'bob',
-        '--spillover',
         {
-          arg: 'bot',
-          value: [
-            'zen --stop 500',
-            "game1='keno --picks 5'",
-          ],
+          bot: 'bob',
+          '--resilient': true,
+          game: {
+            arg: 'game',
+            value: [
+              'bj --auto max',
+            ],
+          },
+          '--spillover': {
+            arg: 'bot',
+            value: [
+              'zen --stop 500',
+              "game1='keno --picks 5'",
+            ],
+          },
         },
+        '--resilient',
+        '--color',
       ],
     });
 
     assert.deepStrictEqual(command, [
       'bot',
       'bob',
+      '--resilient',
+      'game=bj --auto max',
       '--spillover',
       "bot=zen --stop 500 game1='keno --picks 5'",
+      '--color',
     ]);
 
     assert.strictEqual(
       renderScriptCommand(command),
-      'apechurch-cli bot bob --spillover "bot=zen --stop 500 game1=\'keno --picks 5\'"',
+      'apechurch-cli bot bob --resilient \'game=bj --auto max\' --spillover "bot=zen --stop 500 game1=\'keno --picks 5\'" --color',
+    );
+  });
+
+  it('rejects malformed structured command JSON clearly', () => {
+    assert.throws(
+      () => normalizeScriptCommand({ command: [{ 'bad key': 'value' }] }),
+      /must not contain whitespace/,
+    );
+    assert.throws(
+      () => normalizeScriptCommand({ command: [{ game: { arg: 'other', value: ['x'] } }] }),
+      /must match object arg/,
+    );
+    assert.throws(
+      () => normalizeScriptCommand({ command: [{ '--spillover': { arg: 'bot' } }] }),
+      /must be a string, number, boolean/,
     );
   });
 

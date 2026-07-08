@@ -53,7 +53,7 @@ with:
 
 - Starting a hand adds `vrfFeeInitial()` on top of the chosen fixed bet denomination.
 - Redraw adds `vrfFeeRedraw()` only if at least one card is replaced; standing pat on the redraw step costs `0`.
-- Jackpot eligibility at `100 APE` changes the payout surface, not the fee surface.
+- Jackpot eligibility at `400 APE` changes the payout surface, not the fee surface.
 
 ## Verified Read Surface
 
@@ -101,14 +101,14 @@ The verified on-chain bet denominations from `getBetAmounts()` are:
 - `10`
 - `25`
 - `50`
-- `100 APE`
+- `400 APE`
 
 Important consequences:
 
 - loop mode rounds strategy output to the nearest affordable valid denomination
-- `100 APE` is the maximum fixed bet
-- only the `100 APE` denomination is jackpot-eligible
-- a Royal Flush always pays the visible `250x` base paytable, and at `100 APE` it also wins the full current `jackpotTotal` pool
+- `400 APE` is the maximum fixed bet
+- only the `400 APE` denomination is jackpot-eligible
+- a Royal Flush always pays the visible `250x` base paytable, and at `400 APE` it also wins the full current `jackpotTotal` pool
 
 ## Verified Final-Hand Paytable
 
@@ -124,14 +124,14 @@ Important consequences:
 | Two Pair | `2x` | `12.9279%` |
 | Jacks or Better | `1x` | `21.4585%` |
 
-The repo's `--auto best` path is an exact EV solver over all `32` hold patterns and every redraw completion from the remaining `47` cards. Jackpot uplift is only included for the `100 APE` bet.
+The repo's `--auto best` path is an exact EV solver over all `32` hold patterns and every redraw completion from the remaining `47` cards. Jackpot uplift is only included for the `400 APE` bet.
 
 ## Exact RTP
 
 | Mode | Exact RTP | Basis |
 |------|-----------|-------|
-| Base paytable at any fixed bet (`1/5/10/25/50/100 APE`) | `98.1649%` | Exact weighted sum over the verified on-chain paytable and final-hand odds |
-| `100 APE` bet with known jackpot pool | `98.1649% + jackpot_ape / 40,000` | Exact base RTP plus the max-bet Royal Flush jackpot uplift from `jackpotTotal` |
+| Base paytable at any fixed bet (`10/25/50/100/250/400 APE`) | `98.1649%` | Exact weighted sum over the verified on-chain paytable and final-hand odds |
+| `400 APE` bet with known jackpot pool | `98.1649% + jackpot_ape / 160,000` | Exact base RTP plus the max-bet Royal Flush jackpot uplift from `jackpotTotal` |
 
 ## Transparency Snapshot
 

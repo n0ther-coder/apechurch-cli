@@ -575,24 +575,34 @@ The saved `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script.json` is JSON:
 ```json
 {
   "command": [
-    "bot",
-    "bob",
-    "--spillover",
     {
-      "arg": "bot",
-      "value": [
-        "zen --stop 500",
-        "game1='keno --picks 5' --bet1 2 --again1 1x",
-        "game2='bear --survive 2' --gate2 1.87x",
-        "game3=blocks --gate3 1.2x",
-        "game4=monkey"
-      ]
-    }
+      "bot": "bob",
+      "game": {
+        "arg": "game",
+        "value": [
+          "bj --auto max --solver-timeout-ms 180000"
+        ]
+      },
+      "bankroll": "500",
+      "bet": "fractional=0.055",
+      "--spillover": {
+        "arg": "bot",
+        "value": [
+          "zen --stop 500",
+          "game1='keno --picks 5' --bet1 2 --again1 1x",
+          "game2='bear --survive 2' --gate2 1.87x",
+          "game3=blocks --gate3 1.2x",
+          "game4=monkey"
+        ]
+      }
+    },
+    "--resilient",
+    "--color"
   ]
 }
 ```
 
-`script` requires exactly one action: `write`, `read`, or `watch`; there is no implicit default action. `script write` and `script read` never execute commands. For `script watch`, `--every` is an integer number of seconds and defaults to `60`. `--if-balance-over <APE>` requires the selected wallet balance to be strictly greater than the amount, while `--if-balance-under <APE>` requires it to be strictly lower. `script watch` does not launch another copy while the previous `custom_script` process group recorded in local state is still alive.
+`script` requires exactly one action: `write`, `read`, or `watch`; there is no implicit default action. `script write` and `script read` never execute commands. JSON command objects store `option: value` pairs; standalone strings store flags without parameters. Values shaped as `{ "arg": "name", "value": [...] }` render as editable `name=value` payloads. Known bare optional-value defaults are normalized to explicit values where supported, such as `--auto simple`, `--solver best` for Blackjack/Hi-Lo Nebula, and `--human weighted:3-9` for the current weighted bare-human timing profile. For `script watch`, `--every` is an integer number of seconds and defaults to `60`. `--if-balance-over <APE>` requires the selected wallet balance to be strictly greater than the amount, while `--if-balance-under <APE>` requires it to be strictly lower. `script watch` does not launch another copy while the previous `custom_script` process group recorded in local state is still alive, and successful launches print a cyan local timestamp before `Started`.
 
 Use `apechurch-cli games` or `apechurch-cli game <name>` to see the current alias set in the terminal.
 

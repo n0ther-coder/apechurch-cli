@@ -87,6 +87,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 <count> ::= <integer>                             ; value > 0
 <seconds> ::= <number>                            ; value > 0 in loop/card pacing options
 <human-range> ::= <integer> "-" <integer>          ; inclusive seconds range, e.g. 2-17; each endpoint > 0
+<human-weighted-default> ::= "weighted:3-9"        ; explicit bare --human weighted profile
 <username> ::= <token>                            ; normalized username; letters, numbers, underscores; max 32 chars
 <persona> ::= "conservative" | "balanced" | "aggressive" | "degen"
 <card-display> ::= "full" | "simple" | "json"
@@ -170,7 +171,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
                   | "cash-dash" | "cashdash" | "dash"
                   | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula"
                   | "video-poker" | "vp"
-<video-poker-bet> ::= "1" | "5" | "10" | "25" | "50" | "100"
+<video-poker-bet> ::= "10" | "25" | "50" | "100" | "250" | "400"
 <auto-mode> ::= "simple" | "best"
 <blackjack-auto-mode> ::= "simple" | "best" | "max"
 <hi-lo-auto-mode> ::= "simple" | "best" | "winston-ladder"
@@ -304,32 +305,47 @@ Remote R2 object keys mirror the local bot log path relative to `APECHURCH_CLI_L
                         | "--if-balance-under" <ape-nonnegative>
 <nome_script> ::= <file-stem> [ ".json" ]      ; no path separators; suffix is appended when omitted
 <command-token> ::= <token>                    ; stored in JSON by write
+<json-command> ::= '{' '"command"' ':' '[' ( <command-map> | <flag-token> )+ ']' '}'
+<command-map> ::= '{' <token-key> ':' <command-value> ( ',' <token-key> ':' <command-value> )* '}'
+<command-value> ::= <token> | true | false | <structured-arg>
+<structured-arg> ::= '{' '"arg"' ':' <token-key> ',' '"value"' ':' '[' <token>+ ']' '}'
+<script-default> ::= "--auto" "simple" | "--solver" "best" | "--human" <human-weighted-default> ; only where supported
 <seconds> ::= <positive-integer>               ; default 60
 <ape-nonnegative> ::= <number>                 ; decimal APE amount; value >= 0
 ```
 
 `script` requires exactly one action: `write`, `watch`, or `read`; there is no implicit default action. Scripts are JSON command files under `APECHURCH_CLI_SCR_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/scripts`. The `.json` suffix is appended to `<nome_script>` when omitted, so `custom_script` and `custom_script.json` address the same file.
 
-`script write <nome_script> <command-token>+` converts the remaining command tokens into JSON and writes `$APECHURCH_CLI_SCR_DIR/<nome_script>.json` when the suffix is omitted. Tokens shaped like `name=value` with whitespace in the value are stored as multiline `{ "arg": "name", "value": [...] }` entries so nested command payloads remain editable.
+`script write <nome_script> <command-token>+` converts the remaining command tokens into JSON and writes `$APECHURCH_CLI_SCR_DIR/<nome_script>.json` when the suffix is omitted. JSON command objects store `option: value` pairs; standalone strings store flags without parameters. Values shaped as `{ "arg": "name", "value": [...] }` render as editable `name=value` payloads. Known bare optional-value defaults are normalized to explicit values where supported: `--auto simple`, `--solver best` for Blackjack/Hi-Lo Nebula, and `--human weighted:3-9` for the current weighted bare-human timing profile. The `weighted:3-9` value preserves bare `--human`; plain `3-9` remains the uniform range form.
 
 Example `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script.json`:
 
 ```json
 {
   "command": [
-    "bot",
-    "bob",
-    "--spillover",
     {
-      "arg": "bot",
-      "value": [
-        "zen --stop 500",
-        "game1='keno --picks 5' --bet1 2 --again1 1x",
-        "game2='bear --survive 2' --gate2 1.87x",
-        "game3=blocks --gate3 1.2x",
-        "game4=monkey"
-      ]
-    }
+      "bot": "bob",
+      "game": {
+        "arg": "game",
+        "value": [
+          "bj --auto max --solver-timeout-ms 180000"
+        ]
+      },
+      "bankroll": "500",
+      "bet": "fractional=0.055",
+      "--spillover": {
+        "arg": "bot",
+        "value": [
+          "zen --stop 500",
+          "game1='keno --picks 5' --bet1 2 --again1 1x",
+          "game2='bear --survive 2' --gate2 1.87x",
+          "game3=blocks --gate3 1.2x",
+          "game4=monkey"
+        ]
+      }
+    },
+    "--resilient",
+    "--color"
   ]
 }
 ```
@@ -338,7 +354,7 @@ Example `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script.json`:
 
 `script watch <nome_script>` reads the JSON file and executes it through `apechurch-cli`. `--every <seconds>` controls the poll/retry cadence and defaults to `60`. `--if-balance-over <APE>` gates launches on the selected wallet balance being strictly greater than the amount. `--if-balance-under <APE>` gates launches on the balance being strictly lower than the amount. When both balance conditions are supplied, both must be true.
 
-The watcher records local state per script and does not launch another copy while the previous `custom_script` process group recorded for that script is still alive. This means a plain `apechurch-cli script watch custom_script` relaunches only after the previous script run terminates.
+The watcher records local state per script and does not launch another copy while the previous `custom_script` process group recorded for that script is still alive. This means a plain `apechurch-cli script watch custom_script` relaunches only after the previous script run terminates. Successful launches print a cyan local timestamp before `Started`, formatted like `2026-JUL-08 14:05:09+0200`.
 
 ```bash
 apechurch-cli script write custom_script bot bob --spillover "bot=zen --stop 500 game1='keno --picks 5'"
@@ -579,7 +595,7 @@ These options are accepted by the `play` command for both stateless and stateful
 | `--strategy <name>` | Persona used when the CLI chooses a game/config |
 | `--loop` | Keep playing until a stop condition is hit |
 | `--delay <seconds>` | Delay between looped games |
-| `--human [range]` | Add humanized loop pacing. Bare `--human` uses weighted 3-9s; a range such as `2-17` overrides the random seconds window |
+| `--human [range]` | Add humanized loop pacing. Bare `--human` uses weighted 3-9s; `weighted:3-9` is the explicit form of that profile, while a range such as `2-17` uses a uniform random seconds window |
 | `--max-games <count>` | Stop loop after N games |
 | `--take-profit <ape>` | Stop loop when balance reaches the target |
 | `--min-profit <ape>` | Stop loop when session P&L reaches the target profit |
@@ -625,7 +641,7 @@ These options are accepted by the `play` command for both stateless and stateful
 
 The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. Local bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape>`, `--fallback-bot <name>`, and standard loop controls. `--take-profit` and `--stop-loss` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive absolute thresholds from the bot's starting balance, while a lone `--stop-loss` derives the bot's relative bankroll as `starting balance - stop-loss`. `--max-routines` limits the main bot's own routines and is not forwarded; `--preflight` delays the main bot before balance reads and is not forwarded; `--max-games` remains a game loop option and is invalid when passed to a bot. Bot code is trusted local code, so only run bots from directories you control. See [BOTS.md](./BOTS.md) for the public bot development guide.
 
-The runtime surface is intentionally narrow: bots receive positional args plus gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `validatePlayArgs(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, `validateBotArgs(name, tokens)`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and bot-specific `bot.logDir`. Bot summary logs are written under `paths.logDir/<bot-name>/` with a `.json` extension; if a bot throws or receives `SIGINT`/`SIGTERM`, the CLI writes a minimal best-effort JSON log with `status: "error"` or `status: "interrupted"` before returning control.
+The runtime surface is intentionally narrow: bots receive positional args plus gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `validatePlayArgs(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, `validateBotArgs(name, tokens)`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and bot-specific `bot.logDir`. Bot summary logs are written under `paths.logDir/<bot-name>/` with a `.json` extension only when the summary contains at least one full transaction hash. Runs that fail, exit, or are interrupted before any transaction still return/print their summary but do not create empty local or mirrored log files.
 
 ## History, Catalog, And Help
 

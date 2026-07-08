@@ -526,7 +526,7 @@ const COMMON_BNF_LINES = Object.freeze([
 const LOOP_HELP_OPTION_LINES = Object.freeze([
   '--loop                  Keep playing until a stop condition is reached',
   '--delay <seconds>       Fixed delay between looped games',
-  '--human [range]         Add humanized random delay; bare flag uses weighted 3-9s',
+  '--human [range]         Add humanized random delay; bare flag uses weighted:3-9',
   '--max-games <count>     Stop after N completed loop games',
   '--take-profit <ape>     Stop when wallet balance reaches this absolute target',
   '--min-profit <ape>      Stop when session P&L reaches this profit',
@@ -1002,6 +1002,10 @@ function formatScriptHelpAppendix() {
       '<script-watch-option> ::= "--every" <seconds> | "--if-balance-over" <ape-nonnegative> | "--if-balance-under" <ape-nonnegative>',
       '<nome_script> ::= <file-stem> [ ".json" ]      ; no path separators; suffix is appended when omitted',
       '<command-token> ::= <token>                    ; passed after script name and stored in JSON',
+      '<json-command> ::= \'{ "command": [ <command-map> | <flag-token> ]+ }\'',
+      '<command-map> ::= \'{ <token-key>: <command-value>, ... }\'',
+      '<command-value> ::= <token> | true | false | \'{ "arg": <token-key>, "value": [ <token>+ ] }\'',
+      '<script-default> ::= "--auto" "simple" | "--solver" "best" | "--human" "weighted:3-9"   ; only where supported',
       '<seconds> ::= <positive-integer>               ; default 60',
       '<ape-nonnegative> ::= <non-negative-decimal>',
     ],
@@ -1018,8 +1022,11 @@ function formatScriptHelpAppendix() {
       'The .json suffix is appended to <nome_script> unless it is already present.',
       'script requires exactly one action: write, watch, or read.',
       'script write and script read never execute a command; they only translate between argv and the JSON script format.',
-      'JSON command entries can be strings or objects shaped as { "arg": "name", "value": ["line one", "line two"] }.',
+      'JSON command objects store option/value pairs; standalone strings store flags without parameters.',
+      'Values shaped as { "arg": "name", "value": ["line one", "line two"] } render as editable name=value payloads.',
+      'script write/read/watch normalize known bare optional defaults into explicit values where supported: --auto simple, --solver best, and --human weighted:3-9.',
       'watch does not launch another copy while the previous script process group recorded for that script is still alive.',
+      'watch prints a cyan local timestamp before Started when a script process is launched.',
     ],
   });
 }
@@ -1723,7 +1730,7 @@ function formatStatefulCommandHelpAppendix(gameKey) {
     },
     'video-poker': {
       actions: [
-        '<amount>               Start a new Video Poker hand; valid bets are 1, 5, 10, 25, 50, 100 APE',
+        '<amount>               Start a new Video Poker hand; valid bets are 10, 25, 50, 100, 250, 400 APE',
         'resume                 Resume unfinished Video Poker hands',
         'status                 Show current game state',
         'payouts/table          Show payout table',
@@ -1742,7 +1749,7 @@ function formatStatefulCommandHelpAppendix(gameKey) {
       bnf: [
         '<video-poker-command> ::= ( "video-poker" | "vp" ) [ <video-poker-head> ] [ <video-poker-bet> ] <video-poker-option>*',
         '<video-poker-head> ::= <video-poker-bet> | "resume" | "status" | "payouts" | "table" | "clear"',
-        '<video-poker-bet> ::= "1" | "5" | "10" | "25" | "50" | "100"',
+        '<video-poker-bet> ::= "10" | "25" | "50" | "100" | "250" | "400"',
         '<video-poker-option> ::= <stateful-common-option> | "--auto" [ <auto-mode> ] | "--solver" | <stateful-loop-option>',
         '<auto-mode> ::= "simple" | "best"',
         ...STATEFUL_SHARED_BNF_LINES,
@@ -1756,7 +1763,7 @@ function formatStatefulCommandHelpAppendix(gameKey) {
         `${BINARY_NAME} video-poker resume --game 123`,
         `${BINARY_NAME} video-poker 25 --auto best --loop --giveback-profit 40`,
       ],
-      notes: ['Max bet 100 APE is jackpot eligible on Royal Flush. best mode enumerates hold combinations and redraw outcomes.'],
+      notes: ['Max bet 400 APE is jackpot eligible on Royal Flush. best mode enumerates hold combinations and redraw outcomes.'],
     },
   }[gameKey];
 
@@ -2803,7 +2810,7 @@ async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
         const betAmount = action || amount;
         if (!betAmount && !allowsMissingStatefulStartAmount(opts)) {
           console.error('\n❌ Bet amount required');
-          console.error('   Valid bets: 1, 5, 10, 25, 50, 100 APE');
+          console.error('   Valid bets: 10, 25, 50, 100, 250, 400 APE');
           console.error(`   Usage: ${BINARY_NAME} video-poker <amount>\n`);
           console.error(`   Example: ${BINARY_NAME} video-poker 10\n`);
           return;
@@ -2832,7 +2839,7 @@ async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
         default:
           console.error(`\n❌ Unknown action: ${action}`);
           console.error('   Valid actions: resume, status, payouts, clear');
-          console.error('   Or provide a bet amount: 1, 5, 10, 25, 50, 100\n');
+          console.error('   Or provide a bet amount: 10, 25, 50, 100, 250, 400\n');
       }
       return;
     }
@@ -2983,8 +2990,8 @@ function validateStatefulAmount(amount, gameKey) {
   }
   if (gameKey === 'video-poker') {
     const value = Number(amount);
-    if (![1, 5, 10, 25, 50, 100].includes(value)) {
-      throw new Error('Invalid video-poker bet amount. Valid bets: 1, 5, 10, 25, 50, 100 APE.');
+    if (![10, 25, 50, 100, 250, 400].includes(value)) {
+      throw new Error('Invalid video-poker bet amount. Valid bets: 10, 25, 50, 100, 250, 400 APE.');
     }
   }
 }
@@ -4942,7 +4949,7 @@ const scriptCommand = program
     const rawTokens = process.argv.slice(2);
     const scriptIndex = rawTokens.indexOf('script');
     const tokens = scriptIndex >= 0 ? rawTokens.slice(scriptIndex + 1) : [];
-    const [action, nomeScript, ...args] = tokens;
+    const [action, nomeScript, ...args] = tokens.map((token) => String(token));
 
     if (action === '--help' || action === '-h') {
       scriptCommand.outputHelp();
@@ -5344,7 +5351,7 @@ program
   .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
+  .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
   .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
@@ -7798,7 +7805,7 @@ ${'═'.repeat(60)}
 
   Jacks or Better video poker. Get dealt 5 cards, choose which
   to discard, and draw replacements. Pair of Jacks+ wins.
-  Max bet (100 APE) qualifies for progressive jackpot on Royal Flush.
+  Max bet (400 APE) qualifies for progressive jackpot on Royal Flush.
 
   Type:     ${videoPoker.type}
   Key:      ${videoPoker.key}
@@ -7810,7 +7817,7 @@ ${'─'.repeat(60)}
   COMMANDS
 ${'─'.repeat(60)}
 
-  ${BINARY_NAME} video-poker <amount>    Start new game (1/5/10/25/50/100 APE)
+  ${BINARY_NAME} video-poker <amount>    Start new game (10/25/50/100/250/400 APE)
   ${BINARY_NAME} video-poker resume      Resume unfinished games in queue
   ${BINARY_NAME} video-poker status      Check current game state
   ${BINARY_NAME} video-poker payouts     Show payout table
@@ -7836,7 +7843,7 @@ ${'─'.repeat(60)}
   GRAMMAR (BNF)
 ${'─'.repeat(60)}
 
-  <amount> ::= "1" | "5" | "10" | "25" | "50" | "100"
+  <amount> ::= "10" | "25" | "50" | "100" | "250" | "400"
   <auto-mode> ::= "simple" | "best"
 
 ${'─'.repeat(60)}
@@ -7858,7 +7865,7 @@ ${'─'.repeat(60)}
 ${'─'.repeat(60)}
 
   ${BINARY_NAME} video-poker 10              Play one hand, 10 APE
-  ${BINARY_NAME} video-poker 100             Max bet (jackpot eligible)
+  ${BINARY_NAME} video-poker 400             Max bet (jackpot eligible)
   ${BINARY_NAME} video-poker 25 --auto          Bot plays one hand (simple)
   ${BINARY_NAME} video-poker 25 --auto best     Exact EV solver
   ${BINARY_NAME} video-poker 25 --auto --loop
@@ -8234,7 +8241,7 @@ ${'─'.repeat(70)}
                        current rate is set in profile
 
   Hidden timing flag:
-    --human [range]    Add humanized random pacing (default 3-9s; e.g. 2-17)
+    --human [range]    Add humanized random pacing (bare/default weighted:3-9; e.g. 2-17)
                        If --delay is also set, it is added on top
 
   These can be combined:
@@ -8811,8 +8818,9 @@ ${'═'.repeat(70)}
   R2 BOT LOG MIRROR
 ${'═'.repeat(70)}
 
-  Bot summary logs are always written locally first under ${LOG_DIR}.
-  R2 mirroring is optional and best-effort. If R2 is not configured, if
+  Bot summary logs are written locally under ${LOG_DIR} only when the summary
+  contains at least one full transaction hash. R2 mirroring is optional and
+  best-effort for those non-empty logs. If R2 is not configured, if
   ${PASS_ENV_VAR} is not set during a bot run, or if upload fails, the local
   JSON log remains authoritative and the bot continues.
 
@@ -9755,7 +9763,7 @@ program
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
-  .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
+  .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
@@ -9796,7 +9804,7 @@ program
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
-  .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
+  .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
@@ -9836,7 +9844,7 @@ program
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
-  .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
+  .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
@@ -9874,7 +9882,7 @@ program
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
-  .addOption(new Option('--human [range]', 'Add humanized random timing (default 3-9s, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
+  .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
   .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')

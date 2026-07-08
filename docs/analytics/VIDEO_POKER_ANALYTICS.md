@@ -6,7 +6,7 @@ This note captures the exact final-hand/paytable surface documented for the veri
 
 ## Verified Paytable Surface
 
-The base paytable is fixed across the supported `1`, `5`, `10`, `25`, `50`, and `100 APE` denominations. The `100 APE` denomination is additionally jackpot-eligible on Royal Flush.
+The base paytable is fixed across the supported `10`, `25`, `50`, `100`, `250`, and `400 APE` denominations. The `400 APE` denomination is additionally jackpot-eligible on Royal Flush.
 
 | Final Hand | Payout | Probability |
 |------------|-------:|------------:|
@@ -31,10 +31,10 @@ The base paytable is fixed across the supported `1`, `5`, `10`, `25`, `50`, and 
 | Loss (`0x`) | `54.5470%` |
 | Max base payout | `250x` |
 
-For the `100 APE` denomination, jackpot uplift is:
+For the `400 APE` denomination, jackpot uplift is:
 
 ```text
-RTP = 98.1649% + jackpot_ape / 40,000
+RTP = 98.1649% + jackpot_ape / 160,000
 Royal Flush payout multiplier = 250 + jackpot_ape / 100
 ```
 
@@ -46,7 +46,7 @@ Variance is computed over `X = payout / stake`, using the documented final-hand 
 |------|----:|---------:|----------:|
 | Base paytable, jackpot excluded | `98.1649%` | `5.255198` | `2.292422` |
 
-With jackpot uplift at the `100 APE` denomination, let `b = jackpot_ape / 100` be the extra Royal Flush multiplier and `p = 0.000025` be the documented Royal Flush probability:
+With jackpot uplift at the `400 APE` denomination, let `b = jackpot_ape / 400` be the extra Royal Flush multiplier and `p = 0.000025` be the documented Royal Flush probability:
 
 ```text
 E[X]_jackpot = 0.981649 + p * b

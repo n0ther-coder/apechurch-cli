@@ -667,7 +667,7 @@ apechurch-cli vp 10 --auto --loop --max-games 50 # Using alias
 
 ### Bet Amounts
 
-Video poker uses fixed denominations: **1, 5, 10, 25, 50, 100 APE**
+Video poker uses fixed denominations: **10, 25, 50, 100, 250, 400 APE**
 
 ### Hand Rankings
 
@@ -722,7 +722,7 @@ apechurch-cli video-poker payouts  # Show payout table
 |---------|-------------|
 | `apechurch-cli install` | Setup wallet and register |
 | `apechurch-cli status` | Check balance, address, settings |
-| `apechurch-cli script write|read|watch custom_script` | Manage JSON command scripts from `APECHURCH_CLI_SCR_DIR` with an implied `.json` suffix |
+| `apechurch-cli script write|read|watch custom_script` | Manage structured JSON command scripts from `APECHURCH_CLI_SCR_DIR` with an implied `.json` suffix and explicit known optional defaults |
 | `apechurch-cli play [game] [amount]` | Play a game |
 | `apechurch-cli blackjack|bj <amount>` | Play blackjack |
 | `apechurch-cli video-poker <amount>` | Play video poker |
@@ -1055,7 +1055,7 @@ apechurch-cli status --json | jq '.paused'
 | Game | Minimum |
 |------|---------|
 | Most games | 1 APE |
-| Video Poker | 1 APE (fixed denominations) |
+| Video Poker | 10 APE (fixed denominations) |
 
 ### Recommended Starting Balance
 

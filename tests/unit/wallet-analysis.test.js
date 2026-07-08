@@ -377,14 +377,14 @@ describe('Wallet History Analysis', () => {
             contract: VIDEO_POKER_CONTRACT,
             game: 'Video Poker ✔︎',
             game_key: 'video-poker',
-            variant_key: 'video-poker:bet:100:jackpot',
-            variant_label: 'Bet 100 + jackpot',
+            variant_key: 'video-poker:bet:400:jackpot',
+            variant_label: 'Bet 400 + jackpot',
             rtp_game: 'video-poker',
-            rtp_config: { betAmountApe: 100, jackpotApe: 25000 },
+            rtp_config: { betAmountApe: 400, jackpotApe: 25000 },
             gameId: '2',
             timestamp: 1_700_000_050_000,
             last_sync_on: '2026-03-29T12:00:00.000Z',
-            wager_wei: parseEther('100').toString(),
+            wager_wei: parseEther('400').toString(),
             payout_wei: parseEther('250').toString(),
             contract_fee_wei: '0',
             gas_fee_wei: '0',
@@ -402,14 +402,14 @@ describe('Wallet History Analysis', () => {
         rtp_config: entry.rtp_config,
       })), [
         {
-          game: 'Video Poker ✔︎ (Bet 1/5/10/25/50 APE)',
+          game: 'Video Poker ✔︎ (Bet 10/25/50/100/250 APE)',
           variant_key: 'video-poker:bet:base',
           rtp_config: { betAmountApe: 25 },
         },
         {
-          game: 'Video Poker ✔︎ (Bet 100 APE)',
-          variant_key: 'video-poker:bet:100',
-          rtp_config: { betAmountApe: 100, jackpotApe: 25000 },
+          game: 'Video Poker ✔︎ (Bet 400 APE)',
+          variant_key: 'video-poker:bet:400',
+          rtp_config: { betAmountApe: 400, jackpotApe: 25000 },
         },
       ]);
     });

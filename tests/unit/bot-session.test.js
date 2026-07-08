@@ -165,6 +165,13 @@ describe('Bot Session Helpers', () => {
       ['--human', '2-17'],
     );
 
+    const weighted = parseStandardBotArgs(['--human', 'weighted:3-9']);
+    assert.strictEqual(weighted.loopControls.human, 'weighted:3-9');
+    assert.deepStrictEqual(
+      getStandardBotCliForwardTokens(weighted.loopControls, {}),
+      ['--human', 'weighted:3-9'],
+    );
+
     const disabled = parseStandardBotArgs(['--human=false']);
     assert.strictEqual(disabled.loopControls.human, false);
     assert.deepStrictEqual(getStandardBotCliForwardTokens(disabled.loopControls, {}), []);

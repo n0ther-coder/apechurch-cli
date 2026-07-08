@@ -55,11 +55,11 @@ describe('Video Poker EV Solver', () => {
     const hold = [true, true, true, true, false];
 
     const withoutJackpot = calculateHoldExpectedValue(royalDraw, hold, {
-      betAmountApe: 100,
+      betAmountApe: 400,
       jackpotApe: 0,
     });
     const withJackpot = calculateHoldExpectedValue(royalDraw, hold, {
-      betAmountApe: 100,
+      betAmountApe: 400,
       jackpotApe: 5000,
     });
 

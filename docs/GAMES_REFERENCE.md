@@ -101,7 +101,7 @@ Ordering: alphabetical by game title.
 | Roulette ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static live RNG fee; house edge is in the payout multipliers | Total wager is split evenly across comma-separated bets |
 | Speed Keno ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with batched games | Total wager is split across `1-20` batched games |
 | Sushi Showdown ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
-| Video Poker ✔︎ / Gimboz Poker | Fixed denominations only | Fixed list: `1`, `5`, `10`, `25`, `50`, `100 APE` | Fixed max `100 APE` | Separate start / redraw VRF; stand-pat redraw is free | Loop mode rounds to the closest affordable valid denomination; jackpot eligibility requires `100 APE` |
+| Video Poker ✔︎ / Gimboz Poker | Fixed denominations only | Fixed list: `10`, `25`, `50`, `100`, `250`, `400 APE` | Fixed max `400 APE` | Separate start / redraw VRF; stand-pat redraw is free | Loop mode rounds to the closest affordable valid denomination; jackpot eligibility requires `400 APE` |
 
 ---
 
@@ -649,13 +649,13 @@ Stateful Jacks or Better with one redraw, interactive play, and an exact hold-EV
 **Command:** `apechurch-cli video-poker <amount> [--auto [simple|best]]`
 
 ```bnf
-<amount> ::= "1" | "5" | "10" | "25" | "50" | "100"
+<amount> ::= "10" | "25" | "50" | "100" | "250" | "400"
 <auto-mode> ::= "simple" | "best"
 ```
 
 **Compare:**
 - Exact base RTP: **`98.1649%`** at any fixed denomination.
-- Jackpot uplift: `98.1649% + jackpot_ape / 40,000` at `100 APE` only.
+- Jackpot uplift: `98.1649% + jackpot_ape / 160,000` at `400 APE` only.
 - Operational note: redraw fee is `0` when standing pat; jackpot eligibility exists only at the max fixed bet.
 
 ---
@@ -668,7 +668,7 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `cash-dash`, `hi-lo-neb
 ```bash
 --loop                    # Enable continuous play
 --delay <seconds>         # Fixed time between games
---human [range]           # Add human-like delay on top of --delay; default 3-9s, e.g. 2-17
+--human [range]           # Add human-like delay on top of --delay; bare/default weighted:3-9, e.g. 2-17
 --take-profit <ape>       # Stop at target balance
 --min-profit <ape>        # Stop at target session profit
 --target-x <x>            # Stop after any single-game payout multiplier at or above X
@@ -751,7 +751,7 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| `100 APE` bet with known jackpot pool | Yes | `98.16% + jackpot_ape / 40,000` | Exact parametric jackpot uplift from `jackpotTotal` | `89.53%` |
+| `400 APE` bet with known jackpot pool | Yes | `98.16% + jackpot_ape / 160,000` | Exact parametric jackpot uplift from `jackpotTotal` | `89.53%` |
 | Base paytable at any fixed bet | Yes | **`98.16%`** | Exact weighted sum over verified on-chain paytable and final-hand odds | `89.53%` |
 
 #### Primes ✔︎
