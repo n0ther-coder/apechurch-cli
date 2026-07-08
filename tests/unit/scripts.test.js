@@ -6,8 +6,10 @@ import assert from 'node:assert';
 import path from 'node:path';
 import { parseEther } from 'viem';
 
+import { stripAnsi } from '../../lib/ansi.js';
 import {
   buildScriptPayloadFromArgs,
+  formatWatchAttemptLine,
   getBalanceConditionResult,
   normalizeScriptCommand,
   parseWatchArgv,
@@ -63,6 +65,18 @@ describe('Command Script Helpers', () => {
     assert.throws(
       () => parseWatchArgv(['--unknown']),
       /Unknown script watch option/,
+    );
+  });
+
+  it('prefixes watch attempt lines with a local uppercase timestamp', () => {
+    const plain = stripAnsi(formatWatchAttemptLine(
+      'Conditions not met: balance is not over 500 APE',
+      new Date(2026, 6, 8, 14, 5, 9),
+    ));
+
+    assert.match(
+      plain,
+      /^2026-JUL-08 14:05:09[+-]\d{4} Conditions not met: balance is not over 500 APE$/,
     );
   });
 

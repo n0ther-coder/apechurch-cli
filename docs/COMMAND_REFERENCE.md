@@ -354,7 +354,7 @@ Example `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script.json`:
 
 `script watch <nome_script>` reads the JSON file and executes it through `apechurch-cli`. `--every <seconds>` controls the poll/retry cadence and defaults to `60`. `--if-balance-over <APE>` gates launches on the selected wallet balance being strictly greater than the amount. `--if-balance-under <APE>` gates launches on the balance being strictly lower than the amount. When both balance conditions are supplied, both must be true.
 
-The watcher records local state per script and does not launch another copy while the previous `custom_script` process group recorded for that script is still alive. This means a plain `apechurch-cli script watch custom_script` relaunches only after the previous script run terminates. Successful launches print a cyan local timestamp before `Started`, formatted like `2026-JUL-08 14:05:09+0200`.
+The watcher records local state per script and does not launch another copy while the previous `custom_script` process group recorded for that script is still alive. This means a plain `apechurch-cli script watch custom_script` relaunches only after the previous script run terminates. Each watch attempt/status line, including condition failures and launches, starts with a cyan local timestamp formatted like `2026-JUL-08 14:05:09+0200`.
 
 ```bash
 apechurch-cli script write custom_script bot bob --spillover "bot=zen --stop 500 game1='keno --picks 5'"

@@ -611,6 +611,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--if-balance-under <APE>'), 'Should document the under-balance gate');
       assert.ok(stdout.includes('APECHURCH_CLI_SCR_DIR'), 'Should document the script directory env var');
       assert.ok(stdout.includes('script watch custom_script'), 'Should use custom_script in examples');
+      assert.ok(stdout.includes('attempt/status line'), 'Should document timestamped watch attempt lines');
     });
 
     it('writes JSON scripts and reads them back as shell text without execution', () => {

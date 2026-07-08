@@ -1026,7 +1026,7 @@ function formatScriptHelpAppendix() {
       'Values shaped as { "arg": "name", "value": ["line one", "line two"] } render as editable name=value payloads.',
       'script write/read/watch normalize known bare optional defaults into explicit values where supported: --auto simple, --solver best, and --human weighted:3-9.',
       'watch does not launch another copy while the previous script process group recorded for that script is still alive.',
-      'watch prints a cyan local timestamp before Started when a script process is launched.',
+      'watch prefixes each attempt/status line with a cyan local timestamp, including condition failures and launches.',
     ],
   });
 }
