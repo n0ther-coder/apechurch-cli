@@ -334,13 +334,21 @@ import {
   writeCommandScript,
 } from '../lib/scripts.js';
 import {
+  R2_PRESIGN_DEFAULT_TIMEOUT_SECONDS,
+  createR2PresignedGetUrl,
   disableSelectedR2Config,
+  getCachedR2PresignedUrl,
   getR2PublicMetadata,
   listStoredR2Configs,
   loadStoredR2ConfigCredentials,
   normalizeR2BucketName,
+  normalizeR2PresignTimeout,
+  resolveLatestR2JsonObjectKey,
+  resolveR2PresignOutputPath,
+  saveCachedR2PresignedUrl,
   saveEncryptedR2Config,
   enableStoredR2Config,
+  syncR2Logs,
 } from '../lib/r2.js';
 
 // --- CLI Setup ---
@@ -929,19 +937,29 @@ function formatBucketHelpAppendix() {
       'list                   List stored bucket entries without revealing credentials',
       'enable <bucket>        Enable a stored bucket entry for bot log mirroring',
       'disable                Disable remote mirroring while preserving encrypted entries',
+      'sync [bot]             Two-way sync local bot logs with R2; all logs when bot is omitted',
+      'presign [path/file]    Print a cached or new presigned URL for a mirrored JSON log',
     ],
     parameters: [
       '[action]               R2 action; omitted action defaults to status',
-      '[bucket]               Cloudflare R2 bucket name for install/reinstall/enable',
+      '[value]                Bucket for install/reinstall/enable; bot for sync; path or path/file for presign',
     ],
     options: [
       '--json                 Emit JSON output where supported',
       '-v, --verbose          Decrypt and show R2 endpoints plus bucket fallback environment values for status/list',
+      '-t, --timeout <sec>    Presigned URL timeout in seconds; default and max 604800',
+      '-o, --output <file>    Fetch the presigned JSON body to a file or directory; directories use the remote name',
+      '-f, --force            Overwrite presign output files without prompting',
     ],
     bnf: [
-      '<bucket-command> ::= "bucket" [ <bucket-action> [ <bucket> ] ] [ "--json" ] [ "-v" | "--verbose" ]',
-      '<bucket-action> ::= "install" | "reinstall" | "status" | "list" | "enable" | "disable"',
+      '<bucket-command> ::= "bucket" [ <bucket-action> [ <value> ] ] <bucket-option>*',
+      '<bucket-action> ::= "install" | "reinstall" | "status" | "list" | "enable" | "disable" | "sync" | "presign"',
       '<bucket> ::= <bucket-name>                     ; 3-63 lowercase letters, numbers, dots, or hyphens',
+      '<bot> ::= <bot-folder-name>                    ; no slashes or path traversal',
+      '<path> ::= <bucket-object-key-prefix>          ; latest timestamped .json under this path',
+      '<path/file> ::= <object-key-ending-in-.json>   ; exact object key, no listing',
+      '<timeout> ::= <integer>                        ; 1..604800 seconds, default 604800',
+      '<bucket-option> ::= "--json" | "-v" | "--verbose" | "-t" <timeout> | "--timeout" <timeout> | "-o" <file> | "--output" <file> | "-f" | "--force"',
     ],
     examples: [
       `${BINARY_NAME} bucket install apechurch-cli-log`,
@@ -950,11 +968,17 @@ function formatBucketHelpAppendix() {
       `${BINARY_NAME} bucket list --json`,
       `${BINARY_NAME} bucket enable apechurch-cli-log`,
       `${BINARY_NAME} bucket disable`,
+      `${BINARY_NAME} bucket sync bob`,
+      `${BINARY_NAME} bucket presign`,
+      `${BINARY_NAME} bucket presign bob -o latest-bob --force`,
+      `${BINARY_NAME} bucket presign bob/bob.20260706120000.json -t 3600`,
     ],
     notes: [
       `Encrypted R2 entries live under ${R2_DIR}/<bucket>.json with a separate current selector; install/reinstall automatically enables the installed bucket.`,
       `enable writes the current selector so future bot runs mirror logs to that stored bucket.`,
       `disable removes only the current selector so future bot runs stop mirroring; encrypted bucket entries are preserved and can be enabled again later.`,
+      `sync downloads remote-only/newer objects and uploads local-only/newer files; it never deletes local or remote logs, and reports invalid log names or JSON bodies as skipped inconsistencies.`,
+      `presign reuses an unexpired cached URL from the R2 config file before generating a new one; omit path for the latest timestamped JSON log in the bucket, pass a path for the latest log under that bucket path, or pass a .json path/file for an exact object.`,
       `Install checks ${PASS_ENV_VAR} or prompts for the encryption password before account ID and access key ID in clear text, then API token and secret access key with hidden input.`,
       `${R2_NAME_ENV_VAR} is the bucket-name fallback; ${R2_ACCOUNT_ID_ENV_VAR}, ${R2_TOKEN_ENV_VAR}, ${R2_KEY_ENV_VAR}, and ${R2_SECRET_ENV_VAR} are non-interactive install/reinstall credential fallbacks only.`,
       `Verbose status/list output requires ${PASS_ENV_VAR} or an interactive password prompt because it prints decrypted fallback values.`,
@@ -1985,14 +2009,14 @@ async function collectR2CredentialsForInstall(bucket, {
   };
 }
 
-async function collectR2PasswordForVerboseBucketOutput({
+async function collectR2PasswordForBucketOperation({
   commandLabel = `${BINARY_NAME} bucket status -v`,
 } = {}) {
   const envPassword = process.env[PASS_ENV_VAR];
   if (envPassword) return envPassword;
 
   if (!process.stdin.isTTY || !process.stderr.isTTY) {
-    throw new Error(`Verbose bucket output requires ${PASS_ENV_VAR} or an interactive terminal for secure password entry. Set ${PASS_ENV_VAR} only if you must run ${commandLabel} non-interactively.`);
+    throw new Error(`R2 credential decryption requires ${PASS_ENV_VAR} or an interactive terminal for secure password entry. Set ${PASS_ENV_VAR} only if you must run ${commandLabel} non-interactively.`);
   }
 
   const password = await promptSecret('R2 encryption password (input hidden): ');
@@ -2000,6 +2024,24 @@ async function collectR2PasswordForVerboseBucketOutput({
     throw new Error('R2 encryption password is required.');
   }
   return password;
+}
+
+async function loadSelectedR2CredentialsForBucketOperation({ commandLabel } = {}) {
+  const selected = listStoredR2Configs().find((entry) => entry.isCurrent);
+  if (!selected) {
+    throw new Error('No enabled R2 bucket entry. Run bucket enable <bucket> or bucket install <bucket> first.');
+  }
+
+  const password = await collectR2PasswordForBucketOperation({ commandLabel });
+  const loaded = loadStoredR2ConfigCredentials(selected, { password });
+  if (!loaded.enabled) {
+    throw new Error(`Failed to decrypt R2 bucket config for ${selected.bucket}: ${loaded.reason || 'unknown error'}.`);
+  }
+
+  return {
+    entry: selected,
+    credentialsResult: loaded,
+  };
 }
 
 function getR2BucketEnvironmentFallbacks(credentials = {}) {
@@ -2041,6 +2083,69 @@ function printR2VerboseBucketDetails(details, { indent = '   ' } = {}) {
   for (const [name, value] of Object.entries(details.environment_fallbacks)) {
     console.log(`${indent}  ${name}=${sanitizeVerboseValue(value)}`);
   }
+}
+
+async function confirmOverwriteFile(filePath, { force = false } = {}) {
+  if (!fs.existsSync(filePath) || force) return;
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error(`Output file already exists: ${filePath}. Use --force to overwrite it non-interactively.`);
+  }
+
+  const answer = (await prompt(`Overwrite ${filePath}? (y/N) `)).trim().toLowerCase();
+  if (answer !== 'y' && answer !== 'yes') {
+    throw new Error('Output file was not overwritten.');
+  }
+}
+
+async function fetchPresignedJsonToFile(url, outputFile, { force = false } = {}) {
+  await confirmOverwriteFile(outputFile, { force });
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch presigned URL: HTTP ${response.status}.`);
+  }
+
+  const raw = await response.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('Presigned URL did not return a JSON body.');
+  }
+
+  ensureDir(path.dirname(outputFile));
+  fs.writeFileSync(outputFile, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8');
+  return outputFile;
+}
+
+async function resolveBucketPresignedUrl({
+  entry,
+  credentialsResult,
+  timeoutSeconds,
+  targetPath = null,
+} = {}) {
+  const now = new Date();
+  if (!targetPath) {
+    const cached = getCachedR2PresignedUrl(entry, { now });
+    if (cached) return cached;
+  }
+
+  const resolvedObjectKey = await resolveLatestR2JsonObjectKey(credentialsResult.credentials, { targetPath });
+  const cachedForResolvedKey = getCachedR2PresignedUrl(entry, {
+    objectKey: resolvedObjectKey,
+    now,
+  });
+  if (cachedForResolvedKey) return cachedForResolvedKey;
+
+  const presigned = createR2PresignedGetUrl(credentialsResult.credentials, resolvedObjectKey, {
+    expiresIn: timeoutSeconds,
+    now,
+  });
+  saveCachedR2PresignedUrl(entry, presigned);
+  return {
+    ...presigned,
+    cached: false,
+  };
 }
 
 function getCurrentUnfinishedGames(walletAddress = getWalletAddress()) {
@@ -4235,13 +4340,17 @@ program
 // COMMAND: BUCKET
 // ============================================================================
 program
-  .command('bucket [action] [bucket]')
+  .command('bucket [action] [value]')
   .description('Cloudflare R2 bot log mirror config')
   .option('--json', 'JSON output')
   .option('-v, --verbose', 'Decrypt and show R2 endpoints plus bucket fallback environment values for status/list')
+  .option('-o, --output <filename>', 'For presign, fetch the presigned JSON body into a local file or directory')
+  .option('-t, --timeout <seconds>', 'For presign, set the URL timeout in seconds')
+  .option('-f, --force', 'Overwrite presign output files without prompting')
   .addHelpText('after', formatBucketHelpAppendix())
-  .action(async (action = 'status', bucket, opts) => {
+  .action(async (action = 'status', value, opts) => {
     const normalizedAction = String(action || 'status').trim().toLowerCase();
+    const actionValue = value === undefined ? null : String(value);
 
     function writeError(message) {
       if (opts.json) console.log(JSON.stringify({ error: message }));
@@ -4254,13 +4363,28 @@ program
       return;
     }
 
+    if (opts.output && normalizedAction !== 'presign') {
+      writeError('-o/--output is only supported with bucket presign.');
+      return;
+    }
+
+    if (opts.timeout && normalizedAction !== 'presign') {
+      writeError('-t/--timeout is only supported with bucket presign.');
+      return;
+    }
+
+    if (opts.force && normalizedAction !== 'presign') {
+      writeError('-f/--force is only supported with bucket presign.');
+      return;
+    }
+
     if (normalizedAction === 'status') {
       const payload = getR2PublicMetadata();
       let verboseDetails = null;
       if (opts.verbose && payload.enabled) {
         try {
           const selected = listStoredR2Configs().find((entry) => entry.isCurrent);
-          const password = await collectR2PasswordForVerboseBucketOutput({
+          const password = await collectR2PasswordForBucketOperation({
             commandLabel: `${BINARY_NAME} bucket status -v`,
           });
           verboseDetails = getR2VerboseBucketDetails(selected, password);
@@ -4302,7 +4426,7 @@ program
       let verboseByBucket = new Map();
       if (opts.verbose && storedConfigs.length > 0) {
         try {
-          const password = await collectR2PasswordForVerboseBucketOutput({
+          const password = await collectR2PasswordForBucketOperation({
             commandLabel: `${BINARY_NAME} bucket list -v`,
           });
           verboseByBucket = new Map(storedConfigs.map((entry) => {
@@ -4351,15 +4475,94 @@ program
       return;
     }
 
+    if (normalizedAction === 'sync') {
+      try {
+        const r2 = await loadSelectedR2CredentialsForBucketOperation({
+          commandLabel: `${BINARY_NAME} bucket sync`,
+        });
+        const result = await syncR2Logs({
+          bot: actionValue,
+          credentialsResult: r2.credentialsResult,
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result));
+        } else {
+          console.log('\n☁️  R2 Bot Log Sync\n');
+          console.log(`   Bucket:     ${result.bucket}`);
+          console.log(`   Bot:        ${result.bot || 'all'}`);
+          console.log(`   Local dir:  ${result.log_dir}`);
+          console.log(`   Prefix:     ${result.remote_prefix || '(none)'}`);
+          console.log(`   Uploaded:   ${result.uploaded}`);
+          console.log(`   Downloaded: ${result.downloaded}`);
+          console.log(`   Skipped:    ${result.skipped}`);
+          if (Array.isArray(result.inconsistencies) && result.inconsistencies.length > 0) {
+            console.log('\n   Inconsistencies:');
+            for (const item of result.inconsistencies) {
+              const target = item.objectKey || item.filePath || '(unknown)';
+              console.log(`   - ${item.reason}: ${target}`);
+            }
+          }
+          console.log('');
+        }
+      } catch (error) {
+        writeError(error?.message || sanitizeError(error));
+      }
+      return;
+    }
+
+    if (normalizedAction === 'presign') {
+      try {
+        const timeoutSeconds = normalizeR2PresignTimeout(opts.timeout || R2_PRESIGN_DEFAULT_TIMEOUT_SECONDS);
+        const r2 = await loadSelectedR2CredentialsForBucketOperation({
+          commandLabel: `${BINARY_NAME} bucket presign`,
+        });
+        const presigned = await resolveBucketPresignedUrl({
+          entry: r2.entry,
+          credentialsResult: r2.credentialsResult,
+          timeoutSeconds,
+          targetPath: actionValue,
+        });
+        let outputFile = null;
+        if (opts.output) {
+          outputFile = await fetchPresignedJsonToFile(
+            presigned.url,
+            resolveR2PresignOutputPath(opts.output, presigned.objectKey),
+            { force: opts.force },
+          );
+        }
+
+        if (opts.json) {
+          console.log(JSON.stringify({
+            success: true,
+            bucket: presigned.bucket || r2.credentialsResult.bucket,
+            object_key: presigned.objectKey,
+            url: presigned.url,
+            cached: Boolean(presigned.cached),
+            expires_at_utc: presigned.expiresAtUtc,
+            ...(outputFile ? { output_file: outputFile } : {}),
+          }));
+        } else {
+          console.log(presigned.url);
+          if (outputFile) {
+            console.log(`\nSaved JSON body to ${outputFile}\n`);
+          }
+        }
+      } catch (error) {
+        writeError(error?.message || sanitizeError(error));
+      }
+      return;
+    }
+
     if (normalizedAction === 'enable') {
-      if (!bucket) {
+      if (!actionValue) {
         writeError(`Usage: ${BINARY_NAME} bucket enable <bucket>`);
         return;
       }
 
       let enabled;
       try {
-        enabled = enableStoredR2Config(bucket);
+        enabled = enableStoredR2Config(actionValue);
       } catch (error) {
         writeError(sanitizeError(error));
         return;
@@ -4387,7 +4590,7 @@ program
     if (normalizedAction === 'install' || normalizedAction === 'reinstall') {
       let targetBucket;
       try {
-        targetBucket = resolveR2BucketForInstall(bucket);
+        targetBucket = resolveR2BucketForInstall(actionValue);
       } catch (error) {
         writeError(`Usage: ${BINARY_NAME} bucket ${normalizedAction} <bucket> or set ${R2_NAME_ENV_VAR}`);
         return;
@@ -7986,6 +8189,9 @@ R2 BOT LOG MIRROR
   ${BINARY_NAME} bucket enable <bucket>
                                    Enable a stored R2 bucket entry
   ${BINARY_NAME} bucket disable      Disable remote mirroring; keep encrypted entries
+  ${BINARY_NAME} bucket sync [bot]   Two-way sync local logs with R2
+  ${BINARY_NAME} bucket presign [path/file]
+                                   Print a cached or new presigned log URL
 
 THE HOUSE (Staking)
   ${BINARY_NAME} house                Show house stats and your position
@@ -8867,6 +9073,9 @@ ${'─'.repeat(70)}
   ${BINARY_NAME} bucket list -v
   ${BINARY_NAME} bucket enable <bucket>
   ${BINARY_NAME} bucket disable
+  ${BINARY_NAME} bucket sync [bot]
+  ${BINARY_NAME} bucket presign [path/file] [-t <timeout>]
+  ${BINARY_NAME} bucket presign [path/file] -o <file> [--force]
 
   enable writes the current selector so future bot runs mirror logs to the
   stored bucket. It does not decrypt or print credentials.
@@ -8880,6 +9089,26 @@ ${'─'.repeat(70)}
   status -v and list -v intentionally decrypt with ${PASS_ENV_VAR} or an
   interactive password prompt, then print R2 API endpoints and fallback
   environment values for each shown bucket entry.
+
+  sync decrypts the enabled R2 entry, lists the matching remote prefix, uploads
+  local-only/newer files, downloads remote-only/newer objects, and never deletes
+  either side. With [bot] it only syncs that bot folder; otherwise it syncs the
+  whole ${LOG_DIR} tree. Sync only evaluates canonical JSON logs shaped as
+  <bot>/<bot>.<timestamp>.json; invalid names or JSON bodies are skipped and
+  reported as inconsistencies.
+
+  presign decrypts the enabled R2 entry and prints a GET URL for an R2 JSON log.
+  It reuses an unexpired cached URL from ${R2_DIR}/<bucket>.json before signing a
+  new one. Without [path/file] it chooses the latest timestamped mirrored JSON
+  object in the bucket. With [path] it chooses the latest timestamped JSON
+  object under that bucket path. With [path/file].json it signs that exact object
+  without listing the bucket. The timeout defaults to ${R2_PRESIGN_DEFAULT_TIMEOUT_SECONDS}
+  seconds and is capped at ${R2_PRESIGN_DEFAULT_TIMEOUT_SECONDS}.
+
+  presign -o <file> fetches the JSON body from the presigned URL and writes it
+  locally, appending .json when <file> has no extension. If <file> is a directory
+  or ends with a path separator, the remote object file name is used inside that
+  directory. Existing files require confirmation unless --force is passed.
 
 ${'─'.repeat(70)}
   REMOTE PATHS

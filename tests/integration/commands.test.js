@@ -1529,6 +1529,45 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(!stdout.includes('bearer-secret-not-printed'));
     });
 
+    it('presigns explicit R2 object paths and reuses an unexpired cached URL', () => {
+      resetBotFixtures();
+      const installEnv = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [PASS_ENV]: 'test-password-123',
+        [R2_ACCOUNT_ID_ENV]: 'acct-secret-not-printed',
+        [R2_TOKEN_ENV]: 'bearer-secret-not-printed',
+        [R2_KEY_ENV]: 'access-key-not-printed',
+        [R2_SECRET_ENV]: 'secret-key-not-printed',
+      };
+      assert.strictEqual(cli('bucket install apechurch-cli-log --json', { env: installEnv }).code, 0);
+
+      const presignEnv = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [PASS_ENV]: 'test-password-123',
+      };
+      const first = cli('bucket presign bob/bob.20260706120000.json -t 60 --json', { env: presignEnv });
+      assert.strictEqual(first.code, 0);
+      const firstPayload = JSON.parse(first.stdout.trim());
+      assert.strictEqual(firstPayload.success, true);
+      assert.strictEqual(firstPayload.object_key, 'bob/bob.20260706120000.json');
+      assert.strictEqual(firstPayload.cached, false);
+      assert.match(firstPayload.url, /^https:\/\/acct-secret-not-printed\.r2\.cloudflarestorage\.com\/apechurch-cli-log\/bob\/bob\.20260706120000\.json\?/);
+      assert.ok(!first.stdout.includes('secret-key-not-printed'));
+      assert.ok(!first.stdout.includes('bearer-secret-not-printed'));
+
+      const second = cli('bucket presign bob/bob.20260706120000.json -t 60 --json', { env: presignEnv });
+      assert.strictEqual(second.code, 0);
+      const secondPayload = JSON.parse(second.stdout.trim());
+      assert.strictEqual(secondPayload.cached, true);
+      assert.strictEqual(secondPayload.url, firstPayload.url);
+
+      const configFile = path.join(CONFIG_OVERRIDE_ROOT, 'r2', 'apechurch-cli-log.json');
+      const rawConfig = fs.readFileSync(configFile, 'utf8');
+      assert.match(rawConfig, /"presigned_url"/);
+      assert.ok(!rawConfig.includes('secret-key-not-printed'));
+      assert.ok(!rawConfig.includes('bearer-secret-not-printed'));
+    });
+
     it('rejects verbose mode on bucket actions other than status and list', () => {
       resetBotFixtures();
       const { stdout, code } = cli('bucket disable -v --json', {

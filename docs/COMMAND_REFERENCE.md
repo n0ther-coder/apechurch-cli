@@ -47,7 +47,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `install` | - | Install or reinstall the local encrypted wallet bundle |
 | `uninstall` | - | Remove local CLI data |
 | `wallet [action] [address]` | - | Wallet management, local wallet listing, and history download |
-| `bucket [action] [bucket]` | - | Encrypted Cloudflare R2 bot log mirror config |
+| `bucket [action] [value]` | - | Encrypted Cloudflare R2 bot log mirror config, log sync, and presigned log URLs |
 | `status` | - | Show current wallet, balance, and local state |
 | `script <action> <nome_script>` | - | Write, read, or watch JSON command scripts |
 | `pause` | - | Pause autonomous play |
@@ -259,17 +259,24 @@ The selected wallet is tracked by `wallets/current.json`, which points to `walle
 | `--to-block <n>` | End block for history download | `download` |
 | `--chunk-size <n>` | Block span per log query | `download` |
 
-### `bucket [action] [bucket]`
+### `bucket [action] [value]`
 
 ```bnf
-<bucket-command> ::= "bucket" [ <bucket-action> [ <bucket> ] ] [ "--json" ] [ "-v" | "--verbose" ]
+<bucket-command> ::= "bucket" [ <bucket-action> [ <value> ] ] <bucket-option>*
 <bucket-action> ::= "install"
                   | "reinstall"
                   | "status"
                   | "list"
                   | "enable"
                   | "disable"
+                  | "sync"
+                  | "presign"
 <bucket> ::= <bucket-name>
+<value> ::= <bucket> | <bot> | <path> | <path/file>
+<path> ::= <bucket-object-key-prefix>
+<path/file> ::= <object-key-ending-in-.json>
+<timeout> ::= <integer>  ; 1..604800 seconds, default 604800
+<bucket-option> ::= "--json" | "-v" | "--verbose" | "-t" <timeout> | "--timeout" <timeout> | "-o" <file> | "--output" <file> | "-f" | "--force"
 ```
 
 `bucket install <bucket>` encrypts Cloudflare R2 bot-log mirror credentials into `$APECHURCH_CLI_CONFIG_DIR/r2/<bucket>.json` and enables that bucket for future bot runs. `bucket reinstall <bucket>` overwrites the same encrypted bucket entry and enables it. If `<bucket>` is omitted for install or reinstall, `APECHURCH_CLI_R2_NAME` is used as the bucket-name fallback.
@@ -278,12 +285,21 @@ The selected wallet is tracked by `wallets/current.json`, which points to `walle
 
 The encrypted payload stores the account ID, API token, access key ID, and secret access key. During interactive install/reinstall, the account ID and access key ID prompts are visible, while the API token and secret access key prompts use hidden input. These values are never printed by normal `status`, `list`, or JSON command output. `bucket status -v` and `bucket list -v` intentionally decrypt with `APECHURCH_CLI_PASS` or an interactive password prompt, then print R2 API endpoints and fallback environment values such as `APECHURCH_CLI_R2_ACCOUNT_ID=<value>`. `APECHURCH_CLI_R2_ACCOUNT_ID`, `APECHURCH_CLI_R2_TOKEN`, `APECHURCH_CLI_R2_KEY`, and `APECHURCH_CLI_R2_SECRET` are non-interactive credential fallbacks for install/reinstall. `APECHURCH_CLI_PASS` encrypts the local file, is checked before credential prompts during setup, and must also be present during non-interactive bot runs for remote mirroring to activate.
 
-Remote R2 object keys mirror the local bot log path relative to `APECHURCH_CLI_LOG_DIR`: `log/bob/bob.<timestamp>.json` becomes `<prefix>/bob/bob.<timestamp>.json`. Set `APECHURCH_CLI_R2_PREFIX` to choose `<prefix>`. Upload is best-effort; local JSON logs remain authoritative if R2 is unavailable.
+`bucket sync [<bot>]` decrypts the enabled R2 entry and performs a two-way sync between `APECHURCH_CLI_LOG_DIR` and the bucket. It uploads local-only/newer files and downloads remote-only/newer objects; it never deletes either side. When `<bot>` is provided, sync is scoped to that bot folder; otherwise it syncs the full log tree. Sync only evaluates canonical JSON logs shaped as `<bot>/<bot>.<timestamp>.json`; invalid names or JSON bodies are skipped and reported as inconsistencies.
+
+`bucket presign [<path/file>]` decrypts the enabled R2 entry and prints a presigned GET URL for an R2 JSON log. It first reuses any unexpired cached URL stored in `$APECHURCH_CLI_CONFIG_DIR/r2/<bucket>.json`; otherwise it signs a new URL and caches it. If `<path/file>` is omitted, it signs the latest timestamped mirrored JSON object in the bucket. If `<path>` is provided, it signs the latest timestamped JSON object under that bucket path. If `<path/file>.json` is provided, it signs that exact object without listing the bucket. The timeout is set with `-t, --timeout`, defaults to `604800` seconds, and is capped at `604800`.
+
+`bucket presign ... -o <file>` fetches the JSON body from the presigned URL and writes it locally, appending `.json` when `<file>` has no extension. If `<file>` is a directory or ends with a path separator, the remote object file name is used inside that directory. Existing files prompt before overwrite unless `--force` is passed.
+
+Remote R2 object keys mirror the local bot log path relative to `APECHURCH_CLI_LOG_DIR`: `log/bob/bob.<timestamp>.json` becomes `<prefix>/bob/bob.<timestamp>.json`. Set `APECHURCH_CLI_R2_PREFIX` to choose `<prefix>`. Upload is best-effort during bot runs; local JSON logs remain authoritative if R2 is unavailable.
 
 | Option | Meaning |
 |--------|---------|
 | `--json` | Emit JSON output; credential fields remain redacted unless combined with `-v` |
 | `-v`, `--verbose` | For `status` and `list`, decrypt and emit endpoint plus fallback environment values |
+| `-t`, `--timeout <seconds>` | Set presigned URL lifetime |
+| `-o`, `--output <file>` | Fetch the presigned JSON body into a local file or directory |
+| `-f`, `--force` | Overwrite `presign -o` output without prompting |
 
 ## Profile And Identity
 

@@ -8,12 +8,21 @@ const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'apechurch-r2-test-'));
 process.env.APECHURCH_CLI_CONFIG_DIR = tmpRoot;
 
 const {
+  createR2PresignedGetUrl,
   createR2LogMirror,
   getR2CredentialEndpoints,
+  getCachedR2PresignedUrl,
+  getLocalLogPathForR2ObjectKey,
   getR2ObjectKeyForLog,
+  listStoredR2Configs,
   loadSelectedR2Credentials,
+  normalizeR2PresignTimeout,
   putR2Object,
+  resolveLatestR2JsonObjectKey,
+  resolveR2PresignOutputPath,
+  saveCachedR2PresignedUrl,
   saveEncryptedR2Config,
+  syncR2Logs,
 } = await import('../../lib/r2.js');
 
 const PASSWORD = 'test-password-123';
@@ -57,6 +66,14 @@ describe('R2 config and bot log mirroring helpers', () => {
     assert.strictEqual(
       getR2ObjectKeyForLog(filePath, { logDir, prefix: '/session/a/' }),
       'session/a/bob/bob.20260706120000.json',
+    );
+    assert.strictEqual(
+      getLocalLogPathForR2ObjectKey('session/a/bob/bob.20260706120000.json', { logDir, prefix: '/session/a/' }),
+      filePath,
+    );
+    assert.strictEqual(
+      getLocalLogPathForR2ObjectKey('session/a/../secret.json', { logDir, prefix: '/session/a/' }),
+      null,
     );
   });
 
@@ -106,6 +123,306 @@ describe('R2 config and bot log mirroring helpers', () => {
     assert.doesNotMatch(requests[0].options.headers.Authorization, /secret-access-key/);
     assert.strictEqual(requests[0].options.headers['x-amz-date'], '20260706T123456Z');
     assert.ok(requests[0].options.headers['x-amz-content-sha256']);
+  });
+
+  it('creates and caches presigned GET URLs without exposing the secret key', () => {
+    saveEncryptedR2Config({ ...CREDENTIALS, bucket: 'presign-cache-log' }, PASSWORD);
+    const entry = listStoredR2Configs().find((config) => config.bucket === 'presign-cache-log');
+    const presigned = createR2PresignedGetUrl(
+      {
+        bucket: 'presign-cache-log',
+        account_id: 'accountid',
+        api_token: 'bearer-token-value',
+        access_key_id: 'access-key-id',
+        secret_access_key: 'secret-access-key',
+      },
+      'bob/bob.20260706120000.json',
+      {
+        endpointBaseUrl: 'https://r2.test',
+        now: new Date('2026-07-06T12:34:56.000Z'),
+        expiresIn: 60,
+      },
+    );
+
+    assert.match(presigned.url, /^https:\/\/r2\.test\/presign-cache-log\/bob\/bob\.20260706120000\.json\?/);
+    assert.match(presigned.url, /X-Amz-Expires=60/);
+    assert.match(presigned.url, /X-Amz-Credential=access-key-id%2F20260706%2Fauto%2Fs3%2Faws4_request/);
+    assert.doesNotMatch(presigned.url, /secret-access-key/);
+
+    saveCachedR2PresignedUrl(entry, presigned);
+    const refreshed = listStoredR2Configs().find((config) => config.bucket === 'presign-cache-log');
+    const cached = getCachedR2PresignedUrl(refreshed, {
+      objectKey: 'bob/bob.20260706120000.json',
+      now: new Date('2026-07-06T12:35:00.000Z'),
+    });
+    assert.strictEqual(cached.url, presigned.url);
+    assert.strictEqual(cached.cached, true);
+    assert.strictEqual(
+      getCachedR2PresignedUrl(refreshed, { now: new Date('2026-07-06T12:36:00.001Z') }),
+      null,
+    );
+    assert.strictEqual(normalizeR2PresignTimeout(undefined), 604800);
+    assert.throws(() => normalizeR2PresignTimeout(604801), /Invalid presign timeout/);
+  });
+
+  it('resolves presign targets from exact object keys or latest filename timestamps', async () => {
+    const credentials = {
+      bucket: 'apechurch-cli-log',
+      account_id: 'accountid',
+      api_token: 'bearer-token-value',
+      access_key_id: 'access-key-id',
+      secret_access_key: 'secret-access-key',
+    };
+    const calls = [];
+    const listObjects = async (_credentials, { prefix }) => {
+      calls.push(prefix);
+      return {
+        objects: [
+          { key: `${prefix}bob.20260706120000.json`, lastModified: new Date('2026-01-01T00:00:00.000Z') },
+          { key: `${prefix}bob.20260707120000.json`, lastModified: new Date('2025-01-01T00:00:00.000Z') },
+          { key: `${prefix}notes.json`, lastModified: new Date('2027-01-01T00:00:00.000Z') },
+        ],
+      };
+    };
+
+    assert.strictEqual(
+      await resolveLatestR2JsonObjectKey(credentials, {
+        prefix: 'remote',
+        targetPath: 'bob/bob.20260706120000.json',
+        listObjects,
+      }),
+      'remote/bob/bob.20260706120000.json',
+    );
+    assert.deepStrictEqual(calls, []);
+
+    assert.strictEqual(
+      await resolveLatestR2JsonObjectKey(credentials, {
+        prefix: 'remote',
+        targetPath: 'bob',
+        listObjects,
+      }),
+      'remote/bob/bob.20260707120000.json',
+    );
+    assert.deepStrictEqual(calls, ['remote/bob/']);
+
+    calls.length = 0;
+    const previousEnvPrefix = process.env.APECHURCH_CLI_R2_PREFIX;
+    process.env.APECHURCH_CLI_R2_PREFIX = 'remote';
+    try {
+      assert.strictEqual(
+        await resolveLatestR2JsonObjectKey(credentials, {
+          targetPath: 'bob',
+          listObjects,
+        }),
+        'bob/bob.20260707120000.json',
+      );
+      assert.deepStrictEqual(calls, ['bob/']);
+    } finally {
+      if (previousEnvPrefix === undefined) {
+        delete process.env.APECHURCH_CLI_R2_PREFIX;
+      } else {
+        process.env.APECHURCH_CLI_R2_PREFIX = previousEnvPrefix;
+      }
+    }
+  });
+
+  it('resolves presign output directories using the remote object file name', () => {
+    const outputDir = path.join(tmpRoot, 'presign-output');
+    fs.mkdirSync(outputDir, { recursive: true });
+    const objectKey = 'kenobi/kenobi.20260709113717.json';
+
+    assert.strictEqual(
+      resolveR2PresignOutputPath(outputDir, objectKey),
+      path.join(outputDir, 'kenobi.20260709113717.json'),
+    );
+    assert.strictEqual(
+      resolveR2PresignOutputPath(`${path.join(tmpRoot, 'presign-new-dir')}${path.sep}`, objectKey),
+      path.join(tmpRoot, 'presign-new-dir', 'kenobi.20260709113717.json'),
+    );
+    assert.strictEqual(
+      resolveR2PresignOutputPath(path.join(tmpRoot, 'latest-kenobi'), objectKey),
+      path.join(tmpRoot, 'latest-kenobi.json'),
+    );
+    assert.strictEqual(
+      resolveR2PresignOutputPath(path.join(tmpRoot, 'latest-kenobi.json'), objectKey),
+      path.join(tmpRoot, 'latest-kenobi.json'),
+    );
+  });
+
+  it('syncs local and remote bot logs without deleting either side', async () => {
+    const logDir = path.join(tmpRoot, 'sync-log');
+    const bobDir = path.join(logDir, 'bob');
+    fs.mkdirSync(bobDir, { recursive: true });
+    const localLog = path.join(bobDir, 'bob.20260706120000.json');
+    fs.writeFileSync(localLog, '{"local":true}\n', 'utf8');
+
+    const remoteObjects = new Map([
+      ['bob/bob.20260707120000.json', {
+        body: '{"remote":true}\n',
+        lastModified: new Date('2026-07-06T12:34:56.000Z'),
+      }],
+    ]);
+    const uploads = [];
+    const result = await syncR2Logs({
+      bot: 'bob',
+      logDir,
+      credentialsResult: {
+        enabled: true,
+        credentials: {
+          bucket: 'apechurch-cli-log',
+          account_id: 'accountid',
+          api_token: 'bearer-token-value',
+          access_key_id: 'access-key-id',
+          secret_access_key: 'secret-access-key',
+        },
+      },
+      listObjects: async (_credentials, { prefix }) => ({
+        objects: [...remoteObjects.entries()]
+          .filter(([key]) => key.startsWith(prefix))
+          .map(([key, value]) => ({
+            key,
+            size: Buffer.byteLength(value.body),
+            lastModified: value.lastModified,
+          })),
+      }),
+      getObject: async (_credentials, objectKey) => ({
+        body: remoteObjects.get(objectKey).body,
+      }),
+      putObject: async (_credentials, objectKey, body) => {
+        uploads.push({ objectKey, body });
+      },
+    });
+
+    assert.strictEqual(result.uploaded, 1);
+    assert.strictEqual(result.downloaded, 1);
+    assert.deepStrictEqual(uploads, [
+      { objectKey: 'bob/bob.20260706120000.json', body: '{"local":true}\n' },
+    ]);
+    assert.strictEqual(
+      fs.readFileSync(path.join(bobDir, 'bob.20260707120000.json'), 'utf8'),
+      '{"remote":true}\n',
+    );
+  });
+
+  it('syncs remote-newer logs even when the file size matches', async () => {
+    const logDir = path.join(tmpRoot, 'sync-newer-log');
+    const bobDir = path.join(logDir, 'bob');
+    fs.mkdirSync(bobDir, { recursive: true });
+    const sharedLog = path.join(bobDir, 'bob.20260706120000.json');
+    fs.writeFileSync(sharedLog, '{"n":1}\n', 'utf8');
+    fs.utimesSync(sharedLog, new Date('2026-01-01T00:00:00.000Z'), new Date('2026-01-01T00:00:00.000Z'));
+
+    const uploads = [];
+    const result = await syncR2Logs({
+      bot: 'bob',
+      logDir,
+      credentialsResult: {
+        enabled: true,
+        credentials: {
+          bucket: 'apechurch-cli-log',
+          account_id: 'accountid',
+          api_token: 'bearer-token-value',
+          access_key_id: 'access-key-id',
+          secret_access_key: 'secret-access-key',
+        },
+      },
+      listObjects: async (_credentials, { prefix }) => ({
+        objects: [{
+          key: `${prefix}bob.20260706120000.json`,
+          size: Buffer.byteLength('{"n":2}\n'),
+          lastModified: new Date('2026-01-02T00:00:00.000Z'),
+        }],
+      }),
+      getObject: async () => ({
+        body: '{"n":2}\n',
+      }),
+      putObject: async (_credentials, objectKey, body) => {
+        uploads.push({ objectKey, body });
+      },
+    });
+
+    assert.strictEqual(result.downloaded, 1);
+    assert.strictEqual(result.uploaded, 0);
+    assert.deepStrictEqual(uploads, []);
+    assert.strictEqual(fs.readFileSync(sharedLog, 'utf8'), '{"n":2}\n');
+  });
+
+  it('skips and reports invalid local and remote sync log files', async () => {
+    const logDir = path.join(tmpRoot, 'sync-invalid-log');
+    const bobDir = path.join(logDir, 'bob');
+    fs.mkdirSync(bobDir, { recursive: true });
+    fs.writeFileSync(path.join(bobDir, 'bob.20260706120000.json'), '{"valid":true}\n', 'utf8');
+    fs.writeFileSync(path.join(bobDir, 'local.json'), '{"wrongName":true}\n', 'utf8');
+    fs.writeFileSync(path.join(bobDir, 'bob.20260707120000.json'), '{bad json', 'utf8');
+
+    const remoteObjects = new Map([
+      ['bob/remote.json', {
+        body: '{"wrongName":true}\n',
+        lastModified: new Date('2026-07-06T12:34:56.000Z'),
+      }],
+      ['bob/bob.20260708120000.json', {
+        body: '{bad json',
+        lastModified: new Date('2026-07-08T12:34:56.000Z'),
+      }],
+      ['bob/bob.20260709120000.json', {
+        body: '{"remote":true}\n',
+        lastModified: new Date('2026-07-09T12:34:56.000Z'),
+      }],
+    ]);
+    const uploads = [];
+    const result = await syncR2Logs({
+      bot: 'bob',
+      logDir,
+      credentialsResult: {
+        enabled: true,
+        credentials: {
+          bucket: 'apechurch-cli-log',
+          account_id: 'accountid',
+          api_token: 'bearer-token-value',
+          access_key_id: 'access-key-id',
+          secret_access_key: 'secret-access-key',
+        },
+      },
+      listObjects: async (_credentials, { prefix }) => ({
+        objects: [...remoteObjects.entries()]
+          .filter(([key]) => key.startsWith(prefix))
+          .map(([key, value]) => ({
+            key,
+            size: Buffer.byteLength(value.body),
+            lastModified: value.lastModified,
+          })),
+      }),
+      getObject: async (_credentials, objectKey) => ({
+        body: remoteObjects.get(objectKey).body,
+      }),
+      putObject: async (_credentials, objectKey, body) => {
+        uploads.push({ objectKey, body });
+      },
+    });
+
+    assert.strictEqual(result.uploaded, 1);
+    assert.strictEqual(result.downloaded, 1);
+    assert.strictEqual(result.skipped, 4);
+    assert.deepStrictEqual(uploads, [
+      { objectKey: 'bob/bob.20260706120000.json', body: '{"valid":true}\n' },
+    ]);
+    assert.strictEqual(
+      fs.readFileSync(path.join(bobDir, 'bob.20260709120000.json'), 'utf8'),
+      '{"remote":true}\n',
+    );
+    assert.strictEqual(
+      fs.existsSync(path.join(bobDir, 'bob.20260708120000.json')),
+      false,
+    );
+    assert.deepStrictEqual(
+      result.inconsistencies.map((operation) => operation.reason).sort(),
+      [
+        'invalid-local-log-json',
+        'invalid-local-log-name',
+        'invalid-remote-log-json',
+        'invalid-remote-log-name',
+      ],
+    );
   });
 
   it('coalesces repeated updates per object key without dropping different log files', async () => {

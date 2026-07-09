@@ -46,6 +46,8 @@ The CLI creates a valid JSON run log as soon as a bot starts, lets bots update i
 
 Remote R2 mirroring is optional and best-effort. Configure it with `apechurch-cli bucket install <bucket>`; credentials are encrypted locally under `$APECHURCH_CLI_CONFIG_DIR/r2/<bucket>.json` using the same password source as the wallet (`APECHURCH_CLI_PASS` for non-interactive runs). Install/reinstall auto-enable the installed bucket. `apechurch-cli bucket enable <bucket>` enables a stored encrypted entry for future bot runs, and `apechurch-cli bucket disable` stops remote mirroring by removing only the current selector while preserving encrypted entries. When enabled, the remote object key is `<prefix>/<same relative path under APECHURCH_CLI_LOG_DIR>`, so a local `log/bob/bob.<timestamp>.json` mirrors to `<prefix>/bob/bob.<timestamp>.json`. Local logs remain authoritative if R2 upload is unavailable.
 
+Use `apechurch-cli bucket sync [bot]` to reconcile local logs with the enabled R2 bucket after the fact. It uploads local-only/newer files and downloads remote-only/newer objects without deleting either side, while skipping and reporting files that are not canonical `<bot>/<bot>.<timestamp>.json` JSON logs. Use `apechurch-cli bucket presign [path/file] [-t <timeout>]` to print a cached or newly signed URL for a mirrored JSON log; `-o <file> --force` fetches that JSON into a local file or directory.
+
 ```bash
 export APECHURCH_CLI_CONFIG_DIR=/path/to/local-config
 # Effective bot directory: /path/to/local-config/bots
