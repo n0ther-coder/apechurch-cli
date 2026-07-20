@@ -2113,7 +2113,7 @@ export default async function ({ paths, bot }) {
       assert.strictEqual(payload.rootLogExists, true);
     });
 
-    it('does not write a summary json log for bot runs without transactions', () => {
+    it('does not write a summary json log for bot runs without transactions or wagers', () => {
       resetBotFixtures();
       const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
       writeBotFixture({
@@ -2122,7 +2122,7 @@ export default async function ({ paths, bot }) {
         script: `export default async function ({ bot, args }) {
   return {
     exitCode: 0,
-    summary: { bot: bot.command, args, status: 'ok' },
+    summary: { bot: bot.command, args, status: 'ok', total_wager_ape: '0' },
   };
 }
 `,
@@ -2138,6 +2138,45 @@ export default async function ({ paths, bot }) {
 
       const files = listBotLogFiles(logDir, 'summary-bot');
       assert.strictEqual(files.length, 0);
+    });
+
+    it('writes a summary json log for recorded wagers without transaction hashes', () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'wager-summary-bot',
+        script: `export default async function ({ bot, args }) {
+  return {
+    exitCode: 0,
+    summary: {
+      bot: bot.command,
+      args,
+      status: 'ok',
+      total_wager_ape: '27.5',
+      total_payout_ape: '27.5',
+      games: [{ status: 'complete', wager_ape: '27.5', payout_ape: '27.5' }],
+    },
+  };
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const { stdout, code } = cli('bot wager-summary-bot 7', { env });
+      assert.strictEqual(code, 0);
+      assert.strictEqual(stdout.trim(), '');
+
+      const files = listBotLogFiles(logDir, 'wager-summary-bot');
+      assert.strictEqual(files.length, 1);
+
+      const payload = readBotLogFile(logDir, 'wager-summary-bot', files[0]);
+      assert.strictEqual(payload.total_wager_ape, '27.5');
+      assert.strictEqual(payload.total_payout_ape, '27.5');
+      assert.strictEqual(payload.games[0].status, 'complete');
     });
 
     it('writes a summary json log for bot runs with transactions', () => {
