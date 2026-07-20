@@ -265,7 +265,10 @@ describe('CLI Commands Integration Tests', () => {
     it('--version shows version number', () => {
       const { stdout } = cli('--version');
       assert.ok(/\d+\.\d+\.\d+/.test(stdout), 'Should show semver version');
-      assert.ok(/\(\d{14} [0-9a-f]{7,}\)/i.test(stdout), 'Should show commit timestamp and abbreviated commit hash');
+      assert.ok(
+        /\(\d{4}-[A-Z]{3}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{4} [0-9a-f]{7,}\)/i.test(stdout),
+        'Should show the standardized terminal commit timestamp and abbreviated commit hash',
+      );
     });
 
     it('--version --json shows version metadata', () => {

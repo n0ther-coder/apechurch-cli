@@ -84,9 +84,9 @@ Variance is computed over `X = payout / total stake`. With multiple balls, the t
 
 #### `play cosmic 120 --risk high --split 30 --loop --max-games 100`
 
-|      payout | game title    | game mode        |     bet | multiplier | datetime UTC             |
+|      payout | game title    | game mode        |     bet | multiplier | datetime                  |
 |-------------|---------------|------------------|---------|------------|--------------------------|
-| 1036.40 APE | Cosmic Plinko | High             | 120 APE |      8.64x | [2026-04-20T10:28:32.000Z](https://www.ape.church/games/cosmic-plinko?id=68560375314317493137151539550036327114428585860911247097385292306264852445280) |
+| 1036.40 APE | Cosmic Plinko | High             | 120 APE |      8.64x | [2026-APR-20 12:28:32+0200](https://www.ape.church/games/cosmic-plinko?id=68560375314317493137151539550036327114428585860911247097385292306264852445280) |
 
 ## Sources
 

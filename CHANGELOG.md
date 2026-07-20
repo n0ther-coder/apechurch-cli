@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Resilient transaction classifications for allowlisted contract pause guards, propagated RNG/VRF failures, out-of-gas failures, and RPC-node errors, with hard-coded generic and 24-hour infrastructure retry queues
+- Standardized human-facing terminal timestamps in local `YYYY-MMM-DD HH:mm:ss±ZZZZ` form, including cyan timestamps on bot balance snapshots and scheduled retry notices
 - Optional Cloudflare R2 bot log mirroring with encrypted per-bucket credentials, a new `bucket` setup/status/list/enable command surface with password-gated verbose inspection, and best-effort remote writes that preserve the local bot log path under an optional prefix
 - Blackjack exact-EV auto-play now runs through a worker with `--solver-timeout-ms`, so slow or failing solver branches fall back to simple strategy without blocking the main CLI process
 - Blackjack `--auto max` as a higher-budget exact-EV mode using `150000` solver states and a `30000` ms worker timeout by default
@@ -25,6 +27,9 @@ All notable changes to this project will be documented in this file.
   - Updated `ABI_VERIFICATION`, `COMMAND_REFERENCE`, and `GAMES_REFERENCE`
 
 ### Changed
+- Bot balance and routine summaries now label payout-minus-wager values as `gross pnl`; callers can explicitly label balance-derived values as `net pnl`
+- Resilient generic/reverted retries now use `30s, 1m, 2m, 5m, 10m × 6, 1h × 7`; network/DNS, contract/RNG, gas, and RPC-node retries use `3m, 7m, 10m × 5, 30m × 10, 1h × 18`
+- Retry notices now identify the failure category/message and show the next attempt timestamp; nested bot plays forward these notices without polluting JSON stdout
 - `games`, `game <name>`, `status`, history/status helpers, and stateful queue hints now treat `cash-dash` as a supported `ABI verified` game
 - Cash Dash manual starts now render the opening row and prompt for the first guess when `--tile` is omitted; the full board displays newest rows first with cash/death icons
 - `games`, `game <name>`, `play`, `bet`, RTP summaries, and wallet-history decoding now treat `gimboz-smash` as a supported `ABI verified` game

@@ -606,6 +606,16 @@ The saved `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script.json` is JSON:
 
 `script` requires exactly one action: `write`, `read`, or `watch`; there is no implicit default action. `script write` and `script read` never execute commands. JSON command objects store `option: value` pairs; standalone strings store flags without parameters. Values shaped as `{ "arg": "name", "value": [...] }` render as editable `name=value` payloads. Known bare optional-value defaults are normalized to explicit values where supported, such as `--auto simple`, `--solver best` for Blackjack/Hi-Lo Nebula, and `--human weighted:3-9` for the current weighted bare-human timing profile. For `script watch`, `--every` is an integer number of seconds and defaults to `60`. `--if-balance-over <APE>` requires the selected wallet balance to be strictly greater than the amount, while `--if-balance-under <APE>` requires it to be strictly lower. `script watch` does not launch another copy while the previous `custom_script` process group recorded in local state is still alive, and each watch attempt/status line prints a cyan local timestamp before the message.
 
+### Resilient transaction retry
+
+`--resilient` keeps the same game/action payload alive across explicitly retryable failures. The schedules are hard-coded in `lib/tx-resilience.js`:
+
+- Generic transient errors and reverted receipts wait `30s`, `1m`, `2m`, `5m`, `10m` six times, then `1h` seven times before exiting (17 retries over `8h08m30s`).
+- Network/DNS outages, allowlisted contract guards, propagated RNG/VRF failures, out-of-gas errors, and RPC-node errors wait `3m`, `7m`, `10m` five times, `30m` ten times, then `1h` eighteen times before exiting (35 retries over exactly 24 hours).
+- The contract-guard allowlist is `PRICE TOO LOW, PvH GAMES PAUSED`, `All Games Paused`, and `Paused`. Other deterministic contract reverts remain non-retryable unless they match the RNG/VRF or out-of-gas classifications.
+
+Each retry prints the error category, the sanitized contract/node message, the wait period, and the next local timestamp in `YYYY-MMM-DD HH:mm:ss±ZZZZ` form. JSON bot logs retain ISO UTC timestamps. Once a transaction hash exists, a confirmation timeout is returned as pending rather than broadcasting the action again.
+
 Use `apechurch-cli games` or `apechurch-cli game <name>` to see the current alias set in the terminal.
 
 ## For AI Agents

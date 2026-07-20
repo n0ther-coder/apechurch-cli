@@ -288,6 +288,7 @@ import {
   forceColorOutput,
 } from '../lib/theme.js';
 import { fitAnsiText, getVisibleWidth, truncateAnsi } from '../lib/ansi.js';
+import { formatTerminalTimestamp } from '../lib/terminal-time.js';
 import {
   formatGlydeOrCrashTargetMultiplier,
   getGameCalculatedVariantReference,
@@ -463,7 +464,7 @@ const PLAY_STATEFUL_OPTION_LINES = Object.freeze([
   '--solver [mode]         Solver suggestions for supported stateful games',
   '--tile <tile>           Cash Dash opening tile: 1-7 or random',
   '--cashout-after <rows>  Cash Dash auto-play cashout depth',
-  '--resilient             Retry transient network/RPC failures conservatively',
+  '--resilient             Retry transient transaction, contract/RNG, network, gas, and RPC failures',
   '--no-resilient          Disable inherited resilient retry mode',
 ]);
 const DEPRECATED_ATTEMPT_OPTIONS = Object.freeze(['--balls', '--games', '--runs', '--rolls']);
@@ -479,7 +480,7 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--game <name>           Stateless or stateful game key',
   '--amount <ape>          Wager amount',
   '--loop                  Repeat the selected gameplay surface until stopped',
-  '--resilient             Conservative retry mode for transient network/RPC failures',
+  '--resilient             Retry transient transaction, contract/RNG, network, gas, and RPC failures',
   '--no-resilient          Disable inherited resilient retry mode',
   '--delay <seconds>       Delay between looped games',
   '--max-games <count>     Stop after N games',
@@ -560,7 +561,7 @@ const STATEFUL_SHARED_HELP_OPTION_LINES = Object.freeze([
   '--json                  Emit JSON output only',
   '-v, --verbose           Show technical progress logs',
   '--gp-ape <points>       Override local GP estimation for this run',
-  '--resilient             Retry transient network/RPC failures conservatively',
+  '--resilient             Retry transient transaction, contract/RNG, network, gas, and RPC failures',
   '--no-resilient          Disable inherited resilient retry mode',
 ]);
 const STATEFUL_SHARED_BNF_LINES = Object.freeze([
@@ -637,25 +638,35 @@ function readVersionGitMetadata() {
 
     return {
       timestamp_utc: formatUtcTimestamp(new Date(commitIsoDate)),
+      timestamp_terminal: formatTerminalTimestamp(new Date(commitIsoDate)),
       commit_id: commitId || null,
     };
   } catch {
     return {
       timestamp_utc: null,
+      timestamp_terminal: null,
       commit_id: null,
     };
   }
 }
 
 function formatVersionDisplay(metadata) {
-  const details = [metadata.timestamp_utc, metadata.commit_id].filter(Boolean).join(' ');
+  const details = [metadata.timestamp_terminal, metadata.commit_id].filter(Boolean).join(' ');
   return details ? `${metadata.version} (${details})` : metadata.version;
+}
+
+function getPublicVersionMetadata() {
+  return {
+    version: VERSION_METADATA.version,
+    timestamp_utc: VERSION_METADATA.timestamp_utc,
+    commit_id: VERSION_METADATA.commit_id,
+  };
 }
 
 function withVersionMetadata(value) {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     return {
-      ...VERSION_METADATA,
+      ...getPublicVersionMetadata(),
       ...value,
       version: VERSION_METADATA.version,
       timestamp_utc: VERSION_METADATA.timestamp_utc,
@@ -664,7 +675,7 @@ function withVersionMetadata(value) {
   }
 
   return {
-    ...VERSION_METADATA,
+    ...getPublicVersionMetadata(),
     data: value,
   };
 }
@@ -1165,7 +1176,7 @@ function formatBetHelpAppendix() {
       '--x-gameId <uint256>   Expert override for generated gameData gameId',
       '--x-ref <address>      Expert override for referral address in gameData',
       '--x-userRandomWord <bytes32> Expert override for generated userRandomWord',
-      '--resilient            Retry transient network/RPC failures conservatively',
+      '--resilient            Retry transient transaction, contract/RNG, network, gas, and RPC failures',
       '--no-resilient         Disable inherited resilient retry mode',
       '--gp-ape <points>      Override local GP estimation for this run',
     ],
@@ -1313,7 +1324,7 @@ function formatBotHelpAppendix() {
     options: [
       '--list                 List discovered bots',
       '--validate-only        Validate bot invocation without running it',
-      '--resilient            Inherit resilient retry mode in bot-launched plays',
+      '--resilient            Inherit resilient transaction retry mode in bot-launched plays',
       '--no-resilient         Disable inherited resilient retry mode',
       '<bot options...>       Any unrecognized options after [name] are forwarded to the bot',
     ],
@@ -1355,7 +1366,7 @@ function formatContestHelpAppendix() {
     notes: [
       `Entry fee: ${CONTEST_ENTRY_FEE} APE.`,
       `Eligibility limit: total wagered must be below ${CONTEST_WAGER_LIMIT} APE.`,
-      `Contest end date: ${CONTEST_END_DATE.toISOString()}.`,
+      `Contest end date: ${formatTerminalTimestamp(CONTEST_END_DATE)}.`,
     ],
   });
 }
@@ -2386,7 +2397,8 @@ function formatScoreNumericValue(value, { suffix = '', decimals = 6, trimTrailin
 
 function formatScoreDateValue(value) {
   const normalized = String(value || '').trim();
-  return normalized ? theme.dim(normalized) : theme.warning('…');
+  const formatted = normalized ? formatTerminalTimestamp(normalized) : null;
+  return formatted ? theme.dim(formatted) : theme.warning('…');
 }
 
 function formatScoreModeValue(value) {
@@ -2594,7 +2606,7 @@ function formatScoreboardReport(scoreboard, { includeHeader = true, referenceMod
     { key: 'game_mode', header: 'game mode', align: 'left' },
     { key: 'bet', header: 'bet', align: 'right' },
     { key: 'payout', header: 'payout', align: 'right' },
-    { key: 'datetime_utc', header: 'datetime UTC', align: 'left' },
+    { key: 'datetime_utc', header: 'datetime', align: 'left' },
     ...(referenceMode === 'url'
       ? [{ key: 'game_url', header: 'game url', align: 'left' }]
       : referenceMode === 'ids'
@@ -2607,7 +2619,7 @@ function formatScoreboardReport(scoreboard, { includeHeader = true, referenceMod
     { key: 'game_mode', header: 'game mode', align: 'left' },
     { key: 'bet', header: 'bet', align: 'right' },
     { key: 'multiplier', header: 'multiplier', align: 'right' },
-    { key: 'datetime_utc', header: 'datetime UTC', align: 'left' },
+    { key: 'datetime_utc', header: 'datetime', align: 'left' },
     ...(referenceMode === 'url'
       ? [{ key: 'game_url', header: 'game url', align: 'left' }]
       : referenceMode === 'ids'
@@ -5404,7 +5416,7 @@ program
   .option('--x-gameId <uint256>', 'Expert: override generated gameId in gameData')
   .option('--x-ref <address>', 'Expert: override referral address in gameData')
   .option('--x-userRandomWord <bytes32>', 'Expert: override generated userRandomWord in gameData')
-  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
+  .option('--resilient', 'Retry transient transaction, contract/RNG, network, gas, and RPC failures')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
   .addHelpText('after', formatBetHelpAppendix())
@@ -5551,7 +5563,7 @@ program
   .option('--cashout-after <rows>', 'Cash Dash auto-play cashes out after N safe rows')
   .option('--strategy <name>', 'conservative | balanced | aggressive | degen')
   .option('--loop', 'Play continuously')
-  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
+  .option('--resilient', 'Retry transient transaction, contract/RNG, network, gas, and RPC failures')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
@@ -7065,7 +7077,7 @@ program
           console.log('  Compete against other agents for prizes!\n');
           console.log(`  Entry Fee:     ${CONTEST_ENTRY_FEE} APE (one-time)`);
           console.log(`  Eligibility:   Must have wagered < ${CONTEST_WAGER_LIMIT} APE total`);
-          console.log(`  Ends:          ${CONTEST_END_DATE.toDateString()}\n`);
+          console.log(`  Ends:          ${formatTerminalTimestamp(CONTEST_END_DATE)}\n`);
           console.log(`  Run: ${BINARY_NAME} install  (to set up your agent first)`);
         }
         console.log('═══════════════════════════════════════════════════════════════════\n');
@@ -7135,7 +7147,7 @@ program
       console.log('  Compete against other agents for prizes!\n');
       console.log(`  Entry Fee:     ${CONTEST_ENTRY_FEE} APE (one-time)`);
       console.log(`  Eligibility:   Must have wagered < ${CONTEST_WAGER_LIMIT} APE total`);
-      console.log(`  Ends:          ${CONTEST_END_DATE.toDateString()}\n`);
+      console.log(`  Ends:          ${formatTerminalTimestamp(CONTEST_END_DATE)}\n`);
       
       console.log('  YOUR STATUS');
       console.log('  ─────────────────────────────────────────────────────────────────');
@@ -9990,7 +10002,7 @@ program
   .option('--solver-max-states <n>', 'Best-EV search state cap for --auto/--solver best/max (defaults 50000/150000)')
   .option('--solver-timeout-ms <ms>', 'Best-EV worker timeout for --auto/--solver best/max (defaults 5000/30000)')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
+  .option('--resilient', 'Retry transient transaction, contract/RNG, network, gas, and RPC failures')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
   .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
@@ -10031,7 +10043,7 @@ program
   .option('--tile <tile>', 'Opening tile: 1-7 or random; manual mode prompts when omitted')
   .option('--cashout-after <rows>', 'Auto-play cashes out after N safe rows')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
+  .option('--resilient', 'Retry transient transaction, contract/RNG, network, gas, and RPC failures')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
   .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
@@ -10071,7 +10083,7 @@ program
   .option('--auto [mode]', 'Auto-play the run')
   .option('--solver [mode]', 'Show a continuation suggestion in manual mode')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
+  .option('--resilient', 'Retry transient transaction, contract/RNG, network, gas, and RPC failures')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
   .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
@@ -10109,7 +10121,7 @@ program
   .option('--auto [mode]', 'Auto-play the hand')
   .option('--solver', 'Show best-EV hold suggestion in interactive video poker')
   .option('--delay <seconds>', 'Fixed delay between looped games')
-  .option('--resilient', 'Retry transient network/RPC failures with conservative backoff')
+  .option('--resilient', 'Retry transient transaction, contract/RNG, network, gas, and RPC failures')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
   .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')

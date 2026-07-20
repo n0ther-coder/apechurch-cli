@@ -507,14 +507,27 @@ describe('Bot Session Helpers', () => {
   });
 
   it('formats the standard terminal output lines without colors', () => {
-    assert.strictEqual(
+    assert.match(
       formatBeforeGameLine({
         balanceApe: '100.0000',
         totalPayoutWei: 30n * 10n ** 18n,
         totalWagerWei: 20n * 10n ** 18n,
         totalPnlWei: 10n * 10n ** 18n,
+        timestamp: new Date(2026, 6, 18, 18, 33, 15),
       }),
-      '# balance: 100.0000, payout_ape: 30, wager_ape: 20, pnl: 10',
+      /^# 2026-JUL-18 18:33:15[+-]\d{4} \| balance: 100\.0000, payout_ape: 30, wager_ape: 20, gross pnl: 10$/,
+    );
+
+    assert.match(
+      formatBeforeGameLine({
+        balanceApe: '105.0000',
+        totalPayoutWei: 0n,
+        totalWagerWei: 0n,
+        totalPnlWei: 5n * 10n ** 18n,
+        pnlBasis: 'net',
+        timestamp: new Date(2026, 6, 18, 18, 34, 15),
+      }),
+      /^# 2026-JUL-18 18:34:15[+-]\d{4} \| balance: 105\.0000, payout_ape: 0, wager_ape: 0, net pnl: 5$/,
     );
 
     assert.strictEqual(
@@ -524,7 +537,7 @@ describe('Bot Session Helpers', () => {
         totalPayoutWei: 25n * 10n ** 18n,
         totalPnlWei: 5n * 10n ** 18n,
       }),
-      '# routine: 3, wagered: 20, pnl: 5, multiply: 1.25',
+      '# routine: 3, wagered: 20, gross pnl: 5, multiply: 1.25',
     );
 
     assert.strictEqual(
@@ -533,8 +546,9 @@ describe('Bot Session Helpers', () => {
         totalWagerWei: 2n * 10n ** 18n,
         totalPayoutWei: 5n * 10n ** 18n,
         totalPnlWei: 3n * 10n ** 18n,
+        pnlBasis: 'net',
       }),
-      '# routine: 4, wagered: 2, pnl: 3, multiply: 2.50',
+      '# routine: 4, wagered: 2, net pnl: 3, multiply: 2.50',
     );
 
     assert.strictEqual(
@@ -559,6 +573,27 @@ describe('Bot Session Helpers', () => {
       formatPlayCommandSuffix({ status: 'loop_control_reached' }),
       '  # loop_control_reached',
     );
+  });
+
+  it('colors the balance-line timestamp cyan when plain color output is enabled', () => {
+    const previousForceColor = process.env.APECHURCH_CLI_FORCE_COLOR;
+    process.env.APECHURCH_CLI_FORCE_COLOR = '1';
+
+    try {
+      const line = formatBeforeGameLine({
+        balanceApe: '100.0000',
+        totalPayoutWei: 0n,
+        totalWagerWei: 0n,
+        totalPnlWei: 0n,
+        timestamp: new Date(2026, 6, 18, 18, 33, 15),
+        colorOutput: true,
+      });
+
+      assert.match(line, /^# \x1b\[36m2026-JUL-18 18:33:15[+-]\d{4}\x1b\[39m \|/);
+    } finally {
+      if (previousForceColor === undefined) delete process.env.APECHURCH_CLI_FORCE_COLOR;
+      else process.env.APECHURCH_CLI_FORCE_COLOR = previousForceColor;
+    }
   });
 
   it('formats the launched play command with shell-safe quoting', () => {

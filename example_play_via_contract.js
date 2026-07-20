@@ -7,6 +7,7 @@ import {
   ROULETTE_CONTRACT,
 } from './lib/constants.js';
 import { encodeAbiParameters, hashMessage } from 'viem';
+import { formatTerminalTimestamp } from './lib/terminal-time.js';
 
 // --- Configuration ---
 const {
@@ -86,7 +87,7 @@ async function main() {
  */
 async function pollDatabaseAndProcessUsers(walletGames) {
     console.log("\n-------------------------------------");
-    console.log(`[${new Date().toISOString()}] Polling for Ape balance...`);
+    console.log(`[${formatTerminalTimestamp()}] Polling for Ape balance...`);
 
     const walletIndex = Math.floor(Math.random() * walletGames.length);
     const walletToPlay = walletGames[walletIndex];

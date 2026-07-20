@@ -227,8 +227,9 @@ Before a live run, a bot should confirm unsafe missing guards:
 Human-readable output should use this shape for each game:
 
 ```text
-# balance: <balance>, win_rate: <won>/<total>, payout_ape: <total payouts>, wager_ape: <total wagered>, pnl: <pnl>
+# <YYYY-MMM-DD HH:mm:ss±ZZZZ> | balance: <balance>, payout_ape: <total payouts>, wager_ape: <total wagered>, gross pnl: <payouts-wagers>
 apechurch-cli play <game> ...  # bet: <bet>, payout: <payout> (<payout-bet>)
+# routine: <n>, wagered: <routine wager>, gross pnl: <payouts-wagers>, multiply: <payout/wager>
 ```
 
 After the final game, print the balance line one more time. Prefer the session formatters instead of hand-building this output:
@@ -240,6 +241,8 @@ After the final game, print the balance line one more time. Prefer the session f
 - `session.colorPnl(...)`
 - `session.colorCommand(...)`
 
+`formatBeforeGameLine` and `formatIterationSummaryLine` default to `pnlBasis: 'gross'`. Pass `pnlBasis: 'net'` whenever `totalPnlWei` is derived from wallet-balance movement or otherwise includes fees rather than simply `payout - wager`.
+
 For JSON mode, return exactly one final summary object. The loader enriches returned summaries with `run_id`, `root_run_id`, parent call metadata, timestamps, raw `args`, `balance_snapshots`, and `nested_bot_calls`. Include each nested `playJson` payload under the matching game entry. During long runs, also pass the same summary shape to `ctx.updateRunSummary({ ...summary, status: "running" })` after each completed iteration so the JSON log remains reconstructable if the process is interrupted.
 
 When calling another bot, call it with `botJson` and embed that payload under `fallback` or another explicit field; the loader also links the separate child JSON log back to the parent through `parent_run_id` and `parent_call_id`.
@@ -250,7 +253,7 @@ Use integer wei math for wager sizing and P&L accounting. Avoid floating-point m
 
 Use `session.getSettledPlayEconomics(payload, gameNumber, botName)` to extract settled wager, payout, and P&L from `playJson` results. If a result is not settled, stop or surface the error instead of guessing.
 
-Do not blindly retry live plays after an indeterminate RPC state such as timeout, rate limit, connection failure, or nonce trouble. A retry can duplicate a wager when the transaction state is unknown. Check wallet history or status before rerunning.
+Do not add a second bot-level retry loop around `playJson`. Pass `--resilient` and let the public transaction layer retain the original game/action payload and apply its centralized schedules. Once a transaction hash exists, confirmation failures are returned as pending instead of being resent; a manual retry outside that flow can duplicate an action when transaction state is unknown.
 
 ## Play Surface
 

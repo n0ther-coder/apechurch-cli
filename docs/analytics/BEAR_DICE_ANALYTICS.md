@@ -341,9 +341,9 @@ Here `Y` is the one-roll multiplier, including `0x` for losing sums.
 
 #### `play bear 10 --risk Master --survive 2`
 
-| multiplier | game title    | game mode        |     bet |      payout | datetime UTC             |
+| multiplier | game title    | game mode        |     bet |      payout | datetime                  |
 |------------|---------------|------------------|---------|-------------|--------------------------|
-|    316.84x | Bear-A-Dice   | Master / 2 rolls |  10 APE | 3168.40 APE | [2026-04-09T13:51:52.000Z](https://www.ape.church/games/bear-dice?id=85362939057228085925658060676410317158371505306587702769921913197717810997356) |
+|    316.84x | Bear-A-Dice   | Master / 2 rolls |  10 APE | 3168.40 APE | [2026-APR-09 15:51:52+0200](https://www.ape.church/games/bear-dice?id=85362939057228085925658060676410317158371505306587702769921913197717810997356) |
 
 
 ## Sources

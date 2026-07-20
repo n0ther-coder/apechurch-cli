@@ -10,6 +10,10 @@ process.env.APECHURCH_CLI_LOG_DIR = path.join(tmpRoot, 'logs');
 const fakeCliPath = path.join(tmpRoot, 'fake-cli.js');
 fs.writeFileSync(fakeCliPath, `
 const [, , command, ...args] = process.argv;
+if (args.includes('--emit-retry')) {
+  process.stderr.write('⚠️ Contract returns error message "Paused", Rechecking in 3m (at 2026-JUL-18 18:36:15+0200).\\n');
+  process.stderr.write('{"error":"not a retry notice"}\\n');
+}
 console.log(JSON.stringify({ command, args }));
 `);
 
@@ -78,5 +82,26 @@ describe('Bot Runtime Context', () => {
     const payload = await ctx.validatePlayArgs(['ape-strong', '1', '60']);
 
     assert.deepStrictEqual(payload.args, ['ape-strong', '1', '60', '--resilient', '--validate-only', '--json']);
+  });
+
+  it('forwards only transaction retry notices from nested JSON plays', async () => {
+    const ctx = createContext(['--resilient']);
+    const writes = [];
+    const originalWrite = process.stderr.write;
+    process.stderr.write = (chunk) => {
+      writes.push(String(chunk));
+      return true;
+    };
+
+    try {
+      const payload = await ctx.playJson(['ape-strong', '1', '60', '--emit-retry']);
+      assert.strictEqual(payload.command, 'play');
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+
+    const output = writes.join('');
+    assert.match(output, /⚠️ Contract returns error message "Paused", Rechecking in 3m/);
+    assert.doesNotMatch(output, /not a retry notice/);
   });
 });

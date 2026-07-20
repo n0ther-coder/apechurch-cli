@@ -177,9 +177,9 @@ Var(X) = p * m^2 - (p * m)^2
 
 #### `play smash 10 --out-range 3-97 --loop --delay 1 --max-games 18`
 
-| multiplier | game title    | game mode        |     bet |      payout | datetime UTC             |
+| multiplier | game title    | game mode        |     bet |      payout | datetime                  |
 |------------|---------------|------------------|---------|-------------|--------------------------|
-|     19.50x | Gimboz Smash  | Cover 5          |  10 APE |  195.00 APE | [2026-04-22T13:53:21.000Z](https://www.ape.church/games/gimboz-smash?id=74033990263888936243695231205935804963170241245501495169273604673762750739002) |
+|     19.50x | Gimboz Smash  | Cover 5          |  10 APE |  195.00 APE | [2026-APR-22 15:53:21+0200](https://www.ape.church/games/gimboz-smash?id=74033990263888936243695231205935804963170241245501495169273604673762750739002) |
 
 ## Sources
 

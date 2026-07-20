@@ -530,6 +530,8 @@ Notes:
                        | "--amount" <ape>
                        | "--strategy" <persona>
                        | "--loop"
+                       | "--resilient"
+                       | "--no-resilient"
                        | "--delay" <seconds>
                        | "--human" [ <human-range> ]
                        | "--max-games" <count>
@@ -610,6 +612,8 @@ These options are accepted by the `play` command for both stateless and stateful
 | `--amount <ape>` | Wager amount |
 | `--strategy <name>` | Persona used when the CLI chooses a game/config |
 | `--loop` | Keep playing until a stop condition is hit |
+| `--resilient` | Enable the hard-coded retry policies for transient transaction errors, reverted receipts, allowlisted contract guards, RNG/VRF errors, out-of-gas failures, network/DNS outages, and RPC-node errors |
+| `--no-resilient` | Disable inherited resilient mode |
 | `--delay <seconds>` | Delay between looped games |
 | `--human [range]` | Add humanized loop pacing. Bare `--human` uses weighted 3-9s; `weighted:3-9` is the explicit form of that profile, while a range such as `2-17` uses a uniform random seconds window |
 | `--max-games <count>` | Stop loop after N games |
@@ -629,6 +633,8 @@ These options are accepted by the `play` command for both stateless and stateful
 | `-v`, `--verbose` | Show technical logs |
 | `--color` | Force ANSI color in plain output; JSON output stays uncolored |
 | `--json` | Emit JSON output only |
+
+The resilient schedules are fixed, not configurable. Generic transient errors and reverted receipts use `30s`, `1m`, `2m`, `5m`, `10m × 6`, and `1h × 7` (17 retries over `8h08m30s`). Network/DNS outages, `PRICE TOO LOW, PvH GAMES PAUSED`, `All Games Paused`, `Paused`, propagated RNG/VRF errors, out-of-gas failures, and RPC-node errors use `3m`, `7m`, `10m × 5`, `30m × 10`, and `1h × 18` (35 retries over 24 hours). Retry notices include the next local attempt timestamp in `YYYY-MMM-DD HH:mm:ss±ZZZZ` form.
 
 `bankroll-fraction=<fraction>` requires `--bankroll`/`--max-loss` or `--stop-loss`, and it conflicts with an explicit wager amount (`<amount>` or `--amount`). Each loop iteration bets `fraction * remaining bankroll`; `--max-bet` caps that dynamic wager and `--min-bet` floors it.
 

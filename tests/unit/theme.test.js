@@ -23,6 +23,7 @@ import {
   colorsEnabled,
 } from '../../lib/theme.js';
 import { getVisibleWidth, stripAnsi } from '../../lib/ansi.js';
+import { formatTerminalTimestamp } from '../../lib/terminal-time.js';
 
 describe('Theme', () => {
 
@@ -222,14 +223,14 @@ describe('Theme', () => {
       const result = formatHistoryLine(game);
       const plain = stripAnsi(result);
       assert.ok(plain.includes('🎉'));
-      assert.ok(plain.includes('2026-03-27 14:28:51 UTC 🎉'));
+      assert.ok(plain.includes(`${formatTerminalTimestamp(game.timestamp)} 🎉`));
       assert.ok(plain.indexOf('ApeStrong') > plain.indexOf('🎉'));
       assert.ok(plain.includes('       9.50 APE'));
       assert.ok(plain.includes('       10.00 wAPE'));
       assert.ok(plain.includes('🧮 50 GP'));
       assert.ok(plain.includes('ApeStrong'));
       assert.ok(!plain.includes('<123456789>'));
-      assert.ok(plain.includes('(verified on-chain, 2026-03-29 12:00:00 UTC)'));
+      assert.ok(plain.includes(`(verified on-chain, ${formatTerminalTimestamp(game.last_sync_on)})`));
     });
 
     it('formats losing game line', () => {
@@ -247,13 +248,13 @@ describe('Theme', () => {
       const result = formatHistoryLine(game);
       const plain = stripAnsi(result);
       assert.ok(plain.includes('💀'));
-      assert.ok(plain.includes('2026-03-27 14:30:00 UTC 💀'));
+      assert.ok(plain.includes(`${formatTerminalTimestamp(game.timestamp)} 💀`));
       assert.ok(plain.indexOf('Roulette') > plain.indexOf('💀'));
       assert.ok(plain.includes('       5.00 APE'));
       assert.ok(plain.includes('        5.00 wAPE'));
       assert.ok(plain.includes('Roulette'));
       assert.ok(!plain.includes('<42>'));
-      assert.ok(plain.includes('(verified on-chain, 2026-03-29 12:05:00 UTC)'));
+      assert.ok(plain.includes(`(verified on-chain, ${formatTerminalTimestamp(game.last_sync_on)})`));
     });
 
     it('formats break-even game line with handshake icon', () => {
@@ -271,13 +272,13 @@ describe('Theme', () => {
       const result = formatHistoryLine(game);
       const plain = stripAnsi(result);
       assert.ok(plain.includes('🤝'));
-      assert.ok(plain.includes('2026-03-27 14:31:00 UTC 🤝'));
+      assert.ok(plain.includes(`${formatTerminalTimestamp(game.timestamp)} 🤝`));
       assert.ok(plain.indexOf('Blackjack') > plain.indexOf('🤝'));
       assert.ok(plain.includes('        1.00 wAPE'));
       assert.ok(plain.includes('Blackjack'));
       assert.ok(!plain.includes('<987654321>'));
       assert.ok(plain.includes('       0.00 APE'));
-      assert.ok(plain.includes('(verified on-chain, 2026-03-29 12:06:00 UTC)'));
+      assert.ok(plain.includes(`(verified on-chain, ${formatTerminalTimestamp(game.last_sync_on)})`));
     });
 
     it('formats pending game line', () => {
@@ -295,11 +296,11 @@ describe('Theme', () => {
       const result = formatHistoryLine(game);
       const plain = stripAnsi(result);
       assert.ok(plain.includes('⏳'));
-      assert.ok(plain.includes('2026-03-27 14:32:00 UTC ⏳'));
+      assert.ok(plain.includes(`${formatTerminalTimestamp(game.timestamp)} ⏳`));
       assert.ok(plain.indexOf('Plinko') > plain.indexOf('⏳'));
       assert.ok(plain.includes('pending'));
       assert.ok(plain.includes('        2.00 wAPE'));
-      assert.ok(plain.includes('(verified on-chain, 2026-03-29 12:07:00 UTC)'));
+      assert.ok(plain.includes(`(verified on-chain, ${formatTerminalTimestamp(game.last_sync_on)})`));
     });
 
     it('formats local-only history lines with an explicit local source label', () => {
@@ -333,7 +334,7 @@ describe('Theme', () => {
       });
 
       assert.ok(result.includes('🚫'));
-      assert.ok(result.includes('(execution reverted, 2026-03-29 12:11:00 UTC)'));
+      assert.ok(result.includes(`(execution reverted, ${formatTerminalTimestamp('2026-03-29T12:11:00.000Z')})`));
     });
 
     it('aligns N/A with the decimal columns of net-result values', () => {
@@ -354,9 +355,8 @@ describe('Theme', () => {
       }));
 
       const numberStart = verified.indexOf('9.50 APE');
-      assert.strictEqual(localOnly.indexOf('N'), numberStart + 1);
-      assert.strictEqual(localOnly.indexOf('/'), numberStart + 2);
-      assert.strictEqual(localOnly.indexOf('A'), numberStart + 3);
+      const unavailableStart = localOnly.indexOf('N/A');
+      assert.strictEqual(unavailableStart, numberStart + 1);
     });
 
     it('keeps game names aligned between verified and local-only rows', () => {
