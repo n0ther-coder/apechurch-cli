@@ -61,14 +61,14 @@ describe('R2 config and bot log mirroring helpers', () => {
 
   it('builds remote object keys from the local log path relative to the log directory', () => {
     const logDir = path.join(tmpRoot, 'log');
-    const filePath = path.join(logDir, 'bob', 'bob.20260706120000.json');
+    const filePath = path.join(logDir, 'example-bot', 'example-bot.20260706120000.json');
 
     assert.strictEqual(
       getR2ObjectKeyForLog(filePath, { logDir, prefix: '/session/a/' }),
-      'session/a/bob/bob.20260706120000.json',
+      'session/a/example-bot/example-bot.20260706120000.json',
     );
     assert.strictEqual(
-      getLocalLogPathForR2ObjectKey('session/a/bob/bob.20260706120000.json', { logDir, prefix: '/session/a/' }),
+      getLocalLogPathForR2ObjectKey('session/a/example-bot/example-bot.20260706120000.json', { logDir, prefix: '/session/a/' }),
       filePath,
     );
     assert.strictEqual(
@@ -100,7 +100,7 @@ describe('R2 config and bot log mirroring helpers', () => {
         access_key_id: 'access-key-id',
         secret_access_key: 'secret-access-key',
       },
-      'prefix/bob/log.json',
+      'prefix/example-bot/log.json',
       '{"ok":true}\n',
       {
         endpointBaseUrl: 'https://r2.test',
@@ -113,9 +113,9 @@ describe('R2 config and bot log mirroring helpers', () => {
     );
 
     assert.strictEqual(response.ok, true);
-    assert.strictEqual(response.objectKey, 'prefix/bob/log.json');
+    assert.strictEqual(response.objectKey, 'prefix/example-bot/log.json');
     assert.strictEqual(requests.length, 1);
-    assert.strictEqual(requests[0].url, 'https://r2.test/apechurch-cli-log/prefix/bob/log.json');
+    assert.strictEqual(requests[0].url, 'https://r2.test/apechurch-cli-log/prefix/example-bot/log.json');
     assert.strictEqual(requests[0].options.method, 'PUT');
     assert.strictEqual(requests[0].options.body, '{"ok":true}\n');
     assert.match(requests[0].options.headers.Authorization, /^AWS4-HMAC-SHA256 /);
@@ -136,7 +136,7 @@ describe('R2 config and bot log mirroring helpers', () => {
         access_key_id: 'access-key-id',
         secret_access_key: 'secret-access-key',
       },
-      'bob/bob.20260706120000.json',
+      'example-bot/example-bot.20260706120000.json',
       {
         endpointBaseUrl: 'https://r2.test',
         now: new Date('2026-07-06T12:34:56.000Z'),
@@ -144,7 +144,7 @@ describe('R2 config and bot log mirroring helpers', () => {
       },
     );
 
-    assert.match(presigned.url, /^https:\/\/r2\.test\/presign-cache-log\/bob\/bob\.20260706120000\.json\?/);
+    assert.match(presigned.url, /^https:\/\/r2\.test\/presign-cache-log\/example-bot\/example-bot\.20260706120000\.json\?/);
     assert.match(presigned.url, /X-Amz-Expires=60/);
     assert.match(presigned.url, /X-Amz-Credential=access-key-id%2F20260706%2Fauto%2Fs3%2Faws4_request/);
     assert.doesNotMatch(presigned.url, /secret-access-key/);
@@ -152,7 +152,7 @@ describe('R2 config and bot log mirroring helpers', () => {
     saveCachedR2PresignedUrl(entry, presigned);
     const refreshed = listStoredR2Configs().find((config) => config.bucket === 'presign-cache-log');
     const cached = getCachedR2PresignedUrl(refreshed, {
-      objectKey: 'bob/bob.20260706120000.json',
+      objectKey: 'example-bot/example-bot.20260706120000.json',
       now: new Date('2026-07-06T12:35:00.000Z'),
     });
     assert.strictEqual(cached.url, presigned.url);
@@ -178,8 +178,8 @@ describe('R2 config and bot log mirroring helpers', () => {
       calls.push(prefix);
       return {
         objects: [
-          { key: `${prefix}bob.20260706120000.json`, lastModified: new Date('2026-01-01T00:00:00.000Z') },
-          { key: `${prefix}bob.20260707120000.json`, lastModified: new Date('2025-01-01T00:00:00.000Z') },
+          { key: `${prefix}example-bot.20260706120000.json`, lastModified: new Date('2026-01-01T00:00:00.000Z') },
+          { key: `${prefix}example-bot.20260707120000.json`, lastModified: new Date('2025-01-01T00:00:00.000Z') },
           { key: `${prefix}notes.json`, lastModified: new Date('2027-01-01T00:00:00.000Z') },
         ],
       };
@@ -188,22 +188,22 @@ describe('R2 config and bot log mirroring helpers', () => {
     assert.strictEqual(
       await resolveLatestR2JsonObjectKey(credentials, {
         prefix: 'remote',
-        targetPath: 'bob/bob.20260706120000.json',
+        targetPath: 'example-bot/example-bot.20260706120000.json',
         listObjects,
       }),
-      'remote/bob/bob.20260706120000.json',
+      'remote/example-bot/example-bot.20260706120000.json',
     );
     assert.deepStrictEqual(calls, []);
 
     assert.strictEqual(
       await resolveLatestR2JsonObjectKey(credentials, {
         prefix: 'remote',
-        targetPath: 'bob',
+        targetPath: 'example-bot',
         listObjects,
       }),
-      'remote/bob/bob.20260707120000.json',
+      'remote/example-bot/example-bot.20260707120000.json',
     );
-    assert.deepStrictEqual(calls, ['remote/bob/']);
+    assert.deepStrictEqual(calls, ['remote/example-bot/']);
 
     calls.length = 0;
     const previousEnvPrefix = process.env.APECHURCH_CLI_R2_PREFIX;
@@ -211,12 +211,12 @@ describe('R2 config and bot log mirroring helpers', () => {
     try {
       assert.strictEqual(
         await resolveLatestR2JsonObjectKey(credentials, {
-          targetPath: 'bob',
+          targetPath: 'example-bot',
           listObjects,
         }),
-        'bob/bob.20260707120000.json',
+        'example-bot/example-bot.20260707120000.json',
       );
-      assert.deepStrictEqual(calls, ['bob/']);
+      assert.deepStrictEqual(calls, ['example-bot/']);
     } finally {
       if (previousEnvPrefix === undefined) {
         delete process.env.APECHURCH_CLI_R2_PREFIX;
@@ -229,42 +229,42 @@ describe('R2 config and bot log mirroring helpers', () => {
   it('resolves presign output directories using the remote object file name', () => {
     const outputDir = path.join(tmpRoot, 'presign-output');
     fs.mkdirSync(outputDir, { recursive: true });
-    const objectKey = 'kenobi/kenobi.20260709113717.json';
+    const objectKey = 'another-bot/another-bot.20260709113717.json';
 
     assert.strictEqual(
       resolveR2PresignOutputPath(outputDir, objectKey),
-      path.join(outputDir, 'kenobi.20260709113717.json'),
+      path.join(outputDir, 'another-bot.20260709113717.json'),
     );
     assert.strictEqual(
       resolveR2PresignOutputPath(`${path.join(tmpRoot, 'presign-new-dir')}${path.sep}`, objectKey),
-      path.join(tmpRoot, 'presign-new-dir', 'kenobi.20260709113717.json'),
+      path.join(tmpRoot, 'presign-new-dir', 'another-bot.20260709113717.json'),
     );
     assert.strictEqual(
-      resolveR2PresignOutputPath(path.join(tmpRoot, 'latest-kenobi'), objectKey),
-      path.join(tmpRoot, 'latest-kenobi.json'),
+      resolveR2PresignOutputPath(path.join(tmpRoot, 'latest-another-bot'), objectKey),
+      path.join(tmpRoot, 'latest-another-bot.json'),
     );
     assert.strictEqual(
-      resolveR2PresignOutputPath(path.join(tmpRoot, 'latest-kenobi.json'), objectKey),
-      path.join(tmpRoot, 'latest-kenobi.json'),
+      resolveR2PresignOutputPath(path.join(tmpRoot, 'latest-another-bot.json'), objectKey),
+      path.join(tmpRoot, 'latest-another-bot.json'),
     );
   });
 
   it('syncs local and remote bot logs without deleting either side', async () => {
     const logDir = path.join(tmpRoot, 'sync-log');
-    const bobDir = path.join(logDir, 'bob');
-    fs.mkdirSync(bobDir, { recursive: true });
-    const localLog = path.join(bobDir, 'bob.20260706120000.json');
+    const exampleBotDir = path.join(logDir, 'example-bot');
+    fs.mkdirSync(exampleBotDir, { recursive: true });
+    const localLog = path.join(exampleBotDir, 'example-bot.20260706120000.json');
     fs.writeFileSync(localLog, '{"local":true}\n', 'utf8');
 
     const remoteObjects = new Map([
-      ['bob/bob.20260707120000.json', {
+      ['example-bot/example-bot.20260707120000.json', {
         body: '{"remote":true}\n',
         lastModified: new Date('2026-07-06T12:34:56.000Z'),
       }],
     ]);
     const uploads = [];
     const result = await syncR2Logs({
-      bot: 'bob',
+      bot: 'example-bot',
       logDir,
       credentialsResult: {
         enabled: true,
@@ -296,25 +296,25 @@ describe('R2 config and bot log mirroring helpers', () => {
     assert.strictEqual(result.uploaded, 1);
     assert.strictEqual(result.downloaded, 1);
     assert.deepStrictEqual(uploads, [
-      { objectKey: 'bob/bob.20260706120000.json', body: '{"local":true}\n' },
+      { objectKey: 'example-bot/example-bot.20260706120000.json', body: '{"local":true}\n' },
     ]);
     assert.strictEqual(
-      fs.readFileSync(path.join(bobDir, 'bob.20260707120000.json'), 'utf8'),
+      fs.readFileSync(path.join(exampleBotDir, 'example-bot.20260707120000.json'), 'utf8'),
       '{"remote":true}\n',
     );
   });
 
   it('syncs remote-newer logs even when the file size matches', async () => {
     const logDir = path.join(tmpRoot, 'sync-newer-log');
-    const bobDir = path.join(logDir, 'bob');
-    fs.mkdirSync(bobDir, { recursive: true });
-    const sharedLog = path.join(bobDir, 'bob.20260706120000.json');
+    const exampleBotDir = path.join(logDir, 'example-bot');
+    fs.mkdirSync(exampleBotDir, { recursive: true });
+    const sharedLog = path.join(exampleBotDir, 'example-bot.20260706120000.json');
     fs.writeFileSync(sharedLog, '{"n":1}\n', 'utf8');
     fs.utimesSync(sharedLog, new Date('2026-01-01T00:00:00.000Z'), new Date('2026-01-01T00:00:00.000Z'));
 
     const uploads = [];
     const result = await syncR2Logs({
-      bot: 'bob',
+      bot: 'example-bot',
       logDir,
       credentialsResult: {
         enabled: true,
@@ -328,7 +328,7 @@ describe('R2 config and bot log mirroring helpers', () => {
       },
       listObjects: async (_credentials, { prefix }) => ({
         objects: [{
-          key: `${prefix}bob.20260706120000.json`,
+          key: `${prefix}example-bot.20260706120000.json`,
           size: Buffer.byteLength('{"n":2}\n'),
           lastModified: new Date('2026-01-02T00:00:00.000Z'),
         }],
@@ -349,29 +349,29 @@ describe('R2 config and bot log mirroring helpers', () => {
 
   it('skips and reports invalid local and remote sync log files', async () => {
     const logDir = path.join(tmpRoot, 'sync-invalid-log');
-    const bobDir = path.join(logDir, 'bob');
-    fs.mkdirSync(bobDir, { recursive: true });
-    fs.writeFileSync(path.join(bobDir, 'bob.20260706120000.json'), '{"valid":true}\n', 'utf8');
-    fs.writeFileSync(path.join(bobDir, 'local.json'), '{"wrongName":true}\n', 'utf8');
-    fs.writeFileSync(path.join(bobDir, 'bob.20260707120000.json'), '{bad json', 'utf8');
+    const exampleBotDir = path.join(logDir, 'example-bot');
+    fs.mkdirSync(exampleBotDir, { recursive: true });
+    fs.writeFileSync(path.join(exampleBotDir, 'example-bot.20260706120000.json'), '{"valid":true}\n', 'utf8');
+    fs.writeFileSync(path.join(exampleBotDir, 'local.json'), '{"wrongName":true}\n', 'utf8');
+    fs.writeFileSync(path.join(exampleBotDir, 'example-bot.20260707120000.json'), '{bad json', 'utf8');
 
     const remoteObjects = new Map([
-      ['bob/remote.json', {
+      ['example-bot/remote.json', {
         body: '{"wrongName":true}\n',
         lastModified: new Date('2026-07-06T12:34:56.000Z'),
       }],
-      ['bob/bob.20260708120000.json', {
+      ['example-bot/example-bot.20260708120000.json', {
         body: '{bad json',
         lastModified: new Date('2026-07-08T12:34:56.000Z'),
       }],
-      ['bob/bob.20260709120000.json', {
+      ['example-bot/example-bot.20260709120000.json', {
         body: '{"remote":true}\n',
         lastModified: new Date('2026-07-09T12:34:56.000Z'),
       }],
     ]);
     const uploads = [];
     const result = await syncR2Logs({
-      bot: 'bob',
+      bot: 'example-bot',
       logDir,
       credentialsResult: {
         enabled: true,
@@ -404,14 +404,14 @@ describe('R2 config and bot log mirroring helpers', () => {
     assert.strictEqual(result.downloaded, 1);
     assert.strictEqual(result.skipped, 4);
     assert.deepStrictEqual(uploads, [
-      { objectKey: 'bob/bob.20260706120000.json', body: '{"valid":true}\n' },
+      { objectKey: 'example-bot/example-bot.20260706120000.json', body: '{"valid":true}\n' },
     ]);
     assert.strictEqual(
-      fs.readFileSync(path.join(bobDir, 'bob.20260709120000.json'), 'utf8'),
+      fs.readFileSync(path.join(exampleBotDir, 'example-bot.20260709120000.json'), 'utf8'),
       '{"remote":true}\n',
     );
     assert.strictEqual(
-      fs.existsSync(path.join(bobDir, 'bob.20260708120000.json')),
+      fs.existsSync(path.join(exampleBotDir, 'example-bot.20260708120000.json')),
       false,
     );
     assert.deepStrictEqual(
@@ -457,18 +457,18 @@ describe('R2 config and bot log mirroring helpers', () => {
       },
     });
 
-    const bobLog = path.join(logDir, 'bob', 'bob.20260706120000.json');
+    const exampleBotLog = path.join(logDir, 'example-bot', 'example-bot.20260706120000.json');
     const aliceLog = path.join(logDir, 'alice', 'alice.20260706120000.json');
-    mirror.write(bobLog, { n: 1 });
+    mirror.write(exampleBotLog, { n: 1 });
     await firstUploadStarted;
-    mirror.write(bobLog, { n: 2 });
+    mirror.write(exampleBotLog, { n: 2 });
     mirror.write(aliceLog, { n: 3 });
     unblockFirstUpload();
     await mirror.flush();
 
     assert.deepStrictEqual(uploads, [
-      { objectKey: 'remote/bob/bob.20260706120000.json', body: { n: 1 } },
-      { objectKey: 'remote/bob/bob.20260706120000.json', body: { n: 2 } },
+      { objectKey: 'remote/example-bot/example-bot.20260706120000.json', body: { n: 1 } },
+      { objectKey: 'remote/example-bot/example-bot.20260706120000.json', body: { n: 2 } },
       { objectKey: 'remote/alice/alice.20260706120000.json', body: { n: 3 } },
     ]);
   });

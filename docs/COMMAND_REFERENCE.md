@@ -291,7 +291,7 @@ The encrypted payload stores the account ID, API token, access key ID, and secre
 
 `bucket presign ... -o <file>` fetches the JSON body from the presigned URL and writes it locally, appending `.json` when `<file>` has no extension. If `<file>` is a directory or ends with a path separator, the remote object file name is used inside that directory. Existing files prompt before overwrite unless `--force` is passed.
 
-Remote R2 object keys mirror the local bot log path relative to `APECHURCH_CLI_LOG_DIR`: `log/bob/bob.<timestamp>.json` becomes `<prefix>/bob/bob.<timestamp>.json`. Set `APECHURCH_CLI_R2_PREFIX` to choose `<prefix>`. Upload is best-effort during bot runs; local JSON logs remain authoritative if R2 is unavailable.
+Remote R2 object keys mirror the local bot log path relative to `APECHURCH_CLI_LOG_DIR`: `log/example-bot/example-bot.<timestamp>.json` becomes `<prefix>/example-bot/example-bot.<timestamp>.json`. Set `APECHURCH_CLI_R2_PREFIX` to choose `<prefix>`. Upload is best-effort during bot runs; local JSON logs remain authoritative if R2 is unavailable.
 
 | Option | Meaning |
 |--------|---------|
@@ -340,28 +340,15 @@ Example `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script.json`:
 {
   "command": [
     {
-      "bot": "bob",
-      "game": {
-        "arg": "game",
+      "bot": "example-bot",
+      "profile": {
+        "arg": "profile",
         "value": [
-          "bj --auto max --solver-timeout-ms 180000"
-        ]
-      },
-      "bankroll": "500",
-      "bet": "fractional=0.055",
-      "--spillover": {
-        "arg": "bot",
-        "value": [
-          "zen --stop 500",
-          "game1='keno --picks 5' --bet1 2 --again1 1x",
-          "game2='bear --survive 2' --gate2 1.87x",
-          "game3=blocks --gate3 1.2x",
-          "game4=monkey"
+          "conservative --limit 3"
         ]
       }
     },
-    "--resilient",
-    "--color"
+    "--json"
   ]
 }
 ```
@@ -373,7 +360,7 @@ Example `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script.json`:
 The watcher records local state per script and does not launch another copy while the previous `custom_script` process group recorded for that script is still alive. This means a plain `apechurch-cli script watch custom_script` relaunches only after the previous script run terminates. Each watch attempt/status line, including condition failures and launches, starts with a cyan local timestamp formatted like `2026-JUL-08 14:05:09+0200`.
 
 ```bash
-apechurch-cli script write custom_script bot bob --spillover "bot=zen --stop 500 game1='keno --picks 5'"
+apechurch-cli script write custom_script bot example-bot "profile=conservative --limit 3" --json
 apechurch-cli script read custom_script
 apechurch-cli script watch custom_script
 apechurch-cli script watch custom_script --every 60
@@ -663,7 +650,7 @@ The resilient schedules are fixed, not configurable. Generic transient errors an
 
 The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. Local bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape>`, `--fallback-bot <name>`, and standard loop controls. `--take-profit` and `--stop-loss` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive absolute thresholds from the bot's starting balance, while a lone `--stop-loss` derives the bot's relative bankroll as `starting balance - stop-loss`. `--max-routines` limits the main bot's own routines and is not forwarded; `--preflight` delays the main bot before balance reads and is not forwarded; `--max-games` remains a game loop option and is invalid when passed to a bot. Bot code is trusted local code, so only run bots from directories you control. See [BOTS.md](./BOTS.md) for the public bot development guide.
 
-The runtime surface is intentionally narrow: bots receive positional args plus gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `validatePlayArgs(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, `validateBotArgs(name, tokens)`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and bot-specific `bot.logDir`. Bot summary logs are written under `paths.logDir/<bot-name>/` with a `.json` extension only when the summary contains at least one full transaction hash. Runs that fail, exit, or are interrupted before any transaction still return/print their summary but do not create empty local or mirrored log files.
+The runtime surface is intentionally narrow: bots receive positional args plus command-registry helpers `resolveGame(command)` and `resolveBot(command)`, gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `validatePlayArgs(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, `validateBotArgs(name, tokens)`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and bot-specific `bot.logDir`. The resolvers use the same playable-game catalog and discovered-bot registry as the public CLI and return a descriptor or `null`; they do not execute or validate a wager. Bot summary logs are written under `paths.logDir/<bot-name>/` with a `.json` extension only when the summary contains at least one full transaction hash. Runs that fail, exit, or are interrupted before any transaction still return/print their summary but do not create empty local or mirrored log files.
 
 ## History, Catalog, And Help
 
@@ -994,4 +981,4 @@ Alias: `vp`
                        | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new hand. Valid opening wagers are fixed to `1`, `5`, `10`, `25`, `50`, or `100` APE. `--human [range]` is supported but hidden from standard `--help`.
+If the first positional token is numeric, the command starts a new hand. Valid opening wagers are fixed to `10`, `25`, `50`, `100`, `250`, or `400` APE. `--human [range]` is supported but hidden from standard `--help`.

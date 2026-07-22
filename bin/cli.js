@@ -322,6 +322,10 @@ import {
   sleep,
 } from '../lib/stateful/timing.js';
 import {
+  BET_AMOUNTS as VIDEO_POKER_BET_AMOUNTS,
+  MAX_BET_INDEX as VIDEO_POKER_MAX_BET_INDEX,
+} from '../lib/stateful/video-poker/constants.js';
+import {
   discoverBotDefinitions,
   runBot,
   validateBotInvocation,
@@ -394,6 +398,10 @@ program
   .version(VERSION_DISPLAY, '-V, --version', 'output the current version')
   .option('--color', 'Force ANSI color in plain output, even when output is piped');
 const GAME_LIST = listGames().join(' | ');
+const VIDEO_POKER_BET_AMOUNTS_TEXT = VIDEO_POKER_BET_AMOUNTS.join(', ');
+const VIDEO_POKER_BET_BNF = VIDEO_POKER_BET_AMOUNTS.map((amount) => `"${amount}"`).join(' | ');
+const VIDEO_POKER_MIN_BET_APE = VIDEO_POKER_BET_AMOUNTS[0];
+const VIDEO_POKER_MAX_BET_APE = VIDEO_POKER_BET_AMOUNTS[VIDEO_POKER_MAX_BET_INDEX];
 const cliPath = path.join(__dirname, 'cli.js');
 const discoveredBots = discoverBotDefinitions();
 const BOT_HELP_EXAMPLES = Object.freeze([
@@ -979,10 +987,10 @@ function formatBucketHelpAppendix() {
       `${BINARY_NAME} bucket list --json`,
       `${BINARY_NAME} bucket enable apechurch-cli-log`,
       `${BINARY_NAME} bucket disable`,
-      `${BINARY_NAME} bucket sync bob`,
+      `${BINARY_NAME} bucket sync example-bot`,
       `${BINARY_NAME} bucket presign`,
-      `${BINARY_NAME} bucket presign bob -o latest-bob --force`,
-      `${BINARY_NAME} bucket presign bob/bob.20260706120000.json -t 3600`,
+      `${BINARY_NAME} bucket presign example-bot -o latest-example-bot --force`,
+      `${BINARY_NAME} bucket presign example-bot/example-bot.20260706120000.json -t 3600`,
     ],
     notes: [
       `Encrypted R2 entries live under ${R2_DIR}/<bucket>.json with a separate current selector; install/reinstall automatically enables the installed bucket.`,
@@ -1045,7 +1053,7 @@ function formatScriptHelpAppendix() {
       '<ape-nonnegative> ::= <non-negative-decimal>',
     ],
     examples: [
-      `${BINARY_NAME} script write custom_script bot bob --spillover "bot=zen --stop 500 game1='keno --picks 5'"`,
+      `${BINARY_NAME} script write custom_script bot example-bot "profile=conservative --limit 3" --json`,
       `${BINARY_NAME} script read custom_script`,
       `${BINARY_NAME} script watch custom_script`,
       `${BINARY_NAME} script watch custom_script --every 60`,
@@ -1768,7 +1776,7 @@ function formatStatefulCommandHelpAppendix(gameKey) {
     },
     'video-poker': {
       actions: [
-        '<amount>               Start a new Video Poker hand; valid bets are 10, 25, 50, 100, 250, 400 APE',
+        `<amount>               Start a new Video Poker hand; valid bets are ${VIDEO_POKER_BET_AMOUNTS_TEXT} APE`,
         'resume                 Resume unfinished Video Poker hands',
         'status                 Show current game state',
         'payouts/table          Show payout table',
@@ -1787,7 +1795,7 @@ function formatStatefulCommandHelpAppendix(gameKey) {
       bnf: [
         '<video-poker-command> ::= ( "video-poker" | "vp" ) [ <video-poker-head> ] [ <video-poker-bet> ] <video-poker-option>*',
         '<video-poker-head> ::= <video-poker-bet> | "resume" | "status" | "payouts" | "table" | "clear"',
-        '<video-poker-bet> ::= "10" | "25" | "50" | "100" | "250" | "400"',
+        `<video-poker-bet> ::= ${VIDEO_POKER_BET_BNF}`,
         '<video-poker-option> ::= <stateful-common-option> | "--auto" [ <auto-mode> ] | "--solver" | <stateful-loop-option>',
         '<auto-mode> ::= "simple" | "best"',
         ...STATEFUL_SHARED_BNF_LINES,
@@ -1795,13 +1803,13 @@ function formatStatefulCommandHelpAppendix(gameKey) {
         ...COMMON_BNF_LINES,
       ],
       examples: [
-        `${BINARY_NAME} video-poker 10`,
+        `${BINARY_NAME} video-poker ${VIDEO_POKER_MIN_BET_APE}`,
         `${BINARY_NAME} vp 100`,
         `${BINARY_NAME} video-poker 25 --auto best`,
         `${BINARY_NAME} video-poker resume --game 123`,
         `${BINARY_NAME} video-poker 25 --auto best --loop --giveback-profit 40`,
       ],
-      notes: ['Max bet 400 APE is jackpot eligible on Royal Flush. best mode enumerates hold combinations and redraw outcomes.'],
+      notes: [`Max bet ${VIDEO_POKER_MAX_BET_APE} APE is jackpot eligible on Royal Flush. best mode enumerates hold combinations and redraw outcomes.`],
     },
   }[gameKey];
 
@@ -2930,9 +2938,9 @@ async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
         const betAmount = action || amount;
         if (!betAmount && !allowsMissingStatefulStartAmount(opts)) {
           console.error('\n❌ Bet amount required');
-          console.error('   Valid bets: 10, 25, 50, 100, 250, 400 APE');
+          console.error(`   Valid bets: ${VIDEO_POKER_BET_AMOUNTS_TEXT} APE`);
           console.error(`   Usage: ${BINARY_NAME} video-poker <amount>\n`);
-          console.error(`   Example: ${BINARY_NAME} video-poker 10\n`);
+          console.error(`   Example: ${BINARY_NAME} video-poker ${VIDEO_POKER_MIN_BET_APE}\n`);
           return;
         }
         await getWalletWithPrompt({ json: opts.json, gameplay: true });
@@ -2959,7 +2967,7 @@ async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
         default:
           console.error(`\n❌ Unknown action: ${action}`);
           console.error('   Valid actions: resume, status, payouts, clear');
-          console.error('   Or provide a bet amount: 10, 25, 50, 100, 250, 400\n');
+          console.error(`   Or provide a bet amount: ${VIDEO_POKER_BET_AMOUNTS_TEXT}\n`);
       }
       return;
     }
@@ -3110,8 +3118,8 @@ function validateStatefulAmount(amount, gameKey) {
   }
   if (gameKey === 'video-poker') {
     const value = Number(amount);
-    if (![10, 25, 50, 100, 250, 400].includes(value)) {
-      throw new Error('Invalid video-poker bet amount. Valid bets: 10, 25, 50, 100, 250, 400 APE.');
+    if (!VIDEO_POKER_BET_AMOUNTS.includes(value)) {
+      throw new Error(`Invalid video-poker bet amount. Valid bets: ${VIDEO_POKER_BET_AMOUNTS_TEXT} APE.`);
     }
   }
 }
@@ -6919,6 +6927,8 @@ const botCommand = program
       const exitCode = await runBot(bot, {
         cliPath,
         rawArgs,
+        gameResolver: resolveCatalogGameEntry,
+        botResolver: findBotByCommand,
       });
       if (exitCode !== 0) {
         process.exitCode = exitCode;
@@ -8070,7 +8080,7 @@ ${'─'.repeat(60)}
   GRAMMAR (BNF)
 ${'─'.repeat(60)}
 
-  <amount> ::= "10" | "25" | "50" | "100" | "250" | "400"
+  <amount> ::= ${VIDEO_POKER_BET_BNF}
   <auto-mode> ::= "simple" | "best"
 
 ${'─'.repeat(60)}
@@ -8091,8 +8101,8 @@ ${'─'.repeat(60)}
   EXAMPLES
 ${'─'.repeat(60)}
 
-  ${BINARY_NAME} video-poker 10              Play one hand, 10 APE
-  ${BINARY_NAME} video-poker 400             Max bet (jackpot eligible)
+  ${BINARY_NAME} video-poker ${VIDEO_POKER_MIN_BET_APE}              Play one hand, ${VIDEO_POKER_MIN_BET_APE} APE
+  ${BINARY_NAME} video-poker ${VIDEO_POKER_MAX_BET_APE}             Max bet (jackpot eligible)
   ${BINARY_NAME} video-poker 25 --auto          Bot plays one hand (simple)
   ${BINARY_NAME} video-poker 25 --auto best     Exact EV solver
   ${BINARY_NAME} video-poker 25 --auto --loop
@@ -9145,10 +9155,10 @@ ${'─'.repeat(70)}
   Object keys mirror the local path relative to ${LOG_DIR}.
 
   Local:
-    ${LOG_DIR}/bob/bob.20260706120000.json
+    ${LOG_DIR}/example-bot/example-bot.20260706120000.json
 
   Remote:
-    <prefix>/bob/bob.20260706120000.json
+    <prefix>/example-bot/example-bot.20260706120000.json
 
   Set ${R2_PREFIX_ENV_VAR} to choose <prefix>. Leading and trailing slashes
   are ignored.

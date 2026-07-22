@@ -1,8 +1,22 @@
 {
   "name": "@n0ther/apechurch-cli",
-  "version": "27.3.1",
+  "version": "28.0.0",
   "description": "Hardened autonomous agent CLI for Ape Church on ApeChain. Local-only signing with encrypted wallet storage.",
   "main": "./registry.js",
+  "files": [
+    "bin/",
+    "lib/",
+    "registry.js",
+    "CHANGELOG.md",
+    "HEARTBEAT.md",
+    "LEGACY.md",
+    "LICENSE",
+    "README.md",
+    "SKILL.md",
+    "STRATEGY.md",
+    "profile.example.json",
+    "skill.json"
+  ],
   "scripts": {
     "test": "node --test tests/unit/*.test.js tests/integration/*.test.js",
     "test:unit": "node --test tests/unit/*.test.js",

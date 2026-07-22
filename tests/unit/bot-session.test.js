@@ -683,10 +683,10 @@ describe('Bot Session Helpers', () => {
     const videoPoker = getSettledPlayEconomics({
       isComplete: true,
       gameStateName: 'HAND_COMPLETE',
-      betAmountApe: 45,
+      betAmountApe: 50,
       totalPayoutApe: 0,
     }, 3);
-    assert.strictEqual(videoPoker.pnlWei, -45n * 10n ** 18n);
+    assert.strictEqual(videoPoker.pnlWei, -50n * 10n ** 18n);
     assert.strictEqual(getPlayStatus({ isComplete: true, gameStateName: 'HAND_COMPLETE' }), 'complete');
 
     assert.throws(

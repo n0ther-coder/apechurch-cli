@@ -105,38 +105,38 @@ describe('Command Script Helpers', () => {
   it('formats nested assignment tokens as editable JSON command entries', () => {
     const payload = buildScriptPayloadFromArgs([
       'bot',
-      'bob',
+      'example-bot',
       '--resilient',
-      'game=bj --auto max --solver-timeout-ms 180000',
-      'bankroll',
+      'target=bj --auto max --solver-timeout-ms 180000',
+      'budget',
       '500',
-      'bet',
+      'stake',
       'fractional=0.055',
-      '--spillover',
-      "bot=zen --stop 500 game1='keno --picks 5' --bet1 2 --again1 1x game2='bear --survive 2' --gate2 1.87x game3=blocks --gate3 1.2x game4=monkey",
+      '--pipeline',
+      "bot=child-bot --limit 500 step1='keno --picks 5' --amount1 2 --again1 1x step2='bear --survive 2' --gate2 1.87x step3=blocks --gate3 1.2x step4=monkey",
       '--color',
     ]);
 
     assert.deepStrictEqual(payload, {
       command: [
         {
-          bot: 'bob',
-          game: {
-            arg: 'game',
+          bot: 'example-bot',
+          target: {
+            arg: 'target',
             value: [
               'bj --auto max --solver-timeout-ms 180000',
             ],
           },
-          bankroll: '500',
-          bet: 'fractional=0.055',
-          '--spillover': {
+          budget: '500',
+          stake: 'fractional=0.055',
+          '--pipeline': {
             arg: 'bot',
             value: [
-              'zen --stop 500',
-              "game1='keno --picks 5' --bet1 2 --again1 1x",
-              "game2='bear --survive 2' --gate2 1.87x",
-              'game3=blocks --gate3 1.2x',
-              'game4=monkey',
+              'child-bot --limit 500',
+              "step1='keno --picks 5' --amount1 2 --again1 1x",
+              "step2='bear --survive 2' --gate2 1.87x",
+              'step3=blocks --gate3 1.2x',
+              'step4=monkey',
             ],
           },
         },
@@ -243,17 +243,17 @@ describe('Command Script Helpers', () => {
   it('freezes known defaults inside structured game argument values', () => {
     const payload = buildScriptPayloadFromArgs([
       'bot',
-      'bob',
+      'example-bot',
       '--human',
-      'game=bj --auto --solver --human',
+      'target=bj --auto --solver --human',
     ]);
 
     assert.deepStrictEqual(payload, {
       command: [
         {
-          bot: 'bob',
-          game: {
-            arg: 'game',
+          bot: 'example-bot',
+          target: {
+            arg: 'target',
             value: [
               'bj --auto simple --solver best --human weighted:3-9',
             ],
@@ -265,8 +265,8 @@ describe('Command Script Helpers', () => {
 
     assert.deepStrictEqual(normalizeScriptCommand(payload), [
       'bot',
-      'bob',
-      'game=bj --auto simple --solver best --human weighted:3-9',
+      'example-bot',
+      'target=bj --auto simple --solver best --human weighted:3-9',
       '--human',
     ]);
   });
@@ -275,19 +275,19 @@ describe('Command Script Helpers', () => {
     const command = normalizeScriptCommand({
       command: [
         {
-          bot: 'bob',
+          bot: 'example-bot',
           '--resilient': true,
-          game: {
-            arg: 'game',
+          target: {
+            arg: 'target',
             value: [
               'bj --auto max',
             ],
           },
-          '--spillover': {
+          '--pipeline': {
             arg: 'bot',
             value: [
-              'zen --stop 500',
-              "game1='keno --picks 5'",
+              'child-bot --limit 500',
+              "step1='keno --picks 5'",
             ],
           },
         },
@@ -298,17 +298,17 @@ describe('Command Script Helpers', () => {
 
     assert.deepStrictEqual(command, [
       'bot',
-      'bob',
+      'example-bot',
       '--resilient',
-      'game=bj --auto max',
-      '--spillover',
-      "bot=zen --stop 500 game1='keno --picks 5'",
+      'target=bj --auto max',
+      '--pipeline',
+      "bot=child-bot --limit 500 step1='keno --picks 5'",
       '--color',
     ]);
 
     assert.strictEqual(
       renderScriptCommand(command),
-      'apechurch-cli bot bob --resilient \'game=bj --auto max\' --spillover "bot=zen --stop 500 game1=\'keno --picks 5\'" --color',
+      'apechurch-cli bot example-bot --resilient \'target=bj --auto max\' --pipeline "bot=child-bot --limit 500 step1=\'keno --picks 5\'" --color',
     );
   });
 
@@ -322,7 +322,7 @@ describe('Command Script Helpers', () => {
       /must match object arg/,
     );
     assert.throws(
-      () => normalizeScriptCommand({ command: [{ '--spillover': { arg: 'bot' } }] }),
+      () => normalizeScriptCommand({ command: [{ '--pipeline': { arg: 'bot' } }] }),
       /must be a string, number, boolean/,
     );
   });

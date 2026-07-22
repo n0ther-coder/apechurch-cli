@@ -27,6 +27,8 @@ All notable changes to this project will be documented in this file.
   - Updated `ABI_VERIFICATION`, `COMMAND_REFERENCE`, and `GAMES_REFERENCE`
 
 ### Changed
+- Public bot examples and fixtures now use neutral names and generic arguments, while the npm package uses an explicit file allowlist to exclude local checkouts, tests, maintainer docs, and development artifacts
+- Video Poker validation, loop RTP/jackpot estimates, displays, and docs now consistently follow the verified live contract denominations (`10`, `25`, `50`, `100`, `250`, and `400 APE`), with progressive-jackpot eligibility only at the `400 APE` maximum
 - History sync now treats `--chunk-size` as an initial maximum, recursively shrinks oversized or timed-out RPC log ranges, reuses the learned size for the rest of the run, checkpoints every completed initial range, batches fallback game-info reads, and progressively processes bounded metadata/stateful backlogs during refresh/download only
 - Plain `history` now performs only current GP/wAPE balance reads after local metadata normalization; `--offline` keeps the entire read path local, while scoreboard and game-stat reads no longer trigger implicit metadata RPC lookups
 - Bot balance and routine summaries now label payout-minus-wager values as `gross pnl`; callers can explicitly label balance-derived values as `net pnl`

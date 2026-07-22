@@ -523,6 +523,20 @@ describe('CLI Commands Integration Tests', () => {
       assert.match(JSON.parse(cashDash.stdout).error, /Invalid --auto mode/);
     });
 
+    it('play validate-only enforces the current video poker denominations', () => {
+      for (const amount of [10, 25, 50, 100, 250, 400]) {
+        const result = cli(`play video-poker ${amount} --auto best --validate-only --json`);
+        assert.strictEqual(result.code, 0, `expected ${amount} APE to be valid`);
+        assert.strictEqual(JSON.parse(result.stdout).status, 'valid');
+      }
+
+      for (const amount of [1, 5]) {
+        const result = cli(`play video-poker ${amount} --auto best --validate-only --json`);
+        assert.strictEqual(result.code, 1, `expected ${amount} APE to be rejected`);
+        assert.match(JSON.parse(result.stdout).error, /Valid bets: 10, 25, 50, 100, 250, 400 APE/);
+      }
+    });
+
     it('play validate-only accepts blackjack solver max and rejects invalid solver modes', () => {
       const valid = cli('play blackjack 10 --solver max --validate-only --json');
       assert.strictEqual(valid.code, 0);
@@ -622,7 +636,7 @@ describe('CLI Commands Integration Tests', () => {
       fs.rmSync(scrDir, { recursive: true, force: true });
 
       const written = cli(
-        'script write custom_script bot bob --human --spillover "bot=zen --stop 500 game1=\'keno --picks 5\' --bet1 2" --color',
+        'script write custom_script bot example-bot --human --pipeline "bot=child-bot --limit 500 step1=\'keno --picks 5\' --amount1 2" --color',
         { env: { [SCR_DIR_ENV]: scrDir } },
       );
 
@@ -634,12 +648,12 @@ describe('CLI Commands Integration Tests', () => {
       const stored = JSON.parse(fs.readFileSync(path.join(scrDir, 'custom_script.json'), 'utf8'));
       assert.deepStrictEqual(stored.command, [
         {
-          bot: 'bob',
-          '--spillover': {
+          bot: 'example-bot',
+          '--pipeline': {
             arg: 'bot',
             value: [
-              'zen --stop 500',
-              "game1='keno --picks 5' --bet1 2",
+              'child-bot --limit 500',
+              "step1='keno --picks 5' --amount1 2",
             ],
           },
         },
@@ -649,9 +663,9 @@ describe('CLI Commands Integration Tests', () => {
 
       const read = cli('script read custom_script', { env: { [SCR_DIR_ENV]: scrDir } });
       assert.strictEqual(read.code, 0);
-      assert.match(read.stdout, /^apechurch-cli bot bob --spillover /);
+      assert.match(read.stdout, /^apechurch-cli bot example-bot --pipeline /);
       assert.ok(read.stdout.includes('--human --color'));
-      assert.ok(read.stdout.includes("bot=zen --stop 500 game1='keno --picks 5' --bet1 2"));
+      assert.ok(read.stdout.includes("bot=child-bot --limit 500 step1='keno --picks 5' --amount1 2"));
       assert.ok(read.stdout.trim().endsWith('--color'));
 
       const explicitRead = cli('script read custom_script.json', { env: { [SCR_DIR_ENV]: scrDir } });
@@ -1548,17 +1562,17 @@ describe('CLI Commands Integration Tests', () => {
         [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
         [PASS_ENV]: 'test-password-123',
       };
-      const first = cli('bucket presign bob/bob.20260706120000.json -t 60 --json', { env: presignEnv });
+      const first = cli('bucket presign example-bot/example-bot.20260706120000.json -t 60 --json', { env: presignEnv });
       assert.strictEqual(first.code, 0);
       const firstPayload = JSON.parse(first.stdout.trim());
       assert.strictEqual(firstPayload.success, true);
-      assert.strictEqual(firstPayload.object_key, 'bob/bob.20260706120000.json');
+      assert.strictEqual(firstPayload.object_key, 'example-bot/example-bot.20260706120000.json');
       assert.strictEqual(firstPayload.cached, false);
-      assert.match(firstPayload.url, /^https:\/\/acct-secret-not-printed\.r2\.cloudflarestorage\.com\/apechurch-cli-log\/bob\/bob\.20260706120000\.json\?/);
+      assert.match(firstPayload.url, /^https:\/\/acct-secret-not-printed\.r2\.cloudflarestorage\.com\/apechurch-cli-log\/example-bot\/example-bot\.20260706120000\.json\?/);
       assert.ok(!first.stdout.includes('secret-key-not-printed'));
       assert.ok(!first.stdout.includes('bearer-secret-not-printed'));
 
-      const second = cli('bucket presign bob/bob.20260706120000.json -t 60 --json', { env: presignEnv });
+      const second = cli('bucket presign example-bot/example-bot.20260706120000.json -t 60 --json', { env: presignEnv });
       assert.strictEqual(second.code, 0);
       const secondPayload = JSON.parse(second.stdout.trim());
       assert.strictEqual(secondPayload.cached, true);

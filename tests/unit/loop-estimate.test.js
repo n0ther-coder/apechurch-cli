@@ -89,14 +89,14 @@ describe('Loop Estimate Helpers', () => {
     const rolls = [0.999999, 0.5];
     let index = 0;
     const delta = sampleVideoPokerGameNetDeltaApe({
-      betAmountApe: 100,
+      betAmountApe: 400,
       jackpotApe: 1000,
       initialFeeApe: 0.4,
       redrawFeeApe: 0.6,
       rng: () => rolls[index++],
     });
 
-    assert.equal(delta, 25899);
+    assert.equal(delta, 100599);
   });
 
   it('can run deterministic video poker Monte Carlo estimates', () => {
@@ -216,7 +216,11 @@ describe('Loop Estimate Helpers', () => {
   });
 
   it('adds jackpot uplift to max-bet video poker RTP', () => {
-    assert.equal(getVideoPokerEstimatedRtp({ betAmountApe: 100, jackpotApe: 1000 }), 0.981899);
+    assert.equal(getVideoPokerEstimatedRtp({ betAmountApe: 400, jackpotApe: 1000 }), 0.9817115);
+  });
+
+  it('does not add jackpot uplift below the 400 APE max bet', () => {
+    assert.equal(getVideoPokerEstimatedRtp({ betAmountApe: 100, jackpotApe: 1000 }), 0.981649);
   });
 
   it('estimates video poker fees from initial and redraw VRF costs', () => {

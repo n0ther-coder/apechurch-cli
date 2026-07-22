@@ -35,7 +35,7 @@ For the `400 APE` denomination, jackpot uplift is:
 
 ```text
 RTP = 98.1649% + jackpot_ape / 160,000
-Royal Flush payout multiplier = 250 + jackpot_ape / 100
+Royal Flush payout multiplier = 250 + jackpot_ape / 400
 ```
 
 ## Variance

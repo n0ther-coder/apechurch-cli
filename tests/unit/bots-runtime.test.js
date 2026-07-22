@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'apechurch-bots-runtime-'));
+const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'apechurch-bot-runtime-'));
 process.env.APECHURCH_CLI_LOG_DIR = path.join(tmpRoot, 'logs');
 
 const fakeCliPath = path.join(tmpRoot, 'fake-cli.js');
@@ -19,7 +19,7 @@ console.log(JSON.stringify({ command, args }));
 
 const { createBotRuntimeContext } = await import('../../lib/bots.js');
 
-function createContext(rawArgs = []) {
+function createContext(rawArgs = [], runtimeOptions = {}) {
   return createBotRuntimeContext({
     name: 'Test Bot',
     command: 'test-bot',
@@ -30,10 +30,27 @@ function createContext(rawArgs = []) {
   }, {
     cliPath: fakeCliPath,
     rawArgs,
+    ...runtimeOptions,
   });
 }
 
 describe('Bot Runtime Context', () => {
+  it('exposes the authoritative game and bot command resolvers', () => {
+    const ctx = createContext([], {
+      gameResolver: (command) => (
+        command === 'vp' ? { key: 'video-poker', type: 'stateful' } : null
+      ),
+      botResolver: (command) => (
+        command === 'example-bot' ? { command: 'example-bot', name: 'Example Bot' } : null
+      ),
+    });
+
+    assert.deepStrictEqual(ctx.resolveGame('vp'), { key: 'video-poker', type: 'stateful' });
+    assert.deepStrictEqual(ctx.resolveBot('example-bot'), { command: 'example-bot', name: 'Example Bot' });
+    assert.strictEqual(ctx.resolveGame('example-bot'), null);
+    assert.strictEqual(ctx.resolveBot('vp'), null);
+  });
+
   it('adds bot-level --resilient to direct playJson calls', async () => {
     const ctx = createContext(['--resilient']);
 

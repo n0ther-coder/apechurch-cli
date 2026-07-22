@@ -96,11 +96,11 @@ Documented state enum values used by the repo:
 
 The verified on-chain bet denominations from `getBetAmounts()` are:
 
-- `1`
-- `5`
-- `10`
-- `25`
-- `50`
+- `10 APE`
+- `25 APE`
+- `50 APE`
+- `100 APE`
+- `250 APE`
 - `400 APE`
 
 Important consequences:

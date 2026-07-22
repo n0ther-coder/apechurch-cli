@@ -8,6 +8,7 @@ import {
   renderGameFullDecisionEndInteractive,
   renderGameFullPromptLine,
   renderGameFullDecisionStart,
+  renderPayoutTable,
 } from '../../lib/stateful/video-poker/display.js';
 import { stripAnsi } from '../../lib/ansi.js';
 
@@ -200,10 +201,10 @@ describe('Video Poker Display', () => {
     const json = renderGame(
       {
         ...makeDecisionState(),
-        betAmount: 5000000000000000000n,
-        betAmountApe: 5,
-        totalPayout: 25000000000000000000n,
-        totalPayoutApe: 25,
+        betAmount: 10000000000000000000n,
+        betAmountApe: 10,
+        totalPayout: 20000000000000000000n,
+        totalPayoutApe: 20,
         gameState: 3,
         gameStateName: 'HAND_COMPLETE',
         handStatus: 2,
@@ -216,9 +217,13 @@ describe('Video Poker Display', () => {
     );
 
     const parsed = JSON.parse(json);
-    assert.strictEqual(parsed.betAmount, '5000000000000000000');
-    assert.strictEqual(parsed.totalPayout, '25000000000000000000');
-    assert.strictEqual(parsed.betAmountApe, 5);
+    assert.strictEqual(parsed.betAmount, '10000000000000000000');
+    assert.strictEqual(parsed.totalPayout, '20000000000000000000');
+    assert.strictEqual(parsed.betAmountApe, 10);
     assert.strictEqual(parsed.handStatusName, 'TWO_PAIR');
+  });
+
+  it('labels only the 400 APE max bet as jackpot eligible', () => {
+    assert.match(renderPayoutTable(), /Max bet \(400 APE\) = Jackpot eligible/);
   });
 });

@@ -34,7 +34,7 @@ apechurch-cli bot <bot-command> --help
 apechurch-cli bot <bot-command> 10 --take-profit 25 --stop-loss 5
 ```
 
-For AI agents, the same surface is intentionally machine-friendly. `lib/bots.js` exposes a narrow runtime context with helpers such as `ctx.play(...)`, `ctx.playJson(...)`, `ctx.botRun(...)`, `ctx.botJson(...)`, `ctx.validatePlayArgs(...)`, and `ctx.validateBotArgs(...)`, so an agent can compose live CLI plays, call nested bots, validate arguments before execution, and consume structured results without scraping terminal output. The bot runtime also tracks nested calls, forwards chimes through parent/child bot chains, and writes per-bot JSON logs under `APECHURCH_CLI_LOG_DIR`.
+For AI agents, the same surface is intentionally machine-friendly. `lib/bots.js` exposes a narrow runtime context with helpers such as `ctx.resolveGame(...)`, `ctx.resolveBot(...)`, `ctx.play(...)`, `ctx.playJson(...)`, `ctx.botRun(...)`, `ctx.botJson(...)`, `ctx.validatePlayArgs(...)`, and `ctx.validateBotArgs(...)`, so an agent can classify commands through the same game catalog and discovered-bot registry used by the CLI, compose live plays, validate arguments before execution, and consume structured results without scraping terminal output. The bot runtime also tracks nested calls, forwards chimes through parent/child bot chains, and writes per-bot JSON logs under `APECHURCH_CLI_LOG_DIR`.
 
 Bot discovery is local and explicit:
 
@@ -555,7 +555,7 @@ apechurch-cli wallet download [address]         # Download supported on-chain hi
 apechurch-cli bot [name] [args...]             # Run a personal local bot or list discovered bots
 apechurch-cli bucket status [-v]                # Check optional R2 bot log mirroring; -v decrypts verbose values
 apechurch-cli bucket sync [bot]                 # Two-way sync local bot logs with R2
-apechurch-cli bucket presign bob -o latest-bob --force  # Download latest mirrored bob JSON via a presigned URL
+apechurch-cli bucket presign example-bot -o latest-example-bot --force  # Download the latest mirrored bot JSON via a presigned URL
 apechurch-cli games                             # List all games
 apechurch-cli game <name>                       # Game details
 apechurch-cli pause                             # Stop autonomous play
@@ -569,7 +569,7 @@ apechurch-cli commands                          # Full reference
 Custom scripts are JSON command files stored under `APECHURCH_CLI_SCR_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/scripts`. `script write` converts the command tokens after `<nome_script>` into JSON, `script read` renders that JSON back to a copy-pasteable command, and `script watch` executes the JSON command through `apechurch-cli` with polling and relaunch controls. The `.json` suffix is appended to `<nome_script>` when omitted, so `custom_script` and `custom_script.json` address the same file.
 
 ```bash
-apechurch-cli script write custom_script bot bob --spillover "bot=zen --stop 500 game1='keno --picks 5'"
+apechurch-cli script write custom_script bot example-bot "profile=conservative --limit 3" --json
 apechurch-cli script read custom_script
 apechurch-cli script watch custom_script
 apechurch-cli script watch custom_script --every 60
@@ -583,28 +583,15 @@ The saved `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script.json` is JSON:
 {
   "command": [
     {
-      "bot": "bob",
-      "game": {
-        "arg": "game",
+      "bot": "example-bot",
+      "profile": {
+        "arg": "profile",
         "value": [
-          "bj --auto max --solver-timeout-ms 180000"
-        ]
-      },
-      "bankroll": "500",
-      "bet": "fractional=0.055",
-      "--spillover": {
-        "arg": "bot",
-        "value": [
-          "zen --stop 500",
-          "game1='keno --picks 5' --bet1 2 --again1 1x",
-          "game2='bear --survive 2' --gate2 1.87x",
-          "game3=blocks --gate3 1.2x",
-          "game4=monkey"
+          "conservative --limit 3"
         ]
       }
     },
-    "--resilient",
-    "--color"
+    "--json"
   ]
 }
 ```
