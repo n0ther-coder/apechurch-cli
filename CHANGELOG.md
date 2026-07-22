@@ -27,6 +27,8 @@ All notable changes to this project will be documented in this file.
   - Updated `ABI_VERIFICATION`, `COMMAND_REFERENCE`, and `GAMES_REFERENCE`
 
 ### Changed
+- History sync now treats `--chunk-size` as an initial maximum, recursively splits oversized RPC log ranges, checkpoints every completed initial range, and progressively processes bounded metadata/stateful backlogs during refresh/download only
+- Plain `history` now performs only current GP/wAPE balance reads after local metadata normalization; `--offline` keeps the entire read path local, while scoreboard and game-stat reads no longer trigger implicit metadata RPC lookups
 - Bot balance and routine summaries now label payout-minus-wager values as `gross pnl`; callers can explicitly label balance-derived values as `net pnl`
 - Resilient generic/reverted retries now use `30s, 1m, 2m, 5m, 10m × 6, 1h × 7`; network/DNS, contract/RNG, gas, and RPC-node retries use `3m, 7m, 10m × 5, 30m × 10, 1h × 18`
 - Retry notices now identify the failure category/message and show the next attempt timestamp; nested bot plays forward these notices without polluting JSON stdout

@@ -257,7 +257,7 @@ The selected wallet is tracked by `wallets/current.json`, which points to `walle
 | `--json` | Emit JSON output | `status`, `download`, `select`, `new`, `password` |
 | `--from-block <n>` | Start block for history download/backfill; `download --from-block 0` rebuilds the history file | `download` |
 | `--to-block <n>` | End block for history download | `download` |
-| `--chunk-size <n>` | Block span per log query | `download` |
+| `--chunk-size <n>` | Initial maximum block span; oversized RPC ranges split automatically (default `50000`) | `download` |
 
 ### `bucket [action] [value]`
 
@@ -686,6 +686,7 @@ The runtime surface is intentionally narrow: bots receive positional args plus g
                    | "--leaderboard"
                    | "--scoreboard"
                    | "--url"
+                   | "--offline"
                    | "--refresh"
                    | "--from-block" <block>
                    | "--to-block" <block>
@@ -704,13 +705,16 @@ The runtime surface is intentionally narrow: bots receive positional args plus g
 | `--leaderboard` | Show global and weekly wAPE wagered plus weekly play breakdowns, grouped from Sunday 00:00 UTC |
 | `--scoreboard` | Append the cached Highest Multipliers and Biggest Payouts tables |
 | `--url` | Show game URLs in terminal scoreboard tables |
+| `--offline` | Read cached history without current GP or wAPE balance reads |
 | `--refresh` | Download/refresh the history before rendering |
 | `--from-block <n>` | Start block for `--refresh` |
 | `--to-block <n>` | End block for `--refresh` |
-| `--chunk-size <n>` | Block span per log query during refresh |
+| `--chunk-size <n>` | Initial maximum block span; oversized RPC ranges split automatically |
 | `--json` | Emit JSON output |
 
-`history --refresh` merges newly fetched records into the existing cache. Use `wallet download --from-block 0` when you want to rewrite the history file from genesis.
+`history --refresh` merges newly fetched records into the existing cache. The initial `--chunk-size` maximum is split automatically when an RPC response is too large, and completed initial ranges are checkpointed. Use `wallet download --from-block 0` when you want to rewrite the history file from genesis.
+
+Cached metadata normalization is local. Plain `history` only adds current balance reads, while `--offline` performs no RPC calls. Missing metadata and incomplete stateful entries that require transaction or contract lookups are processed only during refresh/download, using bounded legacy backlogs.
 
 `--url` and `--ids` only affect terminal scoreboard tables. `--url` shows `game_url`, `--ids` shows `game_id`, and if both are passed the last option wins. JSON output keeps both fields.
 
@@ -736,7 +740,7 @@ The runtime surface is intentionally narrow: bots receive positional args plus g
 | `--refresh` | Download/refresh the history before rebuilding the scoreboard |
 | `--from-block <n>` | Start block for `--refresh` |
 | `--to-block <n>` | End block for `--refresh` |
-| `--chunk-size <n>` | Block span per log query during refresh |
+| `--chunk-size <n>` | Initial maximum block span; oversized RPC ranges split automatically |
 | `--json` | Emit JSON output |
 
 This command renders the same two cached Top 20 leaderboards used by `history --scoreboard`:

@@ -189,7 +189,6 @@ import {
   loadState,
   saveState,
   loadHistory,
-  saveHistory,
   getHistoryFilePath,
   registerUsername,
   generateUsername,
@@ -260,7 +259,7 @@ import {
 } from '../lib/status.js';
 import {
   downloadWalletHistory,
-  inferSavedHistoryGameVariants,
+  normalizeSavedHistoryGameVariants,
   readCurrentHistoryBalances,
   summarizeHistoryGames,
   summarizeHistoryGamesByGame,
@@ -909,7 +908,7 @@ function formatWalletHelpAppendix() {
       '--json                 Emit JSON output where supported',
       '--from-block <n>       Start block for wallet history download/backfill',
       '--to-block <n>         End block for wallet history download; default is latest',
-      '--chunk-size <n>       Block span per history log query',
+      '--chunk-size <n>       Initial maximum block span; oversized log ranges split automatically',
     ],
     bnf: [
       '<wallet-command> ::= "wallet" [ <wallet-action> [ <address> ] ] <wallet-option>*',
@@ -934,6 +933,7 @@ function formatWalletHelpAppendix() {
       `Encrypted wallet entries: ${WALLETS_DIR}/<address>.json.`,
       'If an address entry is a symlink, normal filesystem resolution applies; the CLI only follows the selected wallets/<address>.json path.',
       `History downloads write to ${path.join(APECHURCH_DIR, 'history')}/<wallet>_history.json.`,
+      `--chunk-size defaults to ${DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString()} and is an initial maximum; oversized RPC ranges split automatically.`,
       'The private key is never exported by this CLI; signing decrypts locally only when needed.',
     ],
   });
@@ -1389,11 +1389,11 @@ function formatHistoryHelpAppendix() {
       '--leaderboard          Show weekly wAPE wagered leaderboard',
       '--scoreboard           Append cached wallet scoreboard derived from history',
       '--url                  Show scoreboard game URLs in terminal tables',
-      '--offline              Read local cache only; skip RPC enrichment and balance reads',
+      '--offline              Read local cache only; skip current balance reads',
       '--refresh              Refresh local history from chain before showing it',
       '--from-block <n>       Start block for --refresh sync/backfill',
       '--to-block <n>         End block for --refresh sync; default is latest',
-      '--chunk-size <n>       Block range per log query during refresh',
+      '--chunk-size <n>       Initial maximum block span; oversized ranges split automatically',
       '--json                 Emit JSON output',
     ],
     bnf: [
@@ -1414,6 +1414,8 @@ function formatHistoryHelpAppendix() {
     ],
     notes: [
       '`--offline` cannot be combined with `--refresh`.',
+      'Cached metadata is normalized locally on every read; missing RPC metadata is enriched only by refresh/download flows.',
+      `--chunk-size defaults to ${DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString()} and is the initial maximum; individual RPC ranges may be smaller.`,
       '`--url` and `--ids` affect terminal scoreboard reference columns; JSON keeps both fields.',
       `Use ${BINARY_NAME} wallet download --from-block 0 to rebuild history from genesis.`,
     ],
@@ -1435,7 +1437,7 @@ function formatScoreboardHelpAppendix() {
       '--refresh              Refresh local history from chain before showing scoreboard',
       '--from-block <n>       Start block for --refresh sync/backfill',
       '--to-block <n>         End block for --refresh sync; default is latest',
-      '--chunk-size <n>       Block range per log query during refresh',
+      '--chunk-size <n>       Initial maximum block span; oversized ranges split automatically',
       '--json                 Emit JSON output',
     ],
     bnf: [
@@ -1453,6 +1455,7 @@ function formatScoreboardHelpAppendix() {
     ],
     notes: [
       'Renders Highest Multipliers and Biggest Payouts Top 20 tables derived from cached history.',
+      `--chunk-size defaults to ${DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString()} and is the initial maximum; individual RPC ranges may be smaller.`,
       'If both --ids and --url are passed in terminal mode, the last one wins for the reference column.',
     ],
   });
@@ -3660,30 +3663,29 @@ function formatGameStatsMaxPayout(reference) {
   return theme.value(`${display}x${jackpotSuffix}`);
 }
 
-async function enrichStoredHistoryVariants(publicClient, history) {
+function normalizeStoredHistoryVariants(history) {
   if (!history || !Array.isArray(history.games) || history.games.length === 0) {
     return history;
   }
 
-  try {
-    const enrichment = await inferSavedHistoryGameVariants(publicClient, history.games);
-    if (!enrichment.changed) {
-      return history;
-    }
-
-    const nextHistory = {
-      ...history,
-      games: enrichment.games,
-    };
-    try {
-      saveHistory(nextHistory, nextHistory.wallet || history.wallet);
-    } catch {
-      // Best effort: keep the enriched in-memory view even if persistence fails.
-    }
-    return nextHistory;
-  } catch {
+  const normalization = normalizeSavedHistoryGameVariants(history.games);
+  if (!normalization.changed) {
     return history;
   }
+
+  return {
+    ...history,
+    games: normalization.games,
+  };
+}
+
+function currentHistoryBalancesFromStats(stats = {}) {
+  return {
+    current_gp_balance_raw: stats.current_gp_balance_raw ?? null,
+    current_gp_balance_display: stats.current_gp_balance_display ?? null,
+    current_wape_balance_wei: stats.current_wape_balance_wei ?? null,
+    current_wape_balance_ape: stats.current_wape_balance_ape ?? null,
+  };
 }
 
 function formatGameStatsTable(games = []) {
@@ -3780,7 +3782,15 @@ function formatWalletDownloadReport(downloadResult) {
     `   ${theme.label('Downloaded:')} ${sync.downloaded_games} supported game(s)`,
     `   ${theme.label('New:')} ${sync.new_games}`,
     `   ${theme.label('Saved:')} ${sync.saved_games}`,
+    `   ${theme.label('Metadata enriched:')} ${sync.metadata_enriched}`,
+    `   ${theme.label('Metadata pending:')} ${sync.metadata_pending}`,
+    `   ${theme.label('Stateful refreshed:')} ${sync.stateful_refreshed}`,
+    `   ${theme.label('Stateful pending:')} ${sync.stateful_pending}`,
   ];
+
+  if (sync.metadata_failed > 0) {
+    lines.push(`   ${theme.warning(`Metadata enrichment incomplete for ${sync.metadata_failed} attempted game(s).`)}`);
+  }
 
   if (sync.missing_transaction_metadata > 0) {
     lines.push(`   ${theme.warning(`Missing tx metadata for ${sync.missing_transaction_metadata} game(s); gas/fees may be incomplete.`)}`);
@@ -4656,7 +4666,7 @@ program
   .option('--json', 'JSON output')
   .option('--from-block <n>', 'Start block for wallet history download or backfill')
   .option('--to-block <n>', 'End block for wallet history download (default latest)')
-  .option('--chunk-size <n>', 'Block range per log query for wallet history download', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
+  .option('--chunk-size <n>', 'Initial maximum block span per history log query; oversized ranges split automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .addHelpText('after', formatWalletHelpAppendix())
   .action(async (action, address, opts) => {
     if (opts.list) {
@@ -7185,11 +7195,11 @@ program
   .option('--leaderboard', 'Show weekly wAPE wagered leaderboard')
   .option('--scoreboard', 'Append the wallet scoreboard derived from cached history')
   .option('--url', 'Show scoreboard game URLs in terminal output')
-  .option('--offline', 'Read local cache only; skip RPC enrichment and balance reads')
+  .option('--offline', 'Read local cache only; skip current balance reads')
   .option('--refresh', 'Refresh local history from chain before showing it')
   .option('--from-block <n>', 'Start block for --refresh sync or backfill')
   .option('--to-block <n>', 'End block for --refresh sync (default latest)')
-  .option('--chunk-size <n>', 'Block range per log query for --refresh sync', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
+  .option('--chunk-size <n>', 'Initial maximum block span for --refresh; oversized ranges split automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .option('--json', 'JSON output')
   .addHelpText('after', formatHistoryHelpAppendix())
   .action(async (address, opts, command) => {
@@ -7248,6 +7258,7 @@ program
     } else {
       history = loadHistory(targetAddress);
     }
+    history = normalizeStoredHistoryVariants(history);
 
     const historyFilePath = getHistoryFilePath(targetAddress);
     const hasDownloadedHistory = Boolean(history.last_download_on) || history.games.length > 0;
@@ -7280,11 +7291,6 @@ program
       return;
     }
 
-    let publicClient = null;
-    if (!opts.offline) {
-      ({ publicClient } = createClients());
-      history = await enrichStoredHistoryVariants(publicClient, history);
-    }
     const scoreboard = opts.scoreboard
       ? saveScoresFromHistory(history, targetAddress, {
           updatedOn: new Date().toISOString(),
@@ -7297,8 +7303,11 @@ program
       current_wape_balance_wei: null,
       current_wape_balance_ape: null,
     };
-    if (publicClient) {
+    if (!opts.offline && refreshResult?.stats) {
+      currentBalances = currentHistoryBalancesFromStats(refreshResult.stats);
+    } else if (!opts.offline) {
       try {
+        const { publicClient } = createClients();
         currentBalances = await readCurrentHistoryBalances(publicClient, targetAddress);
       } catch {
         currentBalances = {
@@ -7429,7 +7438,7 @@ program
   .option('--refresh', 'Refresh local history from chain before showing the scoreboard')
   .option('--from-block <n>', 'Start block for --refresh sync or backfill')
   .option('--to-block <n>', 'End block for --refresh sync (default latest)')
-  .option('--chunk-size <n>', 'Block range per log query for --refresh sync', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
+  .option('--chunk-size <n>', 'Initial maximum block span for --refresh; oversized ranges split automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .option('--json', 'JSON output')
   .addHelpText('after', formatScoreboardHelpAppendix())
   .action(async (address, opts, command) => {
@@ -7484,6 +7493,7 @@ program
     } else {
       history = loadHistory(targetAddress);
     }
+    history = normalizeStoredHistoryVariants(history);
 
     const hasDownloadedHistory = Boolean(history.last_download_on) || history.games.length > 0;
     if (!hasDownloadedHistory) {
@@ -7650,8 +7660,7 @@ program
     const localWalletAddress = getWalletAddress();
     let history = loadHistory(localWalletAddress || undefined);
     if (opts.stats && localWalletAddress) {
-      const { publicClient } = createClients();
-      history = await enrichStoredHistoryVariants(publicClient, history);
+      history = normalizeStoredHistoryVariants(history);
     }
     const historyBreakdown = summarizeHistoryGamesByGame(history);
     const includeActiveGames = Boolean(localWalletAddress);
@@ -8890,12 +8899,14 @@ ${'─'.repeat(70)}
     • Default sync is incremental from the cached last_synced_block + 1
     • Use --from-block 0 for a full backfill
     • Explicit backfills merge and deduplicate by contract + gameId
+    • --chunk-size is an initial maximum; oversized RPC ranges split automatically
+    • Missing legacy metadata is enriched progressively during refresh/download
     • Gaps are not tracked automatically as ranges; backfill them explicitly
 
   Download options:
     --from-block <n>   Start block for sync or backfill
     --to-block <n>     End block (default latest)
-    --chunk-size <n>   Block span per log query
+    --chunk-size <n>   Initial maximum block span; oversized ranges split automatically
     --json             Emit the machine-readable download report
 
   Download writes:
@@ -8940,12 +8951,12 @@ ${'─'.repeat(70)}
     --leaderboard              Show weekly wAPE wagered totals
     --scoreboard               Append the cached wallet scoreboard
     --url                      Show scoreboard game URLs in terminal output
-    --offline                  Read cache only; skip RPC enrichment and balances
+    --offline                  Read cache only; skip current balance reads
     --breakdown [game]         Show the same stats split by game, optionally filtered
     --refresh                  Run wallet download first, then render
     --from-block <n>           Start block for --refresh
     --to-block <n>             End block for --refresh
-    --chunk-size <n>           Block span per log query for --refresh
+    --chunk-size <n>           Initial maximum block span; oversized ranges split automatically
     --json                     Emit the cached report as JSON
 
   Coverage limits:
@@ -8967,7 +8978,8 @@ ${'─'.repeat(70)}
 
   2. ${BINARY_NAME} history [address]
      Reads that local file, shows recent games, and prints history stats.
-     Use --offline to skip best-effort RPC enrichment and current balances.
+     Cached metadata normalization is local. Use --offline to skip current
+     balance reads; RPC metadata enrichment only runs during refresh/download.
 
   3. ${BINARY_NAME} history [address] --scoreboard
      Appends the cached wallet scoreboard to the history report.

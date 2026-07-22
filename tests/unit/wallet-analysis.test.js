@@ -34,7 +34,8 @@ import {
   analyzeWalletHistory,
   diagnoseUnsyncedSupportedGames,
   discoverStatefulHistoryGames,
-  inferSavedHistoryGameVariants,
+  HISTORY_ENRICHMENT_MODES,
+  inferSavedHistoryGameVariants as inferSavedHistoryGameVariantsBase,
   mergeDownloadedHistoryGames,
   syncSavedStatefulHistoryGames,
   summarizeHistoryGames,
@@ -47,6 +48,14 @@ const WALLET = '0x1111111111111111111111111111111111111111';
 const SPONSOR = '0x2222222222222222222222222222222222222222';
 const APESTRONG = '0x0717330c1a9e269a0e034aBB101c8d32Ac0e9600';
 const ROULETTE = '0x1f48A104C1808eb4107f3999999D36aeafEC56d5';
+
+function inferSavedHistoryGameVariants(publicClient, games, options = {}) {
+  return inferSavedHistoryGameVariantsBase(publicClient, games, {
+    mode: HISTORY_ENRICHMENT_MODES.RPC_MISSING,
+    maxRpcCandidates: Infinity,
+    ...options,
+  });
+}
 
 function buildGpTransferLog({ to, value, address = GP_TOKEN_CONTRACT }) {
   return {
@@ -624,6 +633,55 @@ describe('Wallet History Analysis', () => {
   });
 
   describe('inferSavedHistoryGameVariants', () => {
+    it('defaults to local-only normalization when no behavior is specified', async () => {
+      let lookupCount = 0;
+      const result = await inferSavedHistoryGameVariantsBase({
+        async getTransaction() {
+          lookupCount += 1;
+          return null;
+        },
+      }, [
+        {
+          contract: BLOCKS_CONTRACT,
+          game_key: 'blocks',
+          gameId: '1',
+          tx: '0x' + 'd'.repeat(64),
+        },
+      ]);
+
+      assert.strictEqual(lookupCount, 0);
+      assert.strictEqual(result.rpcAttempted, 0);
+      assert.strictEqual(result.pendingCandidates, 1);
+    });
+
+    it('bounds RPC enrichment and leaves the remaining backlog for later refreshes', async () => {
+      const games = [1, 2].map((gameId) => ({
+        contract: BLOCKS_CONTRACT,
+        game_key: 'blocks',
+        gameId: String(gameId),
+        tx: `0x${String(gameId).repeat(64)}`,
+      }));
+      let lookupCount = 0;
+
+      const result = await inferSavedHistoryGameVariantsBase({
+        async getTransaction() {
+          lookupCount += 1;
+          throw new Error('transaction unavailable');
+        },
+      }, games, {
+        mode: HISTORY_ENRICHMENT_MODES.RPC_MISSING,
+        maxRpcCandidates: 1,
+        syncTimestamp: '2026-07-22T12:00:00.000Z',
+      });
+
+      assert.strictEqual(lookupCount, 1);
+      assert.strictEqual(result.rpcAttempted, 1);
+      assert.strictEqual(result.rpcFailed, 1);
+      assert.strictEqual(result.pendingCandidates, 2);
+      assert.strictEqual(result.games[0].variant_enrichment_on, '2026-07-22T12:00:00.000Z');
+      assert.strictEqual(result.games[1].variant_enrichment_on, undefined);
+    });
+
     it('reconstructs missing saved-game variant metadata from cached play tx hashes', async () => {
       const gameId = 77n;
       const playInput = encodeFunctionData({
@@ -1760,6 +1818,31 @@ describe('Wallet History Analysis', () => {
   });
 
   describe('syncSavedStatefulHistoryGames', () => {
+    it('skips completed stateful records that already have canonical cached metadata', async () => {
+      let rpcCalls = 0;
+      const result = await syncSavedStatefulHistoryGames({
+        async readContract() {
+          rpcCalls += 1;
+          throw new Error('should not be called');
+        },
+      }, [
+        {
+          contract: CASH_DASH_CONTRACT,
+          gameId: '1',
+          settled: true,
+          variant_key: 'cash-dash',
+          wager_wei: parseEther('10').toString(),
+          payout_wei: parseEther('12').toString(),
+          last_sync_on: '2026-07-22T00:00:00.000Z',
+          last_sync_msg: 'ok',
+        },
+      ], WALLET, '2026-07-22T01:00:00.000Z');
+
+      assert.strictEqual(rpcCalls, 0);
+      assert.strictEqual(result.attempted, 0);
+      assert.strictEqual(result.pending, 0);
+    });
+
     it('rebuilds completed video poker history entries from getGameInfo', async () => {
       const syncTimestamp = '2026-04-02T12:00:00.000Z';
       const result = await syncSavedStatefulHistoryGames({
@@ -2042,6 +2125,36 @@ describe('Wallet History Analysis', () => {
   });
 
   describe('analyzeWalletHistory', () => {
+    it('splits an oversized initial log range without exceeding the configured maximum', async () => {
+      const attemptedRanges = [];
+      const publicClient = {
+        async getBlockNumber() {
+          return 3n;
+        },
+        async getLogs({ fromBlock, toBlock }) {
+          attemptedRanges.push({ fromBlock, toBlock });
+          if (toBlock - fromBlock + 1n > 2n) {
+            const error = new Error('HTTP response body exceeded the size limit.');
+            error.name = 'ResponseBodyTooLargeError';
+            throw error;
+          }
+          return [];
+        },
+        async readContract() {
+          return 0n;
+        },
+      };
+
+      const analysis = await analyzeWalletHistory(publicClient, WALLET, {
+        chunkSize: 4n,
+      });
+
+      assert.deepStrictEqual(attemptedRanges[0], { fromBlock: 0n, toBlock: 3n });
+      assert.ok(attemptedRanges.some((range) => range.fromBlock === 0n && range.toBlock === 1n));
+      assert.ok(attemptedRanges.some((range) => range.fromBlock === 2n && range.toBlock === 3n));
+      assert.strictEqual(analysis.stats.games, 0);
+    });
+
     it('scans settlement logs in chunks and counts fees only when the wallet paid the tx', async () => {
       const chunkCalls = [];
       const txCalls = [];
