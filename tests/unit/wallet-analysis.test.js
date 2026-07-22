@@ -2155,6 +2155,126 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(analysis.stats.games, 0);
     });
 
+    it('treats log timeouts as adaptive signals and reuses the learned range size', async () => {
+      const attemptedRanges = [];
+      const publicClient = {
+        async getBlockNumber() {
+          return 7n;
+        },
+        async getLogs({ fromBlock, toBlock }) {
+          attemptedRanges.push({ fromBlock, toBlock });
+          if (toBlock - fromBlock + 1n > 2n) {
+            const error = new Error('Request timed out.');
+            error.name = 'TimeoutError';
+            throw error;
+          }
+          return [];
+        },
+        async readContract() {
+          return 0n;
+        },
+      };
+
+      const analysis = await analyzeWalletHistory(publicClient, WALLET, {
+        chunkSize: 4n,
+      });
+
+      const oversizedAttempts = attemptedRanges.filter(({ fromBlock, toBlock }) => {
+        return toBlock - fromBlock + 1n > 2n;
+      });
+      assert.deepStrictEqual(oversizedAttempts, [{ fromBlock: 0n, toBlock: 3n }]);
+      assert.ok(attemptedRanges.some((range) => range.fromBlock === 4n && range.toBlock === 5n));
+      assert.ok(attemptedRanges.some((range) => range.fromBlock === 6n && range.toBlock === 7n));
+      assert.strictEqual(analysis.stats.games, 0);
+    });
+
+    it('disables transport retries for adaptive log reads', async () => {
+      const requestOptions = [];
+      const publicClient = {
+        async getBlockNumber() {
+          return 0n;
+        },
+        async request(_request, options) {
+          requestOptions.push(options);
+          return [];
+        },
+        async readContract() {
+          return 0n;
+        },
+      };
+
+      const analysis = await analyzeWalletHistory(publicClient, WALLET, {
+        chunkSize: 50_000n,
+      });
+
+      assert.strictEqual(requestOptions.length, 2);
+      assert.ok(requestOptions.every((options) => options.retryCount === 0));
+      assert.strictEqual(analysis.stats.games, 0);
+    });
+
+    it('hydrates fallback game IDs in one contract batch and reuses chain timestamps', async () => {
+      const txHashes = ['0x' + '1'.repeat(64), '0x' + '2'.repeat(64)];
+      let essentialInfoCalls = 0;
+      let blockCalls = 0;
+      const publicClient = {
+        async getBlockNumber() {
+          return 10n;
+        },
+        async getLogs(params) {
+          if (!params.topics) {
+            return [];
+          }
+          return [1n, 2n].map((gameId, index) => ({
+            address: BLIZZARD_BLITZ_CONTRACT,
+            blockNumber: 10n,
+            logIndex: index,
+            transactionHash: txHashes[index],
+            removed: false,
+            data: `0x${gameId.toString(16)}`,
+          }));
+        },
+        async getTransaction({ hash }) {
+          return {
+            hash,
+            from: WALLET,
+            value: parseEther('1'),
+            gasPrice: 0n,
+            input: '0x',
+          };
+        },
+        async getTransactionReceipt() {
+          return { logs: [], gasUsed: 0n, effectiveGasPrice: 0n };
+        },
+        async getBlock() {
+          blockCalls += 1;
+          return { timestamp: 1_700_000_000n };
+        },
+        async readContract(params) {
+          if (params.functionName === 'getEssentialGameInfo') {
+            essentialInfoCalls += 1;
+            assert.deepStrictEqual(params.args, [[1n, 2n]]);
+            return [
+              [WALLET, WALLET],
+              [parseEther('1'), parseEther('1')],
+              [parseEther('2'), 0n],
+              [1_700_000_001n, 1_700_000_002n],
+              [true, true],
+            ];
+          }
+          if (params.functionName === 'getCurrentEXP' || params.functionName === 'balanceOf') {
+            return 0n;
+          }
+          throw new Error(`Unexpected contract read: ${params.functionName}`);
+        },
+      };
+
+      const analysis = await analyzeWalletHistory(publicClient, WALLET);
+
+      assert.strictEqual(essentialInfoCalls, 1);
+      assert.strictEqual(blockCalls, 0);
+      assert.strictEqual(analysis.stats.games, 2);
+    });
+
     it('scans settlement logs in chunks and counts fees only when the wallet paid the tx', async () => {
       const chunkCalls = [];
       const txCalls = [];

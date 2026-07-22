@@ -293,7 +293,7 @@ Sync and cache behavior:
 - Use `wallet download --from-block 0` to rebuild the local history file from scratch, or pass an explicit historical range to fill older blocks.
 - Explicit backfills and `history --refresh` are merged into the local file and deduplicated by `contract + game_id`.
 - `history --refresh` runs the same on-chain sync path before reading the local file, but it does not clear cached records first.
-- The default or user-provided `--chunk-size` is the initial maximum block span. Oversized RPC log ranges are split automatically into smaller requests and never expanded beyond that maximum.
+- The default or user-provided `--chunk-size` is the initial maximum block span. Oversized or timed-out RPC log ranges shrink automatically; the learned size is reused for the rest of the run and never exceeds that initial maximum.
 - Every successful initial range is checkpointed, so a later refresh failure resumes after the last completed range.
 - Cached metadata is normalized locally for all history, scoreboard, and game-stat reads. Missing RPC metadata and incomplete stateful entries are processed only during refresh/download, with new records first and bounded, resumable legacy backlogs.
 - Plain `history` performs only the current GP and wAPE balance reads; `history --offline` skips those reads as well.
@@ -321,7 +321,7 @@ Text output includes:
 | `--list` | List locally available wallet addresses |
 | `--from-block <n>` | Start block for the sync; `wallet download --from-block 0` rebuilds the history file |
 | `--to-block <n>` | End block for the sync (default: latest block) |
-| `--chunk-size <n>` | Initial maximum block span per log query; oversized ranges split automatically (default: `50000`) |
+| `--chunk-size <n>` | Initial maximum block span per log query; oversized or timed-out ranges shrink automatically (default: `50000`) |
 | `--json` | Emit the machine-readable download report |
 
 `history` options:
@@ -341,7 +341,7 @@ Text output includes:
 | `--refresh` | Merge an on-chain sync before rendering |
 | `--from-block <n>` | Start block for `--refresh` |
 | `--to-block <n>` | End block for `--refresh` (default: latest block) |
-| `--chunk-size <n>` | Initial maximum block span for `--refresh`; oversized ranges split automatically |
+| `--chunk-size <n>` | Initial maximum block span for `--refresh`; oversized or timed-out ranges shrink automatically |
 | `--json` | Emit the machine-readable cached report |
 
 `games` options:

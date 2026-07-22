@@ -908,7 +908,7 @@ function formatWalletHelpAppendix() {
       '--json                 Emit JSON output where supported',
       '--from-block <n>       Start block for wallet history download/backfill',
       '--to-block <n>         End block for wallet history download; default is latest',
-      '--chunk-size <n>       Initial maximum block span; oversized log ranges split automatically',
+      '--chunk-size <n>       Initial maximum block span; oversized/timed-out ranges shrink automatically',
     ],
     bnf: [
       '<wallet-command> ::= "wallet" [ <wallet-action> [ <address> ] ] <wallet-option>*',
@@ -933,7 +933,7 @@ function formatWalletHelpAppendix() {
       `Encrypted wallet entries: ${WALLETS_DIR}/<address>.json.`,
       'If an address entry is a symlink, normal filesystem resolution applies; the CLI only follows the selected wallets/<address>.json path.',
       `History downloads write to ${path.join(APECHURCH_DIR, 'history')}/<wallet>_history.json.`,
-      `--chunk-size defaults to ${DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString()} and is an initial maximum; oversized RPC ranges split automatically.`,
+      `--chunk-size defaults to ${DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString()} and is an initial maximum; oversized/timed-out RPC ranges shrink and the learned size is reused.`,
       'The private key is never exported by this CLI; signing decrypts locally only when needed.',
     ],
   });
@@ -1393,7 +1393,7 @@ function formatHistoryHelpAppendix() {
       '--refresh              Refresh local history from chain before showing it',
       '--from-block <n>       Start block for --refresh sync/backfill',
       '--to-block <n>         End block for --refresh sync; default is latest',
-      '--chunk-size <n>       Initial maximum block span; oversized ranges split automatically',
+      '--chunk-size <n>       Initial maximum block span; oversized/timed-out ranges shrink automatically',
       '--json                 Emit JSON output',
     ],
     bnf: [
@@ -1415,7 +1415,7 @@ function formatHistoryHelpAppendix() {
     notes: [
       '`--offline` cannot be combined with `--refresh`.',
       'Cached metadata is normalized locally on every read; missing RPC metadata is enriched only by refresh/download flows.',
-      `--chunk-size defaults to ${DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString()} and is the initial maximum; individual RPC ranges may be smaller.`,
+      `--chunk-size defaults to ${DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString()} and is the initial maximum; adaptive reductions are reused for the rest of the run.`,
       '`--url` and `--ids` affect terminal scoreboard reference columns; JSON keeps both fields.',
       `Use ${BINARY_NAME} wallet download --from-block 0 to rebuild history from genesis.`,
     ],
@@ -1437,7 +1437,7 @@ function formatScoreboardHelpAppendix() {
       '--refresh              Refresh local history from chain before showing scoreboard',
       '--from-block <n>       Start block for --refresh sync/backfill',
       '--to-block <n>         End block for --refresh sync; default is latest',
-      '--chunk-size <n>       Initial maximum block span; oversized ranges split automatically',
+      '--chunk-size <n>       Initial maximum block span; oversized/timed-out ranges shrink automatically',
       '--json                 Emit JSON output',
     ],
     bnf: [
@@ -1455,7 +1455,7 @@ function formatScoreboardHelpAppendix() {
     ],
     notes: [
       'Renders Highest Multipliers and Biggest Payouts Top 20 tables derived from cached history.',
-      `--chunk-size defaults to ${DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString()} and is the initial maximum; individual RPC ranges may be smaller.`,
+      `--chunk-size defaults to ${DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString()} and is the initial maximum; adaptive reductions are reused for the rest of the run.`,
       'If both --ids and --url are passed in terminal mode, the last one wins for the reference column.',
     ],
   });
@@ -3782,6 +3782,9 @@ function formatWalletDownloadReport(downloadResult) {
     `   ${theme.label('Downloaded:')} ${sync.downloaded_games} supported game(s)`,
     `   ${theme.label('New:')} ${sync.new_games}`,
     `   ${theme.label('Saved:')} ${sync.saved_games}`,
+    `   ${theme.label('RPC range:')} ${sync.effective_max_range} block(s)${sync.adaptive_range_splits > 0
+      ? ` (reduced from ${sync.initial_max_range}; ${sync.adaptive_range_splits} adaptive split(s))`
+      : ''}`,
     `   ${theme.label('Metadata enriched:')} ${sync.metadata_enriched}`,
     `   ${theme.label('Metadata pending:')} ${sync.metadata_pending}`,
     `   ${theme.label('Stateful refreshed:')} ${sync.stateful_refreshed}`,
@@ -4666,7 +4669,7 @@ program
   .option('--json', 'JSON output')
   .option('--from-block <n>', 'Start block for wallet history download or backfill')
   .option('--to-block <n>', 'End block for wallet history download (default latest)')
-  .option('--chunk-size <n>', 'Initial maximum block span per history log query; oversized ranges split automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
+  .option('--chunk-size <n>', 'Initial maximum block span per history log query; oversized/timed-out ranges shrink automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .addHelpText('after', formatWalletHelpAppendix())
   .action(async (action, address, opts) => {
     if (opts.list) {
@@ -7199,7 +7202,7 @@ program
   .option('--refresh', 'Refresh local history from chain before showing it')
   .option('--from-block <n>', 'Start block for --refresh sync or backfill')
   .option('--to-block <n>', 'End block for --refresh sync (default latest)')
-  .option('--chunk-size <n>', 'Initial maximum block span for --refresh; oversized ranges split automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
+  .option('--chunk-size <n>', 'Initial maximum block span for --refresh; oversized/timed-out ranges shrink automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .option('--json', 'JSON output')
   .addHelpText('after', formatHistoryHelpAppendix())
   .action(async (address, opts, command) => {
@@ -7438,7 +7441,7 @@ program
   .option('--refresh', 'Refresh local history from chain before showing the scoreboard')
   .option('--from-block <n>', 'Start block for --refresh sync or backfill')
   .option('--to-block <n>', 'End block for --refresh sync (default latest)')
-  .option('--chunk-size <n>', 'Initial maximum block span for --refresh; oversized ranges split automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
+  .option('--chunk-size <n>', 'Initial maximum block span for --refresh; oversized/timed-out ranges shrink automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .option('--json', 'JSON output')
   .addHelpText('after', formatScoreboardHelpAppendix())
   .action(async (address, opts, command) => {
@@ -8899,14 +8902,15 @@ ${'─'.repeat(70)}
     • Default sync is incremental from the cached last_synced_block + 1
     • Use --from-block 0 for a full backfill
     • Explicit backfills merge and deduplicate by contract + gameId
-    • --chunk-size is an initial maximum; oversized RPC ranges split automatically
+    • --chunk-size is an initial maximum; oversized/timed-out ranges shrink automatically
+    • The learned range size is reused for the rest of the download
     • Missing legacy metadata is enriched progressively during refresh/download
     • Gaps are not tracked automatically as ranges; backfill them explicitly
 
   Download options:
     --from-block <n>   Start block for sync or backfill
     --to-block <n>     End block (default latest)
-    --chunk-size <n>   Initial maximum block span; oversized ranges split automatically
+    --chunk-size <n>   Initial maximum block span; oversized/timed-out ranges shrink automatically
     --json             Emit the machine-readable download report
 
   Download writes:
@@ -8956,7 +8960,7 @@ ${'─'.repeat(70)}
     --refresh                  Run wallet download first, then render
     --from-block <n>           Start block for --refresh
     --to-block <n>             End block for --refresh
-    --chunk-size <n>           Initial maximum block span; oversized ranges split automatically
+    --chunk-size <n>           Initial maximum block span; oversized/timed-out ranges shrink automatically
     --json                     Emit the cached report as JSON
 
   Coverage limits:

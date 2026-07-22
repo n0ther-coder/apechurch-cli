@@ -257,7 +257,7 @@ The selected wallet is tracked by `wallets/current.json`, which points to `walle
 | `--json` | Emit JSON output | `status`, `download`, `select`, `new`, `password` |
 | `--from-block <n>` | Start block for history download/backfill; `download --from-block 0` rebuilds the history file | `download` |
 | `--to-block <n>` | End block for history download | `download` |
-| `--chunk-size <n>` | Initial maximum block span; oversized RPC ranges split automatically (default `50000`) | `download` |
+| `--chunk-size <n>` | Initial maximum block span; oversized or timed-out RPC ranges shrink automatically (default `50000`) | `download` |
 
 ### `bucket [action] [value]`
 
@@ -709,10 +709,10 @@ The runtime surface is intentionally narrow: bots receive positional args plus g
 | `--refresh` | Download/refresh the history before rendering |
 | `--from-block <n>` | Start block for `--refresh` |
 | `--to-block <n>` | End block for `--refresh` |
-| `--chunk-size <n>` | Initial maximum block span; oversized RPC ranges split automatically |
+| `--chunk-size <n>` | Initial maximum block span; oversized or timed-out RPC ranges shrink automatically |
 | `--json` | Emit JSON output |
 
-`history --refresh` merges newly fetched records into the existing cache. The initial `--chunk-size` maximum is split automatically when an RPC response is too large, and completed initial ranges are checkpointed. Use `wallet download --from-block 0` when you want to rewrite the history file from genesis.
+`history --refresh` merges newly fetched records into the existing cache. The initial `--chunk-size` maximum shrinks automatically when an RPC response is too large or times out, and the learned size is reused for later ranges in the same run. Completed initial ranges are checkpointed. Use `wallet download --from-block 0` when you want to rewrite the history file from genesis.
 
 Cached metadata normalization is local. Plain `history` only adds current balance reads, while `--offline` performs no RPC calls. Missing metadata and incomplete stateful entries that require transaction or contract lookups are processed only during refresh/download, using bounded legacy backlogs.
 
@@ -740,7 +740,7 @@ Cached metadata normalization is local. Plain `history` only adds current balanc
 | `--refresh` | Download/refresh the history before rebuilding the scoreboard |
 | `--from-block <n>` | Start block for `--refresh` |
 | `--to-block <n>` | End block for `--refresh` |
-| `--chunk-size <n>` | Initial maximum block span; oversized RPC ranges split automatically |
+| `--chunk-size <n>` | Initial maximum block span; oversized or timed-out RPC ranges shrink automatically |
 | `--json` | Emit JSON output |
 
 This command renders the same two cached Top 20 leaderboards used by `history --scoreboard`:

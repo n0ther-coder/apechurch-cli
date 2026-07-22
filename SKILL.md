@@ -146,7 +146,7 @@ Sync and cache behavior:
 - Use `wallet download --from-block 0` to rebuild the local history file from scratch, or pass an explicit historical range to fill older blocks.
 - Explicit backfills and `history --refresh` are merged into the local file and deduplicated by `contract + game_id`.
 - `history --refresh` runs the same sync path before reading the local file, but it does not clear cached records first.
-- The default or explicit `--chunk-size` is an initial maximum block span; oversized RPC log ranges split automatically and completed initial ranges are checkpointed.
+- The default or explicit `--chunk-size` is an initial maximum block span; oversized or timed-out RPC log ranges shrink automatically, the learned size is reused, and completed initial ranges are checkpointed.
 - Cached metadata normalization is local. RPC metadata enrichment and incomplete stateful rehydration run only during refresh/download and progressively process bounded legacy backlogs.
 - Plain `history` reads current balances after loading the cache; `history --offline` performs no RPC reads.
 - `history` shows `👀 Recent Games` plus `📜 History Stats` by default. `--stats` suppresses the game list, while `--breakdown` appends the same stats split by game.
@@ -171,7 +171,7 @@ Sync and cache behavior:
 |------|---------|
 | `wallet download --from-block <n>` | Start block for the sync; `--from-block 0` rebuilds the history file |
 | `wallet download --to-block <n>` | End block for the sync (default: latest block) |
-| `wallet download --chunk-size <n>` | Initial maximum block span; oversized ranges split automatically (default: `50000`) |
+| `wallet download --chunk-size <n>` | Initial maximum block span; oversized or timed-out ranges shrink automatically (default: `50000`) |
 | `wallet download --json` | Machine-readable download report |
 
 ### History Options
@@ -186,7 +186,7 @@ Sync and cache behavior:
 | `history --refresh` | Merge an on-chain sync before rendering |
 | `history --from-block <n>` | Start block for `--refresh` |
 | `history --to-block <n>` | End block for `--refresh` |
-| `history --chunk-size <n>` | Initial maximum block span for `--refresh`; oversized ranges split automatically |
+| `history --chunk-size <n>` | Initial maximum block span for `--refresh`; oversized or timed-out ranges shrink automatically |
 | `history --json` | Full machine-readable local report |
 
 ### Coverage Limits
