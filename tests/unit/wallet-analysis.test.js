@@ -19,6 +19,7 @@ import {
   GIMBOZ_GALAXY_CONTRACT,
   GLYDE_OR_CRASH_CONTRACT,
   GIMBOZ_SMASH_CONTRACT,
+  LEGACY_BLOCKS_CONTRACT,
   LEGACY_GP_TOKEN_CONTRACT,
   GP_TOKEN_CONTRACT,
   HI_LO_NEBULA_CONTRACT,
@@ -570,7 +571,13 @@ describe('Wallet History Analysis', () => {
           game: 'Blocks ✔︎ (Low / 3 rolls)',
           variant_key: 'blocks:mode:easy:rolls:3',
           variant_label: 'Low / 3 rolls',
-          rtp_config: { mode: 0, survive: 3 },
+          rtp_config: {
+            grid: '3x3',
+            gridMode: 0,
+            mode: 0,
+            survive: 3,
+            compounding: true,
+          },
         },
         {
           game: 'Monkey Match ✔︎ (Low)',
@@ -642,7 +649,7 @@ describe('Wallet History Analysis', () => {
         },
       }, [
         {
-          contract: BLOCKS_CONTRACT,
+          contract: LEGACY_BLOCKS_CONTRACT,
           game_key: 'blocks',
           gameId: '1',
           tx: '0x' + 'd'.repeat(64),
@@ -712,7 +719,7 @@ describe('Wallet History Analysis', () => {
         },
       }, [
         {
-          contract: BLOCKS_CONTRACT,
+          contract: LEGACY_BLOCKS_CONTRACT,
           game: 'Blocks ✔︎',
           game_key: 'blocks',
           gameId: gameId.toString(),
@@ -725,13 +732,22 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(result.inferred, 1);
       assert.strictEqual(result.failedLookups, 0);
       assert.deepStrictEqual(result.games[0].config, {
+        grid: '3x3',
+        gridMode: 0,
         mode: 1,
         modeName: 'High',
         survive: 4,
+        compounding: true,
       });
       assert.strictEqual(result.games[0].variant_key, 'blocks:mode:hard:rolls:4');
       assert.strictEqual(result.games[0].variant_label, 'High / 4 rolls');
-      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1, survive: 4 });
+      assert.deepStrictEqual(result.games[0].rtp_config, {
+        grid: '3x3',
+        gridMode: 0,
+        mode: 1,
+        survive: 4,
+        compounding: true,
+      });
     });
 
     it('normalizes saved records locally when config already contains the canonical risk metadata', async () => {
@@ -761,7 +777,13 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(result.inferred, 1);
       assert.strictEqual(result.games[0].variant_key, 'blocks:mode:easy:rolls:3');
       assert.strictEqual(result.games[0].variant_label, 'Low / 3 rolls');
-      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 0, survive: 3 });
+      assert.deepStrictEqual(result.games[0].rtp_config, {
+        grid: '3x3',
+        gridMode: 0,
+        mode: 0,
+        survive: 3,
+        compounding: true,
+      });
     });
 
     it('reconstructs history-only game variant metadata from cached play calldata', async () => {
@@ -941,7 +963,7 @@ describe('Wallet History Analysis', () => {
         },
       }, [
         {
-          contract: BLOCKS_CONTRACT,
+          contract: LEGACY_BLOCKS_CONTRACT,
           game: 'Blocks ✔︎',
           game_key: 'blocks',
           gameId: gameId.toString(),
@@ -958,13 +980,22 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(result.changed, true);
       assert.strictEqual(result.inferred, 1);
       assert.deepStrictEqual(result.games[0].config, {
+        grid: '3x3',
+        gridMode: 0,
         mode: 0,
         modeName: 'Low',
         survive: 2,
+        compounding: true,
       });
       assert.strictEqual(result.games[0].variant_key, 'blocks:mode:easy:rolls:2');
       assert.strictEqual(result.games[0].variant_label, 'Low / 2 rolls');
-      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 0, survive: 2 });
+      assert.deepStrictEqual(result.games[0].rtp_config, {
+        grid: '3x3',
+        gridMode: 0,
+        mode: 0,
+        survive: 2,
+        compounding: true,
+      });
     });
 
     it('falls back to getGameInfo when the saved tx is not the original play calldata', async () => {
@@ -1228,8 +1259,10 @@ describe('Wallet History Analysis', () => {
             case BLOCKS_CONTRACT:
               assert.deepStrictEqual(params.args, [201n]);
               return {
+                gameMode: 1,
                 riskMode: 1,
                 numRuns: 5,
+                compounding: false,
               };
             case PRIMES_CONTRACT:
               assert.deepStrictEqual(params.args, [202n]);
@@ -1289,13 +1322,22 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(result.failedLookups, 0);
 
       assert.deepStrictEqual(result.games[0].config, {
+        grid: '4x4',
+        gridMode: 1,
         mode: 1,
         modeName: 'High',
-        survive: 5,
+        split: 5,
+        compounding: false,
       });
-      assert.strictEqual(result.games[0].variant_key, 'blocks:mode:hard:rolls:5');
-      assert.strictEqual(result.games[0].variant_label, 'High / 5 rolls');
-      assert.deepStrictEqual(result.games[0].rtp_config, { mode: 1, survive: 5 });
+      assert.strictEqual(result.games[0].variant_key, 'blocks:grid:4x4:mode:hard:independent');
+      assert.strictEqual(result.games[0].variant_label, '4x4 / High / Independent');
+      assert.deepStrictEqual(result.games[0].rtp_config, {
+        grid: '4x4',
+        gridMode: 1,
+        mode: 1,
+        split: 5,
+        compounding: false,
+      });
 
       assert.deepStrictEqual(result.games[1].config, {
         difficulty: 3,
@@ -2426,13 +2468,15 @@ describe('Wallet History Analysis', () => {
       const gameId = 42n;
       const blocksGameData = encodeAbiParameters(
         [
+          { name: 'gameMode', type: 'uint8' },
           { name: 'riskMode', type: 'uint8' },
           { name: 'numRuns', type: 'uint8' },
+          { name: 'compounding', type: 'bool' },
           { name: 'gameId', type: 'uint256' },
           { name: 'ref', type: 'address' },
           { name: 'userRandomWord', type: 'bytes32' },
         ],
-        [0, 3, gameId, ZERO_ADDRESS, '0x' + '11'.repeat(32)],
+        [0, 0, 3, true, gameId, ZERO_ADDRESS, '0x' + '11'.repeat(32)],
       );
       const blocksPlayInput = encodeFunctionData({
         abi: GAME_CONTRACT_ABI,
@@ -2498,13 +2542,22 @@ describe('Wallet History Analysis', () => {
 
       assert.strictEqual(analysis.recent_games.length, 1);
       assert.deepStrictEqual(analysis.recent_games[0].config, {
+        grid: '3x3',
+        gridMode: 0,
         mode: 0,
         modeName: 'Low',
         survive: 3,
+        compounding: true,
       });
       assert.strictEqual(analysis.recent_games[0].variant_key, 'blocks:mode:easy:rolls:3');
       assert.strictEqual(analysis.recent_games[0].variant_label, 'Low / 3 rolls');
-      assert.deepStrictEqual(analysis.recent_games[0].rtp_config, { mode: 0, survive: 3 });
+      assert.deepStrictEqual(analysis.recent_games[0].rtp_config, {
+        grid: '3x3',
+        gridMode: 0,
+        mode: 0,
+        survive: 3,
+        compounding: true,
+      });
     });
 
     it('reconstructs history-only games from play fallback logs and settlement logs', async () => {

@@ -14,13 +14,14 @@ Definitions:
 - Displayed percentages and multipliers are rounded for readability.
 - Rows are sorted by `EV` descending, then by `VARIANCE` ascending.
 - ApeStrong and Gimboz Smash are expanded across their complete finite supported surfaces. Large or policy-dependent surfaces use the exact representative rows documented in their analytics notes.
+- Blocks uses its implicit-default `3x3` rows here so this cross-game snapshot stays compact. One-roll rows also describe the RTP and payout cap of independent `--split` play; multi-roll rows are compounding `--survive` variants. The exact `2x2`, `3x3`, and `4x4` surface is in [BLOCKS_ANALYTICS.md](./analytics/BLOCKS_ANALYTICS.md).
 
 | game | mode | EV | VARIANCE | P(net profit) | most outcome | highest P(>1) | Gimboz Smash |
 |---|---|---:|---:|---:|---|---|---|
 | Baccarat | BANKER | -1.064000% | 0.859764 | 45.842792% | **1.95x** @ 45.842792% | 1.95x @ 45.842792% | cover 50 1.95x@50% |
 | Baccarat | PLAYER | -1.228100% | 0.904424 | 44.614651% | 0x @ 45.842792% | 2x @ 44.614651% | cover 48 2.0312x@48% |
-| Blocks | High / 1 roll | -1.668298% | 31.606680 | 28.400301% | 0x @ 71.599699% | 2.25x @ 23.030264% | cover 43 2.2674x@43% |
-| Blocks | Low / 1 roll | -1.699912% | 5.285957 | **84.246399%** | **1.01x** @ 55.846098% | 1.01x @ 55.846098% | cover 95 1.0263x@95% |
+| Blocks | 3x3 / Low / 1 roll | -2.034810% | 5.851977 | **84.246399%** | **1.01x** @ 55.846098% | 1.01x @ 55.846098% | cover 95 1.0263x@95% |
+| Blocks | 3x3 / High / 1 roll | -2.137155% | 31.554458 | 28.400301% | 0x @ 71.599699% | 2.25x @ 23.030264% | cover 43 2.2674x@43% |
 | Monkey Match | High | -1.707600% | 2.666514 | 35.027072% | 0.1x @ 49.979175% | 2x @ 18.742191% | cover 48 2.0312x@48% |
 | Baccarat | BANKER+TIE, tie share 5% | -1.716600% | 0.794285 | **55.385349%** | **1.8525x** @ 45.842792% | 1.8525x @ 45.842792% | cover 52 1.875x@52% |
 | Video Poker | base paytable, jackpot excluded | -1.835100% | 5.255198 | 23.994400% | 0x @ 54.547000% | 2x @ 12.927900% | cover 48 2.0312x@48% |
@@ -316,8 +317,8 @@ Definitions:
 | Glyde or Crash | 1.01x | -3.000004% | 0.038800 | **96.039600%** | **1.01x** @ 96.039600% | 1.01x @ 96.039600% | n/d |
 | Glyde or Crash | 1.5x | -3.000100% | 0.514100 | **64.666600%** | **1.5x** @ 64.666600% | 1.5x @ 64.666600% | cover 65 1.5x@65% |
 | Glyde or Crash | 3x | -3.000100% | 1.969099 | 32.333300% | 0x @ 67.666700% | 3x @ 32.333300% | n/d |
-| Blocks | High / 2 rolls | -3.308764% | 1060.103974 | 8.065771% | 0x @ 91.934229% | 5.0625x @ 5.303931% | cover 19 5.1315x@19% |
-| Blocks | Low / 2 rolls | -3.370928% | 38.156879 | **70.974558%** | **1.0201x** @ 31.187867% | 1.0201x @ 31.187867% | cover 95 1.0263x@95% |
+| Blocks | 3x3 / Low / 2 rolls | -4.028216% | 45.478122 | **70.974558%** | **1.0201x** @ 31.187867% | 1.0201x @ 31.187867% | cover 95 1.0263x@95% |
+| Blocks | 3x3 / High / 2 rolls | -4.228636% | 1056.124092 | 8.065771% | 0x @ 91.934229% | 5.0625x @ 5.303931% | cover 19 5.1315x@19% |
 | Hi-Lo Nebula | 10/13 hit count | -3.846200% | 0.277367 | **76.923077%** | **1.25x** @ 76.923077% | 1.25x @ 76.923077% | cover 78 1.25x@78% |
 | Hi-Lo Nebula | 8/13 hit count | -3.846200% | 0.577848 | **61.538462%** | **1.5625x** @ 61.538462% | 1.5625x @ 61.538462% | cover 62 1.5725x@62% |
 | Hi-Lo Nebula | 5/13 hit count | -3.846200% | 1.479290 | 38.461538% | 0x @ 61.538462% | 2.5x @ 38.461538% | cover 39 2.5x@39% |
@@ -351,8 +352,8 @@ Definitions:
 | Keno | 9 picks | -6.683100% | 9324.147853 | 19.033734% | 0x @ 54.908157% | 1.5x @ 10.944406% | cover 65 1.5x@65% |
 | Baccarat | BANKER+TIE, tie share 50% | -7.590500% | 1.967481 | 9.542557% | 0.975x @ 45.842792% | 5x @ 9.542557% | cover 19 5.1315x@19% |
 | Baccarat | PLAYER+TIE, tie share 50% | -7.672600% | 1.979350 | 9.542557% | 0x @ 45.842792% | 5x @ 9.542557% | cover 19 5.1315x@19% |
-| Blocks | High / 5 rolls | -8.067773% | 36671464.115827 | 0.184763% | 0x @ 99.815237% | 169.150781x @ 0.065949% | n/d |
-| Blocks | Low / 5 rolls | -8.215462% | 9553.058592 | 42.438179% | 0x @ 57.561821% | 1.248725x @ 11.200574% | cover 78 1.25x@78% |
+| Blocks | 3x3 / Low / 5 rolls | -9.768346% | 14663.973112 | 42.438179% | 0x @ 57.561821% | 1.248725x @ 11.200574% | cover 78 1.25x@78% |
+| Blocks | 3x3 / High / 5 rolls | -10.238690% | 36327029.636491 | 0.184763% | 0x @ 99.815237% | 166.587891x @ 0.065949% | n/d |
 | Cash Dash | cash out after 2 safe rows, seed 0 | -9.642857% | 0.326577 | **71.428571%** | **1.265x** @ 71.428571% | 1.265x @ 71.428571% | cover 77 1.2662x@77% |
 | Cash Dash | cash out after 3 safe rows, seed 0 | -13.257143% | 0.564324 | **57.142857%** | **1.518x** @ 57.142857% | 1.518x @ 57.142857% | cover 64 1.5234x@64% |
 | Baccarat | TIE | -14.117000% | 6.991882 | 9.542557% | 0x @ 90.457443% | 9x @ 9.542557% | cover 10 9.75x@10% |

@@ -220,6 +220,7 @@ import {
 import { configGetters, playGame, resolveGame } from '../lib/games/index.js';
 import { parseBaccaratBet } from '../lib/games/baccarat.js';
 import { resolveBearDiceConfig } from '../lib/games/beardice.js';
+import { getBlocksGridLabel, parseBlocksGrid } from '../lib/games/blocks.js';
 import { parseGimbozSmashInput } from '../lib/games/gimbozsmash.js';
 import { parseRouletteBets } from '../lib/games/roulette.js';
 import { resolveSlotsConfig } from '../lib/games/slots.js';
@@ -419,6 +420,7 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<bet-strategy> ::= "flat" | "martingale" | "reverse-martingale" | "fibonacci" | "dalembert" | "bankroll-fraction=" <fraction>',
   '<fraction> ::= <number>                            ; decimal strictly between 0 and 1',
   '<risk> ::= <integer> | <game-risk-label>           ; public risk surface for Bear Dice, Blocks, Plinko, Monkey Match, and Primes',
+  '<grid> ::= "2x2" | "3x3" | "4x4"               ; Blocks only; defaults to "3x3"',
   '<split> ::= <integer>                              ; independent split attempts; 1 <= value <= game max',
   '<survive> ::= <integer>                            ; all-or-nothing survival attempts; 1 <= value <= game max',
   '<spins> ::= <integer>                              ; slots-only alias for <split>',
@@ -446,7 +448,8 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
 const PLAY_STATELESS_OPTION_LINES = Object.freeze([
   '--auto                  Random stateless game selection when no game is specified',
   '--risk <risk>           Bear Dice, Blocks, Plinko, Monkey Match, and Primes risk',
-  '--split <count>         Independent split attempts for Plinko, Primes, Speed Keno, and slots',
+  '--grid <grid>           Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)',
+  '--split <count>         Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots',
   '--survive <count>       All-or-nothing survival attempts for Bear Dice and Blocks',
   '--spins <count>         Slots-only alias for --split',
   '--bet <bet>             Roulette/Baccarat bet payload',
@@ -475,13 +478,13 @@ const PLAY_STATEFUL_OPTION_LINES = Object.freeze([
   '--no-resilient          Disable inherited resilient retry mode',
 ]);
 const DEPRECATED_ATTEMPT_OPTIONS = Object.freeze(['--balls', '--games', '--runs', '--rolls']);
-const SPLIT_GAME_TYPES = Object.freeze(['plinko', 'primes', 'speedkeno', 'slots']);
+const SPLIT_GAME_TYPES = Object.freeze(['blocks', 'plinko', 'primes', 'speedkeno', 'slots']);
 const SURVIVE_GAME_TYPES = Object.freeze(['beardice', 'blocks']);
 const ATTEMPT_OPTION_GAME_HINTS = Object.freeze({
   '--balls': 'Use --split for Plinko games.',
   '--games': 'Use --split for Speed Keno.',
-  '--runs': 'Use --survive for Bear-A-Dice/Blocks or --split for Primes.',
-  '--rolls': 'Use --survive for Bear-A-Dice or Blocks.',
+  '--runs': 'Use --survive for Bear-A-Dice/compounding Blocks, or --split for independent Blocks/Primes.',
+  '--rolls': 'Use --survive for Bear-A-Dice or compounding Blocks.',
 });
 const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--game <name>           Stateless or stateful game key',
@@ -1170,7 +1173,8 @@ function formatBetHelpAppendix() {
       '--game <type>          Required stateless game key or alias',
       '--amount <ape>         Required wager amount',
       '--risk <risk>          Bear Dice, Blocks, Plinko, Monkey Match, and Primes risk',
-      '--split <count>        Independent split attempts for Plinko, Primes, Speed Keno, and slots',
+      '--grid <grid>          Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)',
+      '--split <count>        Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots',
       '--survive <count>      All-or-nothing survival attempts for Bear Dice and Blocks',
       '--spins <count>        Slots-only alias for --split',
       '--bet <bet>            Roulette or baccarat bet payload',
@@ -1190,18 +1194,21 @@ function formatBetHelpAppendix() {
     ],
     bnf: [
       '<bet-command> ::= "bet" "--game" <stateless-game> "--amount" <ape> <bet-option>*',
-      '<bet-option> ::= "--risk" <risk> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
+      '<bet-option> ::= "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
       ...SIMPLE_GAME_HELP_BNF_LINES,
     ],
     examples: [
       `${BINARY_NAME} bet --game roulette --amount 10 --bet RED`,
       `${BINARY_NAME} bet --game jungle-plinko --amount 10 --risk 0 --split 100`,
+      `${BINARY_NAME} bet --game blocks --amount 10 --risk 0 --grid 4x4 --survive 1`,
+      `${BINARY_NAME} bet --game blocks --amount 10 --risk 0 --grid 4x4 --split 5`,
       `${BINARY_NAME} bet --game keno --amount 5 --picks 5 --numbers 1,7,13,25,40`,
       `${BINARY_NAME} bet --game gimboz-smash --amount 10 --range 45-55`,
       `${BINARY_NAME} bet --game glyde-or-crash --amount 10 --multiplier 2x --timeout 0`,
     ],
     notes: [
       'Use `play` for loop mode, stateful games, or random stateless selection.',
+      'Blocks accepts either --split for independent rolls or --survive for compounding rolls, never both.',
       `Run ${BINARY_NAME} game <name> for per-game parameter details.`,
     ],
   });
@@ -1238,7 +1245,7 @@ function formatPlayHelpAppendix() {
       '<play-positional> ::= <stateless-game> [ <ape> <token>* ] | <stateful-game> [ <stateful-head> ] [ <token> ]',
       '<stateful-head> ::= <ape> | "resume" | "status" | "clear" | "payouts" | "table" | <token>',
       '<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>',
-      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
+      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
       '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count> | "--resilient" | "--no-resilient"',
       '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--take-profit" <ape> | "--min-profit" <ape> | "--target-x" <number> | "--target-profit" <ape> | "--retrace" <ape> | "--recover-loss" <ape> | "--giveback-profit" <ape> | "--stop-loss" <ape-nonnegative> | "--max-loss" <ape> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
       ...SIMPLE_GAME_HELP_BNF_LINES,
@@ -1248,6 +1255,8 @@ function formatPlayHelpAppendix() {
       `${BINARY_NAME} play --auto`,
       `${BINARY_NAME} play roulette 10 RED`,
       `${BINARY_NAME} play jungle-plinko 10 --risk 0 --split 100`,
+      `${BINARY_NAME} play blocks 10 --risk 0 --grid 2x2 --survive 1`,
+      `${BINARY_NAME} play blocks 10 --risk 0 --grid 2x2 --split 5`,
       `${BINARY_NAME} play keno 5 --picks 5 --numbers 1,7,13,25,40`,
       `${BINARY_NAME} play blackjack 10 --auto best`,
       `${BINARY_NAME} play cash-dash guess 3 --game-id 123`,
@@ -1261,6 +1270,7 @@ function formatPlayHelpAppendix() {
       'Stateful game options apply only to blackjack, cash-dash, hi-lo-nebula, and video-poker when routed through play.',
       'Shared play / loop options apply across selected stateless and stateful play surfaces.',
       'Pass `--numbers` as a single CLI token, for example `--numbers 1,7,13,25,40`.',
+      'Blocks accepts either --split for independent rolls or --survive for compounding rolls, never both.',
       'Bare `play` does not auto-run a random game; use `play --auto` or pass a game.',
       'For stateful resume/action through `play`, prefer `--game-id <id>` because `--game <name>` selects the target game.',
       `Run ${BINARY_NAME} game <name> for per-game config grammar.`,
@@ -3059,7 +3069,10 @@ function getDeprecatedAttemptOptionMessage(optionName, gameEntry = null) {
   if (optionName === '--runs' && gameEntry?.type === 'primes') {
     return 'Option --runs was renamed. Use --split for Primes because the wager is split across independent runs.';
   }
-  if (optionName === '--runs' && ['beardice', 'blocks'].includes(gameEntry?.type)) {
+  if (optionName === '--runs' && gameEntry?.type === 'blocks') {
+    return 'Option --runs was renamed. Use --split for independent Blocks rolls or --survive for compounding rolls.';
+  }
+  if (optionName === '--runs' && gameEntry?.type === 'beardice') {
     return `Option --runs was renamed. Use --survive for ${gameEntry.name} because each attempt risks the full current payout.`;
   }
   const hint = ATTEMPT_OPTION_GAME_HINTS[optionName] || 'Use --split or --survive depending on the game mechanics.';
@@ -3086,6 +3099,10 @@ function getAttemptOptionUsageError({ gameEntry = null, rawArgs = [], opts = {} 
     return 'Conflicting slot split count: --split and --spins must match, or only one may be provided.';
   }
 
+  if (gameEntry?.type === 'blocks' && opts.split !== undefined && opts.survive !== undefined) {
+    return 'Options --split and --survive cannot be used together for Blocks.';
+  }
+
   if (rawArgsIncludeOption(rawArgs, '--range') && gameEntry?.type === 'apestrong') {
     return 'Option --range was renamed for ApeStrong. Use --cover <cover> instead.';
   }
@@ -3106,7 +3123,7 @@ function getAttemptOptionUsageError({ gameEntry = null, rawArgs = [], opts = {} 
     if (SURVIVE_GAME_TYPES.includes(gameEntry.type)) {
       return `Option --split is for independent split-bet games. Use --survive for ${gameEntry.name}.`;
     }
-    return `Option --split is only for Plinko, Primes, Speed Keno, and slots. ${gameEntry.name} does not support repeated split attempts.`;
+    return `Option --split is only for Blocks, Plinko, Primes, Speed Keno, and slots. ${gameEntry.name} does not support repeated split attempts.`;
   }
 
   return null;
@@ -3339,12 +3356,15 @@ function validateResolvedGameConfig(gameEntry, gameConfig = {}, { amountInput = 
 }
 
 function getResolvedGameConfigValidationValue(gameEntry, field, gameConfig = {}) {
+  if (field === 'grid' && gameEntry?.type === 'blocks') {
+    return gameConfig.gridMode;
+  }
   if (['balls', 'games', 'spins'].includes(field)) {
     return gameConfig.split ?? gameConfig[field];
   }
   if (field === 'runs') {
     if (gameEntry?.type === 'blocks') {
-      return gameConfig.survive ?? gameConfig.runs;
+      return gameConfig.split ?? gameConfig.survive ?? gameConfig.runs;
     }
     if (gameEntry?.type === 'primes') {
       return gameConfig.split ?? gameConfig.runs;
@@ -5419,7 +5439,8 @@ program
   .requiredOption('--game <type>', GAME_LIST)
   .requiredOption('--amount <ape>', 'Wager amount')
   .option('--risk <risk>', 'Risk level for Bear Dice, Blocks, Plinko, Monkey Match, and Primes', '0')
-  .option('--split <count>', 'Independent split attempts for Plinko, Primes, Speed Keno, and slots')
+  .option('--grid <grid>', 'Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)')
+  .option('--split <count>', 'Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots')
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
   .option('--spins <count>', 'Slots-only alias for --split')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
@@ -5451,6 +5472,18 @@ program
     if (attemptOptionUsageError) {
       console.error(JSON.stringify({ error: attemptOptionUsageError }));
       process.exit(1);
+    }
+    if (opts.grid !== undefined) {
+      if (gameEntry?.type !== 'blocks') {
+        console.error(JSON.stringify({ error: 'Option --grid is only for Blocks.' }));
+        process.exit(1);
+      }
+      try {
+        parseBlocksGrid(opts.grid);
+      } catch (error) {
+        console.error(JSON.stringify({ error: sanitizeError(error) }));
+        process.exit(1);
+      }
     }
     const explicitGimbozRange = rawArgsIncludeOption(rawCliArgs, '--range') ? opts.range : undefined;
     const explicitGimbozCover = rawArgsIncludeOption(rawCliArgs, '--cover') ? opts.cover : undefined;
@@ -5518,6 +5551,7 @@ program
         game: opts.game,
         amountApe: opts.amount,
         risk: opts.risk,
+        grid: opts.grid,
         split: opts.split,
         survive: opts.survive,
         spins: opts.spins,
@@ -5556,7 +5590,8 @@ program
   .option('--game <name>', 'Game to play')
   .option('--amount <ape>', 'Amount to wager')
   .option('--risk <risk>', 'Risk level for Bear Dice, Blocks, Plinko, Monkey Match, and Primes')
-  .option('--split <count>', 'Independent split attempts for Plinko, Primes, Speed Keno, and slots')
+  .option('--grid <grid>', 'Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)')
+  .option('--split <count>', 'Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots')
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
   .option('--spins <count>', 'Slots-only alias for --split')
   .option('--bet <bet>', 'Roulette/Baccarat bet')
@@ -5783,6 +5818,19 @@ program
       fixedGame = resolveGame(gameInput);
       if (!fixedGame) {
         console.error(JSON.stringify({ error: `Unknown game: ${gameInput}. Available: ${GAME_LIST}` }));
+        process.exit(1);
+      }
+    }
+
+    if (opts.grid !== undefined) {
+      if (fixedGame && fixedGame.type !== 'blocks') {
+        console.error(JSON.stringify({ error: 'Option --grid is only for Blocks.' }));
+        process.exit(1);
+      }
+      try {
+        parseBlocksGrid(opts.grid);
+      } catch (error) {
+        console.error(JSON.stringify({ error: sanitizeError(error) }));
         process.exit(1);
       }
     }
@@ -6152,6 +6200,8 @@ program
           gameEntry = resolveGame(selection.game);
           gameConfig = {
             mode: selection.mode,
+            grid: selection.grid,
+            gridMode: selection.gridMode,
             split: selection.split
               ?? (gameEntry?.type === 'plinko' ? selection.balls : undefined)
               ?? (gameEntry?.type === 'slots' ? selection.spins : undefined)
@@ -6298,11 +6348,19 @@ program
           else if (positionalConfig.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', positionalConfig.risk, { numericKind: 'public' });
           else if (gameConfig.mode === undefined) gameConfig.mode = gameEntry.config.mode.default;
         } else if (!preferGameDefault && gameEntry.type === 'blocks') {
+          if (opts.grid !== undefined) gameConfig.gridMode = parseBlocksGrid(opts.grid);
+          else if (gameConfig.gridMode === undefined) gameConfig.gridMode = Number(gameEntry.config.grid?.default ?? 0);
+          gameConfig.grid = getBlocksGridLabel(gameConfig.gridMode);
+
           if (opts.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', opts.risk, { numericKind: 'public' });
           else if (positionalConfig.risk !== undefined) gameConfig.mode = parseGameConfigValue(gameEntry, 'mode', positionalConfig.risk, { numericKind: 'public' });
           else if (gameConfig.mode === undefined) gameConfig.mode = gameEntry.config.mode.default;
 
-          if (opts.survive !== undefined) gameConfig.survive = parseInt(opts.survive, 10);
+          if (opts.split !== undefined) {
+            gameConfig.split = parseInt(opts.split, 10);
+            gameConfig.compounding = false;
+            delete gameConfig.survive;
+          } else if (opts.survive !== undefined) gameConfig.survive = parseInt(opts.survive, 10);
           else if (positionalConfig.runs !== undefined) gameConfig.survive = positionalConfig.runs;
           else if (gameConfig.survive === undefined) {
             const [min, max] = clampRange(
@@ -6376,7 +6434,10 @@ program
         gameDesc += ` (${riskLabel})`;
       } else if (gameEntry.type === 'blocks') {
         const riskLabel = getGameOptionLabel(gameEntry, 'mode', gameConfig.mode, 'Low');
-        gameDesc += ` (${riskLabel}, ${gameConfig.survive} survive)`;
+        const attempts = gameConfig.compounding === false
+          ? `${gameConfig.split} split`
+          : `${gameConfig.survive} survive`;
+        gameDesc += ` (${gameConfig.grid || '3x3'}, ${riskLabel}, ${attempts})`;
       } else if (gameEntry.type === 'primes') {
         const riskLabel = getGameOptionLabel(gameEntry, 'difficulty', gameConfig.difficulty, 'Easy');
         gameDesc += ` (${riskLabel}, ${gameConfig.split} split)`;
@@ -6445,6 +6506,8 @@ program
           game: gameEntry.key,
           amountApe: wagerApeString,
           risk: gameConfig.risk,
+          grid: gameConfig.grid,
+          gridMode: gameConfig.gridMode,
           mode: gameConfig.mode,
           split: gameConfig.split
             ?? (gameEntry.type === 'plinko' ? gameConfig.balls : undefined)
@@ -8352,7 +8415,7 @@ BETTING STRATEGIES
 EXAMPLES
   ${BINARY_NAME} play jungle-plinko 10 2 50
   ${BINARY_NAME} play cosmic-plinko 10 1 10
-  ${BINARY_NAME} play blocks 10 1 5
+  ${BINARY_NAME} play blocks 10 --risk 1 --grid 4x4 --split 5
   ${BINARY_NAME} play primes 10 0 20
   ${BINARY_NAME} play roulette 50 RED
   ${BINARY_NAME} play ape-strong 10 --cover 50

@@ -1,65 +1,71 @@
 # Blocks Contract Verification Notes
 
-> Summary: Verified tuple layout, read path, official `Low` / `High` wording, max-of-a-kind settlement rule, and the repo's exact consecutive-roll Blocks model.
+> Summary: Verification of the current Blocks address, selectable-grid tuple, compounding switch, grid-scaled VRF gas, read surface, and all six payout tables used by the CLI.
 
-## Public Source Trail
+## Source trail and identity
 
-- Verified ApeScan contract page:
-  - `https://apescan.io/address/0xA59CF828222EcD8aCe4b6195764d11F5Ea7f62A6#code`
-- Official original-games docs:
-  - `https://docs.ape.church/games/player-vs-house/original-games.md`
-- Live game page:
-  - `https://www.ape.church/games/blocks`
+- Current verified ApeScan contract: [`0x74D430c8e705eBB8EF0BA05bfDe54E901410a288`](https://apescan.io/address/0x74D430c8e705eBB8EF0BA05bfDe54E901410a288#code)
+- Previous contract retained only for wallet-history decoding: `0xA59CF828222EcD8aCe4b6195764d11F5Ea7f62A6`
+- Repo constants: `BLOCKS_CONTRACT` and `LEGACY_BLOCKS_CONTRACT`
+- Risk modes: `0 = Low`, `1 = High`
+- Roll count: `1..5`
 
-## Contract Identity
+The contract grid mapping is not ordered by board size:
 
-- Game name in the verified source: `Blocks`
-- Contract used by the CLI: `0xA59CF828222EcD8aCe4b6195764d11F5Ea7f62A6`
-- Repo constant: `BLOCKS_CONTRACT`
-- Supported risk modes in the CLI:
-  - `0` = `Low`
-  - `1` = `High`
-- Supported roll counts: `1..5`
+| CLI `--grid` | Contract `gameMode` | Tiles |
+|-------------|--------------------:|------:|
+| `2x2` | `2` | `4` |
+| `3x3` | `0` | `9` |
+| `4x4` | `1` | `16` |
 
-## Verified Write Path
+The CLI exposes only the unambiguous dimension strings. It rejects `--grid 0`, `--grid 1`, and `--grid 2`; omitting the option maps to `gameMode = 0` (`3x3`) for backward compatibility.
 
-The verified contract exposes:
+## Verified write path
+
+The current contract exposes:
 
 - `function play(address player, bytes calldata gameData) external payable`
 - `function getVRFFee(uint32 customGasLimit) public view returns (uint256)`
 
-Its write path decodes:
+`play` decodes `gameData` in this order:
 
 ```text
-(uint8 riskMode, uint8 numRuns, uint256 gameId, address ref, bytes32 userRandomWord)
+(
+  uint8 gameMode,
+  uint8 riskMode,
+  uint8 numRuns,
+  bool compounding,
+  uint256 gameId,
+  address ref,
+  bytes32 userRandomWord
+)
 ```
 
-Verified runtime facts used by the CLI:
+Verified validation and gas constants:
 
-- `numRuns` must be in `1..5`
-- `customGasLimit = BASE_GAS + (numRuns * GAS_PER_RUN)`
-- `BASE_GAS = 600000`
-- `GAS_PER_RUN = 200000`
-- settlement consumes `numRuns * BOARD_SIZE` random words
-- `BOARD_SIZE = 9`
-- `NUM_COLORS = 6`
+```text
+gameMode ∈ {0, 1, 2}
+riskMode ∈ {0, 1}
+numRuns ∈ [1, 5]
+BASE_GAS = 600000
+GAS_PER_TILE = 25000
+customGasLimit = BASE_GAS + numRuns * boardSize(gameMode) * GAS_PER_TILE
+```
 
-The live CLI write path in [lib/games/blocks.js](../../lib/games/blocks.js) matches that tuple order and fee surface.
+The CLI maps `--split 1-5` to `compounding = false` and `--survive 1-5` to `compounding = true`. The two flags are mutually exclusive. If neither is provided, the CLI sends one compounding roll, preserving the previous Blocks behavior.
 
-## Verified Read Path
+## Verified read path
 
-The verified contract exposes:
-
-- `function getGameInfo(uint256 gameId) public view returns (GameInfoReturnType memory)`
-
-`getGameInfo(gameId)` returns:
+`getGameInfo(uint256 gameId)` now returns:
 
 ```text
 (
   address player,
   uint256 betAmount,
   uint8 numRuns,
+  uint8 gameMode,
   uint8 riskMode,
+  bool compounding,
   uint8[] boards,
   uint8[] maxCounts,
   uint256 totalPayout,
@@ -68,93 +74,74 @@ The verified contract exposes:
 )
 ```
 
-Important implications:
+The wallet-history decoder selects this ABI for the current address and the older tuple for the previous address. Legacy records are normalized to `grid = 3x3`, `gameMode = 0`, and `compounding = true` before RTP variant resolution.
 
-- settlement stores every revealed board in `boards`
-- `maxCounts` stores the largest same-color count for each roll, not the largest connected component
-- the getter exposes only one `totalPayout` for the full game, not a per-roll payout array
-- `riskMode` and `numRuns` are persisted directly, so history and replay tooling can reconstruct the exact CLI variant
+## Settlement rule
 
-## Verified Settlement Rule
+For each roll, the callback assigns every tile one of six colors, counts each color, and uses the largest color frequency (`maxCount`) as the payout key. It is a max-of-a-kind calculation, not a connected-component search.
 
-The verified source comments and callback code describe Blocks as:
+With `compounding = true`, the verified behavior is:
 
 ```text
-Each run generates a fresh board, computes M = max-of-a-kind, and looks up the multiplier.
-Final payout = wager * product of all run multipliers. Bust if any run's M is below threshold.
+payout = wager
+for every roll:
+  multiplier = payouts[gameMode][riskMode][maxCount]
+  if multiplier == 0: payout = 0 and stop
+  otherwise: payout = payout * multiplier
 ```
 
-The callback implements that literally:
+With `compounding = false`, the verified behavior is:
 
-- it creates a `uint8[6] counts` array for the six colors
-- each tile is assigned `color = (randomWord % NUM_COLORS) + 1`
-- the contract increments `counts[color - 1]`
-- `maxCount` is updated from the largest color frequency
-- `multiplier = payouts[riskMode][maxCount]`
-- if `multiplier > 0`, `totalToPayout = totalToPayout * multiplier / PAYOUT_DENOM`
-- otherwise the whole game busts to `0`
+```text
+payout = 0
+for every roll:
+  multiplier = payouts[gameMode][riskMode][maxCount]
+  payout += wager * multiplier / numRuns
+```
 
-So the implementation reality is **max-of-a-kind**, not a connected same-color cluster. This is the source of the old discrepancy: earlier repo docs and constants treated `maxCounts` as a connected cluster, while the public page and verified contract both use the largest color frequency on the board.
+Each independent roll therefore risks only its share of the wager; a zero multiplier does not stop later rolls. The contract performs integer division in payout-denominator units, so tiny rounding losses are possible at wei precision.
 
-## Verified Payout Table
+## Verified payout tables
 
-The constructor sets:
+### 2x2 (`gameMode = 2`)
 
-| Max Count | Low | High |
-|---:|---:|---:|
+| Max count | Low | High |
+|----------:|----:|-----:|
+| `2` | `1.2x` | `0x` |
+| `3` | `1.85x` | `8x` |
+| `4` | `12x` | `51x` |
+
+### 3x3 (`gameMode = 0`, CLI default)
+
+| Max count | Low | High |
+|----------:|----:|-----:|
 | `3` | `1.01x` | `0x` |
 | `4` | `1.2x` | `2.25x` |
-| `5` | `2x` | `6.6x` |
-| `6` | `5x` | `15x` |
+| `5` | `2x` | `6.5x` |
+| `6` | `4.25x` | `15x` |
 | `7` | `20x` | `80x` |
-| `8` | `200x` | `600x` |
+| `8` | `250x` | `600x` |
 | `9` | `2500x` | `5000x` |
 
-## Exact Single-Roll Max-Count Distribution
+### 4x4 (`gameMode = 1`)
 
-The public Blocks page rounds this table to four decimals. The repo uses the exact distribution obtained by exhaustive enumeration of all `6^9 = 10,077,696` boards:
+| Max count | Low | High |
+|----------:|----:|-----:|
+| `5` | `1.2x` | `0x` |
+| `6` | `1.75x` | `2.6x` |
+| `7` | `3x` | `6.6x` |
+| `8` | `5x` | `15x` |
+| `9` | `12x` | `30x` |
+| `10` | `30x` | `60x` |
+| `11` | `100x` | `150x` |
+| `12` | `500x` | `700x` |
+| `13` | `10000x` | `10000x` |
+| `14` | `25000x` | `25000x` |
+| `15` | `25000x` | `25000x` |
+| `16` | `25000x` | `25000x` |
 
-| Largest Same-Color Count | Exact Boards | Probability | Low | High |
-|-------------------------:|-------------:|------------:|----:|-----:|
-| `2` | `1,587,600` | `15.753601%` | `0x` | `0x` |
-| `3` | `5,628,000` | `55.846098%` | `1.01x` | `0x` |
-| `4` | `2,320,920` | `23.030264%` | `1.2x` | `2.25x` |
-| `5` | `472,500` | `4.688572%` | `2x` | `6.6x` |
-| `6` | `63,000` | `0.625143%` | `5x` | `15x` |
-| `7` | `5,400` | `0.053584%` | `20x` | `80x` |
-| `8` | `270` | `0.002679%` | `200x` | `600x` |
-| `9` | `6` | `0.000060%` | `2500x` | `5000x` |
+The exact board distributions plus independent and compounded RTP tables are maintained in [BLOCKS_ANALYTICS.md](../analytics/BLOCKS_ANALYTICS.md).
 
-There is no largest count `1` on a `9`-tile board with `6` colors.
+## Promotion outcome
 
-## Exact RTP Model
-
-For mode `m` and roll count `N`:
-
-```text
-EV_roll(m) = Sum_maxCount P(maxCount) * multiplier(m, maxCount)
-RTP_game(m, N) = EV_roll(m)^N
-```
-
-Because dead counts already carry multiplier `0x`, the fail-fast all-or-nothing rule changes the path semantics but not the expected-value formula: the full-game EV is still the product of identical per-roll expectations.
-
-Exact per-roll expectations used by the repo:
-
-- `Low`: `EV_roll = 0.98300087638673`
-- `High`: `EV_roll = 0.98331702008141`
-
-Exact RTP references:
-
-| Mode | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
-|------|-------:|--------:|--------:|--------:|--------:|
-| Low | `98.300088%` | `96.629072%` | `94.986463%` | `93.371776%` | `91.784538%` |
-| High | `98.331702%` | `96.691236%` | `95.078138%` | `93.491952%` | `91.932227%` |
-
-## Promotion Outcome
-
-Blocks remains `ABI verified` because:
-
-- the live contract address is explorer-verified
-- the CLI tuple layout and fee path match the verified source
-- the verified getter persists `riskMode`, `numRuns`, `boards`, `maxCounts`, and one final `totalPayout`
-- the repo now uses the contract-backed max-of-a-kind distribution and a consecutive-roll model consistent with the public docs and verified storage surface
+Blocks remains `ABI verified` because the current address is explorer-verified and the CLI now matches its payload order, grid mapping, independent/compounding behavior, gas formula, getter tuple, and payout tables. The legacy address is separate and read-only from the CLI's perspective; it remains supported solely so existing wallet history is not lost or misdecoded.

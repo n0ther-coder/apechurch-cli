@@ -72,7 +72,7 @@ describe('Manual fixed-game defaults', () => {
     );
 
     assert.deepStrictEqual(plinko, { mode: 0, split: 100 });
-    assert.deepStrictEqual(blocks, { mode: 0, survive: 1 });
+    assert.deepStrictEqual(blocks, { gridMode: 0, grid: '3x3', mode: 0, survive: 1 });
     assert.deepStrictEqual(primes, { difficulty: 0, split: 20 });
   });
 
@@ -98,7 +98,83 @@ describe('Manual fixed-game defaults', () => {
       randomIntInclusive
     );
 
-    assert.deepStrictEqual(blocks, { mode: 0, survive: 1 });
+    assert.deepStrictEqual(blocks, { gridMode: 0, grid: '3x3', mode: 0, survive: 1 });
+  });
+
+  it('accepts --split for independent Blocks rolls and rejects ambiguous combinations', () => {
+    const gameEntry = {
+      config: {
+        grid: { default: 0 },
+        mode: { default: 0, min: 0, max: 1 },
+        runs: { default: 1, min: 1, max: 5 },
+      },
+    };
+    const strategy = { blocks: { mode: [0, 1], runs: [2, 4] } };
+
+    assert.deepStrictEqual(getBlocksConfig(
+      { risk: '0', split: '5' },
+      {},
+      gameEntry,
+      strategy,
+      randomIntInclusive,
+    ), {
+      gridMode: 0,
+      grid: '3x3',
+      mode: 0,
+      split: 5,
+      compounding: false,
+    });
+    assert.throws(
+      () => getBlocksConfig(
+        { split: '2', survive: '3' },
+        {},
+        gameEntry,
+        strategy,
+        randomIntInclusive,
+      ),
+      /--split and --survive cannot be used together/,
+    );
+    assert.throws(
+      () => getBlocksConfig(
+        { split: '2abc' },
+        {},
+        gameEntry,
+        strategy,
+        randomIntInclusive,
+      ),
+      /split must be between 1 and 5/,
+    );
+  });
+
+  it('accepts explicit Blocks dimensions but rejects numeric grid modes', () => {
+    const gameEntry = {
+      config: {
+        grid: { default: 0 },
+        mode: { default: 0, min: 0, max: 1 },
+        runs: { default: 1, min: 1, max: 5 },
+      },
+    };
+
+    const blocks = getBlocksConfig(
+      { grid: '4x4' },
+      {},
+      gameEntry,
+      { blocks: { mode: [0, 1], runs: [2, 4] } },
+      () => 2,
+      { preferGameDefault: true }
+    );
+
+    assert.deepStrictEqual(blocks, { gridMode: 1, grid: '4x4', mode: 0, survive: 1 });
+    assert.throws(
+      () => getBlocksConfig(
+        { grid: '1' },
+        {},
+        gameEntry,
+        { blocks: { mode: [0, 1], runs: [2, 4] } },
+        () => 2,
+      ),
+      /Numeric grid modes are not accepted/
+    );
   });
 
   it('rejects conflicting legacy Blocks roll-count values', () => {

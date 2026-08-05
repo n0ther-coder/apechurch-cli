@@ -442,6 +442,7 @@ Notes:
                   "--amount" <ape>
                   <bet-option>*
 <bet-option> ::= "--risk" <token>
+               | "--grid" <grid>
                | "--split" <integer>
                | "--survive" <integer>
                | "--spins" <integer>
@@ -459,12 +460,17 @@ Notes:
                | "--gp-ape" <points>
 ```
 
+```bnf
+<grid> ::= "2x2" | "3x3" | "4x4"  ; Blocks only; omitted means "3x3"
+```
+
 | Option | Meaning |
 |--------|---------|
 | `--game <type>` | Stateless game key |
 | `--amount <ape>` | Wager amount |
 | `--risk <risk>` | Public risk level for Bear-A-Dice, Blocks, Plinko, Monkey Match, or Primes |
-| `--split <count>` | Independent split attempts for Plinko, Primes, Speed Keno, and slots |
+| `--grid <grid>` | Blocks board dimensions: exactly `2x2`, `3x3`, or `4x4`; default `3x3` |
+| `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--spins <count>` | Slots-only alias for `--split` |
 | `--bet <bet>` | Roulette or baccarat bet payload |
@@ -480,6 +486,8 @@ Notes:
 | `--x-userRandomWord <bytes32>` | Expert override for the generated `userRandomWord` in `gameData` |
 | `--gp-ape <points>` | Override local GP estimation for this run |
 
+For Blocks, `--split 1-5` divides the wager across independent rolls and sums their payouts, while `--survive 1-5` compounds the full payout across rolls. The two options are mutually exclusive; omitting both preserves the legacy `--survive 1` behavior.
+
 ### `play`
 
 ```bnf
@@ -490,6 +498,7 @@ Notes:
 <play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>
 <play-stateless-option> ::= "--auto"
                           | "--risk" <token>
+                          | "--grid" <grid>
                           | "--split" <integer>
                           | "--survive" <integer>
                           | "--spins" <integer>
@@ -558,7 +567,8 @@ These options apply only to fire-and-forget games handled by the stateless game 
 |--------|---------|
 | `--auto` | Opt into automatic random stateless game/config selection when no game is specified |
 | `--risk <risk>` | Public risk level for Bear-A-Dice, Blocks, Plinko, Monkey Match, or Primes |
-| `--split <count>` | Independent split attempts for Plinko, Primes, Speed Keno, and slots |
+| `--grid <grid>` | Blocks board dimensions: exactly `2x2`, `3x3`, or `4x4`; default `3x3` |
+| `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--spins <count>` | Slots-only alias for `--split` |
 | `--bet <bet>` | Roulette or baccarat bet payload |
@@ -572,6 +582,8 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--x-gameId <uint256>` | Expert override for the generated `gameId` in `gameData` |
 | `--x-ref <address>` | Expert override for the referral address in `gameData` |
 | `--x-userRandomWord <bytes32>` | Expert override for the generated `userRandomWord` in `gameData` |
+
+For Blocks, choose either `--split 1-5` (independent rolls) or `--survive 1-5` (compounding rolls). Supplying both is an error; supplying neither keeps the implicit `--survive 1` default.
 
 #### Stateful Game Options
 

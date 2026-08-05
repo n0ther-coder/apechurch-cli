@@ -490,8 +490,54 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(code, 0);
       assert.strictEqual(payload.game, 'blocks');
-      assert.deepStrictEqual(payload.config, { mode: 0, survive: 1 });
+      assert.deepStrictEqual(payload.config, { gridMode: 0, grid: '3x3', mode: 0, survive: 1 });
       assert.ok(!stdout.includes('No wallet found'));
+    });
+
+    it('play validate-only accepts --split for independent Blocks rolls', () => {
+      const { stdout, code } = cli('play blocks 10 --risk Low --grid 2x2 --split 5 --validate-only --json');
+      const payload = JSON.parse(stdout);
+      const invalid = cli('play blocks 10 --split 6 --validate-only --json');
+
+      assert.strictEqual(code, 0);
+      assert.strictEqual(payload.game, 'blocks');
+      assert.deepStrictEqual(payload.config, {
+        gridMode: 2,
+        grid: '2x2',
+        mode: 0,
+        split: 5,
+        compounding: false,
+      });
+      assert.ok(!stdout.includes('No wallet found'));
+      assert.strictEqual(invalid.code, 1);
+      assert.match(JSON.parse(invalid.stdout).error, /split must be between 1 and 5/i);
+    });
+
+    it('rejects simultaneous Blocks --split and --survive options', () => {
+      const { stdout, code } = cli('play blocks 10 --split 2 --survive 3 --validate-only --json');
+      const bet = cli('bet --game blocks --amount 10 --split 2 --survive 3');
+
+      assert.strictEqual(code, 1);
+      assert.match(JSON.parse(stdout).error, /--split and --survive cannot be used together/);
+      assert.ok(!stdout.includes('No wallet found'));
+      assert.strictEqual(bet.code, 1);
+      assert.match(JSON.parse(bet.stdout).error, /--split and --survive cannot be used together/);
+      assert.ok(!bet.stdout.includes('No wallet found'));
+    });
+
+    it('play validate-only accepts explicit Blocks grids and rejects numeric modes', () => {
+      const explicit = cli('play blocks 10 --risk Low --grid 4x4 --survive 1 --validate-only --json');
+      const numeric = cli('play blocks 10 --risk Low --grid 1 --survive 1 --validate-only --json');
+
+      assert.strictEqual(explicit.code, 0);
+      assert.deepStrictEqual(JSON.parse(explicit.stdout).config, {
+        gridMode: 1,
+        grid: '4x4',
+        mode: 0,
+        survive: 1,
+      });
+      assert.strictEqual(numeric.code, 1);
+      assert.match(JSON.parse(numeric.stdout).error, /Numeric grid modes are not accepted/);
     });
 
     it('play validate-only rejects old Blocks roll-count flags with a rename hint', () => {
@@ -761,7 +807,7 @@ describe('CLI Commands Integration Tests', () => {
       const lines = stdout.trim().split('\n');
 
       assert.ok(lines.every((line) => line.startsWith('[play] ')), 'Should only print play-list lines');
-      assert.ok(lines.includes('[play] blocks <ape> --risk <risk> --survive <survive>'), 'Should use --survive for Blocks');
+      assert.ok(lines.includes('[play] blocks <ape> --grid <grid> --risk <risk> --split <split> --survive <survive>'), 'Should show --split and --survive for Blocks');
       assert.ok(lines.includes('[play] primes <ape> --risk <risk> --split <split>'), 'Should use --split for Primes');
       assert.ok(lines.includes('[play] reel-pirates <ape> --split <split>'), 'Should use --split for Reel Pirates');
       assert.ok(!stdout.includes('--rolls'), 'Should not advertise old roll flags');

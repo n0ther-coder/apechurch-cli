@@ -18,7 +18,7 @@ These notes belong under `docs/analytics/` when the repo has a defensible exact 
 | Speed Keno ✔︎ | [SPEED_KENO_ANALYTICS.md](./SPEED_KENO_ANALYTICS.md) | Smaller hypergeometric state space than Keno, with exact hit-count tables by picks. |
 | Monkey Match ✔︎ | [MONKEY_MATCH_ANALYTICS.md](./MONKEY_MATCH_ANALYTICS.md) | Two verified modes and seven multiplicity classes make the full distribution compact. |
 | Bear-A-Dice ✔︎ | [BEAR_DICE_ANALYTICS.md](./BEAR_DICE_ANALYTICS.md) | Fully exact `2d6` survival distributions across `5 x 5` verified difficulty/roll variants. |
-| Blocks ✔︎ | [BLOCKS_ANALYTICS.md](./BLOCKS_ANALYTICS.md) | Exhaustive `3x3` max-of-a-kind enumeration plus consecutive-roll compounding gives exact `Low` / `High` survival matrices through `5` rolls. |
+| Blocks ✔︎ | [BLOCKS_ANALYTICS.md](./BLOCKS_ANALYTICS.md) | Exact `2x2`, `3x3`, and `4x4` max-of-a-kind distributions cover independent `--split` and compounding `--survive` play across all `36` grid/risk/settlement variants. |
 | Bubblegum Heist ✔︎ | [BUBBLEGUM_HEIST_ANALYTICS.md](./BUBBLEGUM_HEIST_ANALYTICS.md) | Exact reel model, selected payout rows, exact RTP, and an explicit blocker for full variance until the whole paytable is snapshotted. |
 | Cash Dash ✔︎ | [CASH_DASH_ANALYTICS.md](./CASH_DASH_ANALYTICS.md) | Exact row-level and fixed-depth cash-out analytics; whole-run RTP remains policy-dependent. |
 | Dino Dough ✔︎ | [DINO_DOUGH_ANALYTICS.md](./DINO_DOUGH_ANALYTICS.md) | Complete ordered paytable, exact per-spin distribution, summary stats, exact RTP, and variance. |

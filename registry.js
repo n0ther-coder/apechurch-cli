@@ -342,30 +342,54 @@ export const GAME_REGISTRY = [
   },
 
   // ===========================================================================
-  // BLOCKS - 3x3 max-of-a-kind board with consecutive compounding rolls
+  // BLOCKS - selectable max-of-a-kind grid with independent or compounding rolls
   // ===========================================================================
   {
     key: 'blocks',
     name: 'Blocks',
     slug: 'blocks',
     type: 'blocks',
-    description: 'All-or-nothing 3x3 max-of-a-kind survival game. Choose Low or High and 1-5 consecutive rolls; each paying same-color count compounds the current payout, while any dead roll ends the whole game at 0x.',
+    description: 'Max-of-a-kind game on a 2x2, 3x3, or 4x4 grid. The implicit default remains 3x3; use --split for independent rolls or --survive for all-or-nothing compounding rolls.',
     contract: BLOCKS_CONTRACT,
     abiVerified: true,
     config: {
+      grid: {
+        default: 0,
+        cliDefault: '3x3',
+        cliName: 'grid',
+        description: 'Board dimensions. The CLI accepts only the explicit values 2x2, 3x3, and 4x4; omitting --grid preserves the legacy 3x3 board.',
+        bnf: [
+          '<grid> ::= "2x2" | "3x3" | "4x4"',
+        ],
+        options: [
+          { value: 2, label: '2x2', desc: '4 tiles; compact board with the shortest max-of-a-kind ladder' },
+          { value: 0, label: '3x3', desc: '9 tiles; backwards-compatible default used by the previous Blocks contract' },
+          { value: 1, label: '4x4', desc: '16 tiles; widest board and payout ladder' },
+        ],
+      },
       mode: {
         min: 0,
         max: 1,
         default: 0,
         cliName: 'risk',
-        description: 'Risk level. 0=Low starts paying when any color appears at least 3 times; 1=High removes that floor and raises the top payout.',
+        description: 'Risk level. The max-of-a-kind survival threshold depends on the grid: Low starts at 2/3/5 matches and High at 3/4/6 matches for 2x2/3x3/4x4 respectively.',
         bnf: [
           '<risk> ::= <integer> | "Low" | "High"',
           '; semantic constraint: value ∈ {0, 1}',
         ],
         options: [
-          { value: 0, label: 'Low', desc: 'Pays from max same-color count 3; every surviving roll compounds the payout' },
-          { value: 1, label: 'High', desc: 'Only max same-color count 4+ survives; the 9-of-a-kind ceiling is 5000x per roll' },
+          { value: 0, label: 'Low', desc: 'Lower grid-specific winning threshold and smoother payout ladder' },
+          { value: 1, label: 'High', desc: 'Higher grid-specific winning threshold and more volatile payout ladder' },
+        ],
+      },
+      split: {
+        min: 1,
+        max: 5,
+        cliName: 'split',
+        description: 'Number of independent rolls (1-5). The wager is divided across the rolls and their payouts are summed; a losing roll forfeits only its share. Cannot be combined with --survive.',
+        bnf: [
+          '<split> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 5',
         ],
       },
       runs: {
@@ -373,7 +397,7 @@ export const GAME_REGISTRY = [
         max: 5,
         default: 1,
         cliName: 'survive',
-        description: 'Number of all-or-nothing survival attempts (1-5). Each surviving roll compounds the current payout; any losing roll zeroes the whole game. No cash-out and no partial payout.',
+        description: 'Number of all-or-nothing compounding rolls (1-5). Each winning roll compounds the current payout; any losing roll zeroes the whole game. Cannot be combined with --split.',
         bnf: [
           '<survive> ::= <integer>',
           '; semantic constraint: 1 <= value <= 5',
@@ -383,7 +407,7 @@ export const GAME_REGISTRY = [
     vrf: {
       type: 'blocks',
       baseGas: 600000,
-      perUnitGas: 200000,
+      perTileGas: 25000,
     },
   },
 

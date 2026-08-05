@@ -22,7 +22,7 @@ Ordering: alphabetical by game title.
 | Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` | - |
 | Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --survive Z` | `bear`, `dice` |
 | Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` | `bj` |
-| Blocks ✔︎ | `play blocks <amt> <risk> <survive>` | `--game blocks --amount X --risk Y --survive Z` | - |
+| Blocks ✔︎ | `play blocks <amt> <risk> <survive>` | `--game blocks --amount X --risk Y --grid 2x2\|3x3\|4x4 [--split Z \| --survive Z]` | - |
 | Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <split>` | `--game bubblegum-heist --amount X --split Y` (`--spins Y` alias) | `bubblegumheist`, `bubblegum`, `heist` |
 | Cash Dash ✔︎ | `cash-dash <amt>` | `cash-dash <amt> --auto --cashout-after N` | `cashdash`, `dash` |
 | Cosmic Plinko ✔︎ | `play cosmic-plinko <amt> <risk> <split>` | `--game cosmic-plinko --amount X --risk Y --split Z` | `cosmic` |
@@ -84,7 +84,7 @@ Ordering: alphabetical by game title.
 | Baccarat ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF; `BANKER` commission is baked into the `1.95x` payout | In combined bets, explicit sub-amounts must sum to the total wager |
 | Bear-A-Dice ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with rolls + `2%` platform fee | Single total wager; volatility comes from risk and rolls |
 | Blackjack ✔︎ | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | Action-based VRF; `double` / `split` / `insurance` are extra stakes, not fees | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
-| Blocks ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with runs | Single total wager across `1-5` consecutive rolls; any dead roll zeroes the whole game |
+| Blocks ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with `runs × grid tiles` | `--split 1-5` divides the wager across independent rolls; `--survive 1-5` compounds the full payout and zeroes it on any dead roll |
 | Bubblegum Heist ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + `2%` platform fee | Total wager is split across `1-15` spins |
 | Cash Dash ✔︎ | Any positive APE amount | CLI accepts `> 0` | No explicit CLI max besides wallet balance and contract-side liquidity constraints | VRF on start and each guess + live `2.5%` platform fee on each compounded row wager | `cashOut()` is non-payable; continuing registers the current cashout as the next wager |
 | Cosmic Plinko ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF | Total wager is split across `1-30` balls |
@@ -221,26 +221,32 @@ These recent completed games were read through `getGameInfo(gameId)` on the live
 ## Blocks ✔︎
 
 **Type:** Board / VRF
-**Contract:** `0xA59CF828222EcD8aCe4b6195764d11F5Ea7f62A6`
+**Contract:** `0x74D430c8e705eBB8EF0BA05bfDe54E901410a288`
 **ABI verified:** `true`
 **Verification notes:** [BLOCKS_CONTRACT.md](./verification/BLOCKS_CONTRACT.md)
 **Analytics:** [BLOCKS_ANALYTICS.md](./analytics/BLOCKS_ANALYTICS.md)
 
-Consecutive-roll `3x3` max-of-a-kind game. Each roll resolves a full `9`-tile board, and the payout depends only on the largest same-color count, not on tile adjacency. For the chosen risk and roll count, every surviving roll compounds the current payout, while any dead count ends the whole game at `0x`.
+Multi-roll max-of-a-kind game with a selectable `2x2`, `3x3`, or `4x4` board. The payout depends only on the largest same-color count, not on tile adjacency. `--split` divides the wager across independent rolls and sums their payouts; `--survive` carries and compounds the full payout, so any dead count ends the whole game at `0x`.
 
-**Command:** `apechurch-cli play blocks <amount> <risk> <survive>` or `apechurch-cli play blocks <amount> --risk <risk> --survive <survive>`
+**Command:** `apechurch-cli play blocks <amount> <risk> <survive>` or `apechurch-cli play blocks <amount> --risk <risk> [--grid <grid>] [--split <1-5> | --survive <1-5>]`
+
+`--grid` accepts only the explicit strings `2x2`, `3x3`, and `4x4`. Omitting it selects `3x3`, preserving the previous CLI behavior; numeric contract modes such as `0`, `1`, or `2` are intentionally rejected on the public CLI surface. `--split` and `--survive` are mutually exclusive. Omitting both keeps the backward-compatible `--survive 1` behavior.
 
 ```bnf
 <amount> ::= <ape>
 <risk> ::= <integer> | "Low" | "High"  ; value ∈ {0, 1}
+<grid> ::= "2x2" | "3x3" | "4x4"     ; optional; default "3x3"
+<split> ::= <integer>              ; 1 <= value <= 5; independent rolls
 <survive> ::= <integer>            ; 1 <= value <= 5
 ```
 
 **Compare:**
-- Exact RTP: `Low / 1-5 rolls = 98.30%, 96.63%, 94.99%, 93.37%, 91.78%`.
-- Exact RTP: `High / 1-5 rolls = 98.33%, 96.69%, 95.08%, 93.49%, 91.93%`.
-- Max fixed top payout per surviving roll: `2500x` in Low, `5000x` in High.
-- Operational note: `Low` pays from max same-color count `3`; `High` pays only from max same-color count `4` upward. Blocks is all-or-nothing and has no cash-out path.
+
+- Exact one-roll RTP: `2x2 = 97.69%` in both risks; `3x3 = 97.97% Low / 97.86% High`; `4x4 = 97.85% Low / 97.91% High`.
+- Per-roll top payout: `2x2 = 12x Low / 51x High`; `3x3 = 2500x Low / 5000x High`; `4x4 = 25000x` in both risks.
+- Survival thresholds (`Low / High`): `2x2 = 2 / 3`, `3x3 = 3 / 4`, and `4x4 = 5 / 6` matching tiles.
+- Independent `--split` rolls retain the one-roll RTP and per-roll maximum relative to the total wager while reducing variance as the count rises. Compounding `--survive` RTP is the one-roll RTP raised to the roll count.
+- Blocks has no cash-out path. See the analytics note for all `36` grid/risk/settlement variants.
 
 ## Bubblegum Heist ✔︎
 
@@ -729,16 +735,36 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 | Mode | CLI Support | Exact RTP | Method | Public Running RTP |
 |------|-------------|-----------|--------|--------------------|
-| High / 1 roll | Yes | `98.33%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| High / 2 rolls | Yes | `96.69%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| High / 3 rolls | Yes | `95.08%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| High / 4 rolls | Yes | `93.49%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| High / 5 rolls | Yes | `91.93%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| Low / 1 roll | Yes | `98.30%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| Low / 2 rolls | Yes | `96.63%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| Low / 3 rolls | Yes | `94.99%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| Low / 4 rolls | Yes | `93.37%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
-| Low / 5 rolls | Yes | `91.78%` | Exact exhaustive `6^9` max-of-a-kind board enumeration compounded across the configured consecutive-roll count | `93.92%` |
+| 3x3 / Low / 1 roll | Yes | **`97.97%`** | Exact selected-grid max-of-a-kind enumeration, compounded across the configured roll count | `n/a` |
+| 4x4 / High / 1 roll | Yes | **`97.91%`** | Same | `n/a` |
+| 3x3 / High / 1 roll | Yes | **`97.86%`** | Same | `n/a` |
+| 4x4 / Low / 1 roll | Yes | **`97.85%`** | Same | `n/a` |
+| 2x2 / Low / 1 roll | Yes | **`97.69%`** | Same | `n/a` |
+| 2x2 / High / 1 roll | Yes | **`97.69%`** | Same | `n/a` |
+| 3x3 / Low / 2 rolls | Yes | `95.97%` | Same | `n/a` |
+| 4x4 / High / 2 rolls | Yes | `95.86%` | Same | `n/a` |
+| 3x3 / High / 2 rolls | Yes | `95.77%` | Same | `n/a` |
+| 4x4 / Low / 2 rolls | Yes | `95.75%` | Same | `n/a` |
+| 2x2 / Low / 2 rolls | Yes | `95.42%` | Same | `n/a` |
+| 2x2 / High / 2 rolls | Yes | `95.42%` | Same | `n/a` |
+| 3x3 / Low / 3 rolls | Yes | `94.02%` | Same | `n/a` |
+| 4x4 / High / 3 rolls | Yes | `93.85%` | Same | `n/a` |
+| 3x3 / High / 3 rolls | Yes | `93.72%` | Same | `n/a` |
+| 4x4 / Low / 3 rolls | Yes | `93.69%` | Same | `n/a` |
+| 2x2 / Low / 3 rolls | Yes | `93.22%` | Same | `n/a` |
+| 2x2 / High / 3 rolls | Yes | `93.22%` | Same | `n/a` |
+| 3x3 / Low / 4 rolls | Yes | `92.11%` | Same | `n/a` |
+| 4x4 / High / 4 rolls | Yes | `91.89%` | Same | `n/a` |
+| 3x3 / High / 4 rolls | Yes | `91.72%` | Same | `n/a` |
+| 4x4 / Low / 4 rolls | Yes | `91.67%` | Same | `n/a` |
+| 2x2 / Low / 4 rolls | Yes | `91.06%` | Same | `n/a` |
+| 2x2 / High / 4 rolls | Yes | `91.06%` | Same | `n/a` |
+| 3x3 / Low / 5 rolls | Yes | `90.23%` | Same | `n/a` |
+| 4x4 / High / 5 rolls | Yes | `89.97%` | Same | `n/a` |
+| 3x3 / High / 5 rolls | Yes | `89.76%` | Same | `n/a` |
+| 4x4 / Low / 5 rolls | Yes | `89.70%` | Same | `n/a` |
+| 2x2 / Low / 5 rolls | Yes | `88.95%` | Same | `n/a` |
+| 2x2 / High / 5 rolls | Yes | `88.95%` | Same | `n/a` |
 
 #### Monkey Match ✔︎
 
@@ -870,7 +896,7 @@ For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODD
 |------|---------------|----------|-------|-------|-------|-----|
 | Glyde or Crash ✔︎ | `Target 1.01x` | `96.04%` | `1.01x` @ `96.04%` | `1.01x` @ `96.04%` | `1.01x` @ `96.04%` | `97.00%` |
 | Keno ✔︎ | `Picks 5` | `58.35%` | `1.1x` @ `27.77%` | `1.1x` @ `27.77%` | `200x` @ `0.04%` | `94.68%` |
-| Blocks ✔︎ | `Low / 1 roll` | `84.25%` | `1.01x` @ `55.85%` | `1.01x` @ `55.85%` | `2500x` @ `0.00%` | **`98.30%`** |
+| Blocks ✔︎ | `3x3 / Low / 1 roll` | `84.25%` | `1.01x` @ `55.85%` | `1.01x` @ `55.85%` | `2500x` @ `0.00%` | **`97.97%`** |
 | Jungle Plinko ✔︎ | `Risk 0 / Low` | `53.33%` | `1.2x` @ `38.10%` | `1.2x` @ `38.10%` | `2.2x` @ `15.24%` | **`98.00%`** |
 | Primes ✔︎ | `Easy` | `50.00%` | `1.9x` @ `40.00%` | `1.9x` @ `40.00%` | `2.2x` @ `10.00%` | **`98.00%`** |
 | Roulette ✔︎ | `Red / Black` | `47.37%` | `2.05x` @ `47.37%` | `2.05x` @ `47.37%` | `2.05x` @ `47.37%` | `97.11%` |
@@ -891,7 +917,7 @@ For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODD
 | Jungle Plinko ✔︎ | `Risk 4 / Ultra Degen` | `22.18%` | `1.4x` @ `9.87%` | `1.4x` @ `9.87%` | `1000x` @ `0.00%` | **`97.99%`** |
 | Cosmic Plinko ✔︎ | `Mode 2 / High` | `14.37%` | `1.5x` @ `6.19%` | `1.5x` @ `6.19%` | `250x` @ `0.03%` | **`97.80%`** |
 | Primes ✔︎ | `Extreme` | `12.30%` | `7.57x` @ `12.29%` | `7.57x` @ `12.29%` | `500x` @ `0.01%` | **`98.04%`** |
-| Blocks ✔︎ | `High / 5 rolls` | `0.1848%` | `57.67x` @ `0.06%` | `169.15x` @ `0.07%` | `3125000000000000000.00x` @ `0.00%` | `91.93%` |
+| Blocks ✔︎ | `4x4 / High / 5 rolls` | `0.0560%` | `118.81x` @ `0.01%` | `301.60x` @ `0.02%` | `9,765,625,000,000,000,000,000x` @ `0.00%` | `89.97%` |
 | Bear-A-Dice ✔︎ | `Master / 5 rolls` | `0.000053%` | `1,847,949.19x` @ `0.00%` | `1,847,949.19x` @ `0.00%` | `1,847,949.19x` @ `0.00%` | **`97.80%`** |
 
 ### Still Not Exactly Calculable from Local Sources

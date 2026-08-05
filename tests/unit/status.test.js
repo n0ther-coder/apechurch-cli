@@ -586,7 +586,13 @@ describe('Status Helpers', () => {
           game: 'Blocks ✔︎ (Low / 3 rolls)',
           group_key: 'blocks:mode:easy:rolls:3',
           variant_label: 'Low / 3 rolls',
-          rtp_config: { mode: 0, survive: 3 },
+          rtp_config: {
+            grid: '3x3',
+            gridMode: 0,
+            mode: 0,
+            survive: 3,
+            compounding: true,
+          },
         },
         {
           game: 'Monkey Match ✔︎ (Low)',

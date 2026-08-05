@@ -151,6 +151,29 @@ describe('Loop Estimate Helpers', () => {
     );
   });
 
+  it('models independent Blocks split rolls in pre-loop estimates', () => {
+    const gameEntry = resolveGame('blocks');
+    const estimate = estimateConfiguredGameLoopRunout({
+      balanceApe: 40,
+      availableApe: 39,
+      gameEntry,
+      wagerApe: 10,
+      config: {
+        grid: '2x2',
+        gridMode: 2,
+        mode: 1,
+        split: 5,
+        compounding: false,
+      },
+      vrfFeeApe: 0,
+      sessionCount: 4,
+      rng: () => 0,
+    });
+
+    assert.equal(estimate.method, 'monte-carlo');
+    assert.equal(estimate.p50Games, 3);
+  });
+
   it('uses the configured Gimboz Smash target surface for pre-loop Monte Carlo estimates', () => {
     const gameEntry = resolveGame('gimboz-smash');
     const rolls = [0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6];

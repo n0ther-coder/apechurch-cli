@@ -1,89 +1,109 @@
 # Blocks Odds and Payouts
 
-> Summary: Exact `Low` / `High` consecutive-roll analytics for Blocks, derived from exhaustive enumeration of all `6^9 = 10,077,696` possible `3x3` boards and the verified contract's max-of-a-kind rule.
+> Summary: Exact `Low` / `High` analytics for every `2x2`, `3x3`, and `4x4` Blocks grid, covering independent `--split` rolls and legacy-compatible compounding `--survive` rolls.
 
-This note summarizes the exact Blocks payout surface across the verified `Low` and `High` modes and all supported consecutive-roll counts (`1` to `5`).
+## CLI behavior
 
-## How Blocks works
+```bash
+apechurch-cli play blocks 10 --risk 0 --grid 2x2 --survive 1
+apechurch-cli play blocks 10 --risk 0 --grid 3x3 --split 5
+apechurch-cli play blocks 10 --risk 0 --grid 4x4 --survive 5
+```
 
-Each Blocks roll resolves a `3x3` board with `9` tiles and `6` equally likely colors. The contract does **not** search for connected components. It counts how many times each color appears and uses the **largest same-color count** (`max-of-a-kind`) as the payout key.
+`--grid` accepts exactly `2x2`, `3x3`, or `4x4`. If it is omitted, the CLI sends the contract mode for `3x3`, preserving the behavior of the previous Blocks contract. Numeric internal modes (`0`, `1`, `2`) are intentionally not accepted as `--grid` values.
 
-For the chosen mode and roll count, each **surviving** roll multiplies the current payout by the verified multiplier for that roll's max count, while any **dead** count is an immediate loss for the whole game. There is **no cash-out** and **no partial payout**: Blocks is strictly **all-or-nothing** across consecutive rolls.
+`--split 1-5` sends `compounding = false`: the wager is divided across independent rolls, their payouts are summed, and a dead roll loses only its share. `--survive 1-5` sends `compounding = true`: each winning roll multiplies the current payout and any dead roll zeroes the entire game. The flags are mutually exclusive. Omitting both preserves the old implicit `--survive 1` behavior.
 
-Mode names should be read as:
+## Mechanics
 
-- `Low` = pays from max count `3` upward.
-- `High` = pays only from max count `4` upward.
+Each tile independently selects one of six colors. The contract counts the occurrences of every color and uses the largest count as the payout key; adjacency and connected components do not matter.
 
-## Exact single-roll max-count distribution
+| Grid | Contract `gameMode` | Tiles | Possible boards | Low survives from | High survives from |
+|------|--------------------:|------:|----------------:|------------------:|-------------------:|
+| `2x2` | `2` | `4` | `6^4 = 1,296` | max count `2` | max count `3` |
+| `3x3` | `0` | `9` | `6^9 = 10,077,696` | max count `3` | max count `4` |
+| `4x4` | `1` | `16` | `6^16 = 2,821,109,907,456` | max count `5` | max count `6` |
 
-The table below is the exact result of enumerating all `10,077,696` possible `3x3` boards. It matches the public Blocks page percentages when rounded to four decimals.
+## Exact single-roll distributions and payouts
 
-| Largest Same-Color Count | Exact Boards | Probability | Low | High |
-|---:|---:|---:|---:|---:|
-| 2 | `1,587,600` | `15.754%` | `0.00x` | `0.00x` |
-| 3 | `5,628,000` | `55.846%` | `1.01x` | `0.00x` |
-| 4 | `2,320,920` | `23.030%` | `1.20x` | `2.25x` |
-| 5 | `472,500` | `4.689%` | `2.00x` | `6.60x` |
-| 6 | `63,000` | `0.625%` | `5.00x` | `15.00x` |
-| 7 | `5,400` | `0.054%` | `20.00x` | `80.00x` |
-| 8 | `270` | `0.003%` | `200.00x` | `600.00x` |
-| 9 | `6` | `0.000%` | `2500.00x` | `5000.00x` |
+### 2x2
 
-There is no largest count `1` on a `9`-tile board with `6` colors.
+| Max count | Exact boards | Probability | Low | High |
+|----------:|-------------:|------------:|----:|-----:|
+| `1` | `360` | `27.777778%` | `0x` | `0x` |
+| `2` | `810` | `62.500000%` | `1.2x` | `0x` |
+| `3` | `120` | `9.259259%` | `1.85x` | `8x` |
+| `4` | `6` | `0.462963%` | `12x` | `51x` |
 
-## How to read the roll tables
+### 3x3 (implicit default)
 
-- `RTP`, `Win`, and `Loss` are computed from the full exact max-count distribution for that mode and roll count.
-- The max-count rows are a compact same-count ladder: row `k` means every surviving roll hit count `k`, so the cell shows `k x k x ... x k`.
-- This keeps the matrix readable while still anchoring each column from the lowest to the highest paying count.
-- All displayed multipliers are rounded to 2 decimals.
-- All displayed percentages are rounded to 3 decimals.
+| Max count | Exact boards | Probability | Low | High |
+|----------:|-------------:|------------:|----:|-----:|
+| `2` | `1,587,600` | `15.753601%` | `0x` | `0x` |
+| `3` | `5,628,000` | `55.846098%` | `1.01x` | `0x` |
+| `4` | `2,320,920` | `23.030264%` | `1.2x` | `2.25x` |
+| `5` | `472,500` | `4.688572%` | `2x` | `6.5x` |
+| `6` | `63,000` | `0.625143%` | `4.25x` | `15x` |
+| `7` | `5,400` | `0.053584%` | `20x` | `80x` |
+| `8` | `270` | `0.002679%` | `250x` | `600x` |
+| `9` | `6` | `0.000060%` | `2500x` | `5000x` |
 
-## Low
+### 4x4
 
-| Max Count | Survive 1 roll | Survive 2 rolls | Survive 3 rolls | Survive 4 rolls | Survive 5 rolls |
-|---|---|---|---|---|---|
-| RTP | `98.300%` | `96.629%` | `94.986%` | `93.372%` | `91.785%` |
-| Win | `84.246%` | `70.975%` | `59.794%` | `50.374%` | `42.438%` |
-| Loss | `0x @ 15.754%` | `0x @ 29.025%` | `0x @ 40.206%` | `0x @ 49.626%` | `0x @ 57.562%` |
-| 3 | `1.01x @ 55.846%` | `1.02x @ 31.188%` | `1.03x @ 17.417%` | `1.04x @ 9.727%` | `1.05x @ 5.432%` |
-| 4 | `1.20x @ 23.030%` | `1.44x @ 5.304%` | `1.73x @ 1.222%` | `2.07x @ 0.281%` | `2.49x @ 0.065%` |
-| 5 | `2.00x @ 4.689%` | `4.00x @ 0.220%` | `8.00x @ 0.010%` | `16.00x @ 0.000%` | `32.00x @ 0.000%` |
-| 6 | `5.00x @ 0.625%` | `25.00x @ 0.004%` | `125.00x @ 0.000%` | `625.00x @ 0.000%` | `3125.00x @ 0.000%` |
-| 7 | `20.00x @ 0.054%` | `400.00x @ 0.000%` | `8000.00x @ 0.000%` | `160000.00x @ 0.000%` | `3200000.00x @ 0.000%` |
-| 8 | `200.00x @ 0.003%` | `40000.00x @ 0.000%` | `8000000.00x @ 0.000%` | `1600000000.00x @ 0.000%` | `320000000000.00x @ 0.000%` |
-| 9 | `2500.00x @ 0.000%` | `6250000.00x @ 0.000%` | `15625000000.00x @ 0.000%` | `39062500000000.00x @ 0.000%` | `97656250000000000.00x @ 0.000%` |
+| Max count | Exact boards | Probability | Low | High |
+|----------:|-------------:|------------:|----:|-----:|
+| `3` | `76,684,608,000` | `2.718242%` | `0x` | `0x` |
+| `4` | `1,031,395,365,000` | `36.559914%` | `0x` | `0x` |
+| `5` | `1,081,979,458,560` | `38.352971%` | `1.2x` | `0x` |
+| `6` | `460,733,232,960` | `16.331630%` | `1.75x` | `2.6x` |
+| `7` | `133,950,960,000` | `4.748165%` | `3x` | `6.6x` |
+| `8` | `30,163,869,450` | `1.069220%` | `5x` | `15x` |
+| `9` | `5,362,500,000` | `0.190085%` | `12x` | `30x` |
+| `10` | `750,750,000` | `0.026612%` | `30x` | `60x` |
+| `11` | `81,900,000` | `0.002903%` | `100x` | `150x` |
+| `12` | `6,825,000` | `0.000242%` | `500x` | `700x` |
+| `13` | `420,000` | `0.0000149%` | `10000x` | `10000x` |
+| `14` | `18,000` | `0.000000638%` | `25000x` | `25000x` |
+| `15` | `480` | `0.0000000170%` | `25000x` | `25000x` |
+| `16` | `6` | `0.000000000213%` | `25000x` | `25000x` |
 
-## High
+## Exact independent RTP
 
-| Max Count | Survive 1 roll | Survive 2 rolls | Survive 3 rolls | Survive 4 rolls | Survive 5 rolls |
-|---|---|---|---|---|---|
-| RTP | `98.332%` | `96.691%` | `95.078%` | `93.492%` | `91.932%` |
-| Win | `28.400%` | `8.066%` | `2.291%` | `0.651%` | `0.185%` |
-| Loss | `0x @ 71.600%` | `0x @ 91.934%` | `0x @ 97.709%` | `0x @ 99.349%` | `0x @ 99.815%` |
-| 4 | `2.25x @ 23.030%` | `5.06x @ 5.304%` | `11.39x @ 1.222%` | `25.63x @ 0.281%` | `57.67x @ 0.065%` |
-| 5 | `6.60x @ 4.689%` | `43.56x @ 0.220%` | `287.50x @ 0.010%` | `1897.47x @ 0.000%` | `12523.33x @ 0.000%` |
-| 6 | `15.00x @ 0.625%` | `225.00x @ 0.004%` | `3375.00x @ 0.000%` | `50625.00x @ 0.000%` | `759375.00x @ 0.000%` |
-| 7 | `80.00x @ 0.054%` | `6400.00x @ 0.000%` | `512000.00x @ 0.000%` | `40960000.00x @ 0.000%` | `3276800000.00x @ 0.000%` |
-| 8 | `600.00x @ 0.003%` | `360000.00x @ 0.000%` | `216000000.00x @ 0.000%` | `129600000000.00x @ 0.000%` | `77760000000000.00x @ 0.000%` |
-| 9 | `5000.00x @ 0.000%` | `25000000.00x @ 0.000%` | `125000000000.00x @ 0.000%` | `625000000000000.00x @ 0.000%` | `3125000000000000000.00x @ 0.000%` |
+For `--split N`, the contract evaluates `N` boards independently against `wager / N` and sums their payouts. The theoretical RTP and maximum payout multiplier relative to the total wager therefore equal the single-roll values for every split count; increasing `N` only smooths variance. Solidity integer division can reduce the realized payout by a negligible amount when the wager cannot be represented evenly at wei precision.
 
-## Variance
+| Grid | Risk | RTP for any `--split 1-5` | Maximum total-wager multiplier |
+|------|------|--------------------------:|--------------------------------:|
+| `2x2` | Low | `97.685185%` | `12x` |
+| `2x2` | High | `97.685185%` | `51x` |
+| `3x3` | Low | `97.965190%` | `2500x` |
+| `3x3` | High | `97.862845%` | `5000x` |
+| `4x4` | Low | `97.850420%` | `25000x` |
+| `4x4` | High | `97.907757%` | `25000x` |
 
-Variance is computed over `X = payout / stake` for the full Blocks game. Unlike batched games, consecutive Blocks rolls are not averaged: surviving rolls compound the payout and any dead roll zeroes the whole game. That makes variance grow sharply as roll count increases.
+## Exact compounded RTP
 
-| Mode | Rolls | RTP | Variance | Std. Dev. |
-| --- | ---: | ---: | ---: | ---: |
-| Low | 1 | `98.3001%` | `5.285957` | `2.299121` |
-| Low | 2 | `96.6291%` | `38.156879` | `6.177125` |
-| Low | 5 | `91.7845%` | `9553.058592` | `97.739749` |
-| High | 1 | `98.3317%` | `31.606680` | `5.621982` |
-| High | 2 | `96.6912%` | `1060.103974` | `32.559238` |
-| High | 5 | `91.9322%` | `36671464.115827` | `6055.696832` |
+For a selected grid and risk mode:
+
+```text
+EV_roll = sum(P(maxCount) * payout(maxCount))
+RTP(N rolls) = EV_roll ^ N
+```
+
+Dead counts already have multiplier `0`, so the formula includes the fail-fast loss. The exact references used by the CLI are:
+
+| Grid | Risk | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
+|------|------|-------:|--------:|--------:|--------:|--------:|
+| `2x2` | Low | `97.685185%` | `95.423954%` | `93.215066%` | `91.057310%` | `88.949502%` |
+| `2x2` | High | `97.685185%` | `95.423954%` | `93.215066%` | `91.057310%` | `88.949502%` |
+| `3x3` | Low | `97.965190%` | `95.971784%` | `94.018940%` | `92.105833%` | `90.231654%` |
+| `3x3` | High | `97.862845%` | `95.771364%` | `93.724581%` | `91.721542%` | `89.761310%` |
+| `4x4` | Low | `97.850420%` | `95.747046%` | `93.688887%` | `91.674969%` | `89.704342%` |
+| `4x4` | High | `97.907757%` | `95.859289%` | `93.853680%` | `91.890033%` | `89.967470%` |
+
+The maximum whole-game multiplier is the per-roll cap raised to the selected roll count. At five rolls this ranges from `248,832x` for `2x2 Low` to `9,765,625,000,000,000,000,000x` for either `4x4` risk mode.
 
 ## Sources
 
-1. [docs/verification/BLOCKS_CONTRACT.md](../verification/BLOCKS_CONTRACT.md) - verified ABI surface, official mode naming, and max-of-a-kind settlement rule.
-2. [original-games.md](https://docs.ape.church/games/player-vs-house/original-games.md) - official Blocks gameplay wording (`risk level`, `consecutive rolls`, and multipliers applied to the wager).
-3. [lib/rtp.js](../../lib/rtp.js) - exact Blocks constants and RTP references used by the CLI.
+1. [Blocks contract verification notes](../verification/BLOCKS_CONTRACT.md) — current address, tuple layout, grid mapping, gas formula, read surface, and verified payout tables.
+2. [lib/rtp.js](../../lib/rtp.js) — exact distributions and all `36` grid/risk/settlement variants used by the CLI.
+3. [lib/games/blocks.js](../../lib/games/blocks.js) — strict grid/attempt parsing, backward-compatible defaults, payload encoding, and VRF gas calculation.

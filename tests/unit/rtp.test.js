@@ -100,15 +100,22 @@ describe('RTP Helpers', () => {
     ]);
   });
 
-  it('exposes exact calculated RTP constants for each verified Blocks mode and roll count', () => {
+  it('exposes exact calculated RTP constants for every Blocks grid, mode, and settlement style', () => {
     const variants = getGameCalculatedVariantReferences('blocks');
     const byLabel = new Map(variants.map((variant) => [variant.variantLabel, variant]));
 
-    assert.strictEqual(variants.length, 10);
-    assert.strictEqual(byLabel.get('Low / 1 roll').calculated.display, '98.30%');
+    assert.strictEqual(variants.length, 36);
+    assert.strictEqual(byLabel.get('Low / 1 roll').calculated.display, '97.97%');
     assert.strictEqual(byLabel.get('Low / 5 rolls').maxPayout.display, '97,656,250,000,000,000x');
-    assert.strictEqual(byLabel.get('High / 1 roll').calculated.display, '98.33%');
+    assert.strictEqual(byLabel.get('High / 1 roll').calculated.display, '97.86%');
     assert.strictEqual(byLabel.get('High / 5 rolls').maxPayout.display, '3,125,000,000,000,000,000x');
+    assert.strictEqual(byLabel.get('4x4 / High / 1 roll').calculated.display, '97.91%');
+    assert.strictEqual(byLabel.get('2x2 / Low / 1 roll').calculated.display, '97.69%');
+    assert.strictEqual(byLabel.get('2x2 / High / 5 rolls').maxPayout.display, '345,025,251x');
+    assert.strictEqual(byLabel.get('Low / Independent').calculated.display, '97.97%');
+    assert.strictEqual(byLabel.get('Low / Independent').maxPayout.display, '2,500x');
+    assert.strictEqual(byLabel.get('4x4 / High / Independent').calculated.display, '97.91%');
+    assert.strictEqual(byLabel.get('2x2 / High / Independent').maxPayout.display, '51x');
   });
 
   it('uses the lowest verified exact RTP when Bear-A-Dice has multiple difficulty/roll variants', () => {
@@ -237,10 +244,27 @@ describe('RTP Helpers', () => {
       config: { mode: 1, survive: 5 },
     });
 
-    assert.strictEqual(expected.display, '91.93%');
+    assert.strictEqual(expected.display, '89.76%');
     assert.strictEqual(expected.referenceType, 'calculated');
     assert.strictEqual(expected.calculationKind, 'exact');
     assert.strictEqual(maxPayout.display, '3,125,000,000,000,000,000x');
+  });
+
+  it('uses per-roll Blocks RTP and max payout for independent split attempts', () => {
+    const config = {
+      grid: '4x4',
+      gridMode: 1,
+      mode: 1,
+      split: 5,
+      compounding: false,
+    };
+    const expected = getConfiguredGameExpectedRtpReference({ game: 'blocks', config });
+    const maxPayout = getConfiguredGameMaxPayoutReference({ game: 'blocks', config });
+
+    assert.strictEqual(expected.display, '97.91%');
+    assert.strictEqual(expected.referenceType, 'calculated');
+    assert.strictEqual(expected.calculationKind, 'exact');
+    assert.strictEqual(maxPayout.display, '25,000x');
   });
 
   it('uses the verified Bear-A-Dice payout table for configured RTP and max payout', () => {
@@ -302,7 +326,7 @@ describe('RTP Helpers', () => {
     });
   });
 
-  it('canonicalizes Blocks variants by risk mode and survive count', () => {
+  it('canonicalizes Blocks variants by grid, risk mode, and survive count while keeping 3x3 keys compatible', () => {
     const blocks = resolveConfiguredGameVariant({
       game: 'blocks',
       config: { mode: 1, survive: 5 },
@@ -313,7 +337,47 @@ describe('RTP Helpers', () => {
       variantKey: 'blocks:mode:hard:rolls:5',
       variantLabel: 'High / 5 rolls',
       rtpGame: 'blocks',
-      rtpConfig: { mode: 1, survive: 5 },
+      rtpConfig: {
+        grid: '3x3',
+        gridMode: 0,
+        mode: 1,
+        survive: 5,
+        compounding: true,
+      },
+    });
+
+    assert.deepStrictEqual(resolveConfiguredGameVariant({
+      game: 'blocks',
+      config: { grid: '4x4', gridMode: 1, mode: 0, survive: 2, compounding: true },
+    }), {
+      gameKey: 'blocks',
+      variantKey: 'blocks:grid:4x4:mode:easy:rolls:2',
+      variantLabel: '4x4 / Low / 2 rolls',
+      rtpGame: 'blocks',
+      rtpConfig: {
+        grid: '4x4',
+        gridMode: 1,
+        mode: 0,
+        survive: 2,
+        compounding: true,
+      },
+    });
+
+    assert.deepStrictEqual(resolveConfiguredGameVariant({
+      game: 'blocks',
+      config: { grid: '2x2', gridMode: 2, mode: 1, split: 5, compounding: false },
+    }), {
+      gameKey: 'blocks',
+      variantKey: 'blocks:grid:2x2:mode:hard:independent',
+      variantLabel: '2x2 / High / Independent',
+      rtpGame: 'blocks',
+      rtpConfig: {
+        grid: '2x2',
+        gridMode: 2,
+        mode: 1,
+        split: 5,
+        compounding: false,
+      },
     });
   });
 

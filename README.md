@@ -382,7 +382,7 @@ Coverage and limits:
 | Sushi Showdown ✔︎ | `play sushi-showdown 10 --split 15` | `sushishowdown`, `sushi` | Slot machine |
 | Monkey Match ✔︎ | `play monkey-match 10` | `monkeymatch`, `monkey` | Poker hands from barrels |
 | Bear-A-Dice ✔︎ | `play bear-dice 10` | `bear`, `dice` | Avoid unlucky numbers |
-| Blocks ✔︎ | `play blocks 10 --risk 0 --survive 1` | - | 3x3 max-of-a-kind board with consecutive all-or-nothing survival attempts |
+| Blocks ✔︎ | `play blocks 10 --risk 0 --grid 4x4 --split 5` | - | Selectable 2x2, 3x3, or 4x4 max-of-a-kind board; use `--split 1-5` for independent rolls or `--survive 1-5` for compounding rolls |
 | Primes ✔︎ | `play primes 10 --risk 0 --split 20` | - | Prime-or-zero number draws with split-bet runs |
 | Blackjack ✔︎ | `blackjack 25 --side 1 --auto` | `bj` | H17 card game with auto-play and optional player side bet |
 | Video Poker ✔︎ / Gimboz Poker | `video-poker 10 --auto` | `vp` | Jacks or Better with auto-play and solver tools |
