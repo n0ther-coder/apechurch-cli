@@ -155,16 +155,19 @@ The entry module must export a default function or a named `run` function. Retur
 The bot handler receives one context object:
 
 - `args`: tokens passed after the bot name.
+- `resumeRequested`: `true` only when `script watch` is relaunching a run whose previous summary remained `pending`.
+- `resumeSummary`: the newest local `pending` summary for the same bot and exact `args`, or `null`. Use it only to reconcile the already-submitted play; do not start a replacement wager.
 - `binaryName`: CLI binary name, normally `apechurch-cli`.
 - `bot`: manifest metadata and resolved filesystem paths. `bot.logDir` is the current bot subdirectory under `APECHURCH_CLI_LOG_DIR`.
 - `paths`: resolved shared paths: `configDir`, `botsDir`, and `logDir`.
 - `play(tokens)`: run `apechurch-cli play ...` with inherited terminal output.
 - `playJson(tokens)`: run `apechurch-cli play ... --json` and return the parsed payload.
+- `reconcilePendingPlay(payload, options)`: read an existing stateless play by its returned `contract` and `gameId`. It never submits a transaction; `timeoutMs` and `pollIntervalMs` control settlement polling.
 - `resolveGame(command)`: resolve a game key or alias through the same playable-game catalog used by `apechurch-cli play`; returns the canonical descriptor or `null`.
 - `resolveBot(command)`: resolve a bot command through the discovered-bot registry; returns its descriptor or `null`.
 - `validatePlayArgs(tokens)`: validate `apechurch-cli play ...` target tokens without starting a game.
 - `botRun(name, tokens)`: run another bot with inherited terminal output.
-- `botJson(name, tokens)`: run another bot with `--json` and return the parsed payload.
+- `botJson(name, tokens, options)`: run another bot with `--json` and return the parsed payload. Resume markers are not inherited by fresh child commands; pass `{ resumeRequested: true }` only for the specific nested bot whose own pending summary must be continued.
 - `validateBotArgs(name, tokens)`: validate another bot's startup arguments without running that bot.
 - `statusJson()`: run `apechurch-cli status --json`.
 - `balanceJson()`: read the local wallet balance through the CLI wallet runtime.
@@ -253,9 +256,9 @@ When calling another bot, call it with `botJson` and embed that payload under `f
 
 Use integer wei math for wager sizing and P&L accounting. Avoid floating-point math for values that will be submitted as wagers.
 
-Use `session.getSettledPlayEconomics(payload, gameNumber, botName)` to extract settled wager, payout, and P&L from `playJson` results. If a result is not settled, stop or surface the error instead of guessing.
+Use `session.getSettledPlayEconomics(payload, gameNumber, botName)` to extract settled wager, payout, and P&L from `playJson` results. If `playJson` returns a known `pending` play, preserve that payload under `pending_play` in the run summary and call `reconcilePendingPlay` on it. If it remains unresolved, return a summary whose top-level `status` is `pending`; only a checkpoint containing a valid transaction hash, contract, and game ID maps to the reserved resumable process exit. `script watch` then relaunches with `resumeRequested`, bypassing balance gates only for that checkpointed continuation. A later run with the same argv receives the prior record in `resumeSummary`. Other unsettled or malformed results remain fatal; never guess their economics.
 
-Do not add a second bot-level retry loop around `playJson`. Pass `--resilient` and let the public transaction layer retain the original game/action payload and apply its centralized schedules. Once a transaction hash exists, confirmation failures are returned as pending instead of being resent; a manual retry outside that flow can duplicate an action when transaction state is unknown.
+Do not add a second bot-level retry loop around `playJson`. Pass `--resilient` and let the public transaction layer retain the original game/action payload and apply its centralized schedules. Bot-level `--resilient` is inherited by direct `play`/`playJson` calls unless the child argv explicitly contains `--no-resilient`. Once a transaction hash exists, confirmation failures are returned as pending instead of being resent; only `reconcilePendingPlay` may retry the settlement read. Re-running `playJson` for the same logical step can duplicate an action when transaction state is unknown.
 
 ## Play Surface
 

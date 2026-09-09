@@ -1072,6 +1072,8 @@ function formatScriptHelpAppendix() {
       'Values shaped as { "arg": "name", "value": ["line one", "line two"] } render as editable name=value payloads.',
       'script write/read/watch normalize known bare optional defaults into explicit values where supported: --auto simple, --solver best, and --human weighted:3-9.',
       'watch does not launch another copy while the previous script process group recorded for that script is still alive.',
+      'A bot run with a validated pending tx/contract/gameId checkpoint is relaunched with the same argv; fresh runs remain balance-gated.',
+      'Watch state records the next scheduled attempt and wake delay; delays of at least five seconds are printed explicitly.',
       'watch prefixes each attempt/status line with a cyan local timestamp, including condition failures and launches.',
     ],
   });

@@ -8,16 +8,23 @@ import { parseEther } from 'viem';
 
 import { stripAnsi } from '../../lib/ansi.js';
 import {
+  buildWatchChildEnv,
   buildScriptPayloadFromArgs,
   formatWatchAttemptLine,
   getBalanceConditionResult,
   normalizeScriptCommand,
+  isResumablePendingExit,
   parseWatchArgv,
   parseWatchOptions,
   renderScriptCommand,
   resolveScriptFile,
+  shouldBypassWatchBalanceConditions,
   validateScriptName,
 } from '../../lib/scripts.js';
+import {
+  RESUMABLE_PENDING_EXIT_CODE,
+  WATCH_RESUME_ENV_VAR,
+} from '../../lib/constants.js';
 
 describe('Command Script Helpers', () => {
   it('parses default and explicit watch options', () => {
@@ -77,6 +84,23 @@ describe('Command Script Helpers', () => {
     assert.match(
       plain,
       /^2026-JUL-08 14:05:09[+-]\d{4} Conditions not met: balance is not over 500 APE$/,
+    );
+  });
+
+  it('resumes only the reserved pending exit and scopes the resume marker to that launch', () => {
+    assert.strictEqual(isResumablePendingExit(RESUMABLE_PENDING_EXIT_CODE), true);
+    assert.strictEqual(isResumablePendingExit(RESUMABLE_PENDING_EXIT_CODE, 'SIGTERM'), false);
+    assert.strictEqual(isResumablePendingExit(1), false);
+    assert.strictEqual(shouldBypassWatchBalanceConditions(true), true);
+    assert.strictEqual(shouldBypassWatchBalanceConditions(false), false);
+
+    assert.strictEqual(
+      buildWatchChildEnv(true, { KEEP: 'yes' })[WATCH_RESUME_ENV_VAR],
+      '1',
+    );
+    assert.deepStrictEqual(
+      buildWatchChildEnv(false, { KEEP: 'yes', [WATCH_RESUME_ENV_VAR]: '1' }),
+      { KEEP: 'yes' },
     );
   });
 

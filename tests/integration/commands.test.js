@@ -29,6 +29,7 @@ const R2_KEY_ENV = 'APECHURCH_CLI_R2_KEY';
 const R2_SECRET_ENV = 'APECHURCH_CLI_R2_SECRET';
 const RPC_URL_ENV = 'APECHAIN_RPC_URL';
 const FORCE_COLOR_ENV = 'APECHURCH_CLI_FORCE_COLOR';
+const WATCH_RESUME_ENV = 'APECHURCH_CLI_WATCH_RESUME';
 const ANSI_RE = /\x1b\[[0-9;]*m/;
 const CONFIG_OVERRIDE_WALLET = '0x2222222222222222222222222222222222222222';
 const BOT_LOG_TX_A = `0x${'a'.repeat(64)}`;
@@ -190,7 +191,7 @@ function buildCliEnv(options = {}) {
     R2_KEY_ENV,
     R2_SECRET_ENV,
   ];
-  const isolatedEnvVars = [...pathEnvVars, ...secretEnvVars];
+  const isolatedEnvVars = [...pathEnvVars, ...secretEnvVars, WATCH_RESUME_ENV];
   const env = {
     ...process.env,
     HOME: optionEnv.HOME || NO_WALLET_HOME,
@@ -2413,6 +2414,67 @@ export default async function ({ paths, bot }) {
 
       const files = listBotLogFiles(logDir, 'error-bot');
       assert.strictEqual(files.length, 0);
+    });
+
+    it('persists a pending bot summary and exposes it on a watcher resume', () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'resume-bot',
+        script: `const TX = '${BOT_LOG_TX_A}';
+
+export default async function ({ resumeRequested, resumeSummary }) {
+  if (!resumeRequested) {
+    return {
+      exitCode: 1,
+      summary: {
+        status: 'pending',
+        pending_play: {
+          status: 'pending',
+          contract: '0x1111111111111111111111111111111111111111',
+          gameId: '42',
+          tx: TX,
+        },
+      },
+    };
+  }
+
+  return {
+    exitCode: 0,
+    summary: {
+      status: 'complete',
+      tx: TX,
+      resumed_from: resumeSummary?.pending_play?.gameId || null,
+    },
+  };
+}
+`,
+      });
+
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+      };
+      const first = cli('bot resume-bot 7 --json', { env });
+      assert.strictEqual(first.code, 75);
+      assert.strictEqual(JSON.parse(first.stdout.trim()).status, 'pending');
+
+      const pendingFiles = listBotLogFiles(logDir, 'resume-bot');
+      assert.strictEqual(pendingFiles.length, 1);
+      assert.strictEqual(
+        readBotLogFile(logDir, 'resume-bot', pendingFiles[0]).pending_play.gameId,
+        '42',
+      );
+
+      const resumed = cli('bot resume-bot 7 --json', {
+        env: { ...env, [WATCH_RESUME_ENV]: '1' },
+      });
+      assert.strictEqual(resumed.code, 0);
+      const resumedPayload = JSON.parse(resumed.stdout.trim());
+      assert.strictEqual(resumedPayload.status, 'complete');
+      assert.strictEqual(resumedPayload.resumed_from, '42');
+      assert.strictEqual(listBotLogFiles(logDir, 'resume-bot').length, 2);
     });
 
     it('writes an interrupted json log when a bot receives SIGINT', async () => {
