@@ -174,6 +174,23 @@ describe('Bot Runtime Context', () => {
     assert.deepStrictEqual(payload.args, ['ape-strong', '1', '60', '--resilient', '--json']);
   });
 
+  it('exposes a game paytable as parsed JSON without starting play', async () => {
+    const ctx = createContext();
+
+    const payload = await ctx.gamePaytable('speed-keno', ['--picks', '5', '--split', '1']);
+
+    assert.strictEqual(payload.command, 'game');
+    assert.deepStrictEqual(payload.args, [
+      'speed-keno',
+      '--paytable',
+      '--picks',
+      '5',
+      '--split',
+      '1',
+      '--json',
+    ]);
+  });
+
   it('does not duplicate --resilient when a playJson call already includes it', async () => {
     const ctx = createContext(['--resilient']);
 

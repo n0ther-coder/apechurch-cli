@@ -4,6 +4,12 @@
 
 This note summarizes the exact **single-leg payout distributions** for the verified Roulette bet classes supported by the CLI.
 
+## Paytable source and change controls
+
+- **Source:** The verified American-wheel pocket mapping and bet-class multipliers are in [payout-tables.js](../../lib/payout-tables.js); [rtp.js](../../lib/rtp.js) derives class probabilities and RTP.
+- **Contract control:** The verified ABI has no `oddsLocked` or payout-multiplier setter. An owner `setMaxGuesses` changes the allowed bet-count limit, not the 38-pocket wheel or per-leg gross multipliers; platform fees affect net returns.
+- **Play settings:** Bet class and chosen pocket set change coverage and payout. Multi-leg mixes change the overall distribution, and the contract's leg splitting and one-wei adjustment can slightly change effective wager-level multipliers.
+
 ## How Roulette works
 
 The contract settles against an American wheel with `38` pockets: `0`, `00`, and `1-36`.
@@ -52,4 +58,5 @@ Var(X) = P(win) * m^2 - (P(win) * m)^2
 ## Sources
 
 1. [docs/verification/ROULETTE_CONTRACT.md](../verification/ROULETTE_CONTRACT.md) — verified pocket mapping, payout constants, and exact RTP basis.
-2. [lib/rtp.js](../../lib/rtp.js) — exact Roulette RTP constants and pocket-class handling used by the CLI.
+2. [lib/payout-tables.js](../../lib/payout-tables.js) — pocket classes and payout rules used by the CLI.
+3. [lib/rtp.js](../../lib/rtp.js) — exact Roulette RTP constants used by the CLI.

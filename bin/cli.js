@@ -38,7 +38,7 @@
  * │ history          Read cached per-wallet history, games, stats, scores  │
  * │ scoreboard       Read cached per-wallet leaderboards from history       │
  * │ games            List all available games                               │
- * │ game <name>      Detailed info about a specific game                    │
+ * │ game <name>      Game details or payout table                            │
  * │ commands         Full help reference for all commands                   │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ TRANSFERS & STAKING                                                     │
@@ -218,6 +218,7 @@ import {
   computeCooldownMs,
 } from '../lib/strategy.js';
 import { configGetters, playGame, resolveGame } from '../lib/games/index.js';
+import { formatGamePaytable, getGamePaytable } from '../lib/game-paytable.js';
 import { parseBaccaratBet } from '../lib/games/baccarat.js';
 import { resolveBearDiceConfig } from '../lib/games/beardice.js';
 import { getBlocksGridLabel, parseBlocksGrid } from '../lib/games/blocks.js';
@@ -1542,21 +1543,50 @@ function formatGamesHelpAppendix() {
 
 function formatGameHelpAppendix() {
   return formatCommandHelpAppendix({
-    actions: ['None. `game` prints metadata and grammar for one selected game.'],
+    actions: [
+      'omitted                Print metadata and grammar for one selected game.',
+      '--paytable             Resolve the game paytable without starting a game.',
+    ],
     parameters: ['<name>                 Supported canonical game key, alias, or display name'],
-    options: ['--json                 Emit JSON output'],
+    options: [
+      '--json                 Emit JSON output',
+      '--paytable             Show the selected paytable instead of metadata',
+      '--risk <risk>          Risk or difficulty used by play',
+      '--grid <grid>          Blocks grid used by play',
+      '--split <count>        Independent split count used by play',
+      '--survive <count>      Compounding survival count used by play',
+      '--spins <count>        Slots alias for --split',
+      '--picks <count>        Keno pick count used by play',
+      '--bet <bet>            Roulette or Baccarat bet',
+      '--cover <count>        ApeStrong or Gimboz Smash cover',
+      '--range <range>        Gimboz Smash target range',
+      '--out-range <range>    Gimboz Smash excluded range',
+      '--multiplier <x>       Glyde or Crash target',
+      '--amount <ape>         Wager when the paytable depends on it',
+      '--side <ape>           Blackjack player side bet',
+    ],
     bnf: [
-      '<game-command> ::= "game" <game-name> [ "--json" ]',
+      '<game-command> ::= "game" <game-name> [ "--paytable" <paytable-option>* ] [ "--json" ]',
+      '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--spins" <integer> | "--picks" <integer> | "--bet" <token> | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--multiplier" <multiplier> | "--amount" <ape> | "--side" <ape>',
       '<game-name> ::= <stateless-game> | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
       '<stateless-game> ::= <game-key> | <game-alias>',
     ],
     examples: [
       `${BINARY_NAME} game roulette`,
-      `${BINARY_NAME} game jungle-plinko`,
       `${BINARY_NAME} game blackjack`,
       `${BINARY_NAME} game video-poker --json`,
+      `${BINARY_NAME} game keno --paytable`,
+      `${BINARY_NAME} game speed-keno --paytable --picks 3 --split 1`,
+      `${BINARY_NAME} game jungle-plinko --paytable --risk 4 --split 1 --json`,
+      `${BINARY_NAME} game video-poker --paytable --amount 25 --json`,
     ],
-    notes: ['The output includes per-game parameters, BNF where configured, examples, aliases, ABI status, and contract address.'],
+    notes: [
+      'Without --paytable, the output includes game parameters, grammar, aliases, ABI status, and contract address.',
+      'Paytable output always includes every paytable-changing parameter and its resolved value, plus overall min_multiplier and max_multiplier.',
+      'Play defaults are reused. A required parameter without a fixed play default produces an error naming the missing option.',
+      'Paytable parameters are accepted only with --paytable.',
+      'Split games with --split greater than 1 and games without a statically enumerable paytable show only overall multiplier bounds.',
+    ],
   });
 }
 
@@ -7783,11 +7813,61 @@ program
 // ============================================================================
 program
   .command('game <name>')
-  .description('Show metadata and grammar for one game')
+  .description('Show metadata, grammar, or the paytable for one game')
   .option('--json', 'JSON output')
+  .option('--paytable', 'Show the selected game paytable without playing')
+  .option('--risk <risk>', 'Risk or difficulty used by play')
+  .option('--grid <grid>', 'Blocks grid used by play')
+  .option('--split <count>', 'Independent split count used by play')
+  .option('--survive <count>', 'Compounding survival count used by play')
+  .option('--spins <count>', 'Slots-only alias for --split')
+  .option('--picks <count>', 'Keno pick count used by play')
+  .option('--bet <bet>', 'Roulette or Baccarat bet')
+  .option('--cover <cover>', 'ApeStrong or Gimboz Smash cover')
+  .option('--range <range>', 'Gimboz Smash inside range')
+  .option('--out-range <range>', 'Gimboz Smash outside range')
+  .option('--multiplier <x>', 'Glyde or Crash target multiplier')
+  .option('--amount <ape>', 'Wager when the paytable depends on it')
+  .option('--side <ape>', 'Blackjack player side bet')
   .addHelpText('after', formatGameHelpAppendix())
   .action((name, opts) => {
     const matchedCatalogEntry = resolveCatalogGameEntry(name);
+    const paytableOnlyOption = [
+      ['risk', '--risk'], ['grid', '--grid'], ['split', '--split'],
+      ['survive', '--survive'], ['spins', '--spins'], ['picks', '--picks'],
+      ['bet', '--bet'], ['cover', '--cover'], ['range', '--range'],
+      ['outRange', '--out-range'], ['multiplier', '--multiplier'],
+      ['amount', '--amount'], ['side', '--side'],
+    ].find(([key]) => opts[key] !== undefined)?.[1];
+
+    if (!opts.paytable && paytableOnlyOption) {
+      const error = `${paytableOnlyOption} requires --paytable for game ${name}.`;
+      process.exitCode = 1;
+      if (opts.json) console.log(JSON.stringify({ error }));
+      else console.error(`\n❌ ${error}\n`);
+      return;
+    }
+
+    if (opts.paytable) {
+      if (!matchedCatalogEntry) {
+        const error = { error: `Unknown game: ${name}`, available: listAllSupportedGameKeys() };
+        process.exitCode = 1;
+        if (opts.json) console.log(JSON.stringify(error));
+        else console.error(`\n❌ Unknown game: "${name}"\n${formatAvailableGameGroups()}\n`);
+        return;
+      }
+
+      try {
+        const payouts = getGamePaytable(matchedCatalogEntry, opts);
+        console.log(opts.json ? JSON.stringify(payouts) : formatGamePaytable(payouts));
+      } catch (error) {
+        const payload = { error: sanitizeError(error) };
+        process.exitCode = 1;
+        if (opts.json) console.log(JSON.stringify(payload));
+        else console.error(`\n❌ ${payload.error}\n`);
+      }
+      return;
+    }
 
     // Handle blackjack specially (stateful game)
     if (matchedCatalogEntry?.key === 'blackjack') {
@@ -8345,7 +8425,7 @@ CONTROL
 
 INFO
   ${BINARY_NAME} games                List all games
-  ${BINARY_NAME} game <name>          Game details
+  ${BINARY_NAME} game <name>          Game details or payout table
   ${BINARY_NAME} history --list       List wallets with local cached history
   ${BINARY_NAME} history [address]    Read cached history, recent games, and history stats
   ${BINARY_NAME} history [address] --leaderboard
@@ -9531,7 +9611,7 @@ ${'═'.repeat(60)}
   Also see:
     ${BINARY_NAME} commands        Compact command index
     ${BINARY_NAME} games           List all games
-    ${BINARY_NAME} game <name>     Detailed game info
+    ${BINARY_NAME} game <name>     Game details or payout table
 
 ${'═'.repeat(60)}
 `);

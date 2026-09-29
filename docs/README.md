@@ -22,6 +22,8 @@ Everything else lives under `docs/` or next to the code it explains.
 | `docs/ADDING_GAMES.md` | Maintainers | High | Yes | Source of truth for extending the game registry and CLI handlers. |
 | `docs/ABI_VERIFICATION.md` | Maintainers | High | Yes | Promotion checklist for deciding when a supported game may be marked `ABI verified` and shown with `✔︎`. |
 | `docs/GAMES_REFERENCE.md` | Users / maintainers | High | Yes | Comparison-first syntax and RTP summary for supported games, with a compact appendix for public-but-unsupported titles. |
+| `docs/FEES.md` | Users / maintainers | High | Yes | Fee accounting, a dated Keno transaction-cost sample, coverage limits, and contract-specific references. |
+| `docs/PAYTABLE_SOURCES.md` | Users / maintainers | High | Yes | Provenance and coverage of the shared payout tables and per-game limitations. |
 | `docs/HOUSE_REFERENCE.md` | Users / maintainers | High | Yes | The House mechanics, meaning of `House Yield`, and the repo's planning-grade APY model and sensitivity bounds. |
 | `docs/PUBLISHING.md` | Maintainers | High | Yes | Release and packaging checklist. |
 | `docs/FEATURES.md` | Marketing / product | Medium | Maybe | Useful as a product snapshot, but some sections overlap with `README.md`. |

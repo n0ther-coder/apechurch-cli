@@ -4,6 +4,12 @@
 
 This note summarizes the exact **simple-lane payout distributions** for **Baccarat** and the exact formula for combined `main + TIE` bets.
 
+## Paytable source and change controls
+
+- **Source:** The verified Player, Banker, and Tie settlement multipliers are stored in [payout-tables.js](../../lib/payout-tables.js); the draw-tree probabilities and combined-bet calculations are in [rtp.js](../../lib/rtp.js).
+- **Contract control:** The verified contract ABI has no `oddsLocked` or payout-table setter. Its owner can change platform fees, which changes net returns but not the documented gross lane payouts or draw probabilities.
+- **Play settings:** The selected lane changes the win, loss, and tie probabilities relevant to the bet. A main-plus-Tie stake split changes the overall payout for each result; integer wager rounding can slightly change the effective multiplier.
+
 ## How Baccarat works
 
 The verified contract supports three simple betting lanes:

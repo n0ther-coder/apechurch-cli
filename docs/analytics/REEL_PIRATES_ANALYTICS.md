@@ -4,6 +4,12 @@
 
 Reel Pirates is now playable through the CLI, but the live contract is unverified on ApeScan. The repo therefore does not claim a closed-form RTP or exact outcome distribution.
 
+## Paytable source and change controls
+
+- **Source:** The symbol-match values below come from a public UI paytable and official rules. The deployed contract source is unverified, and the repo lacks the full symbol, cascade, and bonus probability surface.
+- **Contract control:** No verified `oddsLocked` or equivalent payout/weight update control can be established from the available evidence. Neither immutability nor a current exact payout distribution is claimed.
+- **Play settings:** Spin count changes the number of base spins, required wager, and quoted execution fees; cascades and free-spin retriggers can add outcomes beyond the visible base paytable.
+
 ## Known Mechanics
 
 Reel Pirates is a match-anywhere cascade slot:

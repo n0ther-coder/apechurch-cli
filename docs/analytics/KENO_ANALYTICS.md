@@ -4,6 +4,12 @@
 
 This note summarizes the exact **hit-count payout distributions** for **Keno** across every verified pick count.
 
+## Paytable source and change controls
+
+- **Source:** The verified picks-by-hits payout matrix is in [payout-tables.js](../../lib/payout-tables.js); [rtp.js](../../lib/rtp.js) combines it with the 40-number hypergeometric draw.
+- **Contract control:** The verified ABI has no `oddsLocked` or payout-matrix setter. Its owner can change platform fees, affecting net returns rather than gross hit probabilities or multipliers.
+- **Play settings:** Pick count changes both the hit-count distribution and payout row. The particular numbers chosen have the same theoretical odds at fixed pick count.
+
 ## How Keno works
 
 Keno draws 10 winning numbers from `40` without replacement. Because the draw is symmetric, the exact distribution depends only on how many numbers you pick, not on which specific numbers you chose.

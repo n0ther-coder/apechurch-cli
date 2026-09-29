@@ -60,7 +60,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `history [address]` | - | Read, refresh, or list cached per-wallet history |
 | `scoreboard [address]` | - | Read cached per-wallet leaderboards derived from history |
 | `games` | - | List supported games |
-| `game <name>` | - | Show metadata and grammar for one game |
+| `game <name>` | - | Show metadata, grammar, or resolved payouts for one game |
 | `commands` | - | Show the compact terminal command index |
 | `help [topic]` | - | Show detailed topic help |
 | `bot [name] [args...]` | - | Run an external bot discovered from the configured bots directory |
@@ -486,7 +486,7 @@ Notes:
 | `--x-userRandomWord <bytes32>` | Expert override for the generated `userRandomWord` in `gameData` |
 | `--gp-ape <points>` | Override local GP estimation for this run |
 
-For Blocks, `--split 1-5` divides the wager across independent rolls and sums their payouts, while `--survive 1-5` compounds the full payout across rolls. The two options are mutually exclusive; omitting both preserves the legacy `--survive 1` behavior.
+For Blocks, `--split 1-5` divides the wager across independent rolls and sums their payouts, while `--survive 1-5` compounds the full payout across rolls. The two options are mutually exclusive; omitting both uses `--survive 1`.
 
 ### `play`
 
@@ -662,7 +662,7 @@ The resilient schedules are fixed, not configurable. Generic transient errors an
 
 The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. Local bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape>`, `--fallback-bot <name>`, and standard loop controls. `--take-profit` and `--stop-loss` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive absolute thresholds from the bot's starting balance, while a lone `--stop-loss` derives the bot's relative bankroll as `starting balance - stop-loss`. `--max-routines` limits the main bot's own routines and is not forwarded; `--preflight` delays the main bot before balance reads and is not forwarded; `--max-games` remains a game loop option and is invalid when passed to a bot. Bot code is trusted local code, so only run bots from directories you control. See [BOTS.md](./BOTS.md) for the public bot development guide.
 
-The runtime surface is intentionally narrow: bots receive positional args plus command-registry helpers `resolveGame(command)` and `resolveBot(command)`, gameplay helpers such as `play(tokens)`, `playJson(tokens)`, `reconcilePendingPlay(payload, options)`, `validatePlayArgs(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, `validateBotArgs(name, tokens)`, resume fields `resumeRequested` and `resumeSummary`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and bot-specific `bot.logDir`. The resolvers use the same playable-game catalog and discovered-bot registry as the public CLI and return a descriptor or `null`; they do not execute or validate a wager. Reconciliation reads only the already-submitted stateless game identified by `contract` and `gameId` and never sends a replacement transaction. Bot summary logs are written under `paths.logDir/<bot-name>/` with a `.json` extension when the summary contains a full transaction hash, a positive recorded wager, or a resumable top-level `pending` status. Runs that fail, exit, or are interrupted before material gameplay still return/print their summary but do not create empty local or mirrored log files.
+The runtime surface is intentionally narrow: bots receive positional args, command-registry helpers `resolveGame(command)` and `resolveBot(command)`, gameplay helpers `play(tokens)`, `playJson(tokens)`, `gamePaytable(name, tokens)`, `reconcilePendingPlay(payload, options)`, `validatePlayArgs(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, and `validateBotArgs(name, tokens)`, resume fields `resumeRequested` and `resumeSummary`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and bot-specific `bot.logDir`. The resolvers use the same game catalog and bot registry as the CLI and return a descriptor or `null`; they do not execute or validate a wager. `gamePaytable` reads payout metadata without starting a game. Reconciliation reads only an already-submitted stateless game identified by `contract` and `gameId`; it never sends a replacement transaction. Bot summary logs are written under `paths.logDir/<bot-name>/` with a `.json` extension when the summary contains a full transaction hash, a positive recorded wager, or a resumable top-level `pending` status. Runs that fail, exit, or are interrupted before material gameplay still return or print their summary without creating empty local or mirrored log files.
 
 ## History, Catalog, And Help
 
@@ -759,10 +759,60 @@ Reference columns stay hidden in terminal tables unless `--url` or `--ids` is pa
 ### `game <name>`
 
 ```bnf
-<game-command> ::= "game" <game-name> [ "--json" ]
+<game-command> ::= "game" <game-name> [ "--paytable" <game-paytable-option>* ] [ "--json" ]
+<game-paytable-option> ::= "--risk" <token>
+                       | "--grid" <grid>
+                       | "--split" <integer>
+                       | "--survive" <integer>
+                       | "--spins" <integer>
+                       | "--picks" <integer>
+                       | "--bet" <token>
+                       | "--cover" <integer>
+                       | "--range" <range>
+                       | "--out-range" <range>
+                       | "--multiplier" <multiplier>
+                       | "--amount" <ape>
+                       | "--side" <ape>
 ```
 
 `<name>` accepts supported canonical game keys and the alias set listed in [Game Aliases](#game-aliases).
+
+With `--paytable`, the command does not create a game or transaction. Plain output uses tables; `--json` emits a bot-ready object. Both formats always include every parameter that can change the selected paytable, with the value used for the calculation, and the overall gross `min_multiplier` and `max_multiplier` before transaction fees.
+
+JSON multipliers are decimal strings; repeating ratios use up to 18 fractional digits. `multiplier_basis` is `gross_payout_over_wager_before_fees`. A dynamic jackpot bound is an explicit formula string, and a bound that cannot be established from public data is `null`. The payout portion of a three-pick, single-play Speed Keno result is:
+
+```json
+{
+  "game": "speed-keno",
+  "parameters": { "picks": 3, "split": 1 },
+  "multiplier_basis": "gross_payout_over_wager_before_fees",
+  "min_multiplier": "0.5",
+  "max_multiplier": "25",
+  "payouts_enumerated": true,
+  "payout_count": 4,
+  "payouts": [
+    { "condition": "0 hits", "multiplier": "0.5" },
+    { "condition": "1 hit", "multiplier": "0.5" },
+    { "condition": "2 hits", "multiplier": "2.5" },
+    { "condition": "3 hits", "multiplier": "25" }
+  ]
+}
+```
+
+Fixed `play` defaults are reused. If a required paytable parameter has no fixed default, the command fails and names the missing option. Roulette and Baccarat require `--bet` and `--amount`: the wager determines exact wei-level payouts, including Roulette bet splitting and Baccarat's Banker rounding. Video Poker requires `--amount` because the maximum bet enables its progressive jackpot. A split greater than one suppresses payout enumeration and reports only the overall bounds. Where wager rounding affects those bounds, `--amount` is required and included among the resolved parameters. A static single-attempt paytable is listed when the repository can enumerate it, including for stateful games with fixed payouts. The `400 APE` Video Poker jackpot is dynamic, so that configuration reports bounds only. Dynamic or insufficiently verified outcome spaces also report bounds only, and an unknowable public bound is represented by `null` rather than an invented value.
+
+The public source and coverage for every game's payout values are listed in [PAYTABLE_SOURCES.md](./PAYTABLE_SOURCES.md).
+
+Examples:
+
+```bash
+apechurch-cli game keno --paytable
+apechurch-cli game speed-keno --paytable --picks 3 --split 1
+apechurch-cli game speed-keno --paytable --picks 3 --split 3 --amount 1
+apechurch-cli game jungle-plinko --paytable --risk 4 --split 1 --json
+apechurch-cli game roulette --paytable --bet RED --amount 1
+apechurch-cli game video-poker --paytable --amount 25 --json
+```
 
 ### `commands`
 

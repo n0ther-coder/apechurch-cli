@@ -1,8 +1,14 @@
 # Gimboz Smash Odds and Payouts
 
-> Summary: Exact Gimboz Smash cover-count table derived from the verified ABI surface and the live `getPayoutFromRange(winCount)` getter snapshot.
+> Summary: Exact Gimboz Smash cover-count table from the verified payout formula and dated supported-range bounds.
 
 This note summarizes the exact **gross multiplier** and **theoretical RTP** for every supported Gimboz Smash target size.
+
+## Paytable source and change controls
+
+- **Source:** The verified contract computes `getPayoutFromRange(winCount) = floor(975000 / winCount)` for supported counts; [payout-tables.js](../../lib/payout-tables.js) stores that numerator. The checked-in `1..95` supported-count bounds are a dated contract reading.
+- **Contract control:** `oddsLocked = false` lets the owner change the minimum and maximum accepted counts through `setMinRange` and `setMaxRange`; `lockOdds` disables those updates when true. For a count that remains accepted, the verified `winCount / 100` probability and hard-coded payout formula do not change with that flag. Platform fees affect net returns separately.
+- **Play settings:** Total covered count changes both win probability and multiplier; placing the same number of covered values in different intervals does not change either.
 
 ## How Gimboz Smash works
 
@@ -13,7 +19,7 @@ Gimboz Smash is a range-selection game on a public inclusive `1..100` board.
 - The payout depends only on the total covered numbers, not on where the covered numbers sit on the board.
 - Outside-style bets are therefore just explicit edge intervals such as `1-20,80-100`; the CLI can also accept `--out-range 21-79` and rewrite it to the same stored winning set.
 
-The live contract currently supports total cover counts from `1` through `95`.
+The checked-in supported-count bounds are `1..95`; the verified owner setter can change those bounds while odds remain unlocked.
 
 ## Exact Formula
 
@@ -26,7 +32,7 @@ multiplier(winCount) = floor(975000 / winCount) / 10000
 RTP(winCount) = winCount * floor(975000 / winCount) / 10000
 ```
 
-Important consequence: the game is almost, but not perfectly, flat-EV across cover counts. The live getter's floor division makes exact RTP range from `97.4918%` at `winCount = 83` up to `97.5000%`.
+Important consequence: the game is almost, but not perfectly, flat-EV across cover counts. The verified payout formula's floor division makes exact RTP range from `97.4918%` at `winCount = 83` up to `97.5000%`.
 
 Gimboz Smash matches ApeStrong across most shared `5..95` cover/range counts, but they are **not** identical over the whole surface. The exceptions are:
 
@@ -184,4 +190,5 @@ Var(X) = p * m^2 - (p * m)^2
 ## Sources
 
 1. [docs/verification/GIMBOZ_SMASH_CONTRACT.md](../verification/GIMBOZ_SMASH_CONTRACT.md) - verified ABI surface, interval encoding, and live payout getter notes.
-2. [lib/rtp.js](../../lib/rtp.js) - exact cover-count payout and RTP helpers used by the CLI.
+2. [lib/payout-tables.js](../../lib/payout-tables.js) - checked-in cover-count payout rule used by the CLI.
+3. [lib/rtp.js](../../lib/rtp.js) - exact RTP helpers used by the CLI.

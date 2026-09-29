@@ -4,6 +4,12 @@
 
 This note summarizes the exact **hit-count payout distributions** for **Speed Keno** across every verified pick count.
 
+## Paytable source and change controls
+
+- **Source:** The verified picks-by-hits payout matrix is in [payout-tables.js](../../lib/payout-tables.js); [rtp.js](../../lib/rtp.js) combines it with the 20-number, five-hit hypergeometric draw.
+- **Contract control:** The verified ABI has no `oddsLocked` or payout-matrix setter. Owner gas and platform-fee settings can change transaction costs, not the gross hit probabilities or multipliers.
+- **Play settings:** Pick count changes the hit distribution and payout row. `--split` averages independent games; it changes whole-wager variance and may introduce integer rounding, not each draw's odds.
+
 ## How Speed Keno works
 
 Speed Keno draws 5 winning numbers from `20` without replacement. Because the draw is symmetric, the exact distribution depends only on how many numbers you pick, not on which specific numbers you chose.

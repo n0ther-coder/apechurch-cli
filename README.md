@@ -1,26 +1,22 @@
 # @n0ther/apechurch-cli
 
-> Summary: Hardened, fully AI agents playable Ape Church CLI for GitHub and npm readers. Highlights encrypted-only wallet handling, stronger auto gameplay, expanded game support, on-chain history reporting, and operator-focused CLI tooling.
+> Summary: Ape Church CLI with encrypted local wallet handling, game automation, on-chain history reporting, and JSON interfaces for bots and AI agents.
 
-Encrypted-only, fully AI agents playable gambling CLI for [Ape Church](https://ape.church) on ApeChain.
+CLI for [Ape Church](https://ape.church) games on ApeChain.
 
-Private keys stay local, are stored on disk only in encrypted form in this hardened build, and are never sent by the CLI to Ape Church services in plaintext. This standalone project also expands game coverage, improves auto gameplay for stateful games, and adds deeper on-chain reporting and machine-friendly flows for AI agents and terminal-first users.
+Private keys stay local, are stored on disk only in encrypted form, and are never sent by the CLI to Ape Church services in plaintext. The CLI supports game automation, on-chain reporting, and structured output for terminal users and bots.
 
-## Standalone Project Status
+## Project Scope
 
-This package started from the original Ape Church CLI codebase, but it has been reshaped deeply enough that it should now be treated as its own project rather than a simple downstream patch set. The goal is still the same ecosystem and the same live ApeChain games, but the implementation has moved toward a hardened, automation-ready operator CLI.
+The package provides:
 
-Concrete examples from this repository:
-
-- **Safer local custody:** `bin/cli.js` and `lib/wallet.js` enforce encrypted wallet storage, local password prompts, multi-wallet selection, password rotation, and local signing paths instead of treating private-key handling as a disposable setup step.
+- **Local custody:** `bin/cli.js` and `lib/wallet.js` enforce encrypted wallet storage, local password prompts, multi-wallet selection, password rotation, and local signing.
 - **A maintained game registry:** `registry.js` centralizes supported games, aliases, verified ABI metadata, RTP references, VRF fee behavior, and display names, so the CLI can expose consistent help, JSON, docs, and automation behavior across the catalog.
-- **Verified, richer game coverage:** `docs/verification/` and `lib/games/` back the ABI-verified labels used by the CLI, while the supported game list now covers 22 implemented games and 26 tracked history contracts.
-- **Stateful game engines:** `lib/stateful/blackjack/`, `lib/stateful/video-poker/`, `lib/stateful/hi-lo-nebula/`, and `lib/stateful/cash-dash/` include resumable local state, command-specific actions, display layers, auto-play, and solver/strategy code rather than simple one-shot contract calls.
+- **Verified game coverage:** `docs/verification/` and `lib/games/` back the ABI-verified labels used by the CLI; the catalog covers 22 implemented games and 26 tracked history contracts.
+- **Stateful game engines:** `lib/stateful/blackjack/`, `lib/stateful/video-poker/`, `lib/stateful/hi-lo-nebula/`, and `lib/stateful/cash-dash/` include resumable local state, command-specific actions, display layers, auto-play, and solver/strategy code.
 - **Operator-grade history and reporting:** `lib/wallet-analysis.js`, `lib/history.js`, `lib/scores.js`, and the `history`, `scoreboard`, and `fees` commands build local per-wallet caches, reconstruct game variants, report real wallet economics, and keep offline reads fast.
-- **AI-agent and bot runtime:** `lib/bots.js` exposes `ctx.playJson(...)`, `ctx.botJson(...)`, session helpers, nested bot chime propagation, logs, and machine-readable command output so external agents can run the CLI without a browser.
+- **AI-agent and bot runtime:** `lib/bots.js` exposes `ctx.playJson(...)`, `ctx.gamePaytable(...)`, `ctx.botJson(...)`, session helpers, nested bot chime propagation, logs, and machine-readable command output so external agents can run the CLI without a browser.
 - **Formal command surface:** `docs/COMMAND_REFERENCE.md`, `docs/GAMES_REFERENCE.md`, and the generated CLI help document the grammar, aliases, JSON modes, and loop controls expected by users and automation.
-
-In short: the original repository is the historical base; this package is now a hardened local signer, game automation layer, analytics cache, and bot-oriented command surface for Ape Church.
 
 ## Personal Bots For Humans And AI Agents
 
@@ -34,7 +30,7 @@ apechurch-cli bot <bot-command> --help
 apechurch-cli bot <bot-command> 10 --take-profit 25 --stop-loss 5
 ```
 
-For AI agents, the same surface is intentionally machine-friendly. `lib/bots.js` exposes a narrow runtime context with helpers such as `ctx.resolveGame(...)`, `ctx.resolveBot(...)`, `ctx.play(...)`, `ctx.playJson(...)`, `ctx.reconcilePendingPlay(...)`, `ctx.botRun(...)`, `ctx.botJson(...)`, `ctx.validatePlayArgs(...)`, and `ctx.validateBotArgs(...)`, so an agent can classify commands through the same game catalog and discovered-bot registry used by the CLI, compose live plays, safely reconcile already-submitted stateless games, validate arguments before execution, and consume structured results without scraping terminal output. The bot runtime also tracks nested calls, forwards chimes through parent/child bot chains, and writes per-bot JSON logs under `APECHURCH_CLI_LOG_DIR`.
+For AI agents, the same surface is intentionally machine-friendly. `lib/bots.js` exposes a narrow runtime context with helpers such as `ctx.resolveGame(...)`, `ctx.resolveBot(...)`, `ctx.play(...)`, `ctx.playJson(...)`, `ctx.gamePaytable(...)`, `ctx.reconcilePendingPlay(...)`, `ctx.botRun(...)`, `ctx.botJson(...)`, `ctx.validatePlayArgs(...)`, and `ctx.validateBotArgs(...)`, so an agent can classify commands through the game catalog and bot registry, inspect payout bounds without wagering, compose live plays, reconcile already-submitted stateless games, validate arguments before execution, and consume structured results without scraping terminal output. The bot runtime also tracks nested calls, forwards chimes through parent/child bot chains, and writes per-bot JSON logs under `APECHURCH_CLI_LOG_DIR`.
 
 Bot discovery is local and explicit:
 
@@ -62,20 +58,20 @@ This design keeps bot strategy private while still giving both humans and AI age
 - **Improved auto gameplay:** `Blackjack ✔︎`, `Cash Dash ✔︎`, `Hi-Lo Nebula ✔︎`, and `Video Poker ✔︎ / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
 - **Fully on-chain settlement:** every wager is placed on ApeChain and resolved by the live contracts with their on-chain RNG integrations, including Chainlink VRF and Pyth V2 where applicable
 
-### What This Project Adds
+### CLI Capabilities
 
 - **Encrypted-only local signer:** private keys stay encrypted on disk, plaintext wallet export is disabled, and signing happens locally without transmitting the key to Ape Church services
 - **AI-agent-first operator UX:** fully AI agents playable command surface with structured outputs, local history caches, and no browser dependency
-- **Better stateful automation:** stronger blackjack, cash-dash, hi-lo-nebula, and video-poker auto gameplay, side-bet support, unfinished-game recovery, and EV / Monte Carlo helpers for loop planning
-- **Expanded Ape Church coverage:** explicit support for both Jungle Plinko and Cosmic Plinko instead of a single generic Plinko entry, plus supported `Blocks ✔︎`, `Primes ✔︎`, and `Glyde or Crash ✔︎` gameplay and a broader maintained game registry
+- **Stateful automation:** blackjack, cash-dash, hi-lo-nebula, and video-poker auto gameplay, side-bet support, unfinished-game recovery, and EV / Monte Carlo helpers for loop planning
+- **Ape Church coverage:** Jungle Plinko, Cosmic Plinko, `Blocks ✔︎`, `Primes ✔︎`, `Glyde or Crash ✔︎`, and the maintained game registry
 - **ABI-verified game metadata:** verified contracts are marked with `✔︎` in CLI output, help, JSON payloads, and docs; ApeStrong ✔︎, Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Dino Dough ✔︎, Bubblegum Heist ✔︎, Geez Diggerz ✔︎, Gimboz Smash ✔︎, Glyde or Crash ✔︎, Cash Dash ✔︎, Hi-Lo Nebula ✔︎, Sushi Showdown ✔︎, Monkey Match ✔︎, Bear-A-Dice ✔︎, Blocks ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎ use verified on-chain contract data
-- **RTP and payout modeling overhaul:** expected RTP, reported RTP, current RTP, and max-payout references across the game catalog, with exact/formula/statistical provenance markers where available
+- **RTP and payout modeling:** expected RTP, reported RTP, current RTP, and max-payout references across the game catalog, with exact/formula/statistical provenance markers where available
 - **Exact Plinko modeling:** Jungle and Cosmic Plinko mode RTP and top payouts are derived from the live on-chain bucket tables, and Plinko stats are grouped by risk level rather than by ball count
 - **Per-wallet history cache:** `wallet download` reconstructs supported on-chain history into a local cache, with incremental backfills and offline `history` reads across 26 tracked public game contracts
-- **Richer reporting:** `Recent Games`, compact `Game Status`, and full `Game Stats` views show net profit, win rate, RTP, unfinished local games, and per-game breakdowns
-- **Better automation tooling:** loop mode supports `take-profit`, `retrace`, `stop-loss`, `max-games`, machine-readable JSON output, and strategy-driven game/config selection
+- **Game reporting:** `Recent Games`, compact `Game Status`, and full `Game Stats` views show net profit, win rate, RTP, unfinished local games, and per-game breakdowns
+- **Automation tooling:** loop mode supports `take-profit`, `retrace`, `stop-loss`, `max-games`, machine-readable JSON output, and strategy-driven game/config selection
 - **Stateful UX improvements:** unfinished-game recovery, blackjack side bets, solver-backed auto decisions, and EV / Monte Carlo helpers for loop planning
-- **Documentation overhaul:** formal BNF argument grammar in CLI help, a bundled games reference, clearer examples, and explicit coverage / limitations for on-chain reporting
+- **Documentation:** formal BNF argument grammar in CLI help, a bundled games reference, examples, and explicit coverage and limitations for on-chain reporting
 
 ## Quick Start
 
@@ -558,6 +554,8 @@ apechurch-cli bucket sync [bot]                 # Two-way sync local bot logs wi
 apechurch-cli bucket presign example-bot -o latest-example-bot --force  # Download the latest mirrored bot JSON via a presigned URL
 apechurch-cli games                             # List all games
 apechurch-cli game <name>                       # Game details
+apechurch-cli game keno --paytable               # Payout table using play defaults
+apechurch-cli game speed-keno --paytable --picks 3 --split 1 --json
 apechurch-cli pause                             # Stop autonomous play
 apechurch-cli continue                          # Continue play
 apechurch-cli history --list                    # List wallets with local cached history files
@@ -609,6 +607,8 @@ The saved `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script.json` is JSON:
 Each retry prints the error category, the sanitized contract/node message, the wait period, and the next local timestamp in `YYYY-MMM-DD HH:mm:ss±ZZZZ` form. JSON bot logs retain ISO UTC timestamps. Once a transaction hash exists, a confirmation timeout is returned as pending rather than broadcasting the action again.
 
 Use `apechurch-cli games` or `apechurch-cli game <name>` to see the current alias set in the terminal.
+
+`apechurch-cli game <name> --paytable` inspects payouts without starting a game. Terminal output is tabular; `--json` returns the same data for automation. Every result includes the resolved values of all parameters that can change that game's paytable and the overall `min_multiplier` and `max_multiplier`. The command reuses the same fixed defaults as `play`; when no fixed default exists, the error names the required option. For split games, `--split 1` enumerates the paytable when the underlying outcomes are static, while a split greater than one reports only the overall bounds. Games with dynamic or otherwise non-enumerable payout sets also report only their bounds. A bound is `null` when public contract data cannot determine it safely.
 
 ## For AI Agents
 

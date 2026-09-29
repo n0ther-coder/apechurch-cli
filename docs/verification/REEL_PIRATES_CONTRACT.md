@@ -1,6 +1,6 @@
 # Reel Pirates Contract Verification Notes
 
-> Summary: Evidence used to add playable CLI support for Reel Pirates, plus the explicit reason it is not marked `ABI verified`.
+> Summary: Publicly observable Reel Pirates interface and mechanics, with the limits of its unverified contract source.
 
 ## Public Source Trail
 
@@ -10,9 +10,8 @@
   - `Contract: Unverified`
 - Official Ape Church slots docs:
   - `https://docs.ape.church/games/player-vs-house/slots-games`
-- Supplied gameplay transaction:
-  - `https://apescan.io/tx/0x99e80b8f0cdcc7535efd583edcd001fe3b741227094c8a619e05879f533255f2`
-
+- Public Reel Pirates game page:
+  - `https://www.ape.church/games/reel-pirates`
 Because the live contract source is unverified, Reel Pirates is intentionally **not** marked with the `✔︎` ABI-verified symbol in the CLI registry.
 
 ## Contract Identity
@@ -22,28 +21,15 @@ Because the live contract source is unverified, Reel Pirates is intentionally **
 - CLI key: `reel-pirates`
 - CLI aliases: `reelpirates`, `pirates`, `reel`
 
-## Observed Write Path
+## CLI Write Path
 
-The supplied gameplay transaction calls:
+The CLI calls:
 
 ```text
 play(address player, bytes gameData)
 ```
 
-The outer selector is:
-
-```text
-0xc811ad71
-```
-
-The decoded outer arguments are:
-
-```text
-player = 0xb1A27C7Eb5FD767D1F814Fcf7d9BD97B5D7A9876
-gameData length = 128 bytes
-```
-
-The `gameData` payload decodes as:
+It encodes `gameData` as:
 
 ```text
 (
@@ -54,68 +40,41 @@ The `gameData` payload decodes as:
 )
 ```
 
-For the supplied transaction:
+The CLI implements this **spins-first** layout in [slots.js](../../lib/games/slots.js) via `config.gameDataOrder = "spins-first"`. The source is unverified, so this describes the CLI's operational encoding rather than a source-backed ABI verification.
 
-```text
-numSpins = 15
-gameId = 44866780173023645644633793867176620171112861344857785148614495998657763724062
-ref = 0x358635772fa78ee388b249cab567a9a35f1d3a28
-userRandomWord = 0xef10eb50b1b6b9dcbe0a789b168abb074387847e767bc2a2226b7610f85b60ae
-```
+## CLI Fee Path
 
-The same transaction emitted:
-
-```text
-RandomnessRequested(uint256 gameId)
-```
-
-with the same `gameId`, confirming that Reel Pirates uses a **spins-first** internal payload, unlike the older verified three-reel slot-family contracts.
-
-The CLI implements this in [slots.js](/Users/fluoro/Downloads/Clones/n0ther-coder/apechurch-cli/lib/games/slots.js) via `config.gameDataOrder = "spins-first"`.
-
-## Observed Fee Path
-
-Reel Pirates does not use the older static slot getter:
+The zero-argument slot fee getter:
 
 ```text
 getVRFFee()
 ```
 
-That zero-argument call reverts on the live contract. The observed callable fee path is:
+reverts on the live contract. The callable fee path is:
 
 ```text
 getVRFFee(uint32 customGasLimit)
 ```
 
-The supplied `15`-spin transaction sent:
-
-```text
-msg.value = 61.1398022819 APE
-total bet = 60 APE
-observed total fee = 1.1398022819 APE
-```
-
-The current UI calls `getVRFFee(uint32)` with:
+The CLI quotes `getVRFFee(uint32)` with:
 
 ```text
 customGasLimit = 550000 + numSpins * 200000
 ```
 
-For example, `15` spins gives `3,550,000`, and `getVRFFee(3_550_000)` returns `0.5398022819 APE`.
-
-The UI also adds:
+The CLI also adds:
 
 ```text
 EXECUTOR_FEE() * numSpins
 ```
 
-At the observed live value, `EXECUTOR_FEE() = 0.04 APE`; for `15` spins that adds `0.6 APE`. The transaction value therefore reconciles as:
+The amount sent for a play is therefore:
 
 ```text
-60 APE wager + 0.5398022819 APE VRF + 0.6 APE executor fee = 61.1398022819 APE
+wager + getVRFFee(550000 + numSpins * 200000) + EXECUTOR_FEE() * numSpins
 ```
 
-The UI enforces a minimum total wager of `2.5 APE * numSpins`; for example, `10` spins requires at least `25 APE`.
+The CLI enforces a minimum total wager of `2.5 APE * numSpins`; for example, `10` spins requires at least `25 APE`.
 
 ## Public Mechanics
 
@@ -125,9 +84,9 @@ The official slots docs describe Reel Pirates as a pirate-themed slot where:
 - `4` scatter symbols trigger a bonus round with `5` free spins
 - bonus multipliers can reach `100x`
 
-The supplied game description and gameplay evidence further identify it as a match-anywhere cascade slot rather than a left-to-right payline or ordered-triple slot.
+These are match-anywhere outcomes, not left-to-right paylines or ordered triples.
 
-## Known Paytable From UI Evidence
+## Public UI Paytable Snapshot
 
 The in-game paytable is normalized to a `1 APE` bet:
 
@@ -156,7 +115,7 @@ Still missing:
 - verified Solidity source
 - exact board dimensions from source or getters
 - exact symbol weights / random mapping
-- exact cascade refill behavior
+- exact symbol refill behavior
 - exact scatter and retrigger probabilities
 - exact bonus multiplier distribution
 - exact maximum mathematical payout

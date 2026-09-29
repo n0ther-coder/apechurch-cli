@@ -230,7 +230,7 @@ Multi-roll max-of-a-kind game with a selectable `2x2`, `3x3`, or `4x4` board. Th
 
 **Command:** `apechurch-cli play blocks <amount> <risk> <survive>` or `apechurch-cli play blocks <amount> --risk <risk> [--grid <grid>] [--split <1-5> | --survive <1-5>]`
 
-`--grid` accepts only the explicit strings `2x2`, `3x3`, and `4x4`. Omitting it selects `3x3`, preserving the previous CLI behavior; numeric contract modes such as `0`, `1`, or `2` are intentionally rejected on the public CLI surface. `--split` and `--survive` are mutually exclusive. Omitting both keeps the backward-compatible `--survive 1` behavior.
+`--grid` accepts only the explicit strings `2x2`, `3x3`, and `4x4`; omitting it selects `3x3`. Numeric contract modes such as `0`, `1`, or `2` are rejected on the public CLI surface. `--split` and `--survive` are mutually exclusive; omitting both selects `--survive 1`.
 
 ```bnf
 <amount> ::= <ape>
@@ -245,7 +245,7 @@ Multi-roll max-of-a-kind game with a selectable `2x2`, `3x3`, or `4x4` board. Th
 - Exact one-roll RTP: `2x2 = 97.69%` in both risks; `3x3 = 97.97% Low / 97.86% High`; `4x4 = 97.85% Low / 97.91% High`.
 - Per-roll top payout: `2x2 = 12x Low / 51x High`; `3x3 = 2500x Low / 5000x High`; `4x4 = 25000x` in both risks.
 - Survival thresholds (`Low / High`): `2x2 = 2 / 3`, `3x3 = 3 / 4`, and `4x4 = 5 / 6` matching tiles.
-- Independent `--split` rolls retain the one-roll RTP and per-roll maximum relative to the total wager while reducing variance as the count rises. Compounding `--survive` RTP is the one-roll RTP raised to the roll count.
+- Independent `--split` rolls use the same one-roll payout table and reduce variance as the count rises. Integer division can slightly reduce the aggregate payout relative to the total wager at wei precision. Compounding `--survive` RTP is the one-roll RTP raised to the roll count.
 - Blocks has no cash-out path. See the analytics note for all `36` grid/risk/settlement variants.
 
 ## Bubblegum Heist ✔︎
@@ -886,7 +886,7 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 These two tables are intentionally **game-level** and use **one single supported mode per row**. In the first table, each game is represented by the mode with its highest exact `win rate`; in the second, each game is represented by the mode with its highest exact `max X`. In both tables, `win rate`, `RTP`, and `max X` therefore refer to the **same game and the same mode**.
 
-`Win rate` here means **exact net-profit frequency** (`payout > 1x`), which matches the CLI's `win_rate` semantics rather than merely counting any positive payout. `RTP` is the exact expected return for that same selected mode, and `max X` is the exact gross multiplier for that same selected mode. Equivalent tied modes may be represented by one documented mode label. For `Video Poker`, the ordering uses the fixed `250x` royal-flush base and excludes the live progressive jackpot uplift. These tables exclude `Blackjack`, `Cash Dash`, and `Hi-Lo Nebula` because the local repo does not currently keep a comparable exact net-profit win-rate surface for them in reusable form. `Bubblegum Heist` still lacks the complete persisted paytable surface, while `Dino Dough` is documented exactly in its analytics note but has not been folded into these fixed top-10 summaries.
+`Win rate` here means **exact net-profit frequency** (`payout > 1x`), which matches the CLI's `win_rate` semantics rather than merely counting any positive payout. `RTP` is the exact expected return for that same selected mode, and `max X` is the exact gross multiplier for that same selected mode. Equivalent tied modes may be represented by one documented mode label. For `Video Poker`, the ordering uses the fixed `250x` royal-flush base and excludes the live progressive jackpot uplift. These tables exclude `Blackjack`, `Cash Dash`, and `Hi-Lo Nebula` because the local repo does not currently keep a comparable exact net-profit win-rate surface for them in reusable form. The complete Bubblegum Heist matrix is now stored in [lib/payout-tables.js](../lib/payout-tables.js); neither Bubblegum Heist nor Dino Dough has been folded into these fixed top-10 summaries.
 
 For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODDS.md](./GAMES_PAYOUTS_VS_ODDS.md).
 

@@ -70,7 +70,7 @@ The verified behavior is:
 - `platformFeeAmount = totalBetAmount * platformFee / 10_000`
 - exactly `numSpins * 3` random words are requested
 
-The CLI uses the same shared slot handler in [slots.js](/Users/fluoro/Downloads/Clones/n0ther-coder/apechurch-cli/lib/games/slots.js), so the Bubblegum write path matches the verified source surface exactly.
+The CLI uses the same shared slot handler in [slots.js](../../lib/games/slots.js), so the Bubblegum write path matches the verified source surface exactly.
 
 ## Verified Live Getter Snapshot
 
@@ -81,7 +81,7 @@ The Bubblegum contract's live getters on **2026-04-09** returned:
 - `oddsLocked = false`
 - `getVRFFee() = 93,248,194,793,600,000 wei`
 
-As with Dino Dough, `oddsLocked = false` means a future maintainer should re-read the live reel and payout surface before assuming it is unchanged.
+The dated getter check returned `oddsLocked = false`; re-read the live reels and payout table before assuming they remain unchanged.
 
 ## Fee Notes
 
@@ -175,10 +175,10 @@ betAmountPerSpin = floor(totalBetAmount / numSpins)
 
 ## Promotion Outcome
 
-Bubblegum Heist now qualifies for `ABI verified` because:
+Bubblegum Heist qualifies for `ABI verified` because:
 
 - ApeScan links the live Bubblegum address to a public readable verified `Slots` source
 - the CLI's encoded tuple and static `getVRFFee()` path match that verified source
 - the repo's generic history getter path matches the verified getter surface
 - the live Bubblegum contract's reel tables, fee constants, spin cap, and payout matrix were read directly from the deployed address
-- the docs now make the `Similar Match` status explicit instead of treating Bubblegum as a transparency-only slot
+- the verified source and live getters establish the contract behavior despite the explorer's `Similar Match` status

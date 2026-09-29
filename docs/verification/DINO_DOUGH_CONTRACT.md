@@ -49,7 +49,7 @@ The verified behavior is:
 - `platformFeeAmount = totalBetAmount * platformFee / 10_000`
 - exactly `numSpins * 3` random words are requested, one reel stop per word
 
-This exactly matches the CLI write path in [slots.js](/Users/fluoro/Downloads/Clones/n0ther-coder/apechurch-cli/lib/games/slots.js), including the tuple order and the static-fee `getVRFFee()` read.
+This exactly matches the CLI write path in [slots.js](../../lib/games/slots.js), including the tuple order and the static-fee `getVRFFee()` read.
 
 ## Verified Live Getter Snapshot
 
@@ -60,7 +60,7 @@ The mutable runtime values below were read from live ApeChain getters on **2026-
 - `oddsLocked = false`
 - `getVRFFee() = 93,248,194,793,600,000 wei`
 
-Because `oddsLocked` is currently `false`, a future maintainer should re-read the reels and payout table before assuming the live slot surface is unchanged.
+The dated getter check returned `oddsLocked = false`; re-read the reels and payout table before assuming the live slot surface remains unchanged.
 
 ## Fee Notes
 
@@ -177,10 +177,10 @@ At normal APE-denominated wagers that gap is negligible, but it exists.
 
 ## Promotion Outcome
 
-Dino Dough now qualifies for `ABI verified` because:
+Dino Dough qualifies for `ABI verified` because:
 
 - the contract source is explorer-verified and readable
 - the CLI's encoded tuple and static `getVRFFee()` path match the verified source
 - the repo's generic history getter path matches the verified read surface and struct layout
 - the live reels, fees, spin cap, and payout matrix were read directly from the deployed contract
-- the repo docs now record the actual reel mapping and the exact contract-derived RTP instead of relying on transparency-only screenshots
+- the repo docs record the reel mapping and exact contract-derived RTP

@@ -2,6 +2,12 @@
 
 > Summary: Exact `Low` / `High` analytics for every `2x2`, `3x3`, and `4x4` Blocks grid, covering independent `--split` rolls and legacy-compatible compounding `--survive` rolls.
 
+## Paytable source and change controls
+
+- **Source:** The verified grid/risk payout matrices are in [payout-tables.js](../../lib/payout-tables.js); board-count probabilities and multi-roll calculations are derived in [rtp.js](../../lib/rtp.js).
+- **Contract control:** The verified ABI has no `oddsLocked` or payout-table setter. Owner gas and platform-fee settings can change costs without changing the gross board probabilities or multipliers.
+- **Play settings:** Grid size and risk select different payout tables. `--split` averages independent rolls against divided stake; `--survive` compounds successful rolls and makes any failed roll zero the full sequence.
+
 ## CLI behavior
 
 ```bash

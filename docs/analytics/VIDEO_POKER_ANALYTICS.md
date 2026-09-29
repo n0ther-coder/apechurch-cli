@@ -4,9 +4,15 @@
 
 This note captures the exact final-hand/paytable surface documented for the verified Video Poker contract. It does not attempt to publish a single strategy-independent pre-draw distribution: manual hold choices and the `--auto best` solver produce policy-dependent paths.
 
+## Paytable source and change controls
+
+- **Source:** The verified final-hand base multipliers are in [payout-tables.js](../../lib/payout-tables.js); the stateful solver uses them for hold choices. The displayed final-hand frequencies are the documented reference model, not a strategy-independent pre-draw distribution.
+- **Contract control:** The verified ABI has no `oddsLocked` or setter for the base hand multipliers. Owner setters can change the available bet denominations and jackpot fee; the progressive jackpot amount also varies, changing jackpot-eligible total payouts without changing the base hand table.
+- **Play settings:** Only the highest configured bet index receives jackpot uplift on a Royal Flush; in the checked-in denomination list that index is `400 APE`. Hold/redraw policy changes final-hand probabilities, and replacing cards adds a VRF fee.
+
 ## Verified Paytable Surface
 
-The base paytable is fixed across the supported `10`, `25`, `50`, `100`, `250`, and `400 APE` denominations. The `400 APE` denomination is additionally jackpot-eligible on Royal Flush.
+The base paytable applies to the checked-in `10`, `25`, `50`, `100`, `250`, and `400 APE` denominations. The highest configured bet index is jackpot-eligible on Royal Flush; it is `400 APE` in this snapshot, but the owner can change the denomination list.
 
 | Final Hand | Payout | Probability |
 |------------|-------:|------------:|
@@ -31,7 +37,7 @@ The base paytable is fixed across the supported `10`, `25`, `50`, `100`, `250`, 
 | Loss (`0x`) | `54.5470%` |
 | Max base payout | `250x` |
 
-For the `400 APE` denomination, jackpot uplift is:
+For the checked-in highest-index `400 APE` denomination, jackpot uplift is:
 
 ```text
 RTP = 98.1649% + jackpot_ape / 160,000
@@ -63,5 +69,5 @@ Var(X)_jackpot = E[X^2]_jackpot - E[X]_jackpot^2
 ## Sources
 
 1. [docs/verification/VIDEO_POKER_CONTRACT.md](../verification/VIDEO_POKER_CONTRACT.md) - verified ABI surface, paytable, jackpot rule, and exact RTP notes.
-2. [lib/stateful/video-poker/constants.js](../../lib/stateful/video-poker/constants.js) - local paytable and bet denomination constants.
+2. [lib/stateful/video-poker/constants.js](../../lib/stateful/video-poker/constants.js) - bet denomination defaults and base payouts imported from `lib/payout-tables.js`.
 3. [lib/stateful/video-poker/solver.js](../../lib/stateful/video-poker/solver.js) - exact per-hand hold EV solver.

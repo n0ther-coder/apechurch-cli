@@ -1,8 +1,14 @@
 # Glyde or Crash Analytics
 
-> Summary: Exact target-by-target EV for `Glyde or Crash`, derived from the verified `SpeedCrash` settlement rule and the live `houseEdge = 30000` checked on 2026-04-24.
+> Summary: Exact target-by-target EV for `Glyde or Crash`, using the verified `SpeedCrash` settlement rule and `houseEdge = 30000` recorded on 2026-04-24.
 
 This note keeps the game in its useful compact form: one target multiplier, one exact win probability, one exact payout multiplier, and one exact RTP.
+
+## Paytable source and change controls
+
+- **Source:** The verified `SpeedCrash` settlement formula determines crash probabilities; the chosen target itself determines the gross winning multiplier. The numerical table uses the `houseEdge = 30000` and `platformFee = 2.8%` getter values recorded on 2026-04-24.
+- **Contract control:** There is no `oddsLocked` in the verified ABI. Owner-only `setHouseEdge` can change target-hit probabilities and RTP while leaving the selected winning multiplier unchanged; `setPlatformFee` changes net returns. The recorded numerical table is therefore a dated parameter snapshot.
+- **Play settings:** Raising the target raises the winning multiplier and lowers its hit probability under a fixed house edge.
 
 ## How the game works
 
@@ -19,7 +25,7 @@ For the player, the gross win payout is always exactly the chosen target multipl
 
 Let `T` be the chosen target in contract basis points (`2x = 20000`).
 
-With the live verified `houseEdge = 30000`:
+With the `houseEdge = 30000` recorded on 2026-04-24:
 
 ```text
 P(win at T) = floor(9_700_000_000 / T) / 1_000_000
@@ -63,7 +69,7 @@ This is the smooth curve underneath the game: before Solidity rounds down to int
 
 ## Representative Target Table
 
-The last column is the bankroll-side EV after the current live `2.8%` platform fee, expressed as a percent of wager:
+The last column is the bankroll-side EV after the `2.8%` platform fee recorded on 2026-04-24, expressed as a percent of wager:
 
 ```text
 bankroll EV = 97.2% - exact RTP

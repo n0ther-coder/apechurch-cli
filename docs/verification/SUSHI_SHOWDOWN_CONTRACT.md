@@ -44,7 +44,7 @@ For Sushi Showdown, that means the promotion standard relies on both:
   - `paris`
   - `MIT`
 
-The repo constant `SUSHI_SHOWDOWN_CONTRACT` and the docs now point to that exact Sushi address.
+The repo constant `SUSHI_SHOWDOWN_CONTRACT` and the docs point to that exact Sushi address.
 
 ## Verified Write Path
 
@@ -68,13 +68,7 @@ The verified behavior is:
 - `platformFeeAmount = totalBetAmount * platformFee / 10_000`
 - exactly `numSpins * 3` random words are requested
 
-The CLI uses the same shared slot handler in [slots.js](/Users/fluoro/Downloads/Clones/n0ther-coder/apechurch-cli/lib/games/slots.js), so the Sushi write path matches the linked verified source exactly.
-
-The example transaction supplied during promotion:
-
-- `https://apescan.io/tx/0x5d25fd140f65304071ebd5341329ac4b7fd191ed81ab428e071f74068e10cb71`
-
-decodes as the same `(uint256 gameId, uint8 numSpins, address ref, bytes32 userRandomWord)` tuple.
+The CLI uses the same shared slot handler in [slots.js](../../lib/games/slots.js), so the Sushi write path matches the linked verified source exactly.
 
 ## Verified Live Getter Snapshot
 
@@ -87,7 +81,7 @@ The Sushi Showdown contract's live getters on **2026-04-10** returned:
 - `oddsLocked = false`
 - `getVRFFee() = 108,937,437,930,200,000 wei`
 
-As with the other promoted slot-family games, `oddsLocked = false` means a future maintainer should re-read the live reel and payout surface before assuming it is unchanged.
+The dated getter check returned `oddsLocked = false`; re-read the live reels and payout table before assuming they remain unchanged.
 
 ## Fee Notes
 
@@ -178,7 +172,7 @@ Using the live Sushi reel-stop tables and the full live `getPayout(symbol0, symb
 - exact per-spin RTP: `97.87165381190353%`
 - displayed rounded RTP in repo/docs: `97.87%`
 
-As with the other promoted slot-family games, effective RTP versus the full pre-fee buy-in is slightly reduced when `totalBetAmount` is not evenly divisible by `numSpins`, because the contract uses:
+Effective RTP versus the full pre-fee buy-in is slightly reduced when `totalBetAmount` is not evenly divisible by `numSpins`, because the contract uses:
 
 ```text
 betAmountPerSpin = floor(totalBetAmount / numSpins)
@@ -186,10 +180,10 @@ betAmountPerSpin = floor(totalBetAmount / numSpins)
 
 ## Promotion Outcome
 
-Sushi Showdown now qualifies for `ABI verified` because:
+Sushi Showdown qualifies for `ABI verified` because:
 
 - ApeScan links the live Sushi address to a public readable verified `Slots` source
 - the CLI's encoded tuple and static `getVRFFee()` path match that verified source
 - the repo's generic history getter path matches the verified getter surface
 - the live Sushi contract's reel tables, fee constants, spin cap, and payout matrix were read directly from the deployed address
-- the docs now make the `Similar Match` status explicit and capture the full exact slot surface instead of relying on partial transparency material
+- the verified source and live getters establish the contract behavior despite the explorer's `Similar Match` status

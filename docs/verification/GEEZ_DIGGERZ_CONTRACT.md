@@ -24,7 +24,7 @@ Geez Diggerz is publicly verified as an exact-match `Slots` deployment, so the s
 - Optimization: enabled with `200` runs
 - EVM / license: `paris`, `MIT`
 
-The repo constant `GEEZ_DIGGERZ_CONTRACT` and the docs now point to that exact verified address.
+The repo constant `GEEZ_DIGGERZ_CONTRACT` and the docs point to that exact verified address.
 
 ## Verified Write Path
 
@@ -49,13 +49,7 @@ The verified behavior is:
 - `platformFeeAmount = totalBetAmount * platformFee / 10_000`
 - exactly `numSpins * 3` random words are requested, one reel stop per word
 
-The CLI uses the same shared slot handler in [slots.js](/Users/fluoro/Downloads/Clones/n0ther-coder/apechurch-cli/lib/games/slots.js), so the Geez Diggerz write path matches the verified source surface exactly.
-
-The example transaction supplied during promotion:
-
-- `https://apescan.io/tx/0xacf8e9da5df85dfbbec8361c139e209632e35be08bcbcd7c67f7d9a5cbd7a7b4`
-
-decodes as the same `(uint256 gameId, uint8 numSpins, address ref, bytes32 userRandomWord)` tuple.
+The CLI uses the same shared slot handler in [slots.js](../../lib/games/slots.js), so the Geez Diggerz write path matches the verified source surface exactly.
 
 ## Verified Live Getter Snapshot
 
@@ -68,7 +62,7 @@ The mutable runtime values below were read from live ApeChain getters on **2026-
 - `oddsLocked = false`
 - `getVRFFee() = 108,937,437,930,200,000 wei`
 
-Because `oddsLocked` is currently `false`, a future maintainer should re-read the reels and payout table before assuming the live slot surface is unchanged.
+The dated getter check returned `oddsLocked = false`; re-read the reels and payout table before assuming the live slot surface remains unchanged.
 
 ## Fee Notes
 
@@ -160,7 +154,7 @@ Using the live Geez reel-stop tables and the full live `getPayout(symbol0, symbo
 - exact per-spin RTP: `97.694552458612%`
 - displayed rounded RTP in repo/docs: `97.69%`
 
-As with the other promoted slot-family games, effective RTP versus the full pre-fee buy-in is slightly reduced when `totalBetAmount` is not evenly divisible by `numSpins`, because the contract uses:
+Effective RTP versus the full pre-fee buy-in is slightly reduced when `totalBetAmount` is not evenly divisible by `numSpins`, because the contract uses:
 
 ```text
 betAmountPerSpin = floor(totalBetAmount / numSpins)
@@ -168,10 +162,10 @@ betAmountPerSpin = floor(totalBetAmount / numSpins)
 
 ## Promotion Outcome
 
-Geez Diggerz now qualifies for `ABI verified` because:
+Geez Diggerz qualifies for `ABI verified` because:
 
 - the contract source is explorer-verified and readable
 - the CLI's encoded tuple and static `getVRFFee()` path match the verified source
 - the repo's generic history getter path matches the verified getter surface and struct layout
 - the live Geez Diggerz reels, fees, spin cap, and full ordered paytable were read directly from the deployed contract
-- the repo docs now record the exact slot surface and exact contract-derived RTP instead of depending on transparency-only crops
+- the repo docs record the slot surface and exact contract-derived RTP

@@ -10,9 +10,9 @@ Definitions:
 - `most outcome` is the exact overall payout multiplier with the highest unconditional probability, including losses, refunds, partial returns, and profitable outcomes. Ties are shown together.
 - `highest P(>1)` is the exact profitable overall payout multiplier above `1x` with the highest probability. Ties are shown together.
 - `Gimboz Smash` lists the first matching Gimboz cover by criterion order against `highest P(>1)`: first the highest-probability cover paying at least that outcome with a higher probability, then the highest-payout cover paying more with at least the same probability. For tied `highest P(>1)` values, the highest tied payout is used as the comparison target.
-- `n/d` means the exact value is not available from the persisted local surface in a practical closed form.
+- `n/d` means the cell is not determined in this comparison, either because source data are insufficient or because enumerating that outcome distribution is impractical here.
 - Displayed percentages and multipliers are rounded for readability.
-- Rows are sorted by `EV` descending, then by `VARIANCE` ascending.
+- Rows are sorted by `EV` descending, then by `VARIANCE` ascending. Multi-spin slot rows assume the wager divides evenly among spins; Solidity floor division can slightly lower the realized aggregate payout.
 - ApeStrong and Gimboz Smash are expanded across their complete finite supported surfaces. Large or policy-dependent surfaces use the exact representative rows documented in their analytics notes.
 - Blocks uses its implicit-default `3x3` rows here so this cross-game snapshot stays compact. One-roll rows also describe the RTP and payout cap of independent `--split` play; multi-roll rows are compounding `--survive` variants. The exact `2x2`, `3x3`, and `4x4` surface is in [BLOCKS_ANALYTICS.md](./analytics/BLOCKS_ANALYTICS.md).
 
@@ -20,8 +20,6 @@ Definitions:
 |---|---|---:|---:|---:|---|---|---|
 | Baccarat | BANKER | -1.064000% | 0.859764 | 45.842792% | **1.95x** @ 45.842792% | 1.95x @ 45.842792% | cover 50 1.95x@50% |
 | Baccarat | PLAYER | -1.228100% | 0.904424 | 44.614651% | 0x @ 45.842792% | 2x @ 44.614651% | cover 48 2.0312x@48% |
-| Blocks | 3x3 / Low / 1 roll | -2.034810% | 5.851977 | **84.246399%** | **1.01x** @ 55.846098% | 1.01x @ 55.846098% | cover 95 1.0263x@95% |
-| Blocks | 3x3 / High / 1 roll | -2.137155% | 31.554458 | 28.400301% | 0x @ 71.599699% | 2.25x @ 23.030264% | cover 43 2.2674x@43% |
 | Monkey Match | High | -1.707600% | 2.666514 | 35.027072% | 0.1x @ 49.979175% | 2x @ 18.742191% | cover 48 2.0312x@48% |
 | Baccarat | BANKER+TIE, tie share 5% | -1.716600% | 0.794285 | **55.385349%** | **1.8525x** @ 45.842792% | 1.8525x @ 45.842792% | cover 52 1.875x@52% |
 | Video Poker | base paytable, jackpot excluded | -1.835100% | 5.255198 | 23.994400% | 0x @ 54.547000% | 2x @ 12.927900% | cover 48 2.0312x@48% |
@@ -51,6 +49,7 @@ Definitions:
 | Jungle Plinko | High / 100 balls | -2.033900% | 0.021100 | 41.269064% | 0.945x @ 0.281354% | 1.001x @ 0.261214% | cover 95 1.0263x@95% |
 | Jungle Plinko | High / 50 balls | -2.033900% | 0.042201 | 41.440177% | 0.908x @ 0.410517% | 1.002x @ 0.368704% | cover 95 1.0263x@95% |
 | Jungle Plinko | High / 1 ball | -2.033900% | 2.110027 | 30.847458% | 0.3x @ 28.135593% | 1.2x @ 16.949153% | cover 81 1.2037x@81% |
+| Blocks | 3x3 / Low / 1 roll | -2.034810% | 5.851977 | **84.246399%** | **1.01x** @ 55.846098% | 1.01x @ 55.846098% | cover 95 1.0263x@95% |
 | Bear-A-Dice | Medium / 1 roll | -2.055600% | 1.110027 | **55.555556%** | 0x @ 44.444444% | 1.17x @ 22.222222% | cover 83 1.1746x@83% |
 | Jungle Plinko | Degen / 100 balls | -2.059800% | 0.118760 | 35.594184% | 0.7775x @ 0.088941% | 1.0005x @ 0.061548% | cover 95 1.0263x@95% |
 | Jungle Plinko | Degen / 50 balls | -2.059800% | 0.237520 | 33.453632% | 0.695x @ 0.162512% | 1.001x @ 0.085592% | cover 95 1.0263x@95% |
@@ -63,6 +62,7 @@ Definitions:
 | Sushi Showdown | 15 spins | -2.128346% | 1.687774 | 31.630702% | n/d | n/d | n/d |
 | Sushi Showdown | 5 spins | -2.128346% | 5.063323 | 30.852580% | 0x @ 15.422722% | 1.11388x @ 1.042775% | cover 87 1.1206x@87% |
 | Sushi Showdown | 1 spin | -2.128346% | 25.316614 | 23.908301% | 0x @ 68.806934% | 1.75x @ 5.306187% | cover 55 1.7727x@55% |
+| Blocks | 3x3 / High / 1 roll | -2.137155% | 31.554458 | 28.400301% | 0x @ 71.599699% | 2.25x @ 23.030264% | cover 43 2.2674x@43% |
 | Bear-A-Dice | Easy / 3 rolls | -2.151100% | 0.861261 | **57.870370%** | 0x @ 42.129630% | 1.38226x @ 6.172840% | cover 70 1.3928x@70% |
 | Bear-A-Dice | Hard / 3 rolls | -2.151100% | 55.806600 | 3.703704% | 0x @ 96.296296% | 9.772505x @ 0.925926% | cover 9 10.8333x@9% |
 | Bear-A-Dice | Master / 3 rolls | -2.151100% | 5582.841856 | 0.017147% | 0x @ 99.982853% | 5,706.550403x @ 0.017147% | n/d |
@@ -74,6 +74,9 @@ Definitions:
 | Speed Keno | 3 picks / 20 games | -2.193000% | 0.278156 | 19.547468% | 0.7x @ 21.622627% | 1.925x @ 3.971503% | cover 50 1.95x@50% |
 | Speed Keno | 3 picks / 10 games | -2.193000% | 0.556312 | 20.989556% | 0.7x @ 33.734745% | 1.1x @ 9.483945% | cover 88 1.1079x@88% |
 | Speed Keno | 3 picks / 1 game | -2.193000% | 5.563116 | 14.035088% | 0.5x @ 85.964912% | 2.5x @ 13.157895% | cover 39 2.5x@39% |
+| Bubblegum Heist | 15 spins | -2.200376% | 0.385936 | 36.823713% | n/d | n/d | n/d |
+| Bubblegum Heist | 5 spins | -2.200376% | 1.157808 | 33.758643% | 0.2x @ 3.721236% | 1.2x @ 0.733782% | cover 81 1.2037x@81% |
+| Bubblegum Heist | 1 spin | -2.200376% | 5.789042 | 26.312500% | 0x @ 48.362500% | 2x @ 2.462500% | cover 48 2.0312x@48% |
 | Cosmic Plinko | High / 30 balls | -2.200800% | 1.240526 | 27.387465% | 0.39x @ 0.738500% | 1.066667x @ 0.163528% | cover 91 1.0714x@91% |
 | Cosmic Plinko | High / 10 balls | -2.200800% | 3.721578 | 23.216378% | 0.19x @ 5.593893% | 1.18x @ 0.817266% | cover 82 1.189x@82% |
 | Cosmic Plinko | High / 1 ball | -2.200800% | 37.215781 | 14.374140% | 0.1x @ 58.115543% | 1.5x @ 6.189821% | cover 65 1.5x@65% |
@@ -317,8 +320,6 @@ Definitions:
 | Glyde or Crash | 1.01x | -3.000004% | 0.038800 | **96.039600%** | **1.01x** @ 96.039600% | 1.01x @ 96.039600% | n/d |
 | Glyde or Crash | 1.5x | -3.000100% | 0.514100 | **64.666600%** | **1.5x** @ 64.666600% | 1.5x @ 64.666600% | cover 65 1.5x@65% |
 | Glyde or Crash | 3x | -3.000100% | 1.969099 | 32.333300% | 0x @ 67.666700% | 3x @ 32.333300% | n/d |
-| Blocks | 3x3 / Low / 2 rolls | -4.028216% | 45.478122 | **70.974558%** | **1.0201x** @ 31.187867% | 1.0201x @ 31.187867% | cover 95 1.0263x@95% |
-| Blocks | 3x3 / High / 2 rolls | -4.228636% | 1056.124092 | 8.065771% | 0x @ 91.934229% | 5.0625x @ 5.303931% | cover 19 5.1315x@19% |
 | Hi-Lo Nebula | 10/13 hit count | -3.846200% | 0.277367 | **76.923077%** | **1.25x** @ 76.923077% | 1.25x @ 76.923077% | cover 78 1.25x@78% |
 | Hi-Lo Nebula | 8/13 hit count | -3.846200% | 0.577848 | **61.538462%** | **1.5625x** @ 61.538462% | 1.5625x @ 61.538462% | cover 62 1.5725x@62% |
 | Hi-Lo Nebula | 5/13 hit count | -3.846200% | 1.479290 | 38.461538% | 0x @ 61.538462% | 2.5x @ 38.461538% | cover 39 2.5x@39% |
@@ -335,7 +336,9 @@ Definitions:
 | Cash Dash | one-step, 4 tiles | -4.000000% | 0.307200 | **75.000000%** | **1.28x** @ 75.000000% | 1.28x @ 75.000000% | cover 76 1.2828x@76% |
 | Cash Dash | one-step, 3 tiles | -4.000000% | 0.460800 | **66.666667%** | **1.44x** @ 66.666667% | 1.44x @ 66.666667% | cover 67 1.4552x@67% |
 | Cash Dash | one-step, 2 tiles | -4.000000% | 0.921600 | **50.000000%** | 0x / **1.92x** @ 50.000000% | 1.92x @ 50.000000% | cover 50 1.95x@50% |
+| Blocks | 3x3 / Low / 2 rolls | -4.028216% | 45.478122 | **70.974558%** | **1.0201x** @ 31.187867% | 1.0201x @ 31.187867% | cover 95 1.0263x@95% |
 | Cash Dash | one-step, 6 tiles | -4.166700% | 0.183681 | **83.333333%** | **1.15x** @ 83.333333% | 1.15x @ 83.333333% | cover 84 1.1607x@84% |
+| Blocks | 3x3 / High / 2 rolls | -4.228636% | 1056.124092 | 8.065771% | 0x @ 91.934229% | 5.0625x @ 5.303931% | cover 19 5.1315x@19% |
 | Baccarat | BANKER+TIE, tie share 25% | -4.327200% | 0.924037 | **55.385349%** | **1.4625x** @ 45.842792% | 1.4625x @ 45.842792% | cover 66 1.4772x@66% |
 | Baccarat | PLAYER+TIE, tie share 25% | -4.450400% | 0.949686 | **54.157208%** | 0x @ 45.842792% | 1.5x @ 44.614651% | cover 65 1.5x@65% |
 | Keno | 5 picks | -5.319900% | 16.550138 | **58.351570%** | 0x @ 41.648430% | 1.1x @ 27.765620% | cover 88 1.1079x@88% |
@@ -352,9 +355,9 @@ Definitions:
 | Keno | 9 picks | -6.683100% | 9324.147853 | 19.033734% | 0x @ 54.908157% | 1.5x @ 10.944406% | cover 65 1.5x@65% |
 | Baccarat | BANKER+TIE, tie share 50% | -7.590500% | 1.967481 | 9.542557% | 0.975x @ 45.842792% | 5x @ 9.542557% | cover 19 5.1315x@19% |
 | Baccarat | PLAYER+TIE, tie share 50% | -7.672600% | 1.979350 | 9.542557% | 0x @ 45.842792% | 5x @ 9.542557% | cover 19 5.1315x@19% |
+| Cash Dash | cash out after 2 safe rows, seed 0 | -9.642857% | 0.326577 | **71.428571%** | **1.265x** @ 71.428571% | 1.265x @ 71.428571% | cover 77 1.2662x@77% |
 | Blocks | 3x3 / Low / 5 rolls | -9.768346% | 14663.973112 | 42.438179% | 0x @ 57.561821% | 1.248725x @ 11.200574% | cover 78 1.25x@78% |
 | Blocks | 3x3 / High / 5 rolls | -10.238690% | 36327029.636491 | 0.184763% | 0x @ 99.815237% | 166.587891x @ 0.065949% | n/d |
-| Cash Dash | cash out after 2 safe rows, seed 0 | -9.642857% | 0.326577 | **71.428571%** | **1.265x** @ 71.428571% | 1.265x @ 71.428571% | cover 77 1.2662x@77% |
 | Cash Dash | cash out after 3 safe rows, seed 0 | -13.257143% | 0.564324 | **57.142857%** | **1.518x** @ 57.142857% | 1.518x @ 57.142857% | cover 64 1.5234x@64% |
 | Baccarat | TIE | -14.117000% | 6.991882 | 9.542557% | 0x @ 90.457443% | 9x @ 9.542557% | cover 10 9.75x@10% |
 | Cash Dash | cash out after 4 safe rows, seed 0 | -16.726857% | 0.924589 | 42.857143% | 0x @ 57.142857% | 1.94304x @ 42.857143% | cover 50 1.95x@50% |
@@ -368,7 +371,7 @@ Definitions:
 
 ## Omitted Or Policy-Dependent Rows
 
-- Bubblegum Heist has exact per-spin RTP in the local docs, but the complete ordered paytable snapshot is not persisted, so exact variance is not recoverable from local files. Dino Dough now persists its exact per-spin distribution and variance in its analytics note, but this comparison snapshot has not been expanded with Dino multi-spin rows.
+- Dino Dough has an exact per-spin distribution and variance in its analytics note, but this comparison has not been expanded with Dino multi-spin rows.
 - Reel Pirates has only observed running statistics in the current public source set; exact RTP and variance are not defensible without the verified settlement source or a complete stochastic surface snapshot.
 - Blackjack main-hand, Hi-Lo Nebula whole-run, Cash Dash whole-run, and Video Poker pre-draw strategy are policy/state dependent. Baccarat arbitrary main-plus-tie splits are parameter-dependent, so only documented split examples are listed.
 - Glyde or Crash has a large target surface; this summary lists the exact representative targets documented in its analytics note, not every possible basis-point target.
@@ -376,4 +379,5 @@ Definitions:
 ## Sources
 
 - [docs/analytics](./analytics/) - per-game exact analytics notes and formulas used to build this comparison.
+- [lib/payout-tables.js](../lib/payout-tables.js) - checked-in ordered slot matrices and reel weights; Bubblegum multi-spin profit rates use exact convolution of their integer basis-point payouts.
 - [lib/rtp.js](../lib/rtp.js) - shared exact RTP helpers for games with formula-generated surfaces.

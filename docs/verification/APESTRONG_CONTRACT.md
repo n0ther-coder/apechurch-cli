@@ -47,7 +47,7 @@ The verified behavior is:
 - `platformFeeAmount = totalBetAmount * platformFee / 10_000`
 - exactly one random word is requested via `_requestRandom(gameId, 1, userRandomWord)`
 
-This exactly matches the CLI write path in [lib/games/apestrong.js](/Users/fluoro/Downloads/Clones/n0ther-coder/apechurch-cli/lib/games/apestrong.js), including the encoded tuple order and the fixed-fee `getVRFFee()` read.
+This exactly matches the CLI write path in [lib/games/apestrong.js](../../lib/games/apestrong.js), including the encoded tuple order and the fixed-fee `getVRFFee()` read.
 
 ## Verified Read Path
 
@@ -110,7 +110,7 @@ The mutable runtime values below were read from live ApeChain getters on **2026-
 - `partnerFeeCut = 0`
 - `getVRFFee() = 93,248,194,793,600,000 wei`
 
-Because `oddsLocked` is currently `false`, a future maintainer should re-read the live table before assuming the payout surface is unchanged.
+The dated getter check returned `oddsLocked = false`; re-read the live table before assuming the payout surface remains unchanged.
 
 ## Fee Notes
 
@@ -154,10 +154,9 @@ Across the current supported surface, that yields:
 
 ## Promotion Outcome
 
-ApeStrong now qualifies for `ABI verified` because:
+ApeStrong qualifies for `ABI verified` because:
 
 - the contract source is explorer-verified and readable
 - the CLI's encoded tuple and static `getVRFFee()` path match the verified source
 - the generic read path used by history/status matches the verified getters and struct layout
-- the repo docs now record the exact win rule, the live payout table rule, and the current mutable getter snapshot
-- the old invariant `97.5 / range` wording has been replaced with the verified contract-backed interpretation, including the current `75` and `95` live-table exceptions
+- the repo docs record the exact win rule, the live payout table rule, and the mutable getter snapshot

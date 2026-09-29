@@ -218,20 +218,25 @@ describe('Loop Estimate Helpers', () => {
     );
   });
 
-  it('falls back to EV estimates when the full live payout matrix is not persisted locally', () => {
-    const gameEntry = resolveGame('dino-dough');
-    const estimate = estimateConfiguredGameLoopRunout({
-      balanceApe: 100,
-      availableApe: 99,
-      gameEntry,
-      wagerApe: 10,
-      config: { split: 5 },
-      vrfFeeApe: 0.1,
-    });
+  it('samples the full Dino Dough and Bubblegum Heist payout matrices', () => {
+    for (const key of ['dino-dough', 'bubblegum-heist']) {
+      const gameEntry = resolveGame(key);
+      const rolls = [0.01, 0.2, 0.6, 0.9];
+      let index = 0;
+      const estimate = estimateConfiguredGameLoopRunout({
+        balanceApe: 100,
+        availableApe: 99,
+        gameEntry,
+        wagerApe: 10,
+        config: { split: 5 },
+        vrfFeeApe: 0.1,
+        sessionCount: 4,
+        rng: () => rolls[index++ % rolls.length],
+      });
 
-    assert.equal(estimate.method, 'ev');
-    assert.equal(estimate.scopeLabel, 'wallet squandering');
-    assert.match(formatLoopRunoutEstimate(estimate), /^Estimate games before wallet squandering ~\d+ games$/u);
+      assert.equal(estimate.method, 'monte-carlo');
+      assert.equal(estimate.scopeLabel, 'wallet squandering');
+    }
   });
 
   it('uses the base video poker RTP for non-max bets', () => {

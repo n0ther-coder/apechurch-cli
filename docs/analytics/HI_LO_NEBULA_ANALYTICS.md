@@ -6,6 +6,12 @@ This note summarizes the exact **single-guess** branch odds for **Hi-Lo Nebula**
 
 It does **not** try to collapse the whole game to one fixed RTP number, because the player can stop after any successful guess and the jackpot pool is live. What is exact here is the per-step branch surface.
 
+## Paytable source and change controls
+
+- **Source:** The verified rank-only draw and base branch/push factors are represented in [payout-tables.js](../../lib/payout-tables.js); the stateful module consumes those values. The progressive jackpot is read from live contract state rather than fixed in this table.
+- **Contract control:** The verified ABI has no `oddsLocked` or setter for the base branch factors. Owner setters can change jackpot fees and the rounds-for-jackpot threshold; the jackpot pool itself varies, affecting jackpot-eligible total payouts but not the base per-guess rank probabilities.
+- **Play settings:** Current rank and Higher/Lower/Same choice determine branch probability and base factor. Guess count and cash-out policy compound outcomes; jackpot eligibility depends on the configured threshold.
+
 ## Verified Model
 
 The contract samples the next card rank uniformly from:
@@ -170,7 +176,7 @@ Supporting figures:
 ## Sources
 
 1. [docs/verification/HI_LO_NEBULA_CONTRACT.md](../verification/HI_LO_NEBULA_CONTRACT.md) — verified write path, draw model, getters, and paytable.
-2. [lib/stateful/hi-lo-nebula/constants.js](../../lib/stateful/hi-lo-nebula/constants.js) — local hard-coded multiplier table derived from the verified contract.
+2. [lib/stateful/hi-lo-nebula/constants.js](../../lib/stateful/hi-lo-nebula/constants.js) — ABI and branch factors imported from `lib/payout-tables.js`.
 3. [lib/stateful/hi-lo-nebula/strategy.js](../../lib/stateful/hi-lo-nebula/strategy.js) — `simple`, `best`, and `winston-ladder` auto-play policies.
 
 ## FAQ

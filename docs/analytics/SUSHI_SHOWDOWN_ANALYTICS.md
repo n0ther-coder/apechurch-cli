@@ -1,16 +1,22 @@
 # Sushi Showdown Odds and Payouts
 
-> Summary: Exact per-spin payout distribution for the live Sushi Showdown reel snapshot promoted on 2026-04-10.
+> Summary: Exact per-spin payout distribution for the checked-in Sushi Showdown reel snapshot.
 
-This note summarizes the exact **per-spin payout distribution** for **Sushi Showdown** from the live reel tables and full ordered paytable snapshot recorded in the repo.
+This note summarizes the exact **per-spin payout distribution** for **Sushi Showdown** from the checked-in reel weights and full ordered paytable.
 
-Spin count only changes floor-division dust against the total wager. The probabilities below are per spin.
+The probabilities below are per spin and do not depend on spin count. Splitting a total wager can introduce Solidity floor-division dust.
+
+## Paytable source and change controls
+
+- **Source:** The complete ordered-triple payouts and reel weights in [payout-tables.js](../../lib/payout-tables.js) were reread from public contract getters at ApeChain block `50311380` on 2026-09-25. The figures below are a dated gross-payout snapshot, excluding transaction fees.
+- **Contract control:** With `oddsLocked = false`, the owner-only `setReels` and `batchSetPayouts` can change reel weights and payout entries. Reel changes alter symbol probabilities; payout changes alter gross multipliers and the probabilities attached to payout amounts. `lockOdds` makes both setters reject updates when the flag is true. The observed flag was false on the dated check, so RTP and variance are not live guarantees.
+- **Play settings:** Spin count leaves each spin's table unchanged but changes the distribution of the combined payout and can introduce floor-division dust when the wager is split.
 
 ## Reading This Table
 
 - Probabilities aggregate all ordered symbol triples with the same payout.
 - Payouts are shown as gross multipliers of the per-spin wager.
-- Many payout rows are fractional because the live contract stores the slot paytable in basis points, not in whole-number multipliers.
+- Many payout rows are fractional because the checked-in contract paytable stores payouts in basis points, not in whole-number multipliers.
 
 ## Summary Stats
 

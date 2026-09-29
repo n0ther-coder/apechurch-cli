@@ -1,16 +1,22 @@
 # Dino Dough Analytics
 
-> Summary: Exact per-spin payout distribution for the live Dino Dough reel snapshot, using the complete ordered `getPayout(symbol0, symbol1, symbol2)` matrix.
+> Summary: Exact per-spin payout distribution for the checked-in Dino Dough reel snapshot, using the complete ordered `getPayout(symbol0, symbol1, symbol2)` matrix.
 
 Dino Dough is a three-reel ordered slots game. Each spin consumes three VRF words, maps one word to each reel, and pays `getPayout(symbol0, symbol1, symbol2)` for the exact left-to-right symbol triple.
 
-Spin count only changes floor-division dust against the total wager. The probabilities below are per spin.
+The probabilities below are per spin and do not depend on spin count. Splitting a total wager can introduce Solidity floor-division dust.
+
+## Paytable source and change controls
+
+- **Source:** The complete ordered-triple payouts and reel weights in [payout-tables.js](../../lib/payout-tables.js) were reread from public contract getters at ApeChain block `50311380` on 2026-09-25. The figures below are a dated gross-payout snapshot, excluding transaction fees.
+- **Contract control:** With `oddsLocked = false`, the owner-only `setReels` and `batchSetPayouts` can change reel weights and payout entries. Reel changes alter symbol probabilities; payout changes alter gross multipliers and the probabilities attached to payout amounts. `lockOdds` makes both setters reject updates when the flag is true. The observed flag was false on the dated check, so RTP and variance are not live guarantees.
+- **Play settings:** Spin count leaves each spin's table unchanged but changes the distribution of the combined payout and can introduce floor-division dust when the wager is split.
 
 ## Reading This Table
 
 - Probabilities aggregate all ordered symbol triples with the same payout.
 - Payouts are shown as gross multipliers of the per-spin wager.
-- Many payout rows are fractional because the live contract stores the slot paytable in basis points, not in whole-number multipliers.
+- Many payout rows are fractional because the checked-in contract paytable stores payouts in basis points, not in whole-number multipliers.
 
 ## Summary Stats
 
@@ -23,7 +29,7 @@ Spin count only changes floor-division dust against the total wager. The probabi
 
 ## Exact Reel Snapshot
 
-The live getter snapshot recorded on **2026-04-09** has `190` stops per reel.
+The reel weights recorded on **2026-04-09** were unchanged when reread at block `50311380`; each reel has `190` stops.
 
 | Symbol index | Reel 1 stops | Reel 2 stops | Reel 3 stops |
 |-------------:|-------------:|-------------:|-------------:|

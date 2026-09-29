@@ -4,11 +4,17 @@
 
 This note summarizes the exact **positive payout distributions** for **Bear-A-Dice** across all verified difficulties (`Easy`, `Medium`, `Hard`, `Expert`, `Master`) and all verified roll counts (`1` to `5`).
 
+## Paytable source and change controls
+
+- **Source:** The verified difficulty, roll-count, and dice-sum payout tables are checked into [payout-tables.js](../../lib/payout-tables.js); the probabilities use the standard two-dice sum distribution.
+- **Contract control:** The verified ABI has no `oddsLocked` or payout-table setter. Owner fee and VRF-gas settings can change transaction costs, not the gross payout table or dice probabilities.
+- **Play settings:** Difficulty selects the safe sums and their multipliers. Increasing the number of rolls compounds surviving payouts and increases the chance that at least one losing roll ends the game at `0x`.
+
 ## How Bear-A-Dice works
 
 Bear-A-Dice resolves each roll as a standard **2d6 sum**. You choose a difficulty and a roll count. For the chosen difficulty and roll count, each **safe** roll multiplies the current payout by the verified on-chain multiplier for that `sum`, while any **losing** sum is an immediate loss for the whole game. There is **no cash-out** and **no partial payout**: the game is strictly **all-or-nothing**.
 
-The verified contract behavior and exact RTP/win-rate summaries are documented in [GAMES_REFERENCE.md](../GAMES_REFERENCE.md), while the exact per-roll payout tables used here are defined in [lib/rtp.js](../../lib/rtp.js). The tables below are **derived exactly** from those verified paytables and the true 2d6 probability distribution.
+The verified contract behavior and exact RTP/win-rate summaries are documented in [GAMES_REFERENCE.md](../GAMES_REFERENCE.md), while the exact per-roll payout tables used here are defined in [lib/payout-tables.js](../../lib/payout-tables.js). The tables below are **derived exactly** from those verified paytables and the true 2d6 probability distribution.
 
 ## How to read the tables
 
@@ -349,4 +355,4 @@ Here `Y` is the one-roll multiplier, including `0x` for losing sums.
 ## Sources
 
 1. [docs/GAMES_REFERENCE.md](../GAMES_REFERENCE.md) — game rules, verified difficulty map, exact RTP, win-rate table, and verified max payouts.
-2. [lib/rtp.js](../../lib/rtp.js) — verified per-roll Bear-A-Dice paytables used for the exact calculations in this file.
+2. [lib/payout-tables.js](../../lib/payout-tables.js) — verified per-roll Bear-A-Dice paytables used for the exact calculations in this file.

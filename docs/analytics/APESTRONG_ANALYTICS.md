@@ -4,6 +4,12 @@
 
 This note summarizes the exact **two-outcome payout surface** for **ApeStrong** across the CLI-supported range interval `5..95`.
 
+## Paytable source and change controls
+
+- **Source:** The verified `edgeFlipRangeToPayout(range)` getter readings are represented by the checked-in numerator and the two observed overrides in [payout-tables.js](../../lib/payout-tables.js). These are dated values; `--paytable` does not reread the contract.
+- **Contract control:** The contract exposes `oddsLocked`, but its owner-only `setRangeToPayout` does not check that flag. The owner can change a range's gross winning multiplier regardless of its value. The win probability for a playable selected range remains `range / 100` under the verified draw rule; changing a payout changes RTP, not that probability.
+- **Play settings:** Selecting a different range changes both the win probability and the checked-in payout multiplier. Platform and VRF fees affect net results separately.
+
 ## How ApeStrong works
 
 ApeStrong samples one uniform integer in `0..99` and wins when:
@@ -17,18 +23,18 @@ So every supported range has only two possible outcomes:
 - **Win** with probability `range / 100`
 - **Loss** with probability `(100 - range) / 100`
 
-The win payout is read from the live getter table `edgeFlipRangeToPayout(range)`. For almost every currently supported range, that table equals:
+The checked-in winning payout values come from dated `edgeFlipRangeToPayout(range)` getter readings. For almost every CLI-supported range, those readings equal:
 
 ```text
 edgeFlipRangeToPayout(range) = floor(975000 / range)
 ```
 
-Current live exceptions recorded in this repo:
+Recorded payout overrides in the checked-in snapshot:
 
 - `75 -> 12999` (`1.2999x`)
 - `95 -> 10250` (`1.025x`)
 
-These two live overrides are also the exact places where ApeStrong does **not** match Gimboz Smash across the otherwise shared `5..95` surface:
+These two recorded overrides are also the exact places where the checked-in ApeStrong values do **not** match Gimboz Smash across the otherwise shared `5..95` surface:
 
 - At `75`, ApeStrong pays `1.2999x` for `97.4925%` RTP; Gimboz Smash pays `1.3x` for `97.5000%` RTP.
 - At `95`, ApeStrong pays `1.025x` for `97.3750%` RTP; Gimboz Smash pays `1.0263x` for `97.4985%` RTP.
@@ -106,5 +112,6 @@ Var(X) = p * m^2 - (p * m)^2
 
 ## Sources
 
-1. [docs/verification/APESTRONG_CONTRACT.md](../verification/APESTRONG_CONTRACT.md) — verified settlement rule, live payout-table rule, and recorded exceptions at ranges 75 and 95.
-2. [lib/rtp.js](../../lib/rtp.js) — ApeStrong payout getter snapshot and exact RTP helpers used by the CLI.
+1. [docs/verification/APESTRONG_CONTRACT.md](../verification/APESTRONG_CONTRACT.md) — verified settlement rule, dated payout-table reading, and recorded exceptions at ranges 75 and 95.
+2. [lib/payout-tables.js](../../lib/payout-tables.js) — checked-in ApeStrong payout values used by the CLI.
+3. [lib/rtp.js](../../lib/rtp.js) — exact RTP helpers used by the CLI.

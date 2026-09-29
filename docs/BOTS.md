@@ -163,6 +163,7 @@ The bot handler receives one context object:
 - `play(tokens)`: run `apechurch-cli play ...` with inherited terminal output.
 - `playJson(tokens)`: run `apechurch-cli play ... --json` and return the parsed payload.
 - `reconcilePendingPlay(payload, options)`: read an existing stateless play by its returned `contract` and `gameId`. It never submits a transaction; `timeoutMs` and `pollIntervalMs` control settlement polling.
+- `gamePaytable(name, tokens)`: run `apechurch-cli game <name> --paytable ... --json` and return the parsed paytable description without starting a game. The payload includes all resolved paytable parameters and overall multiplier bounds. Pass `--amount` in `tokens` for Roulette, Baccarat, and split games whose bounds depend on wager rounding. Multipliers are decimal strings; repeating ratios use up to 18 fractional digits. A dynamic jackpot bound is a formula string and an unknown public bound is `null`.
 - `resolveGame(command)`: resolve a game key or alias through the same playable-game catalog used by `apechurch-cli play`; returns the canonical descriptor or `null`.
 - `resolveBot(command)`: resolve a bot command through the discovered-bot registry; returns its descriptor or `null`.
 - `validatePlayArgs(tokens)`: validate `apechurch-cli play ...` target tokens without starting a game.

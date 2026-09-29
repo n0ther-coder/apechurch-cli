@@ -4,6 +4,12 @@
 
 This note summarizes the exact **per-run** payout distributions for **Primes** across all verified difficulties (`Easy`, `Medium`, `Hard`, `Extreme`).
 
+## Paytable source and change controls
+
+- **Source:** The verified `gameModes[difficulty]` payouts and the on-chain `isPrime` classification underlie the tables in [payout-tables.js](../../lib/payout-tables.js). The prime-hit counts are part of the checked-in model.
+- **Contract control:** There is no `oddsLocked` getter. Before the one-way owner-only `goLive()` sets internal `fullyLive = true`, `batchSetIsPrime` and `batchRemoveIsPrime` can change which nonzero draws count as primes, altering prime-hit and loss probabilities; after that transition they reject updates. The mode payout multipliers have no exposed setter. The source does not expose a `fullyLive` getter, so this note does not assert its present value.
+- **Play settings:** Difficulty selects the draw range and prime/zero payout factors. Run count averages independent draws and can introduce wager-split rounding; it does not change one run's distribution.
+
 ## How Primes works
 
 Each run draws one uniform integer from a fixed difficulty-dependent range. The outcome is then classified as:
@@ -42,4 +48,4 @@ Variance is computed over `X = payout / total stake`. With multiple runs, the to
 ## Sources
 
 1. [docs/verification/PRIMES_CONTRACT.md](../verification/PRIMES_CONTRACT.md) — verified difficulty table, prime counts, and exact RTP references.
-2. [lib/rtp.js](../../lib/rtp.js) — exact Primes mode constants used by the CLI.
+2. [lib/payout-tables.js](../../lib/payout-tables.js) — exact Primes mode constants used by the CLI.

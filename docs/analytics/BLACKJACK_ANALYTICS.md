@@ -4,6 +4,12 @@
 
 This note intentionally separates exact side-bet math from the main Blackjack hand. The main game is stateful, strategy-dependent, and modeled elsewhere in the repo with solver and statistical references; this file does not publish a Monte Carlo-derived main-game distribution.
 
+## Paytable source and change controls
+
+- **Source:** The side-bet and main-hand payout constants modeled by the CLI are in [payout-tables.js](../../lib/payout-tables.js), based on the [public ABI, frontend rules, and observed behavior](../verification/BLACKJACK_CONTRACT.md). The side-bet probabilities below use the stated replacement model, not a complete pre-deal main-game distribution.
+- **Contract control:** The deployed Solidity source is unverified, so the available public ABI does not establish a complete owner-update or locking surface. It exposes no `oddsLocked` guarantee; the locally modeled payout constants should not be presented as proof that every live rule is immutable.
+- **Play settings:** Side-bet selection changes the relevant payout distribution. Hit, stand, double, split, surrender, and insurance decisions change the main-hand outcomes and can change total stake and action fees.
+
 ## Exact Side-Bet Model
 
 The public side-bet model used by this repo treats side-bet draws as independent / with replacement.

@@ -4,6 +4,12 @@
 
 This note summarizes the exact **hand-class payout distributions** for **Monkey Match** across the verified `Low` and `High` modes.
 
+## Paytable source and change controls
+
+- **Source:** The verified Low/High mode constants are in [payout-tables.js](../../lib/payout-tables.js); the hand-class probabilities come from five independent draws and multiplicity counts.
+- **Contract control:** The verified source exposes an `oddsLocked` flag but no `lockOdds` or mode/payout setter; that flag does not control a changeable paytable in this contract. The exposed owner setters affect fees and referral allocation, not the documented gross outcomes.
+- **Play settings:** Low and High use different symbol counts and payout constants, changing both the hand-class probabilities and gross multipliers.
+
 ## How Monkey Match works
 
 Monkey Match draws `5` independent monkeys. The final hand is then scored as one of seven multiplicity classes:
@@ -50,5 +56,5 @@ Variance is computed over `X = payout / stake`, using the full exact payout dist
 
 ## Sources
 
-1. [docs/verification/MONKEY_MATCH_CONTRACT.md](../verification/MONKEY_MATCH_CONTRACT.md) — verified five-draw model, live mode constants, and exact combinatorial counts.
-2. [lib/rtp.js](../../lib/rtp.js) — exact Monkey Match mode constants used by the CLI.
+1. [docs/verification/MONKEY_MATCH_CONTRACT.md](../verification/MONKEY_MATCH_CONTRACT.md) — verified five-draw model, mode constants, and exact combinatorial counts.
+2. [lib/payout-tables.js](../../lib/payout-tables.js) — exact Monkey Match mode constants used by the CLI.

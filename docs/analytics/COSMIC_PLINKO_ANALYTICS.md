@@ -4,6 +4,12 @@
 
 This note summarizes the exact **per-ball** payout distributions for **Cosmic Plinko** across all verified modes.
 
+## Paytable source and change controls
+
+- **Source:** The verified mode-specific cumulative bucket weights and payouts are checked into [payout-tables.js](../../lib/payout-tables.js). They are a getter snapshot, not a live query on every CLI use.
+- **Contract control:** The owner-only `setGameMode` can replace both bucket weights and payouts while `oddsLocked = false`; `lockOdds` makes that setter reject updates when true. Thus both per-bucket probabilities and gross multipliers, including derived RTP and variance, can change. Fees remain a separate net-cost input.
+- **Play settings:** Risk mode selects the bucket table. Ball count does not change a single ball's odds; it averages independent ball payouts and can introduce wager-split rounding.
+
 ## How Cosmic Plinko works
 
 Cosmic Plinko is not a peg-by-peg physics simulation in the contract. Each ball resolves as one weighted bucket draw against a fixed mode-specific cumulative table.
@@ -91,4 +97,4 @@ Variance is computed over `X = payout / total stake`. With multiple balls, the t
 ## Sources
 
 1. [docs/verification/COSMIC_PLINKO_CONTRACT.md](../verification/COSMIC_PLINKO_CONTRACT.md) — verified weighted-bucket model, mode tables, and exact RTP references.
-2. [lib/rtp.js](../../lib/rtp.js) — exact bucket-weight and payout tables used by the CLI.
+2. [lib/payout-tables.js](../../lib/payout-tables.js) — exact bucket-weight and payout tables used by the CLI.

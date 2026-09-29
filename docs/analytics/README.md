@@ -19,15 +19,15 @@ These notes belong under `docs/analytics/` when the repo has a defensible exact 
 | Monkey Match ✔︎ | [MONKEY_MATCH_ANALYTICS.md](./MONKEY_MATCH_ANALYTICS.md) | Two verified modes and seven multiplicity classes make the full distribution compact. |
 | Bear-A-Dice ✔︎ | [BEAR_DICE_ANALYTICS.md](./BEAR_DICE_ANALYTICS.md) | Fully exact `2d6` survival distributions across `5 x 5` verified difficulty/roll variants. |
 | Blocks ✔︎ | [BLOCKS_ANALYTICS.md](./BLOCKS_ANALYTICS.md) | Exact `2x2`, `3x3`, and `4x4` max-of-a-kind distributions cover independent `--split` and compounding `--survive` play across all `36` grid/risk/settlement variants. |
-| Bubblegum Heist ✔︎ | [BUBBLEGUM_HEIST_ANALYTICS.md](./BUBBLEGUM_HEIST_ANALYTICS.md) | Exact reel model, selected payout rows, exact RTP, and an explicit blocker for full variance until the whole paytable is snapshotted. |
+| Bubblegum Heist ✔︎ | [BUBBLEGUM_HEIST_ANALYTICS.md](./BUBBLEGUM_HEIST_ANALYTICS.md) | Exact per-spin distribution, summary stats, RTP, and variance from the complete checked-in paytable. |
 | Cash Dash ✔︎ | [CASH_DASH_ANALYTICS.md](./CASH_DASH_ANALYTICS.md) | Exact row-level and fixed-depth cash-out analytics; whole-run RTP remains policy-dependent. |
 | Dino Dough ✔︎ | [DINO_DOUGH_ANALYTICS.md](./DINO_DOUGH_ANALYTICS.md) | Complete ordered paytable, exact per-spin distribution, summary stats, exact RTP, and variance. |
 | Primes ✔︎ | [PRIMES_ANALYTICS.md](./PRIMES_ANALYTICS.md) | Each difficulty has only three exact outcome classes: zero, prime, or dead run. |
-| Geez Diggerz ✔︎ | [GEEZ_DIGGERZ_ANALYTICS.md](./GEEZ_DIGGERZ_ANALYTICS.md) | The full live ordered-triple matrix compresses cleanly to `16` payout rows after the symmetric reel snapshot. |
+| Geez Diggerz ✔︎ | [GEEZ_DIGGERZ_ANALYTICS.md](./GEEZ_DIGGERZ_ANALYTICS.md) | The checked-in ordered-triple matrix compresses cleanly to `16` payout rows after the symmetric reel snapshot. |
 | Gimboz Smash ✔︎ | [GIMBOZ_SMASH_ANALYTICS.md](./GIMBOZ_SMASH_ANALYTICS.md) | Exact one-or-two interval play collapses to a compact cover-count table because interval placement does not change EV. |
 | Glyde or Crash ✔︎ | [GLYDE_OR_CRASH_ANALYTICS.md](./GLYDE_OR_CRASH_ANALYTICS.md) | Exact fixed-target crash EV stays compact as one closed-form table over representative multipliers. |
 | Hi-Lo Nebula ✔︎ | [HI_LO_NEBULA_ANALYTICS.md](./HI_LO_NEBULA_ANALYTICS.md) | The verified rank-only paytable collapses to a compact per-rank branch table with exact hit rates and branch EV. |
-| Sushi Showdown ✔︎ | [SUSHI_SHOWDOWN_ANALYTICS.md](./SUSHI_SHOWDOWN_ANALYTICS.md) | The full live ordered-triple matrix still stays readable as a `45`-row exact per-spin distribution. |
+| Sushi Showdown ✔︎ | [SUSHI_SHOWDOWN_ANALYTICS.md](./SUSHI_SHOWDOWN_ANALYTICS.md) | The checked-in ordered-triple matrix stays readable as a `45`-row exact per-spin distribution. |
 | Video Poker ✔︎ | [VIDEO_POKER_ANALYTICS.md](./VIDEO_POKER_ANALYTICS.md) | Exact documented final-hand/paytable surface plus jackpot formula; pre-draw policy remains strategy-dependent. |
 | Reel Pirates | [REEL_PIRATES_ANALYTICS.md](./REEL_PIRATES_ANALYTICS.md) | Public mechanics and observed running statistics are useful, but exact odds are intentionally not claimed. |
 

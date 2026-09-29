@@ -6,6 +6,12 @@ Cash Dash is a stateful death-tile ladder. Each row has one death tile. A safe g
 
 There is no single canonical full-game distribution unless a cash-out policy is specified. The exact tables below use deterministic policies such as "cash out after `N` safe rows."
 
+## Paytable source and change controls
+
+- **Source:** The verified `rowPayouts(row)` getter and row-survival rule define the game. [payout-tables.js](../../lib/payout-tables.js) holds checked-in fallback row factors; live row factors can differ and are not queried by the static analytics below.
+- **Contract control:** There is no `oddsLocked` getter in the verified ABI. The owner-only `setRowPayout` can change a row's gross multiplier without changing the one-death-tile probability for a given row width. Fees can change net returns separately.
+- **Play settings:** `tilesetSeed` changes the row schedule; the selected tile and cash-out depth determine the path. Continuing through more rows compounds the applicable factors and survival probabilities, so no single fixed whole-run payout table applies.
+
 ## Exact Row Formula
 
 For a row with `t` tiles:
@@ -72,5 +78,5 @@ This table assumes `tilesetSeed = 0`, always chooses a still-hidden tile, and ca
 ## Sources
 
 1. [docs/verification/CASH_DASH_CONTRACT.md](../verification/CASH_DASH_CONTRACT.md) - verified row model, row payout table, and state transitions.
-2. [lib/stateful/cash-dash/constants.js](../../lib/stateful/cash-dash/constants.js) - row payout constants and ABI.
+2. [lib/stateful/cash-dash/constants.js](../../lib/stateful/cash-dash/constants.js) - ABI and checked-in row factors imported from `lib/payout-tables.js`.
 3. [lib/stateful/cash-dash/state.js](../../lib/stateful/cash-dash/state.js) - local row schedule and payout progression helpers.
