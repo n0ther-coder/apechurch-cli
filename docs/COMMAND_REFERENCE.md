@@ -25,11 +25,11 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 | `APECHURCH_CLI_LOG_DIR` | `$APECHURCH_CLI_CONFIG_DIR/log` | Bot log directory exposed to bot runtime contexts |
 | `APECHURCH_CLI_SCR_DIR` | `$APECHURCH_CLI_CONFIG_DIR/scripts` | Custom script directory for JSON command scripts used by `script` |
 | `APECHURCH_CLI_R2_PREFIX` | unset | Optional object-key prefix for best-effort R2 mirrors of bot JSON logs |
-| `APECHURCH_CLI_R2_NAME` | none | Optional bucket-name fallback for `bucket install <bucket>` |
-| `APECHURCH_CLI_R2_ACCOUNT_ID` | none | Optional account-ID fallback for `bucket install <bucket>` |
-| `APECHURCH_CLI_R2_TOKEN` | none | Optional API-token fallback for `bucket install <bucket>` |
-| `APECHURCH_CLI_R2_KEY` | none | Optional access-key fallback for `bucket install <bucket>` |
-| `APECHURCH_CLI_R2_SECRET` | none | Optional secret-access-key fallback for `bucket install <bucket>` |
+| `APECHURCH_CLI_R2_NAME` | none | Optional bucket-name fallback for `bucket:log install <bucket>` / `bucket:script install <bucket>` |
+| `APECHURCH_CLI_R2_ACCOUNT_ID` | none | Shared account-ID install value (skips its interactive question) for `bucket:log install <bucket>` / `bucket:script install <bucket>` |
+| `APECHURCH_CLI_R2_TOKEN` | none | Shared API-token install value (skips its interactive question) for `bucket:log install <bucket>` / `bucket:script install <bucket>` |
+| `APECHURCH_CLI_R2_KEY` | none | Shared access-key install value (skips its interactive question) for `bucket:log install <bucket>` / `bucket:script install <bucket>` |
+| `APECHURCH_CLI_R2_SECRET` | none | Shared secret-access-key install value (skips its interactive question) for `bucket:log install <bucket>` / `bucket:script install <bucket>` |
 | `APECHURCH_CLI_PK` | none | Optional fallback for non-interactive fresh install/reinstall |
 | `APECHURCH_CLI_PASS` | none | Wallet password for non-interactive install/signing |
 | `APECHURCH_CLI_PROFILE_URL` | `https://www.ape.church/api/profile` | Username/profile API endpoint override |
@@ -259,47 +259,196 @@ The selected wallet is tracked by `wallets/current.json`, which points to `walle
 | `--to-block <n>` | End block for history download | `download` |
 | `--chunk-size <n>` | Initial maximum block span; oversized or timed-out RPC ranges shrink automatically (default `50000`) | `download` |
 
-### `bucket [action] [value]`
+### R2 buckets
 
-```bnf
-<bucket-command> ::= "bucket" [ <bucket-action> [ <value> ] ] <bucket-option>*
-<bucket-action> ::= "install"
-                  | "reinstall"
-                  | "status"
-                  | "list"
-                  | "enable"
-                  | "disable"
-                  | "sync"
-                  | "presign"
-<bucket> ::= <bucket-name>
-<value> ::= <bucket> | <bot> | <path> | <path/file>
-<path> ::= <bucket-object-key-prefix>
-<path/file> ::= <object-key-ending-in-.json>
-<timeout> ::= <integer>  ; 1..604800 seconds, default 604800
-<bucket-option> ::= "--json" | "-v" | "--verbose" | "-t" <timeout> | "--timeout" <timeout> | "-o" <file> | "--output" <file> | "-f" | "--force"
+**`bucket sync` means log sync only**, exactly like `bucket:log sync`. Use `bucket:script sync` separately for scripts. Only unqualified `bucket status` aggregates both types. `bucket --help`, `bucket:log --help`, and `bucket:script --help` all describe both types.
+
+#### Paths and recursion (identical for logs and scripts)
+
+`sync [path]` synchronizes only the files directly at that path. Add `-r` / `--recursive` to include every subfolder. An omitted path or `.` selects the configured local root. Paths are relative to `APECHURCH_CLI_LOG_DIR` or `APECHURCH_CLI_SCR_DIR`; the same relative paths are retained on R2, under the optional log prefix for logs.
+
+```bash
+apechurch-cli bucket:log sync -r                 # Every log folder
+apechurch-cli bucket:script sync -r              # Every script folder
+apechurch-cli bucket:log sync archive/            # Direct files in archive only
+apechurch-cli bucket:log sync archive/ -r         # Archive and all descendants
+apechurch-cli bucket:script sync routines/        # Direct scripts in routines only
+apechurch-cli bucket:script sync routines/ -r
+apechurch-cli bucket:script sync routines/report-v2.json
+apechurch-cli bucket sync -r                     # Logs ONLY
 ```
 
-`bucket install <bucket>` encrypts Cloudflare R2 bot-log mirror credentials into `$APECHURCH_CLI_CONFIG_DIR/r2/<bucket>.json` and enables that bucket for future bot runs. `bucket reinstall <bucket>` overwrites the same encrypted bucket entry and enables it. If `<bucket>` is omitted for install or reinstall, `APECHURCH_CLI_R2_NAME` is used as the bucket-name fallback.
+Use a trailing slash to select a directory explicitly and `.json` for an exact file. A bare script name selects a matching local/remote directory if present, otherwise the script with an optional `.json` suffix; with `-r`, a bare path selects a directory. Absolute paths and traversal are rejected; symlinks and unsafe local ancestors are skipped. Empty directories are not created remotely: R2 stores objects and their paths.
 
-`bucket enable <bucket>` writes the current R2 selector so future bot runs mirror logs to that stored encrypted bucket entry. It does not decrypt or print credentials. `bucket disable` removes only the current selector so future bot runs stop R2 mirroring; encrypted bucket entries are preserved and can be enabled again later.
+Subfolders excluded without `-r` appear as `recursive-required` under `Inconsistencies:`, followed by a suggestion to use `-r / --recursive`. JSON results expose the same suggestion in `hint`. Invalid JSON and unsafe paths are not fixed by recursive mode. No sync propagates deletions.
 
-The encrypted payload stores the account ID, API token, access key ID, and secret access key. During interactive install/reinstall, the account ID and access key ID prompts are visible, while the API token and secret access key prompts use hidden input. These values are never printed by normal `status`, `list`, or JSON command output. `bucket status -v` and `bucket list -v` intentionally decrypt with `APECHURCH_CLI_PASS` or an interactive password prompt, then print R2 API endpoints and fallback environment values such as `APECHURCH_CLI_R2_ACCOUNT_ID=<value>`. `APECHURCH_CLI_R2_ACCOUNT_ID`, `APECHURCH_CLI_R2_TOKEN`, `APECHURCH_CLI_R2_KEY`, and `APECHURCH_CLI_R2_SECRET` are non-interactive credential fallbacks for install/reinstall. `APECHURCH_CLI_PASS` encrypts the local file, is checked before credential prompts during setup, and must also be present during non-interactive bot runs for remote mirroring to activate.
+Start with the [bucket setup and credential security guide](BUCKETS.md) for Cloudflare creation, token permissions, independent credentials, first sync, and automation.
 
-`bucket sync [<bot>]` decrypts the enabled R2 entry and performs a two-way sync between `APECHURCH_CLI_LOG_DIR` and the bucket. It uploads local-only/newer files and downloads remote-only/newer objects; it never deletes either side. When `<bot>` is provided, sync is scoped to that bot folder; otherwise it syncs the full log tree. Sync only evaluates canonical JSON logs shaped as `<bot>/<bot>.<timestamp>.json`; invalid names or JSON bodies are skipped and reported as inconsistencies.
+**Prefer `bucket:log` for bot logs and `bucket:script` for JSON command scripts.** Each command has its own active bucket. Configure separate existing Cloudflare R2 buckets, such as `example-logs` and `example-scripts`; `install` saves credentials locally and selects a bucket, rather than creating it on R2.
 
-`bucket presign [<path/file>]` decrypts the enabled R2 entry and prints a presigned GET URL for an R2 JSON log. It first reuses any unexpired cached URL stored in `$APECHURCH_CLI_CONFIG_DIR/r2/<bucket>.json`; otherwise it signs a new URL and caches it. If `<path/file>` is omitted, it signs the latest timestamped mirrored JSON object in the bucket. If `<path>` is provided, it signs the latest timestamped JSON object under that bucket path. If `<path/file>.json` is provided, it signs that exact object without listing the bucket. The timeout is set with `-t, --timeout`, defaults to `604800` seconds, and is capped at `604800`.
+| Command | Local source | Remote layout | Transfer behavior |
+|---------|--------------|---------------|-------------------|
+| `bucket:log` | `APECHURCH_CLI_LOG_DIR` | `[prefix/]<relative-path>/<bot>.<timestamp>[.<sequence>].json` | Best-effort uploads during bot runs; explicit two-way `sync` |
+| `bucket:script` | `APECHURCH_CLI_SCR_DIR` | `<relative-path>/<script>.json` | Explicit two-way `sync`; filenames are assigned manually |
 
-`bucket presign ... -o <file>` fetches the JSON body from the presigned URL and writes it locally, appending `.json` when `<file>` has no extension. If `<file>` is a directory or ends with a path separator, the remote object file name is used inside that directory. Existing files prompt before overwrite unless `--force` is passed.
+```bnf
+<bucket-command> ::= ( "bucket:log" | "bucket:script" ) [ <bucket-action> [ <value> ] ] <bucket-option>*
+<bucket-action> ::= "install" | "reinstall" | "status" | "list" | "enable" | "disable" | "sync" | "empty" | "presign"
+<value> ::= <bucket-name> | <relative-path> | <script-name> | <object-path> | <empty-target>
+<empty-target> ::= <relative-folder-or-file>
+<bucket-option> ::= "-r" | "--recursive" | "--json" | "-v" | "--verbose" | "-t" <timeout> | "--timeout" <timeout> | "-o" <file> | "--output" <file> | "-f" | "--force"
+<timeout> ::= <integer>  ; 1..604800 seconds, default 604800
+```
 
-Remote R2 object keys mirror the local bot log path relative to `APECHURCH_CLI_LOG_DIR`: `log/example-bot/example-bot.<timestamp>.json` becomes `<prefix>/example-bot/example-bot.<timestamp>.json`. Set `APECHURCH_CLI_R2_PREFIX` to choose `<prefix>`. Upload is best-effort during bot runs; local JSON logs remain authoritative if R2 is unavailable.
+#### Configure and select buckets
 
-| Option | Meaning |
-|--------|---------|
-| `--json` | Emit JSON output; credential fields remain redacted unless combined with `-v` |
-| `-v`, `--verbose` | For `status` and `list`, decrypt and emit endpoint plus fallback environment values |
-| `-t`, `--timeout <seconds>` | Set presigned URL lifetime |
-| `-o`, `--output <file>` | Fetch the presigned JSON body into a local file or directory |
-| `-f`, `--force` | Overwrite `presign -o` output without prompting |
+```bash
+# Store credentials and select one bucket for each purpose.
+apechurch-cli bucket:log install example-logs
+apechurch-cli bucket:script install example-scripts
+
+# Show every stored entry, including inactive ones, and both selections.
+apechurch-cli bucket status
+apechurch-cli bucket status --json
+
+# Inspect the active selection for each purpose.
+apechurch-cli bucket:log status
+apechurch-cli bucket:script status --json
+apechurch-cli bucket:log list
+apechurch-cli bucket:script list --json
+
+# Replace credentials for an existing entry and select it again.
+apechurch-cli bucket:script reinstall example-scripts
+
+# Disable script sync, then re-enable its stored entry.
+# The log selection is independent.
+apechurch-cli bucket:script disable
+apechurch-cli bucket:script enable example-scripts
+
+# Disable log selection for future operations/new bot processes; retain credentials.
+apechurch-cli bucket:log disable
+apechurch-cli bucket:log enable example-logs
+```
+
+`bucket status` (or `bucket` alone) shows both local selections and all stored entries. JSON returns `log` and `script` metadata plus `buckets`, with `log_enabled` and `script_enabled` flags on each entry. Unselected entries remain visible; their original purpose is not inferred. `bucket:log status` and `bucket:script status` report only their respective selection. Other unqualified `bucket` actions default to logs, except `empty`, which always requires `bucket:log` or `bucket:script`. Status does not contact R2 or verify connectivity.
+
+Omitting the action displays `status`. `install` and `reinstall` enable the supplied bucket for the chosen command type. `enable` selects a stored entry, and `disable` removes only that type's selection. `list` shows all stored credential entries; its enabled marker is relative to the chosen command type. Neither enable nor disable transfers files, starts a service, revokes remote access, or reconfigures an already-running process. `empty` requires an enabled selection for its command type; disabling it prevents subsequent empty operations until a bucket is enabled again.
+
+Credentials are shared by bucket name under `$APECHURCH_CLI_CONFIG_DIR/r2/<bucket>.json`. Log and script selections are stored independently in `r2/current.json` and `r2/script/current.json`. Using separate bucket names also keeps their credential entries separate.
+
+Install/reinstall obtains the encryption password, account ID, API token, access key ID, and secret access key from the environment or asks interactively for missing values. Password, token, and secret-key input is hidden. The same install variables apply to both types. An explicit bucket argument takes precedence over `APECHURCH_CLI_R2_NAME`, with a notice when that variable is set and no confirmation. Nonempty environment credentials supply their fields without asking the corresponding interactive questions; they do not replace an answer entered at a prompt. Source notices go to stderr without showing values, including the encryption password, so `--json` stdout remains structured. Different bucket names can store distinct tokens, keys, and account IDs. Later operations decrypt the saved entry rather than reading the install variables again. For non-interactive setup, use `APECHURCH_CLI_PASS` plus `APECHURCH_CLI_R2_ACCOUNT_ID`, `APECHURCH_CLI_R2_TOKEN`, `APECHURCH_CLI_R2_KEY`, and `APECHURCH_CLI_R2_SECRET`. `APECHURCH_CLI_R2_NAME` supplies a bucket name when omitted from install/reinstall. `APECHURCH_CLI_PASS` also unlocks credentials for non-interactive transfers and automatic log uploads.
+
+Normal status/list output omits credential values. `bucket:log status -v` or `bucket:script list -v` explicitly decrypts and prints endpoints and credential environment values, including secrets. Aggregate `bucket status -v` decrypts all stored entries, including inactive ones, using the supplied password.
+
+#### Sync logs: all bots or one bot
+
+```bash
+# Reconcile the whole local log tree with the selected log bucket.
+apechurch-cli bucket:log sync -r
+
+# Reconcile only one bot's log folder.
+apechurch-cli bucket:log sync example-bot
+apechurch-cli bucket:log sync example-bot --json
+
+# Optionally place log objects under a remote prefix.
+APECHURCH_CLI_R2_PREFIX=archive apechurch-cli bucket:log sync example-bot
+```
+
+Log sync uploads local-only/newer files and downloads remote-only/newer objects. It never deletes either side. It accepts `<bot>.<timestamp>[.<sequence>].json` filenames in the selected directory and, with `-r`, its descendants and reports invalid filenames or JSON bodies as skipped inconsistencies. Automatic uploads during bot runs remain best-effort: local logs are retained if R2 is unavailable.
+
+The prefix applies to log mirroring and log sync. For example, `example-bot/example-bot.20260101120000.json` becomes `archive/example-bot/example-bot.20260101120000.json` when the prefix is `archive`. Script paths are relative to the script bucket root and do not use the log prefix.
+
+#### Sync scripts and maintain named versions
+
+```bash
+# Get the current shared scripts before editing.
+apechurch-cli bucket:script sync
+
+# Choose a new name yourself. This saves a JSON script; it does not execute it.
+apechurch-cli script write report-v2 games
+
+# Upload the new file and reconcile the other scripts.
+apechurch-cli bucket:script sync
+
+# Limit sync to one script; the .json suffix is optional.
+apechurch-cli bucket:script sync report-v2
+apechurch-cli bucket:script sync report-v2.json --json
+
+# On another workstation, configure the same bucket and download its scripts.
+apechurch-cli bucket:script install example-scripts
+apechurch-cli bucket:script sync
+apechurch-cli script read report-v2
+```
+
+Use **sync → save the revised script with a new name → sync**. Version suffixes such as `-v2` are manual; the CLI does not rename files, increment versions, or infer which version should run. Previous versions remain until explicitly removed. Sync neither executes scripts nor reloads a running `script watch` process.
+
+Script sync accepts valid command-script JSON in the selected directory and, with `-r`, all descendants. It reports invalid bodies, unsafe paths, and local symlinks. For matching filenames, newer local modification time or remote upload time wins, with a one-second tolerance. Within that tolerance, identical contents are skipped and differing contents are reported without overwrite. Downloads replace local files atomically and preserve the remote upload timestamp; no original-edit timestamp metadata is added. Sync does not propagate deletions.
+
+#### Empty a remote bucket, folder, or file
+
+`empty [path]` requires **`bucket:log empty` or `bucket:script empty`** and uses that type's **selected bucket**. Unqualified `bucket empty` is rejected before reading credentials or contacting R2, even when a log bucket is enabled. Omit the path to empty the entire selected bucket. Supply a folder or file path relative to the bucket root, **without the bucket name**. A supplied first component is always part of the object path, even if it matches another configured bucket. It does not apply `APECHURCH_CLI_R2_PREFIX`: include any log prefix explicitly. All object types are included, and folders are emptied recursively without `-r`.
+
+```bash
+# List every remote object in this bucket, then confirm deletion of all of them.
+apechurch-cli bucket:script empty
+
+# List and delete a folder's contents recursively, after confirmation.
+apechurch-cli bucket:log empty archive/
+
+# Delete exactly one remote file, after confirmation.
+apechurch-cli bucket:script empty report-v1.json
+apechurch-cli bucket:log empty archive/example-bot/example-bot.20260101120000.json
+```
+
+Every nonempty selection is displayed before asking you to type `EMPTY`. A different answer cancels. All object types are included, and only the displayed keys are deleted. The bucket itself, local files, stored credentials, and active selections remain intact. A later sync can upload deleted remote files again if their local copies still exist.
+
+A trailing slash explicitly selects a folder. Without it, an exact existing object takes precedence; otherwise the path is treated as a folder. Folder selection respects slash boundaries: `archive/` does not select `archive-old/`. With `--json`, the list and confirmation go to stderr and the result goes to stdout. An interactive terminal is still required; `--force` does not bypass confirmation. Partial failures report deleted and failed keys and return a nonzero exit status.
+
+#### Presign a file or download a copy
+
+`presign` uses the **selected bucket**: supply an object path or script name, without a bucket-name prefix. It creates a temporary GET link that can read that object without the recipient's own R2 credentials. Anyone holding the link can use it while valid.
+
+```bash
+# Latest timestamped log across the selected log bucket.
+apechurch-cli bucket:log presign
+
+# Latest log within a bot folder, with a requested lifetime of one hour.
+apechurch-cli bucket:log presign example-bot -t 3600
+
+# Exact remote log, or latest log within an explicit prefixed folder.
+apechurch-cli bucket:log presign example-bot/example-bot.20260101120000.json
+apechurch-cli bucket:log presign archive/example-bot
+
+# Most recently uploaded root-level script, or a particular named script.
+apechurch-cli bucket:script presign
+apechurch-cli bucket:script presign report-v2.json -t 900
+
+# Download the selected JSON as a local file (.json is added if omitted).
+apechurch-cli bucket:log presign example-bot -o latest-log
+apechurch-cli bucket:script presign report-v2 -o downloaded-report.json
+
+# A directory target preserves the remote filename; --force overwrites locally.
+apechurch-cli bucket:log presign archive/example-bot -o ./downloads/ --force
+
+# Inspect the object key, URL, cache status, and expiry as JSON.
+apechurch-cli bucket:script presign report-v2 --json
+```
+
+Log selection uses the timestamp in the filename; script selection without a name uses the remote upload time, not a version suffix. An explicit log `.json` key or script name is signed without listing the bucket. Include any log prefix yourself in presign paths.
+
+Latest-file requests always refresh the remote listing first. An unexpired cached URL is reused only if it refers to the selected object; otherwise a new URL is signed and cached. An empty listing or listing failure is reported instead of returning an older link. The default and maximum lifetime for a new link is 604800 seconds (7 days). Reusing a cached link preserves its original expiry, even if a different `-t` is requested.
+
+`-o` downloads JSON locally; it does not execute it. An existing output file requires confirmation unless `--force` is supplied. A directory or path ending in `/` uses the remote filename inside that directory.
+
+| Option | Applies to | Meaning |
+|--------|------------|---------|
+| `-r`, `--recursive` | `sync` | Include every subfolder below the selected relative path |
+| `--json` | All actions | Structured result; `empty` still requires interactive confirmation |
+| `-v`, `--verbose` | `status`, `list` | Decrypt and print endpoints and credential environment values |
+| `-t`, `--timeout <seconds>` | `presign` | Lifetime of a newly generated URL, 1–604800 seconds |
+| `-o`, `--output <file>` | `presign` | Download JSON to a local file or directory |
+| `-f`, `--force` | `presign -o` | Overwrite the local output without prompting |
+
 
 ## Profile And Identity
 

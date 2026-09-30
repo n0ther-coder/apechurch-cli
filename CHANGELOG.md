@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Shared `sync [path] -r/--recursive` support for log and script subfolders, preserving relative paths
+- Aggregate `bucket status` shows both log/script selections and every stored bucket, including inactive entries
+- Independent `bucket:log` and `bucket:script` selections, with two-way synchronization of manually named JSON command scripts
+- Remote-only `empty [path]` requiring explicit `bucket:log` or `bucket:script`, within its selected bucket, with an object list and mandatory `EMPTY` confirmation while retaining local files and the bucket itself
 - Resilient transaction classifications for allowlisted contract pause guards, propagated RNG/VRF failures, out-of-gas failures, and RPC-node errors, with hard-coded generic and 24-hour infrastructure retry queues
 - Standardized human-facing terminal timestamps in local `YYYY-MMM-DD HH:mm:ss±ZZZZ` form, including cyan timestamps on bot balance snapshots and scheduled retry notices
 - Optional Cloudflare R2 bot log mirroring with encrypted per-bucket credentials, a new `bucket` setup/status/list/enable command surface with password-gated verbose inspection, and best-effort remote writes that preserve the local bot log path under an optional prefix
@@ -27,6 +31,9 @@ All notable changes to this project will be documented in this file.
   - Updated `ABI_VERIFICATION`, `COMMAND_REFERENCE`, and `GAMES_REFERENCE`
 
 ### Changed
+- Both bucket types now sync only direct files by default, suggest recursive mode for excluded folders, and share help that explicitly identifies unqualified sync as logs only
+- Bucket commands report environment sources without exposing values and explicitly note when a command-line bucket name takes precedence, without additional confirmation
+- Bucket documentation, command indexes, and inline help now prefer `bucket:log` and `bucket:script`, with a Cloudflare setup and credential security guide plus examples for selective sync, named script revisions, remote prefixes, deletion, and temporary downloads
 - Public bot examples and fixtures now use neutral names and generic arguments, while the npm package uses an explicit file allowlist to exclude local checkouts, tests, maintainer docs, and development artifacts
 - Video Poker validation, loop RTP/jackpot estimates, displays, and docs now consistently follow the verified live contract denominations (`10`, `25`, `50`, `100`, `250`, and `400 APE`), with progressive-jackpot eligibility only at the `400 APE` maximum
 - History sync now treats `--chunk-size` as an initial maximum, recursively shrinks oversized or timed-out RPC log ranges, reuses the learned size for the rest of the run, checkpoints every completed initial range, batches fallback game-info reads, and progressively processes bounded metadata/stateful backlogs during refresh/download only
@@ -38,6 +45,9 @@ All notable changes to this project will be documented in this file.
 - Cash Dash manual starts now render the opening row and prompt for the first guess when `--tile` is omitted; the full board displays newest rows first with cash/death icons
 - `games`, `game <name>`, `play`, `bet`, RTP summaries, and wallet-history decoding now treat `gimboz-smash` as a supported `ABI verified` game
 - Hi-Lo Nebula dedicated command now accepts the shared stateful loop controls, including `--loop`, `--max-games`, session stop conditions, and betting strategies
+
+### Fixed
+- Latest-log `presign` requests now resolve the current remote object before reusing a cached URL, preventing a still-valid link to an older log from bypassing the listing
 
 ## [8.2.2] - 2026-04-13
 

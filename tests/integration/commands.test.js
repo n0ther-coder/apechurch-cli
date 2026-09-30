@@ -7,7 +7,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
-import { execSync, spawn } from 'child_process';
+import { execSync, spawn, spawnSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -1372,6 +1372,23 @@ describe('CLI Commands Integration Tests', () => {
   });
 
   describe('bucket command', () => {
+    // Keep notices on stderr separate from machine-readable JSON stdout.
+    function cli(args, options = {}) {
+      const result = spawnSync(`node ${CLI_PATH} ${args}`, {
+        shell: true,
+        encoding: 'utf8',
+        timeout: options.timeout || 30000,
+        ...options,
+        env: buildCliEnv(options),
+      });
+      assert.ifError(result.error);
+      return {
+        stdout: stripVersionBanner(result.stdout || ''),
+        stderr: stripVersionBanner(result.stderr || ''),
+        code: result.status ?? 1,
+      };
+    }
+
     it('installs encrypted R2 credentials without printing or storing plaintext secrets', () => {
       resetBotFixtures();
       const env = {
@@ -1412,7 +1429,7 @@ describe('CLI Commands Integration Tests', () => {
         assert.ok(!rawConfig.includes(secret), `config leaked ${secret}`);
       }
 
-      const status = cli('bucket status --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
+      const status = cli('bucket:log status --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
       assert.strictEqual(status.code, 0);
       const statusPayload = JSON.parse(status.stdout.trim());
       assert.strictEqual(statusPayload.enabled, true);
@@ -1436,7 +1453,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(cli('bucket install first-logs --json', { env }).code, 0);
       assert.strictEqual(cli('bucket install second-logs --json', { env }).code, 0);
 
-      const autoEnabled = cli('bucket status --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
+      const autoEnabled = cli('bucket:log status --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
       assert.strictEqual(autoEnabled.code, 0);
       assert.strictEqual(JSON.parse(autoEnabled.stdout.trim()).enabled_bucket, 'second-logs');
 
@@ -1461,7 +1478,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(disabledPayload.success, true);
       assert.strictEqual(disabledPayload.enabled, false);
 
-      const status = cli('bucket status --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
+      const status = cli('bucket:log status --json', { env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT } });
       assert.strictEqual(status.code, 0);
       assert.strictEqual(JSON.parse(status.stdout.trim()).enabled, false);
     });
@@ -1514,10 +1531,10 @@ describe('CLI Commands Integration Tests', () => {
         [R2_SECRET_ENV]: 'secret-key',
       };
 
-      const { stdout, code } = cli('bucket install --json', { env });
+      const { stdout, stderr, code } = cli('bucket install --json', { env });
       assert.strictEqual(code, 1);
-      assert.ok(stdout.includes(PASS_ENV));
-      assert.ok(!stdout.includes('R2 account ID'));
+      assert.ok(stderr.includes(PASS_ENV));
+      assert.ok(!(stdout + stderr).includes('R2 account ID'));
     });
 
     it('shows decrypted R2 endpoints and bucket fallback values only in verbose status/list', () => {
@@ -1532,7 +1549,7 @@ describe('CLI Commands Integration Tests', () => {
       };
       assert.strictEqual(cli('bucket install apechurch-cli-log --json', { env: installEnv }).code, 0);
 
-      const safeStatus = cli('bucket status --json', {
+      const safeStatus = cli('bucket:log status --json', {
         env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT },
       });
       assert.strictEqual(safeStatus.code, 0);
@@ -1545,7 +1562,7 @@ describe('CLI Commands Integration Tests', () => {
         [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
         [PASS_ENV]: 'test-password-123',
       };
-      const verboseStatus = cli('bucket status -v --json', { env: verboseEnv });
+      const verboseStatus = cli('bucket:log status -v --json', { env: verboseEnv });
       assert.strictEqual(verboseStatus.code, 0);
       const statusPayload = JSON.parse(verboseStatus.stdout.trim());
       assert.strictEqual(statusPayload.verbose.bucket, 'apechurch-cli-log');
@@ -1565,7 +1582,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(listPayload.buckets.length, 1);
       assert.strictEqual(listPayload.buckets[0].verbose.environment_fallbacks[R2_TOKEN_ENV], 'bearer-secret-not-printed');
 
-      const plainVerbose = cli('bucket status -v', { env: verboseEnv });
+      const plainVerbose = cli('bucket:log status -v', { env: verboseEnv });
       assert.strictEqual(plainVerbose.code, 0);
       assert.ok(plainVerbose.stdout.includes('S3 API:'));
       assert.ok(plainVerbose.stdout.includes('https://acct-secret-not-printed.r2.cloudflarestorage.com'));
@@ -1584,7 +1601,7 @@ describe('CLI Commands Integration Tests', () => {
       };
       assert.strictEqual(cli('bucket install apechurch-cli-log --json', { env: installEnv }).code, 0);
 
-      const { stdout, code } = cli('bucket status -v --json', {
+      const { stdout, code } = cli('bucket:log status -v --json', {
         env: { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT },
       });
       assert.strictEqual(code, 1);
