@@ -35,7 +35,7 @@ tools:
 
 Every bet is placed and settled on-chain via smart contracts. Provably fair with Chainlink VRF randomness. No servers, no trust required.
 
-Use `--resilient` for long autonomous runs. Generic transient errors and reverted receipts retry after `30s`, `1m`, `2m`, `5m`, `10m × 6`, and `1h × 7`; network/DNS, allowlisted pause guards (`PRICE TOO LOW, PvH GAMES PAUSED`, `All Games Paused`, `Paused`), RNG/VRF, out-of-gas, and RPC-node failures retry after `3m`, `7m`, `10m × 5`, `30m × 10`, and `1h × 18`. These policies are hard-coded and finite.
+Use `--resilient` for long autonomous runs. Generic transient errors and reverted receipts retry after `30s`, `1m`, `2m`, `5m`, `10m × 6`, and `1h × 7`; network/DNS, allowlisted pause guards (`PRICE TOO LOW, PvH GAMES PAUSED`, `All Games Paused`, `Paused`), RNG/VRF, out-of-gas, and RPC-node failures retry after `3m`, `7m`, `10m × 5`, `30m × 10`, and `1h × 18`. Broadcast retry queues are hard-coded and finite. A stateful game whose transaction is already confirmed is different: after the initial VRF polling window it reuses the infrastructure schedule, repeats the final `1h` check while the same game remains pending, never submits a replacement wager/action, and resumes from the existing on-chain state when it advances. Timeout notices include elapsed time and transaction/game/VRF identifiers for manual inspection.
 
 ---
 

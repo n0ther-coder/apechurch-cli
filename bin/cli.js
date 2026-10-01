@@ -2886,7 +2886,35 @@ function allowsMissingStatefulStartAmount(opts = {}) {
   return Boolean(opts.loop && isBankrollFractionStrategyName(opts.betStrategy));
 }
 
+function serializeStatefulCommandError(error) {
+  const isTypedStatefulError = typeof error?.code === 'string' && error.code.startsWith('STATEFUL_');
+  const payload = {
+    error: isTypedStatefulError && typeof error?.message === 'string'
+      ? error.message
+      : sanitizeError(error),
+  };
+  if (typeof error?.code === 'string' && error.code) payload.code = error.code;
+  if (typeof error?.retryable === 'boolean') payload.retryable = error.retryable;
+  if (error?.details && typeof error.details === 'object') payload.details = error.details;
+  return payload;
+}
+
 async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
+  try {
+    return await runStatefulGameCommandUnsafe(gameKey, action, amount, opts);
+  } catch (error) {
+    const payload = serializeStatefulCommandError(error);
+    process.exitCode = 1;
+    if (opts.json || opts.display === 'json') {
+      console.log(JSON.stringify(payload));
+    } else {
+      console.error(`\n❌ ${payload.error}\n`);
+    }
+    return payload;
+  }
+}
+
+async function runStatefulGameCommandUnsafe(gameKey, action, amount, opts = {}) {
   if (rejectResilientValueOption(process.argv.slice(2), opts)) {
     return;
   }
