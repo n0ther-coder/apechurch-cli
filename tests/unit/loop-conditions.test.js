@@ -365,7 +365,7 @@ describe('Loop Terminal Conditions', () => {
       gamesPlayed: 9,
     });
 
-    assert.ok(message.includes('Loss recovered! PnL Profit: +0.50 APE'));
+    assert.ok(message.includes('Loss recovered! net PnL: +0.50 APE'));
     assert.ok(message.includes('Armed at min P&L -26.00 APE; closed after returning to break-even/profit (recovered 26.50 APE)'));
     assert.ok(message.includes('Games played: 9'));
   });
@@ -383,7 +383,7 @@ describe('Loop Terminal Conditions', () => {
       gamesPlayed: 12,
     });
 
-    assert.ok(message.includes('Profit given back! PnL Profit: -0.50 APE'));
+    assert.ok(message.includes('Profit given back! net PnL: -0.50 APE'));
     assert.ok(message.includes('Armed at max P&L +502.41 APE; closed after returning to break-even/loss (gave back 502.91 APE)'));
     assert.ok(message.includes('Games played: 12'));
   });
@@ -399,7 +399,7 @@ describe('Loop Terminal Conditions', () => {
       gamesPlayed: 5,
     });
 
-    assert.ok(message.includes('Min-profit reached! PnL Profit: +23.00 APE (target: +20.00 APE)'));
+    assert.ok(message.includes('Min-profit reached! net PnL: +23.00 APE (target: +20.00 APE)'));
     assert.ok(message.includes('Games played: 5'));
   });
 
@@ -414,7 +414,7 @@ describe('Loop Terminal Conditions', () => {
       gamesPlayed: 5,
     });
 
-    assert.ok(message.includes('Max-loss hit! PnL Profit: -21.00 APE (limit: -20.00 APE)'));
+    assert.ok(message.includes('Max-loss hit! net PnL: -21.00 APE (limit: -20.00 APE)'));
     assert.ok(message.includes('Games played: 5'));
   });
 });

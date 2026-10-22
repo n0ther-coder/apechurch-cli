@@ -167,7 +167,7 @@ describe('Blackjack Display', () => {
     );
   });
 
-  it('shows the realized PnL Profit: and push icon for zero-net completed hands', () => {
+  it('shows the realized net PnL: and push icon for zero-net completed hands', () => {
     const output = renderGame(makeState({
       isComplete: true,
       totalPayout: 25000000000000000000n,
@@ -175,7 +175,7 @@ describe('Blackjack Display', () => {
 
     const plain = stripAnsi(output);
     assert.match(plain, /🤝 RESULT: PUSH/);
-    assert.match(plain, /\(PnL Profit: 0\.0000 APE\)/);
+    assert.match(plain, /net PnL: 0\.0000/);
   });
 
   it('keeps the full-mode dealer-wins row aligned when it includes an emoji outcome icon', () => {

@@ -45,3 +45,11 @@ Generic bot authors must follow [BOTS.md](BOTS.md); new game authors must follow
 [ADDING_GAMES.md](ADDING_GAMES.md). Neither estimates nor a historical payout
 table can substitute for actual settled net PnL when deciding that a target
 has been reached.
+
+## Terminal result label
+
+The parenthesized `(PnL Profit: <value> APE)` suffix is replaced by
+`net PnL: <value>`, without parentheses or a duplicate `net:` field. Command
+wager and payout remain gross; the displayed net result includes actual
+additional execution costs. Headers, routine summaries and history use the
+`net PnL` label. JSON accounting field names are unchanged.

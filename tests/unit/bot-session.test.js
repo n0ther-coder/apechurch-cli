@@ -515,7 +515,7 @@ describe('Bot Session Helpers', () => {
         totalPnlWei: 10n * 10n ** 18n,
         timestamp: new Date(2026, 6, 18, 18, 33, 15),
       }),
-      /^# 2026-JUL-18 18:33:15[+-]\d{4} \| balance: 100\.0000, payout_ape: 30, wager_ape: 20, PnL Profit: 10$/,
+      /^# 2026-JUL-18 18:33:15[+-]\d{4} \| balance: 100\.0000, payout_ape: 30, wager_ape: 20, net PnL: 10$/,
     );
 
     assert.match(
@@ -527,7 +527,7 @@ describe('Bot Session Helpers', () => {
         pnlBasis: 'net',
         timestamp: new Date(2026, 6, 18, 18, 34, 15),
       }),
-      /^# 2026-JUL-18 18:34:15[+-]\d{4} \| balance: 105\.0000, payout_ape: 0, wager_ape: 0, PnL Profit: 5$/,
+      /^# 2026-JUL-18 18:34:15[+-]\d{4} \| balance: 105\.0000, payout_ape: 0, wager_ape: 0, net PnL: 5$/,
     );
 
     assert.strictEqual(
@@ -537,7 +537,7 @@ describe('Bot Session Helpers', () => {
         totalPayoutWei: 25n * 10n ** 18n,
         totalPnlWei: 5n * 10n ** 18n,
       }),
-      '# routine: 3, wagered: 20, PnL Profit: 5, multiplier: 1.25×',
+      '# routine: 3, wagered: 20, net PnL: 5, multiplier: 1.25×',
     );
 
     assert.strictEqual(
@@ -548,7 +548,7 @@ describe('Bot Session Helpers', () => {
         totalPnlWei: 3n * 10n ** 18n,
         pnlBasis: 'net',
       }),
-      '# routine: 4, wagered: 2, PnL Profit: 3, multiplier: 2.50×',
+      '# routine: 4, wagered: 2, net PnL: 3, multiplier: 2.50×',
     );
 
     assert.strictEqual(
@@ -557,7 +557,7 @@ describe('Bot Session Helpers', () => {
         wager_ape: '3.248005801137022857',
         result: { payout_ape: '0' },
       }),
-      '  # bet: 3.248006, payout: 0 (PnL Profit: -3.248006 APE)',
+      '  # bet: 3.248006, payout: 0, net PnL: -3.248006',
     );
 
     assert.strictEqual(
@@ -566,7 +566,13 @@ describe('Bot Session Helpers', () => {
         betAmountApe: 45,
         totalPayoutApe: 90,
       }),
-      '  # bet: 45, payout: 90 (PnL Profit: +45 APE)',
+      '  # bet: 45, payout: 90, net PnL: +45',
+    );
+
+    assert.strictEqual(
+      formatPlayCommandSuffix({ status: 'complete', accounting_version: 2,
+        wager_ape: '10', cost_ape: '0.1', result: { payout_ape: '10' } }),
+      '  # bet: 10, payout: 10, net PnL: -0.1',
     );
 
     assert.strictEqual(
@@ -638,12 +644,12 @@ describe('Bot Session Helpers', () => {
       assert.doesNotMatch(directLine, /\x1b\[33m\x1b\[2mapechurch-cli/);
       assert.match(directLine, /payout: \x1b\[32m25\x1b\[39m/);
       assert.doesNotMatch(directLine, /payout: \x1b\[32m\x1b\[1m25/);
-      assert.match(directLine, /\(PnL Profit: \x1b\[92m\x1b\[1m\+15\x1b\[22m\x1b\[39m APE\)/);
-      assert.match(directPushLine, /\(PnL Profit: \x1b\[95m\x1b\[1m0\x1b\[22m\x1b\[39m APE\)/);
+      assert.match(directLine, /, net PnL: \x1b\[92m\x1b\[1m\+15\x1b\[22m\x1b\[39m/);
+      assert.match(directPushLine, /, net PnL: \x1b\[95m\x1b\[1m0\x1b\[22m\x1b\[39m/);
 
       assert.strictEqual(
         nestedChildLine,
-        '\x1b[33m\x1b[2mapechurch-cli play speed-keno 10  # bet: 10, payout: 25 (PnL Profit: +15 APE)\x1b[22m\x1b[39m',
+        '\x1b[33m\x1b[2mapechurch-cli play speed-keno 10  # bet: 10, payout: 25, net PnL: +15\x1b[22m\x1b[39m',
       );
       assert.doesNotMatch(nestedChildLine, /\x1b\[92m/);
       assert.doesNotMatch(nestedChildLine, /\x1b\[1m\+15/);

@@ -159,7 +159,7 @@ describe('Loop Stats', () => {
       '🏁 Session Stats:',
       '   🎰 Games: 2',
       '   💸 Fees paid: 2.0000 APE',
-      '   🎉 PnL Profit: +38.00 APE (⚖️  end 188.00 > start 150.00)',
+      '   🎉 net PnL: +38.00 APE (⚖️  end 188.00 > start 150.00)',
       '   ✌️  Win rate: 50.00% (1/2)',
       '   🎲 RTP (expected/reported/current): 97.38% 👌 / 98.53% / 129.63% (payout 175.00 APE  wagered 135.00 APE  win 38.00 APE)',
       '   🧮 Points: 675 (+675 GP, +38.00 APE)',
@@ -178,7 +178,7 @@ describe('Loop Stats', () => {
       stats,
     });
 
-    assert.match(stripAnsi(output), /💀 PnL Profit: -0\.50 APE \(⚖️  end 150\.00 = start 150\.00\)/);
+    assert.match(stripAnsi(output), /💀 net PnL: -0\.50 APE \(⚖️  end 150\.00 = start 150\.00\)/);
   });
 
   it('scopes current RTP to the active variant bucket when config is provided', () => {

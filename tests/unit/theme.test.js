@@ -119,11 +119,12 @@ describe('Theme', () => {
       assert.ok(formatOutcomeIcon(-1).includes('💀'));
     });
 
-    it('formats a labeled PnL Profit: suffix', () => {
+    it('formats a labeled net PnL: suffix', () => {
       const result = formatNetProfitLabel(12.5, 2);
-      assert.ok(result.includes('PnL Profit'));
+      assert.ok(result.includes('net PnL'));
       assert.ok(result.includes('+12.50'));
-      assert.ok(result.includes('APE'));
+      assert.doesNotMatch(stripAnsi(result), /[()]|APE/);
+      assert.strictEqual(stripAnsi(formatNetProfitLabel(null)), 'net PnL: unavailable');
     });
   });
 

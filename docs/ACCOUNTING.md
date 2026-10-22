@@ -24,7 +24,7 @@ times and are not a wallet balance.
 
 The display name `multiplier` means only gross payout divided by matching gross
 wager. Display two decimals and the multiplication sign, such as `1.01×`. Use
-`PnL Profit` for a net monetary result or a whole-number percentage with an
+`net PnL` for a net monetary result or a whole-number percentage with an
 explicitly documented reference amount. Positive multipliers and negative PnL
 can coexist. If W is zero, serialize the multiplier as `null`; a failed
 transaction is not a settled game outcome.
@@ -138,3 +138,13 @@ the current cashout, subtracting quoted future VRF fees. They are labeled
 continuation EV, not realized PnL Profit or payout multipliers. Realized game
 PnL includes every actual additional receipt cost, independently of those
 planning models.
+
+## Terminal net-result labels
+
+Display actual net results as `net PnL: <value>`. Command comments show gross
+`bet` and `payout`, then a single net field without parentheses, a currency
+suffix, or a duplicate `net:` label. APE is the command currency. Completed
+stateful result labels use the same format; unavailable costs remain explicitly
+unavailable. Headers and routine summaries use `net PnL` for cumulative results.
+Keep JSON economic field names unchanged. Callers must pass cost-adjusted
+`pnlWei` to `formatCommandEconomicsSuffix`, including simulated costs.

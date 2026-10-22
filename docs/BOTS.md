@@ -251,7 +251,7 @@ After the final game, print the balance line one more time. Prefer the session f
 - `session.colorPnl(...)`
 - `session.colorCommand(...)`
 
-`formatBeforeGameLine` and `formatIterationSummaryLine` always label the supplied result `PnL Profit`. Pass recorded net `totalPnlWei`, subtracting additional costs once. Wallet movement is a separate reconciliation value, not a substitute for game accounting. `formatCommandEconomicsSuffix` requires a known net `pnlWei`; when it is absent, the label is unavailable rather than an inferred gross result.
+`formatBeforeGameLine` and `formatIterationSummaryLine` always label the supplied result `net PnL`. Pass recorded net `totalPnlWei`, subtracting additional costs once. Wallet movement is a separate reconciliation value, not a substitute for game accounting. `formatCommandEconomicsSuffix` requires a known net `pnlWei`; when it is absent, the label is unavailable rather than an inferred gross result. Command suffixes use one `net PnL: <value>` field, without parentheses or a duplicate `net:` value; simulated costs must also be included before formatting.
 
 For JSON mode, return exactly one final summary object. The loader enriches returned summaries with `run_id`, `root_run_id`, parent call metadata, timestamps, raw `args`, `balance_snapshots`, and `nested_bot_calls`. Include each nested `playJson` payload under the matching game entry. During long runs, also pass the same summary shape to `ctx.updateRunSummary({ ...summary, status: "running" })` after each completed iteration so the JSON log remains reconstructable if the process is interrupted.
 
