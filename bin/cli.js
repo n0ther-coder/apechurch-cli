@@ -3468,7 +3468,8 @@ function validateResolvedGameConfig(gameEntry, gameConfig = {}, { amountInput = 
     parseBaccaratBet(gameConfig.bet, parseEther(String(amountInput || '1')));
   } else if (gameEntry.type === 'gimbozsmash') {
     parseGimbozSmashInput({
-      range: gameConfig.targets,
+      // Outside selections also expose their derived winning targets.
+      range: gameConfig.outRange ? undefined : gameConfig.targets,
       outRange: gameConfig.outRange,
     });
   }

@@ -1155,6 +1155,50 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(!stdout.includes('Node.js v'));
     });
 
+    for (const [option, selection, targets] of [
+      ['--range', '20-80', '20-80'],
+      ['--out-range', '50-56', '1-49,57-100'],
+      ['--out-range', '1-5', '6-100'],
+      ['--out-range', '96-100', '1-95'],
+    ]) {
+      it(`validates Gimboz Smash ${option} ${selection} without a wallet`, () => {
+        const { stdout, code } = cli(`play gimboz-smash 10 ${option} ${selection} --validate-only`);
+        assert.strictEqual(code, 0, stdout);
+        const result = JSON.parse(stdout);
+        assert.strictEqual(result.status, 'valid');
+        assert.strictEqual(result.config.targets, targets);
+      });
+    }
+
+    for (const [random, expectedOutside] of [[0, false], [0.75, true]]) {
+      it(`validates Gimboz Smash random cover in the ${expectedOutside ? 'outside' : 'inside'} branch`, () => {
+        const preload = `data:text/javascript,${encodeURIComponent(`Math.random = () => ${random};`)}`;
+        const result = spawnSync(process.execPath, [
+          '--import', preload, CLI_PATH, 'play', 'gimboz-smash', '10',
+          '--cover', '50', '--validate-only',
+        ], { encoding: 'utf8', timeout: 30000, env: buildCliEnv() });
+        assert.strictEqual(result.status, 0, result.stderr);
+        const payload = JSON.parse(result.stdout);
+        assert.strictEqual(payload.status, 'valid');
+        assert.strictEqual(payload.config.cover, 50);
+        assert.strictEqual(payload.config.winCount, 50);
+        assert.strictEqual(Boolean(payload.config.outRange), expectedOutside);
+      });
+    }
+
+    it('rejects conflicting Gimboz selectors during validate-only', () => {
+      for (const flags of [
+        '--range 1-50 --out-range 45-50',
+        '--cover 50 --range 1-50',
+        '--cover 50 --out-range 45-50',
+      ]) {
+        const { stdout, code } = cli(`play gimboz-smash 10 ${flags} --validate-only`);
+        assert.notStrictEqual(code, 0);
+        assert.match(stdout, /choose only one of --range, --out-range, or --cover/);
+        assert.ok(!stdout.includes('No wallet found'));
+      }
+    });
+
     it('rejects old ApeStrong --range input before wallet lookup', () => {
       const { stdout, code } = cli('play ape-strong 10 --range 50');
 
