@@ -1,5 +1,8 @@
 # Adding Games to Ape Church CLI
 
+CLI 30 changes accounting and breaks compatibility with earlier scripts.
+See the [migration comparison](MIGRATION_30.md) before updating integrations.
+
 > Summary: Maintainer guide for adding or changing supported games. Points to the registry, CLI wiring, encoding patterns, validation steps, and release checklist updates tied to new game support.
 
 This guide documents everything needed to add or modify games in the `apechurch-cli` CLI.
@@ -250,7 +253,16 @@ vrfFee = await publicClient.readContract({
 
 ## Checklist
 
+Implement the [game accounting contract](ACCOUNTING.md): gross wager and payout,
+their matching multiplier, actual additional costs and net PnL Profit. Preserve
+transaction cost components across failed attempts, pending results and resume.
+
 - [ ] Added game to `GAME_REGISTRY` in `registry.js`
+- [ ] Exported gross returns, additional cost components and net PnL Profit
+- [ ] Verified retry and resume do not duplicate transactions or their costs
+- [ ] Exported exhausted-retry costs without creating a game outcome
+- [ ] Kept input/condition precision separate from display rounding
+- [ ] Verified loop totals use matching wager/payout scopes and count costs once
 - [ ] Added or updated the allowed alias list for the game, if needed
 - [ ] Left `abiVerified` unset/false unless the verification guide is complete
 - [ ] Added strategy config in `getStrategyConfig()`

@@ -446,7 +446,7 @@ Stateful sequential card-prediction game with explicit `HIGHER`, `LOWER`, `SAME`
 - Public references still carried by the repo: `97.5%` calculated RTP and **`97.84%`** running RTP from the archived transparency snapshot.
 - Verified mechanics: `play`, `makeGuess`, `cashOut`, live `getVRFFee`, verified `getGameInfo`, and a live `getJackpotAmount(betAmount)` getter.
 - `--auto best` uses a VRF-aware net-EV continuation solver on the verified branch model, with the live jackpot share treated as the terminal bonus snapshot.
-- `--auto winston-ladder` plays up to two on-chain games with the same initial bet, up to seven guesses per game, targeting a 1.5x first-game cashout or a 2.5x total ladder payout; ladder targets ignore VRF fees.
+- `--auto winston-ladder` plays up to two on-chain games with the same initial bet, up to seven guesses per game, targeting net profit of half the opening bet, with recorded additional costs added to its gross cashout targets. Across two games its payout multiplier uses their combined wager.
 - `--solver [mode]` enables manual `Suggested action` hints from any Hi-Lo auto mode and defaults to `best`.
 - `--loop` now supports the common session stop conditions and betting strategies used by the other stateful games.
 - Operational note: the repo now verifies the rank/paytable model exactly, but it still does **not** promote one closed-form whole-game RTP because the player can stop after any successful guess and the jackpot pool is live.
@@ -675,14 +675,14 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `cash-dash`, `hi-lo-neb
 --loop                    # Enable continuous play
 --delay <seconds>         # Fixed time between games
 --human [range]           # Add human-like delay on top of --delay; bare/default weighted:3-9, e.g. 2-17
---take-profit <ape>       # Stop at target balance
+--max-balance <ape>       # Stop at target balance
 --min-profit <ape>        # Stop at target session profit
 --target-x <x>            # Stop after any single-game payout multiplier at or above X
---target-profit <ape>     # Stop after any single-game payout amount at or above this APE
+--target-profit <ape|n%>  # Stop after a single-game net PnL Profit reaches the threshold
 --retrace <ape>           # Stop after any single-game loss at or above this APE
 --recover-loss <ape>      # Stop once net P&L reaches -<ape>, then gets back to break-even/profit
 --giveback-profit <ape>   # Stop once net P&L reaches +<ape>, then falls back to break-even/loss
---stop-loss <ape>         # Stop at loss limit
+--min-balance <ape>         # Stop at loss limit
 --max-loss <ape>          # Stop at target session loss
 --max-games <n>           # Stop after N games
 --bet-strategy <name>     # flat, martingale, fibonacci, dalembert, reverse-martingale
@@ -700,7 +700,7 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `cash-dash`, `hi-lo-neb
 - Stateful games can be called directly or through `play`; `apechurch-cli play --help` separates stateless game options from stateful game options
 - Stateful games use `--auto simple` by default; `blackjack`, `cash-dash`, `hi-lo-nebula`, and `video-poker` also accept `--auto best`; `blackjack` also accepts `--auto max`; `hi-lo-nebula` also accepts `--auto winston-ladder`
 - `hi-lo-nebula --display full` uses the boxed multi-panel layout with current card, action keys, and streak info
-- `hi-lo-nebula --loop` supports the common `--take-profit`, `--stop-loss`, `--max-games`, `--bet-strategy`, and related session controls
+- `hi-lo-nebula --loop` supports the common `--max-balance`, `--min-balance`, `--max-games`, `--bet-strategy`, and related session controls
 - `video-poker --solver` shows a best-EV hold suggestion in interactive mode
 - `video-poker --display full` uses the boxed ASCII table renderer; `simple` stays compact
 - Use `apechurch-cli game <name>` for detailed in-CLI help
@@ -886,7 +886,7 @@ Ordering: game sections are sorted by descending maximum fixed exact RTP documen
 
 These two tables are intentionally **game-level** and use **one single supported mode per row**. In the first table, each game is represented by the mode with its highest exact `win rate`; in the second, each game is represented by the mode with its highest exact `max X`. In both tables, `win rate`, `RTP`, and `max X` therefore refer to the **same game and the same mode**.
 
-`Win rate` here means **exact net-profit frequency** (`payout > 1x`), which matches the CLI's `win_rate` semantics rather than merely counting any positive payout. `RTP` is the exact expected return for that same selected mode, and `max X` is the exact gross multiplier for that same selected mode. Equivalent tied modes may be represented by one documented mode label. For `Video Poker`, the ordering uses the fixed `250x` royal-flush base and excludes the live progressive jackpot uplift. These tables exclude `Blackjack`, `Cash Dash`, and `Hi-Lo Nebula` because the local repo does not currently keep a comparable exact net-profit win-rate surface for them in reusable form. The complete Bubblegum Heist matrix is now stored in [lib/payout-tables.js](../lib/payout-tables.js); neither Bubblegum Heist nor Dino Dough has been folded into these fixed top-10 summaries.
+`Win rate` in these static paytable comparisons means **profit frequency before additional execution costs** (`payout > wager`). Actual history win rates use net PnL Profit and can differ when costs turn a small gross gain into a net loss. `RTP` is the exact expected return for that same selected mode, and `max X` is the exact gross multiplier for that same selected mode. Equivalent tied modes may be represented by one documented mode label. For `Video Poker`, the ordering uses the fixed `250x` royal-flush base and excludes the live progressive jackpot uplift. These tables exclude `Blackjack`, `Cash Dash`, and `Hi-Lo Nebula` because the local repo does not currently keep a comparable exact profit-before-additional-costs frequency surface for them in reusable form. The complete Bubblegum Heist matrix is now stored in [lib/payout-tables.js](../lib/payout-tables.js); neither Bubblegum Heist nor Dino Dough has been folded into these fixed top-10 summaries.
 
 For the complete all-mode version of both comparisons, see [GAMES_PAYOUTS_VS_ODDS.md](./GAMES_PAYOUTS_VS_ODDS.md).
 
@@ -954,7 +954,7 @@ Every `10,000 GP` equals `1 Level`, so GP optimization is also level-progression
   - `ApeStrong ✔︎` at `range 75`: `97.49%` from the verified live `edgeFlipRangeToPayout[75] = 12,999` table entry
   - `Roulette ✔︎` hedge (`RED,BLACK`): `97.1%` from the public transparency header
   - `Bubblegum Heist ✔︎`: **`97.80%`** from the verified live reel and ordered-paytable snapshot read on `2026-04-09`
-- The commands below omit `--stop-loss` so the wager-volume math stays exact. In real play, bankroll limits should still be imposed.
+- The commands below omit `--min-balance` so the wager-volume math stays exact. In real play, bankroll limits should still be imposed.
 
 ### Published Cumulative Wager Bonus Schedule
 

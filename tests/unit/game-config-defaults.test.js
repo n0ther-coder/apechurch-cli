@@ -224,7 +224,7 @@ describe('Manual fixed-game defaults', () => {
       numWinIntervals: 1,
       winCount: 50,
       winChance: '50%',
-      payout: '1.95x',
+      payout: '1.95×',
     });
   });
 
@@ -243,7 +243,7 @@ describe('Manual fixed-game defaults', () => {
       multiplierBasisPoints: 20000,
       targetMultiplier: 20000,
       winChance: '48.5%',
-      payout: '2x',
+      payout: '2.00×',
       exactRtp: '97%',
     });
   });
@@ -267,7 +267,7 @@ describe('Manual fixed-game defaults', () => {
       numWinIntervals: 2,
       winCount: 94,
       winChance: '94%',
-      payout: '1.0372x',
+      payout: '1.04×',
       outRange: '45-50',
     });
   });
@@ -288,7 +288,7 @@ describe('Manual fixed-game defaults', () => {
       numWinIntervals: 1,
       winCount: 61,
       winChance: '61%',
-      payout: '1.5983x',
+      payout: '1.60×',
     });
   });
 
@@ -321,7 +321,7 @@ describe('Manual fixed-game defaults', () => {
       numWinIntervals: 1,
       winCount: 50,
       winChance: '50%',
-      payout: '1.95x',
+      payout: '1.95×',
       outRange: '1-50',
       cover: 50,
     });

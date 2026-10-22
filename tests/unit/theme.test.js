@@ -119,9 +119,9 @@ describe('Theme', () => {
       assert.ok(formatOutcomeIcon(-1).includes('💀'));
     });
 
-    it('formats a labeled net profit suffix', () => {
+    it('formats a labeled PnL Profit: suffix', () => {
       const result = formatNetProfitLabel(12.5, 2);
-      assert.ok(result.includes('net profit'));
+      assert.ok(result.includes('PnL Profit'));
       assert.ok(result.includes('+12.50'));
       assert.ok(result.includes('APE'));
     });
@@ -202,7 +202,7 @@ describe('Theme', () => {
     it('formats multiplier with x suffix', () => {
       const result = formatMultiplier(2.5);
       assert.ok(result.includes('2.50'));
-      assert.ok(result.includes('x'));
+      assert.ok(result.includes('×'));
     });
   });
 

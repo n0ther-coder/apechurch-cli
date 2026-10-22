@@ -10,6 +10,13 @@ process.env.APECHURCH_CLI_LOG_DIR = path.join(tmpRoot, 'logs');
 const fakeCliPath = path.join(tmpRoot, 'fake-cli.js');
 fs.writeFileSync(fakeCliPath, `
 const [, , command, ...args] = process.argv;
+if (args.includes('--emit-cost-error')) {
+  console.error(JSON.stringify({ error: 'Retries exhausted', accounting_version: 2,
+    wager_wei: '0', payout_wei: '0', cost_wei: '5', pnl_wei: '-5', multiplier: null,
+    costs: { total_wei: '5', complete: true, transactions: [] },
+    failed_transaction_only: true, counts_as_game: false }));
+  process.exit(1);
+}
 if (args.includes('--emit-retry')) {
   process.stderr.write('⚠️ Contract returns error message "Paused", Rechecking in 3m (at 2026-JUL-18 18:36:15+0200).\\n');
   process.stderr.write('{"error":"not a retry notice"}\\n');
@@ -48,6 +55,20 @@ function createContext(rawArgs = [], runtimeOptions = {}) {
 }
 
 describe('Bot Runtime Context', () => {
+  it('preserves exhausted retry costs through game and nested bot exceptions', async () => {
+    const ctx = createContext();
+    for (const call of [() => ctx.playJson(['ape-strong', '1', '--emit-cost-error']),
+      () => ctx.botJson('example-bot', ['--emit-cost-error'])]) {
+      await assert.rejects(call, (error) => {
+        assert.equal(error.accounting.cost_wei, '5');
+        assert.equal(error.accounting.pnl_wei, '-5');
+        assert.equal(error.accounting.multiplier, null);
+        assert.equal(error.accounting.failed_transaction_only, true);
+        assert.equal(error.accounting.counts_as_game, false);
+        return true;
+      });
+    }
+  });
   it('exposes the authoritative game and bot command resolvers', () => {
     const ctx = createContext([], {
       gameResolver: (command) => (

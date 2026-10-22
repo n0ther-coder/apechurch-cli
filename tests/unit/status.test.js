@@ -175,7 +175,7 @@ describe('Status Helpers', () => {
       ]);
     });
 
-    it('marks net profit unavailable when on-chain history is incomplete', () => {
+    it('marks PnL Profit: unavailable when on-chain history is incomplete', () => {
       const summary = buildGameStatusSummary({
         historyGames: [
           { contract: APE_STRONG_CONTRACT, gameId: '1' },

@@ -18,7 +18,7 @@ describe('Gimboz Smash helpers', () => {
       numWinIntervals: 1,
       winCount: 61,
       winChance: '61%',
-      payout: '1.5983x',
+      payout: '1.60×',
     });
   });
 
@@ -34,7 +34,7 @@ describe('Gimboz Smash helpers', () => {
       numWinIntervals: 2,
       winCount: 40,
       winChance: '40%',
-      payout: '2.4375x',
+      payout: '2.44×',
     });
   });
 
@@ -47,7 +47,7 @@ describe('Gimboz Smash helpers', () => {
       numWinIntervals: 1,
       winCount: 30,
       winChance: '30%',
-      payout: '3.25x',
+      payout: '3.25×',
     });
   });
 
@@ -63,7 +63,7 @@ describe('Gimboz Smash helpers', () => {
       numWinIntervals: 2,
       winCount: 94,
       winChance: '94%',
-      payout: '1.0372x',
+      payout: '1.04×',
       outRange: '45-50',
     });
   });
@@ -77,7 +77,7 @@ describe('Gimboz Smash helpers', () => {
       numWinIntervals: 1,
       winCount: 61,
       winChance: '61%',
-      payout: '1.5983x',
+      payout: '1.60×',
     });
   });
 
@@ -97,7 +97,7 @@ describe('Gimboz Smash helpers', () => {
         numWinIntervals: 1,
         winCount: 50,
         winChance: '50%',
-        payout: '1.95x',
+        payout: '1.95×',
         cover: 50,
       },
     );
@@ -110,7 +110,7 @@ describe('Gimboz Smash helpers', () => {
         numWinIntervals: 1,
         winCount: 50,
         winChance: '50%',
-        payout: '1.95x',
+        payout: '1.95×',
         outRange: '1-50',
         cover: 50,
       },

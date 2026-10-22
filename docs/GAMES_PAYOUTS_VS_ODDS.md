@@ -4,11 +4,17 @@
 
 These tables expand the compact comparison in [GAMES_REFERENCE.md](./GAMES_REFERENCE.md). Each row is one supported game mode, and every metric in that row refers to that same mode.
 
-- **Win Rate** means exact net-profit frequency, i.e. payout strictly greater than `1x`. This matches the CLI history/status win-rate semantics and does not count partial refunds as wins.
+- **Win Rate** in these static comparisons means exact profit frequency before additional execution costs: gross payout exceeds gross wager. History/status win rates instead use actual net PnL Profit and may differ.
 - **RTP** means exact expected gross return for that same mode.
 - **Max X** means the highest gross payout multiplier available inside that same mode. **Min X** means the lowest gross payout multiplier at or above `1x` inside that same mode. `Mode X` is the most likely qualifying payout between `Min X` and `Max X`. `Min X`, `Mode X`, and `Max X` include the unconditional probability of that payout, rounded to two decimals.
 - `Video Poker` uses the fixed base paytable; live progressive jackpot uplift is excluded.
 - `ApeStrong` and `Gimboz Smash` are combined only for shared `5-74` and `76-94` variants where their odds and payouts match exactly. They are not identical across the whole shared surface: at `75`, ApeStrong is `1.2999x` / `97.4925%` RTP while Gimboz Smash is `1.3x` / `97.5000%`; at `95`, ApeStrong is `1.025x` / `97.3750%` while Gimboz Smash is `1.0263x` / `97.4985%`. Gimboz-only `1-4` variants remain separate. `Bear-A-Dice` is expanded across every supported mode; Blocks uses its backward-compatible `3x3` compounding rows here. Independent `--split` play keeps the corresponding one-roll RTP and maximum payout while smoothing the distribution; all grids and both settlement styles are in [BLOCKS_ANALYTICS.md](./analytics/BLOCKS_ANALYTICS.md).
+
+The two consecutive-play tables model full reinvestment of gross returns.
+Their `Terminal capital @ N` values are amounts in opening-capital units B₀,
+not cumulative payout multipliers. An executed sequence's multiplier is always
+sum(payout) / sum(actual wager); final capital / opening capital cannot replace
+that ratio. Execution costs must also be subtracted when calculating net PnL.
 
 ## Table Index
 
@@ -140,56 +146,56 @@ Notes:
 
 ## Consecutive Mode X While Odds Stay At Least 50%
 
-This table is derived from the filtered Mode X frontier above and excludes every row where the single-repeat odds of `Mode X` already start below `50%`. For each remaining row, `N @ ≥50%` is the maximum number of consecutive `Mode X` repeats whose cumulative probability remains at least `50%`; `X @ N` reports the compounded Mode X payout and probability.
+This table is derived from the filtered Mode X frontier above and excludes every row where the single-repeat odds of `Mode X` already start below `50%`. For each remaining row, `N @ ≥50%` is the maximum number of consecutive `Mode X` repeats whose cumulative probability remains at least `50%`; `Terminal capital @ N` reports terminal capital after reinvesting gross returns, in units of opening capital B₀, and its probability; additional execution costs are excluded.
 
-| Game | Mode | N @ ≥50% | X @ N | RTP |
+| Game | Mode | N @ ≥50% | Terminal capital @ N | RTP |
 |------|------|------------|-------|-----|
-| Gimboz Smash ✔︎ | `Cover 95` | `13` | `1.401413x` @ `51.33%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 94` | `11` | `1.494471x` @ `50.63%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 93` | `9` | `1.528869x` @ `52.04%` | `97.49%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 92` | `8` | `1.590243x` @ `51.32%` | `97.49%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 91` | `7` | `1.620546x` @ `51.68%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 90` | `6` | `1.61619x` @ `53.14%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 88` | `5` | `1.669179x` @ `52.77%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 89` | `5` | `1.577836x` @ `55.84%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 85` | `4` | `1.730827x` @ `52.20%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 86` | `4` | `1.651934x` @ `54.70%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 87` | `4` | `1.576894x` @ `57.29%` | `97.49%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 80` | `3` | `1.810049x` @ `51.20%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 81` | `3` | `1.744033x` @ `53.14%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 82` | `3` | `1.680914x` @ `55.14%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 83` | `3` | `1.620578x` @ `57.18%` | `97.49%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 84` | `3` | `1.563723x` @ `59.27%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 71` | `2` | `1.885678x` @ `50.41%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 72` | `2` | `1.833587x` @ `51.84%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 73` | `2` | `1.783827x` @ `53.29%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 74` | `2` | `1.735806x` @ `54.76%` | `97.50%` |
-| Gimboz Smash ✔︎ | `Cover 75` | `2` | `1.69x` @ `56.25%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 76` | `2` | `1.645576x` @ `57.76%` | `97.49%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 77` | `2` | `1.603262x` @ `59.29%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 78` | `2` | `1.5625x` @ `60.84%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 79` | `2` | `1.523003x` @ `62.41%` | `97.49%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 50` | `1` | `1.95x` @ `50.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 51` | `1` | `1.9117x` @ `51.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 52` | `1` | `1.875x` @ `52.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 53` | `1` | `1.8396x` @ `53.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 54` | `1` | `1.8055x` @ `54.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 55` | `1` | `1.7727x` @ `55.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 56` | `1` | `1.741x` @ `56.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 57` | `1` | `1.7105x` @ `57.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 58` | `1` | `1.681x` @ `58.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 59` | `1` | `1.6525x` @ `59.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 60` | `1` | `1.625x` @ `60.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 61` | `1` | `1.5983x` @ `61.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 62` | `1` | `1.5725x` @ `62.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 63` | `1` | `1.5476x` @ `63.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 64` | `1` | `1.5234x` @ `64.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 65` | `1` | `1.5x` @ `65.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 66` | `1` | `1.4772x` @ `66.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 67` | `1` | `1.4552x` @ `67.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 68` | `1` | `1.4338x` @ `68.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 69` | `1` | `1.413x` @ `69.00%` | `97.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 70` | `1` | `1.3928x` @ `70.00%` | `97.50%` |
+| Gimboz Smash ✔︎ | `Cover 95` | `13` | `1.401413 B₀` @ `51.33%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 94` | `11` | `1.494471 B₀` @ `50.63%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 93` | `9` | `1.528869 B₀` @ `52.04%` | `97.49%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 92` | `8` | `1.590243 B₀` @ `51.32%` | `97.49%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 91` | `7` | `1.620546 B₀` @ `51.68%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 90` | `6` | `1.61619 B₀` @ `53.14%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 88` | `5` | `1.669179 B₀` @ `52.77%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 89` | `5` | `1.577836 B₀` @ `55.84%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 85` | `4` | `1.730827 B₀` @ `52.20%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 86` | `4` | `1.651934 B₀` @ `54.70%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 87` | `4` | `1.576894 B₀` @ `57.29%` | `97.49%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 80` | `3` | `1.810049 B₀` @ `51.20%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 81` | `3` | `1.744033 B₀` @ `53.14%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 82` | `3` | `1.680914 B₀` @ `55.14%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 83` | `3` | `1.620578 B₀` @ `57.18%` | `97.49%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 84` | `3` | `1.563723 B₀` @ `59.27%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 71` | `2` | `1.885678 B₀` @ `50.41%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 72` | `2` | `1.833587 B₀` @ `51.84%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 73` | `2` | `1.783827 B₀` @ `53.29%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 74` | `2` | `1.735806 B₀` @ `54.76%` | `97.50%` |
+| Gimboz Smash ✔︎ | `Cover 75` | `2` | `1.69 B₀` @ `56.25%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 76` | `2` | `1.645576 B₀` @ `57.76%` | `97.49%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 77` | `2` | `1.603262 B₀` @ `59.29%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 78` | `2` | `1.5625 B₀` @ `60.84%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 79` | `2` | `1.523003 B₀` @ `62.41%` | `97.49%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 50` | `1` | `1.95 B₀` @ `50.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 51` | `1` | `1.9117 B₀` @ `51.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 52` | `1` | `1.875 B₀` @ `52.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 53` | `1` | `1.8396 B₀` @ `53.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 54` | `1` | `1.8055 B₀` @ `54.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 55` | `1` | `1.7727 B₀` @ `55.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 56` | `1` | `1.741 B₀` @ `56.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 57` | `1` | `1.7105 B₀` @ `57.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 58` | `1` | `1.681 B₀` @ `58.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 59` | `1` | `1.6525 B₀` @ `59.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 60` | `1` | `1.625 B₀` @ `60.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 61` | `1` | `1.5983 B₀` @ `61.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 62` | `1` | `1.5725 B₀` @ `62.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 63` | `1` | `1.5476 B₀` @ `63.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 64` | `1` | `1.5234 B₀` @ `64.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 65` | `1` | `1.5 B₀` @ `65.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 66` | `1` | `1.4772 B₀` @ `66.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 67` | `1` | `1.4552 B₀` @ `67.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 68` | `1` | `1.4338 B₀` @ `68.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 69` | `1` | `1.413 B₀` @ `69.00%` | `97.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 70` | `1` | `1.3928 B₀` @ `70.00%` | `97.50%` |
 
 Notes:
 
@@ -199,181 +205,181 @@ Notes:
 
 ## Consecutive Exact-Finite Full-Mode X While Odds Stay At Least 5%
 
-This table uses only documented `Game + Mode` pairs whose complete outcome surface is finite and exact in the local analytics/reference set. Each repetition is the complete mode distribution, not a forced repeat of `Max X`. `Win Rate` is the exact single-play net-profit frequency (`payout > 1x`) for that same mode. `Min X` is the lowest single-play payout at or above `1x` for that same mode. For each tested `N`, `X @ N` is the highest cumulative payout threshold whose tail probability across `N` consecutive plays of the same mode remains at least `5%`; the row keeps the `N` that maximizes that threshold. Rows are ordered by `X @ N` descending, then by `N @ ≥5%` descending. If no positive cumulative payout reaches `5%`, the highest qualifying threshold is `0x`. `Video Poker` / `Gimboz Poker` is excluded from this specific table because the repo documents final-hand/paytable odds, not a strategy-independent full-mode outcome surface.
+This table uses only documented `Game + Mode` pairs whose complete outcome surface is finite and exact in the local analytics/reference set. Each repetition is the complete mode distribution, not a forced repeat of `Max X`. `Win Rate` is the exact single-play profit frequency before additional costs (`payout > wager`) for that same mode. `Min X` is the lowest single-play payout at or above `1x` for that same mode. For each tested `N`, `Terminal capital @ N` is the highest terminal capital threshold before additional costs whose tail probability across `N` consecutive plays of the same mode remains at least `5%`; the row keeps the `N` that maximizes that threshold. Rows are ordered by `Terminal capital @ N` descending, then by `N @ ≥5%` descending. If no positive terminal capital reaches `5%`, the highest qualifying threshold is `0 B₀`. `Video Poker` / `Gimboz Poker` is excluded from this specific table because the repo documents final-hand/paytable odds, not a strategy-independent full-mode outcome surface.
 
-| Game | Mode | Win Rate | Min X | N @ ≥5% | X @ N |
+| Game | Mode | Win Rate | Min X | N @ ≥5% | Terminal capital @ N |
 |------|------|----------|-------|----------|-------|
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 5` | `5.00%` | `19.5x` @ `5.00%` | `1` | `19.5x` @ `5.00%` |
-| Roulette ✔︎ | `Split` | `5.26%` | `18.45x` @ `5.26%` | `1` | `18.45x` @ `5.26%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 37` | `37.00%` | `2.6351x` @ `37.00%` | `3` | `18.2975x` @ `5.07%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 23` | `23.00%` | `4.2391x` @ `23.00%` | `2` | `17.97x` @ `5.29%` |
-| Roulette ✔︎ | `Even / Odd` / `Half` / `Red / Black` | `47.37%` | `2.05x` @ `47.37%` | `4` | `17.661x` @ `5.03%` |
-| Bear-A-Dice ✔︎ | `Master / 1 roll` | `5.56%` | `17.62x` @ `5.56%` | `1` | `17.62x` @ `5.56%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 55` | **`55.00%`** | `1.7727x` @ **`55.00%`** | `5` | `17.5056x` @ `5.03%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 48` | `48.00%` | `2.0312x` @ `48.00%` | `4` | `17.022x` @ `5.31%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 38` | `38.00%` | `2.5657x` @ `38.00%` | `3` | `16.8895x` @ `5.49%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 61` | **`61.00%`** | `1.5983x` @ **`61.00%`** | `6` | `16.6705x` @ `5.15%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 24` | `24.00%` | `4.0625x` @ `24.00%` | `2` | `16.5039x` @ `5.76%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 6` | `6.00%` | `16.25x` @ `6.00%` | `1` | `16.25x` @ `6.00%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 56` | **`56.00%`** | `1.741x` @ **`56.00%`** | `5` | `15.9954x` @ `5.51%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 69` | **`69.00%`** | `1.413x` @ **`69.00%`** | `8` | `15.8905x` @ `5.14%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 49` | `49.00%` | `1.9897x` @ `49.00%` | `4` | `15.6729x` @ `5.76%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 39` | `39.00%` | `2.5x` @ `39.00%` | `3` | `15.625x` @ `5.93%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 66` | **`66.00%`** | `1.4772x` @ **`66.00%`** | `7` | `15.3488x` @ `5.46%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 72` | **`72.00%`** | `1.3541x` @ **`72.00%`** | `9` | `15.3058x` @ `5.20%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 25` | `25.00%` | `3.9x` @ `25.00%` | `2` | `15.21x` @ `6.25%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 62` | **`62.00%`** | `1.5725x` @ **`62.00%`** | `6` | `15.1197x` @ `5.68%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 57` | **`57.00%`** | `1.7105x` @ **`57.00%`** | `5` | `14.6425x` @ `6.02%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 78` | **`78.00%`** | `1.25x` @ **`78.00%`** | `12` | `14.5519x` @ `5.07%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 40` | `40.00%` | `2.4375x` @ `40.00%` | `3` | `14.4822x` @ `6.40%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 50` | **`50.00%`** | `1.95x` @ **`50.00%`** | `4` | `14.459x` @ `6.25%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 70` | **`70.00%`** | `1.3928x` @ **`70.00%`** | `8` | `14.1615x` @ `5.76%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 26` | `26.00%` | `3.75x` @ `26.00%` | `2` | `14.0625x` @ `6.76%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 7` | `7.00%` | `13.9285x` @ `7.00%` | `1` | `13.9285x` @ `7.00%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 67` | **`67.00%`** | `1.4552x` @ **`67.00%`** | `7` | `13.8184x` @ `6.06%` |
-| Gimboz Smash ✔︎ | `Cover 75` | **`75.00%`** | `1.3x` @ **`75.00%`** | `10` | `13.7858x` @ `5.63%` |
-| ApeStrong ✔︎ | `Range 75` | **`75.00%`** | `1.2999x` @ **`75.00%`** | `10` | `13.7752x` @ `5.63%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 63` | **`63.00%`** | `1.5476x` @ **`63.00%`** | `6` | `13.7389x` @ `6.25%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 73` | **`73.00%`** | `1.3356x` @ **`73.00%`** | `9` | `13.5235x` @ `5.89%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 41` | `41.00%` | `2.378x` @ `41.00%` | `3` | `13.4473x` @ `6.89%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 58` | **`58.00%`** | `1.681x` @ **`58.00%`** | `5` | `13.4227x` @ `6.56%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 82` | **`82.00%`** | `1.189x` @ **`82.00%`** | `15` | `13.4192x` @ `5.10%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 77` | **`77.00%`** | `1.2662x` @ **`77.00%`** | `11` | `13.413x` @ `5.64%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 81` | **`81.00%`** | `1.2037x` @ **`81.00%`** | `14` | `13.4047x` @ `5.23%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 51` | **`51.00%`** | `1.9117x` @ **`51.00%`** | `4` | `13.3561x` @ `6.77%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 83` | **`83.00%`** | `1.1746x` @ **`83.00%`** | `16` | `13.1293x` @ `5.07%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 80` | **`80.00%`** | `1.2187x` @ **`80.00%`** | `13` | `13.0815x` @ `5.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 27` | `27.00%` | `3.6111x` @ `27.00%` | `2` | `13.04x` @ `7.29%` |
-| Primes ✔︎ | `Easy` | **`50.00%`** | `1.9x` @ `40.00%` | `4` | `13.0321x` @ `6.25%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 71` | **`71.00%`** | `1.3732x` @ **`71.00%`** | `8` | `12.6436x` @ `6.46%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 84` | **`84.00%`** | `1.1607x` @ **`84.00%`** | `17` | `12.5962x` @ `5.16%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 42` | `42.00%` | `2.3214x` @ `42.00%` | `3` | `12.5098x` @ `7.41%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 64` | **`64.00%`** | `1.5234x` @ **`64.00%`** | `6` | `12.4992x` @ `6.87%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 79` | **`79.00%`** | `1.2341x` @ **`79.00%`** | `12` | `12.4797x` @ `5.91%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 68` | **`68.00%`** | `1.4338x` @ **`68.00%`** | `7` | `12.4572x` @ `6.72%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 52` | **`52.00%`** | `1.875x` @ **`52.00%`** | `4` | `12.3596x` @ `7.31%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 59` | **`59.00%`** | `1.6525x` @ **`59.00%`** | `5` | `12.3227x` @ `7.15%` |
-| Primes ✔︎ | `Medium` | `26.00%` | `3.5x` @ `25.00%` | `2` | `12.25x` @ `6.76%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 8` | `8.00%` | `12.1875x` @ `8.00%` | `1` | `12.1875x` @ `8.00%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 28` | `28.00%` | `3.4821x` @ `28.00%` | `2` | `12.125x` @ `7.84%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 76` | **`76.00%`** | `1.2828x` @ **`76.00%`** | `10` | `12.0667x` @ `6.43%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 74` | **`74.00%`** | `1.3175x` @ **`74.00%`** | `9` | `11.9607x` @ `6.65%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 85` | **`85.00%`** | `1.147x` @ **`85.00%`** | `18` | `11.8071x` @ `5.36%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 43` | `43.00%` | `2.2674x` @ `43.00%` | `3` | `11.6569x` @ `7.95%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 53` | **`53.00%`** | `1.8396x` @ **`53.00%`** | `4` | `11.4523x` @ `7.89%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 65` | **`65.00%`** | `1.5x` @ **`65.00%`** | `6` | `11.3906x` @ `7.54%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 60` | **`60.00%`** | `1.625x` @ **`60.00%`** | `5` | `11.331x` @ `7.78%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 29` | `29.00%` | `3.362x` @ `29.00%` | `2` | `11.303x` @ `8.41%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 87` | **`87.00%`** | `1.1206x` @ **`87.00%`** | `21` | `10.926x` @ `5.37%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 44` | `44.00%` | `2.2159x` @ `44.00%` | `3` | `10.8805x` @ `8.52%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 86` | **`86.00%`** | `1.1337x` @ **`86.00%`** | `19` | `10.8509x` @ `5.69%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 9` | `9.00%` | `10.8333x` @ `9.00%` | `1` | `10.8333x` @ `9.00%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 54` | **`54.00%`** | `1.8055x` @ **`54.00%`** | `4` | `10.6265x` @ `8.50%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 30` | `30.00%` | `3.25x` @ `30.00%` | `2` | `10.5625x` @ `9.00%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 88` | **`88.00%`** | `1.1079x` @ **`88.00%`** | `23` | `10.5563x` @ `5.29%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 45` | `45.00%` | `2.1666x` @ `45.00%` | `3` | `10.1704x` @ `9.11%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 31` | `31.00%` | `3.1451x` @ `31.00%` | `2` | `9.891654x` @ `9.61%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 89` | **`89.00%`** | `1.0955x` @ **`89.00%`** | `25` | `9.77934x` @ `5.43%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 10` | `10.00%` | `9.75x` @ `10.00%` | `1` | `9.75x` @ `10.00%` |
-| Bear-A-Dice ✔︎ | `Expert / 1 roll` | `16.67%` | `3.95x` @ `11.11%` | `1` | `9.72x` @ `5.56%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 46` | `46.00%` | `2.1195x` @ `46.00%` | `3` | `9.521388x` @ `9.73%` |
-| Roulette ✔︎ | `Dozen / Column` | `31.58%` | `3.075x` @ `31.58%` | `2` | `9.455625x` @ `9.97%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 90` | **`90.00%`** | `1.0833x` @ **`90.00%`** | `28` | `9.396472x` @ `5.23%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 32` | `32.00%` | `3.0468x` @ `32.00%` | `2` | `9.28299x` @ `10.24%` |
-| Roulette ✔︎ | `Corner` | `10.53%` | `9.225x` @ `10.53%` | `1` | `9.225x` @ `10.53%` |
-| Baccarat ✔︎ | `TIE` | `9.54%` | `9x` @ `9.54%` | `1` | `9x` @ `9.54%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 47` | `47.00%` | `2.0744x` @ `47.00%` | `3` | `8.926424x` @ `10.38%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 11` | `11.00%` | `8.8636x` @ `11.00%` | `1` | `8.8636x` @ `11.00%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 33` | `33.00%` | `2.9545x` @ `33.00%` | `2` | `8.72907x` @ `10.89%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 91` | **`91.00%`** | `1.0714x` @ **`91.00%`** | `31` | `8.482051x` @ `5.37%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 34` | `34.00%` | `2.8676x` @ `34.00%` | `2` | `8.22313x` @ `11.56%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 12` | `12.00%` | `8.125x` @ `12.00%` | `1` | `8.125x` @ `12.00%` |
-| Baccarat ✔︎ | `PLAYER` | `44.61%` | `1x` @ `9.54%` | `3` | `8x` @ `8.88%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 35` | `35.00%` | `2.7857x` @ `35.00%` | `2` | `7.760124x` @ `12.25%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 92` | **`92.00%`** | `1.0597x` @ **`92.00%`** | `35` | `7.610316x` @ `5.40%` |
-| Primes ✔︎ | `Extreme` | `12.30%` | `7.57x` @ `12.29%` | `1` | `7.57x` @ `12.30%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 13` | `13.00%` | `7.5x` @ `13.00%` | `1` | `7.5x` @ `13.00%` |
-| Bear-A-Dice ✔︎ | `Easy / 5 rolls` | `40.19%` | `1.216653x` @ `0.17%` | `3` | `7.439791x` @ `5.00%` |
-| Baccarat ✔︎ | `BANKER` | `45.84%` | `1x` @ `9.54%` | `3` | `7.414875x` @ `9.63%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 36` | `36.00%` | `2.7083x` @ `36.00%` | `2` | `7.334889x` @ `12.96%` |
-| Bear-A-Dice ✔︎ | `Easy / 4 rolls` | `48.23%` | `1.125509x` @ `0.60%` | `3` | `7.26801x` @ `5.01%` |
-| Bear-A-Dice ✔︎ | `Easy / 3 rolls` | **`57.87%`** | `1.092727x` @ `2.14%` | `4` | `7.151411x` @ `5.03%` |
-| Bear-A-Dice ✔︎ | `Easy / 2 rolls` | **`69.44%`** | `1.0404x` @ `7.72%` | `7` | `7.023842x` @ `5.00%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 14` | `14.00%` | `6.9642x` @ `14.00%` | `1` | `6.9642x` @ `14.00%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 93` | **`93.00%`** | `1.0483x` @ **`93.00%`** | `41` | `6.916861x` @ `5.10%` |
-| Speed Keno ✔︎ | `Picks 1` | `25.00%` | `2.4x` @ `25.00%` | `4` | `6.912x` @ `5.08%` |
-| Bear-A-Dice ✔︎ | `Medium / 4 rolls` | `9.53%` | `2.005339x` @ `0.24%` | `1` | `6.717099x` @ `5.41%` |
-| Bear-A-Dice ✔︎ | `Medium / 2 rolls` | `30.86%` | `1.3924x` @ `4.94%` | `2` | `6.602481x` @ `5.41%` |
-| Blocks ✔︎ | `3x3 / High / 1 roll` | `28.40%` | `2.25x` @ `23.03%` | `1` | `6.5x` @ `5.37%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 15` | `15.00%` | `6.5x` @ `15.00%` | `1` | `6.5x` @ `15.00%` |
-| Bear-A-Dice ✔︎ | `Medium / 1 roll` | **`55.56%`** | `1.17x` @ `22.22%` | `4` | `6.324581x` @ `5.41%` |
-| Bear-A-Dice ✔︎ | `Hard / 1 roll` | `33.33%` | `1.77x` @ `16.67%` | `1` | `6.3x` @ `5.56%` |
-| Bear-A-Dice ✔︎ | `Easy / 1 roll` | **`83.33%`** | `1.01x` @ `27.78%` | `13` | `6.136522x` @ `5.01%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 16` | `16.00%` | `6.0937x` @ `16.00%` | `1` | `6.0937x` @ `16.00%` |
-| Bear-A-Dice ✔︎ | `Medium / 3 rolls` | `17.15%` | `1.643032x` @ `1.10%` | `1` | `6.080422x` @ `5.40%` |
-| Monkey Match ✔︎ | `High` | `35.03%` | `2x` @ `18.74%` | `2` | `6x` @ `8.76%` |
-| Keno ✔︎ | `Picks 2` | `44.23%` | `1.8x` @ `38.46%` | `3` | `5.832x` @ `8.65%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 94` | **`94.00%`** | `1.0372x` @ **`94.00%`** | `48` | `5.772984x` @ `5.13%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 17` | `17.00%` | `5.7352x` @ `17.00%` | `1` | `5.7352x` @ `17.00%` |
-| Keno ✔︎ | `Picks 1` | `25.00%` | `2.25x` @ `25.00%` | `4` | `5.695313x` @ `5.08%` |
-| Primes ✔︎ | `Hard` | `16.90%` | `5.5x` @ `16.80%` | `1` | `5.5x` @ `16.90%` |
-| Bear-A-Dice ✔︎ | `Hard / 2 rolls` | `11.11%` | `3.2041x` @ `2.78%` | `1` | `5.4237x` @ `8.33%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 18` | `18.00%` | `5.4166x` @ `18.00%` | `1` | `5.4166x` @ `18.00%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 19` | `19.00%` | `5.1315x` @ `19.00%` | `1` | `5.1315x` @ `19.00%` |
-| Blocks ✔︎ | `3x3 / High / 2 rolls` | `8.07%` | `5.0625x` @ `5.30%` | `1` | `5.0625x` @ `8.07%` |
-| Geez Diggerz ✔︎ | `Any spin count 1-15` | `30.00%` | `1x` @ `1.94%` | `1` | `5x` @ `6.32%` |
-| Speed Keno ✔︎ | `Picks 2` | `44.74%` | `1.45x` @ `39.47%` | `1` | `5x` @ `5.26%` |
-| Monkey Match ✔︎ | `Low` | `44.44%` | `1.25x` @ `23.15%` | `3` | `5x` @ `5.20%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 20` | `20.00%` | `4.875x` @ `20.00%` | `1` | `4.875x` @ `20.00%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 21` | `21.00%` | `4.6428x` @ `21.00%` | `1` | `4.6428x` @ `21.00%` |
-| Gimboz Smash ✔︎ | `Cover 95` | **`95.00%`** | `1.0263x` @ **`95.00%`** | `58` | `4.507244x` @ `5.10%` |
-| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 22` | `22.00%` | `4.4318x` @ `22.00%` | `1` | `4.4318x` @ `22.00%` |
-| Bear-A-Dice ✔︎ | `Medium / 5 rolls` | `5.29%` | `2.386354x` @ `0.05%` | `1` | `4.206831x` @ `5.03%` |
-| ApeStrong ✔︎ | `Range 95` | **`95.00%`** | `1.025x` @ **`95.00%`** | `58` | `4.187783x` @ `5.10%` |
-| Jungle Plinko ✔︎ | `Risk 0 / Low` | **`53.33%`** | `1.2x` @ `38.10%` | `6` | `4.18176x` @ `5.24%` |
-| Keno ✔︎ | `Picks 4` | `25.59%` | `2x` @ `21.42%` | `2` | `4x` @ `6.55%` |
-| Keno ✔︎ | `Picks 10` | `23.23%` | `1.2x` @ `14.71%` | `1` | `4x` @ `8.52%` |
-| Jungle Plinko ✔︎ | `Risk 4 / Ultra Degen` | `22.18%` | `1.4x` @ `9.87%` | `1` | `4x` @ `6.38%` |
-| Keno ✔︎ | `Picks 7` | `33.75%` | `1.25x` @ `17.64%` | `1` | `4x` @ `5.20%` |
-| Jungle Plinko ✔︎ | `Risk 1 / Moderate` | `40.00%` | `1.25x` @ `26.67%` | `3` | `3.90625x` @ `5.31%` |
-| Sushi Showdown ✔︎ | `Any spin count 1-15` | `23.91%` | `1.25x` @ `3.97%` | `1` | `3.8194x` @ `7.66%` |
-| Jungle Plinko ✔︎ | `Risk 2 / High` | `30.85%` | `1.2x` @ `16.95%` | `3` | `3.75x` @ `5.19%` |
-| Blocks ✔︎ | `3x3 / Low / 3 rolls` | `59.79%` | `1.030301x` @ `17.42%` | `4` | `3.742353x` @ `5.80%` |
-| Blocks ✔︎ | `3x3 / Low / 4 rolls` | `50.37%` | `1.040604x` @ `9.73%` | `3` | `3.742353x` @ `5.80%` |
-| Blocks ✔︎ | `3x3 / Low / 2 rolls` | `70.97%` | `1.0201x` @ `31.19%` | `5` | `3.668614x` @ `6.09%` |
-| Blocks ✔︎ | `3x3 / Low / 5 rolls` | `42.44%` | `1.05101x` @ `5.43%` | `2` | `3.668614x` @ `6.09%` |
-| Keno ✔︎ | `Picks 5` | **`58.35%`** | `1.1x` @ `27.77%` | `3` | `3.4375x` @ `5.96%` |
-| Speed Keno ✔︎ | `Picks 4` | `24.87%` | `1.5x` @ `21.67%` | `3` | `3.375x` @ `5.07%` |
-| Jungle Plinko ✔︎ | `Risk 3 / Degen` | `23.33%` | `1.5x` @ `11.70%` | `2` | `3.15x` @ `5.65%` |
-| Speed Keno ✔︎ | `Picks 3` | `14.04%` | `2.5x` @ `13.16%` | `3` | `3.125x` @ `7.30%` |
-| Cosmic Plinko ✔︎ | `Mode 2 / High` | `14.37%` | `1.5x` @ `6.19%` | `1` | `3x` @ `8.18%` |
-| Keno ✔︎ | `Picks 9` | `19.03%` | `1.5x` @ `10.94%` | `1` | `3x` @ `8.09%` |
-| Speed Keno ✔︎ | `Picks 5` | `26.63%` | `1.25x` @ `19.37%` | `1` | `3x` @ `7.26%` |
-| Cosmic Plinko ✔︎ | `Risk 0 / Low` | `17.20%` | `1.2x` @ `6.62%` | `1` | `3x` @ `6.17%` |
-| Keno ✔︎ | `Picks 6` | `30.74%` | `1.5x` @ `15.47%` | `2` | `3x` @ `8.72%` |
-| Blocks ✔︎ | `3x3 / Low / 1 roll` | `84.25%` | `1.01x` @ `55.85%` | `5` | `2.937888x` @ `5.87%` |
-| Keno ✔︎ | `Picks 3` | `14.88%` | `2.5x` @ `13.66%` | `1` | `2.5x` @ `14.88%` |
-| Keno ✔︎ | `Picks 8` | `38.78%` | `1.1x` @ `22.24%` | `3` | `2.42x` @ `6.41%` |
-| Cosmic Plinko ✔︎ | `Risk 1 / Modest` | `9.87%` | `2x` @ `5.74%` | `1` | `2x` @ `9.87%` |
-| Bear-A-Dice ✔︎ | `Expert / 2 rolls` | `2.78%` | `16x` @ `1.23%` | `1` | `0x` @ `100.00%` |
-| Bear-A-Dice ✔︎ | `Expert / 3 rolls` | `0.463%` | `64.4812x` @ `0.14%` | `1` | `0x` @ `100.00%` |
-| Bear-A-Dice ✔︎ | `Expert / 4 rolls` | `0.0772%` | `263.767x` @ `0.02%` | `1` | `0x` @ `100.00%` |
-| Bear-A-Dice ✔︎ | `Expert / 5 rolls` | `0.0129%` | `1,062.98x` @ `0.00%` | `1` | `0x` @ `100.00%` |
-| Bear-A-Dice ✔︎ | `Hard / 3 rolls` | `3.70%` | `5.735339x` @ `0.46%` | `1` | `0x` @ `100.00%` |
-| Bear-A-Dice ✔︎ | `Hard / 4 rolls` | `1.23%` | `10.2663x` @ `0.08%` | `1` | `0x` @ `100.00%` |
-| Bear-A-Dice ✔︎ | `Hard / 5 rolls` | `0.4115%` | `18.3766x` @ `0.01%` | `1` | `0x` @ `100.00%` |
-| Bear-A-Dice ✔︎ | `Master / 2 rolls` | `0.3086%` | `316.84x` @ `0.31%` | `1` | `0x` @ `100.00%` |
-| Bear-A-Dice ✔︎ | `Master / 3 rolls` | `0.0171%` | `5,706.55x` @ `0.02%` | `1` | `0x` @ `100.00%` |
-| Bear-A-Dice ✔︎ | `Master / 4 rolls` | `0.000953%` | `102,433.35x` @ `0.00%` | `1` | `0x` @ `100.00%` |
-| Bear-A-Dice ✔︎ | `Master / 5 rolls` | `0.000053%` | `1,847,949.19x` @ `0.00%` | `1` | `0x` @ `100.00%` |
-| Blocks ✔︎ | `3x3 / High / 3 rolls` | `2.29%` | `11.3906x` @ `1.22%` | `1` | `0x` @ `100.00%` |
-| Blocks ✔︎ | `3x3 / High / 4 rolls` | `0.6506%` | `25.6289x` @ `0.28%` | `1` | `0x` @ `100.00%` |
-| Blocks ✔︎ | `3x3 / High / 5 rolls` | `0.1848%` | `57.665x` @ `0.06%` | `1` | `0x` @ `100.00%` |
-| Gimboz Smash ✔︎ | `Cover 1` | `1.00%` | `97.5x` @ `1.00%` | `1` | `0x` @ `100.00%` |
-| Gimboz Smash ✔︎ | `Cover 2` | `2.00%` | `48.75x` @ `2.00%` | `1` | `0x` @ `100.00%` |
-| Gimboz Smash ✔︎ | `Cover 3` | `3.00%` | `32.5x` @ `3.00%` | `1` | `0x` @ `100.00%` |
-| Gimboz Smash ✔︎ | `Cover 4` | `4.00%` | `24.375x` @ `4.00%` | `1` | `0x` @ `100.00%` |
-| Roulette ✔︎ | `Single Number` | `2.63%` | `36.9x` @ `2.63%` | `1` | `0x` @ `100.00%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 5` | `5.00%` | `19.5x` @ `5.00%` | `1` | `19.5 B₀` @ `5.00%` |
+| Roulette ✔︎ | `Split` | `5.26%` | `18.45x` @ `5.26%` | `1` | `18.45 B₀` @ `5.26%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 37` | `37.00%` | `2.6351x` @ `37.00%` | `3` | `18.2975 B₀` @ `5.07%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 23` | `23.00%` | `4.2391x` @ `23.00%` | `2` | `17.97 B₀` @ `5.29%` |
+| Roulette ✔︎ | `Even / Odd` / `Half` / `Red / Black` | `47.37%` | `2.05x` @ `47.37%` | `4` | `17.661 B₀` @ `5.03%` |
+| Bear-A-Dice ✔︎ | `Master / 1 roll` | `5.56%` | `17.62x` @ `5.56%` | `1` | `17.62 B₀` @ `5.56%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 55` | **`55.00%`** | `1.7727x` @ **`55.00%`** | `5` | `17.5056 B₀` @ `5.03%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 48` | `48.00%` | `2.0312x` @ `48.00%` | `4` | `17.022 B₀` @ `5.31%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 38` | `38.00%` | `2.5657x` @ `38.00%` | `3` | `16.8895 B₀` @ `5.49%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 61` | **`61.00%`** | `1.5983x` @ **`61.00%`** | `6` | `16.6705 B₀` @ `5.15%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 24` | `24.00%` | `4.0625x` @ `24.00%` | `2` | `16.5039 B₀` @ `5.76%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 6` | `6.00%` | `16.25x` @ `6.00%` | `1` | `16.25 B₀` @ `6.00%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 56` | **`56.00%`** | `1.741x` @ **`56.00%`** | `5` | `15.9954 B₀` @ `5.51%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 69` | **`69.00%`** | `1.413x` @ **`69.00%`** | `8` | `15.8905 B₀` @ `5.14%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 49` | `49.00%` | `1.9897x` @ `49.00%` | `4` | `15.6729 B₀` @ `5.76%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 39` | `39.00%` | `2.5x` @ `39.00%` | `3` | `15.625 B₀` @ `5.93%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 66` | **`66.00%`** | `1.4772x` @ **`66.00%`** | `7` | `15.3488 B₀` @ `5.46%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 72` | **`72.00%`** | `1.3541x` @ **`72.00%`** | `9` | `15.3058 B₀` @ `5.20%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 25` | `25.00%` | `3.9x` @ `25.00%` | `2` | `15.21 B₀` @ `6.25%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 62` | **`62.00%`** | `1.5725x` @ **`62.00%`** | `6` | `15.1197 B₀` @ `5.68%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 57` | **`57.00%`** | `1.7105x` @ **`57.00%`** | `5` | `14.6425 B₀` @ `6.02%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 78` | **`78.00%`** | `1.25x` @ **`78.00%`** | `12` | `14.5519 B₀` @ `5.07%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 40` | `40.00%` | `2.4375x` @ `40.00%` | `3` | `14.4822 B₀` @ `6.40%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 50` | **`50.00%`** | `1.95x` @ **`50.00%`** | `4` | `14.459 B₀` @ `6.25%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 70` | **`70.00%`** | `1.3928x` @ **`70.00%`** | `8` | `14.1615 B₀` @ `5.76%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 26` | `26.00%` | `3.75x` @ `26.00%` | `2` | `14.0625 B₀` @ `6.76%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 7` | `7.00%` | `13.9285x` @ `7.00%` | `1` | `13.9285 B₀` @ `7.00%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 67` | **`67.00%`** | `1.4552x` @ **`67.00%`** | `7` | `13.8184 B₀` @ `6.06%` |
+| Gimboz Smash ✔︎ | `Cover 75` | **`75.00%`** | `1.3x` @ **`75.00%`** | `10` | `13.7858 B₀` @ `5.63%` |
+| ApeStrong ✔︎ | `Range 75` | **`75.00%`** | `1.2999x` @ **`75.00%`** | `10` | `13.7752 B₀` @ `5.63%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 63` | **`63.00%`** | `1.5476x` @ **`63.00%`** | `6` | `13.7389 B₀` @ `6.25%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 73` | **`73.00%`** | `1.3356x` @ **`73.00%`** | `9` | `13.5235 B₀` @ `5.89%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 41` | `41.00%` | `2.378x` @ `41.00%` | `3` | `13.4473 B₀` @ `6.89%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 58` | **`58.00%`** | `1.681x` @ **`58.00%`** | `5` | `13.4227 B₀` @ `6.56%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 82` | **`82.00%`** | `1.189x` @ **`82.00%`** | `15` | `13.4192 B₀` @ `5.10%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 77` | **`77.00%`** | `1.2662x` @ **`77.00%`** | `11` | `13.413 B₀` @ `5.64%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 81` | **`81.00%`** | `1.2037x` @ **`81.00%`** | `14` | `13.4047 B₀` @ `5.23%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 51` | **`51.00%`** | `1.9117x` @ **`51.00%`** | `4` | `13.3561 B₀` @ `6.77%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 83` | **`83.00%`** | `1.1746x` @ **`83.00%`** | `16` | `13.1293 B₀` @ `5.07%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 80` | **`80.00%`** | `1.2187x` @ **`80.00%`** | `13` | `13.0815 B₀` @ `5.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 27` | `27.00%` | `3.6111x` @ `27.00%` | `2` | `13.04 B₀` @ `7.29%` |
+| Primes ✔︎ | `Easy` | **`50.00%`** | `1.9x` @ `40.00%` | `4` | `13.0321 B₀` @ `6.25%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 71` | **`71.00%`** | `1.3732x` @ **`71.00%`** | `8` | `12.6436 B₀` @ `6.46%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 84` | **`84.00%`** | `1.1607x` @ **`84.00%`** | `17` | `12.5962 B₀` @ `5.16%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 42` | `42.00%` | `2.3214x` @ `42.00%` | `3` | `12.5098 B₀` @ `7.41%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 64` | **`64.00%`** | `1.5234x` @ **`64.00%`** | `6` | `12.4992 B₀` @ `6.87%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 79` | **`79.00%`** | `1.2341x` @ **`79.00%`** | `12` | `12.4797 B₀` @ `5.91%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 68` | **`68.00%`** | `1.4338x` @ **`68.00%`** | `7` | `12.4572 B₀` @ `6.72%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 52` | **`52.00%`** | `1.875x` @ **`52.00%`** | `4` | `12.3596 B₀` @ `7.31%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 59` | **`59.00%`** | `1.6525x` @ **`59.00%`** | `5` | `12.3227 B₀` @ `7.15%` |
+| Primes ✔︎ | `Medium` | `26.00%` | `3.5x` @ `25.00%` | `2` | `12.25 B₀` @ `6.76%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 8` | `8.00%` | `12.1875x` @ `8.00%` | `1` | `12.1875 B₀` @ `8.00%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 28` | `28.00%` | `3.4821x` @ `28.00%` | `2` | `12.125 B₀` @ `7.84%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 76` | **`76.00%`** | `1.2828x` @ **`76.00%`** | `10` | `12.0667 B₀` @ `6.43%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 74` | **`74.00%`** | `1.3175x` @ **`74.00%`** | `9` | `11.9607 B₀` @ `6.65%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 85` | **`85.00%`** | `1.147x` @ **`85.00%`** | `18` | `11.8071 B₀` @ `5.36%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 43` | `43.00%` | `2.2674x` @ `43.00%` | `3` | `11.6569 B₀` @ `7.95%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 53` | **`53.00%`** | `1.8396x` @ **`53.00%`** | `4` | `11.4523 B₀` @ `7.89%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 65` | **`65.00%`** | `1.5x` @ **`65.00%`** | `6` | `11.3906 B₀` @ `7.54%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 60` | **`60.00%`** | `1.625x` @ **`60.00%`** | `5` | `11.331 B₀` @ `7.78%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 29` | `29.00%` | `3.362x` @ `29.00%` | `2` | `11.303 B₀` @ `8.41%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 87` | **`87.00%`** | `1.1206x` @ **`87.00%`** | `21` | `10.926 B₀` @ `5.37%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 44` | `44.00%` | `2.2159x` @ `44.00%` | `3` | `10.8805 B₀` @ `8.52%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 86` | **`86.00%`** | `1.1337x` @ **`86.00%`** | `19` | `10.8509 B₀` @ `5.69%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 9` | `9.00%` | `10.8333x` @ `9.00%` | `1` | `10.8333 B₀` @ `9.00%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 54` | **`54.00%`** | `1.8055x` @ **`54.00%`** | `4` | `10.6265 B₀` @ `8.50%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 30` | `30.00%` | `3.25x` @ `30.00%` | `2` | `10.5625 B₀` @ `9.00%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 88` | **`88.00%`** | `1.1079x` @ **`88.00%`** | `23` | `10.5563 B₀` @ `5.29%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 45` | `45.00%` | `2.1666x` @ `45.00%` | `3` | `10.1704 B₀` @ `9.11%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 31` | `31.00%` | `3.1451x` @ `31.00%` | `2` | `9.891654 B₀` @ `9.61%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 89` | **`89.00%`** | `1.0955x` @ **`89.00%`** | `25` | `9.77934 B₀` @ `5.43%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 10` | `10.00%` | `9.75x` @ `10.00%` | `1` | `9.75 B₀` @ `10.00%` |
+| Bear-A-Dice ✔︎ | `Expert / 1 roll` | `16.67%` | `3.95x` @ `11.11%` | `1` | `9.72 B₀` @ `5.56%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 46` | `46.00%` | `2.1195x` @ `46.00%` | `3` | `9.521388 B₀` @ `9.73%` |
+| Roulette ✔︎ | `Dozen / Column` | `31.58%` | `3.075x` @ `31.58%` | `2` | `9.455625 B₀` @ `9.97%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 90` | **`90.00%`** | `1.0833x` @ **`90.00%`** | `28` | `9.396472 B₀` @ `5.23%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 32` | `32.00%` | `3.0468x` @ `32.00%` | `2` | `9.28299 B₀` @ `10.24%` |
+| Roulette ✔︎ | `Corner` | `10.53%` | `9.225x` @ `10.53%` | `1` | `9.225 B₀` @ `10.53%` |
+| Baccarat ✔︎ | `TIE` | `9.54%` | `9x` @ `9.54%` | `1` | `9 B₀` @ `9.54%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 47` | `47.00%` | `2.0744x` @ `47.00%` | `3` | `8.926424 B₀` @ `10.38%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 11` | `11.00%` | `8.8636x` @ `11.00%` | `1` | `8.8636 B₀` @ `11.00%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 33` | `33.00%` | `2.9545x` @ `33.00%` | `2` | `8.72907 B₀` @ `10.89%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 91` | **`91.00%`** | `1.0714x` @ **`91.00%`** | `31` | `8.482051 B₀` @ `5.37%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 34` | `34.00%` | `2.8676x` @ `34.00%` | `2` | `8.22313 B₀` @ `11.56%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 12` | `12.00%` | `8.125x` @ `12.00%` | `1` | `8.125 B₀` @ `12.00%` |
+| Baccarat ✔︎ | `PLAYER` | `44.61%` | `1x` @ `9.54%` | `3` | `8 B₀` @ `8.88%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 35` | `35.00%` | `2.7857x` @ `35.00%` | `2` | `7.760124 B₀` @ `12.25%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 92` | **`92.00%`** | `1.0597x` @ **`92.00%`** | `35` | `7.610316 B₀` @ `5.40%` |
+| Primes ✔︎ | `Extreme` | `12.30%` | `7.57x` @ `12.29%` | `1` | `7.57 B₀` @ `12.30%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 13` | `13.00%` | `7.5x` @ `13.00%` | `1` | `7.5 B₀` @ `13.00%` |
+| Bear-A-Dice ✔︎ | `Easy / 5 rolls` | `40.19%` | `1.216653x` @ `0.17%` | `3` | `7.439791 B₀` @ `5.00%` |
+| Baccarat ✔︎ | `BANKER` | `45.84%` | `1x` @ `9.54%` | `3` | `7.414875 B₀` @ `9.63%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 36` | `36.00%` | `2.7083x` @ `36.00%` | `2` | `7.334889 B₀` @ `12.96%` |
+| Bear-A-Dice ✔︎ | `Easy / 4 rolls` | `48.23%` | `1.125509x` @ `0.60%` | `3` | `7.26801 B₀` @ `5.01%` |
+| Bear-A-Dice ✔︎ | `Easy / 3 rolls` | **`57.87%`** | `1.092727x` @ `2.14%` | `4` | `7.151411 B₀` @ `5.03%` |
+| Bear-A-Dice ✔︎ | `Easy / 2 rolls` | **`69.44%`** | `1.0404x` @ `7.72%` | `7` | `7.023842 B₀` @ `5.00%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 14` | `14.00%` | `6.9642x` @ `14.00%` | `1` | `6.9642 B₀` @ `14.00%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 93` | **`93.00%`** | `1.0483x` @ **`93.00%`** | `41` | `6.916861 B₀` @ `5.10%` |
+| Speed Keno ✔︎ | `Picks 1` | `25.00%` | `2.4x` @ `25.00%` | `4` | `6.912 B₀` @ `5.08%` |
+| Bear-A-Dice ✔︎ | `Medium / 4 rolls` | `9.53%` | `2.005339x` @ `0.24%` | `1` | `6.717099 B₀` @ `5.41%` |
+| Bear-A-Dice ✔︎ | `Medium / 2 rolls` | `30.86%` | `1.3924x` @ `4.94%` | `2` | `6.602481 B₀` @ `5.41%` |
+| Blocks ✔︎ | `3x3 / High / 1 roll` | `28.40%` | `2.25x` @ `23.03%` | `1` | `6.5 B₀` @ `5.37%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 15` | `15.00%` | `6.5x` @ `15.00%` | `1` | `6.5 B₀` @ `15.00%` |
+| Bear-A-Dice ✔︎ | `Medium / 1 roll` | **`55.56%`** | `1.17x` @ `22.22%` | `4` | `6.324581 B₀` @ `5.41%` |
+| Bear-A-Dice ✔︎ | `Hard / 1 roll` | `33.33%` | `1.77x` @ `16.67%` | `1` | `6.3 B₀` @ `5.56%` |
+| Bear-A-Dice ✔︎ | `Easy / 1 roll` | **`83.33%`** | `1.01x` @ `27.78%` | `13` | `6.136522 B₀` @ `5.01%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 16` | `16.00%` | `6.0937x` @ `16.00%` | `1` | `6.0937 B₀` @ `16.00%` |
+| Bear-A-Dice ✔︎ | `Medium / 3 rolls` | `17.15%` | `1.643032x` @ `1.10%` | `1` | `6.080422 B₀` @ `5.40%` |
+| Monkey Match ✔︎ | `High` | `35.03%` | `2x` @ `18.74%` | `2` | `6 B₀` @ `8.76%` |
+| Keno ✔︎ | `Picks 2` | `44.23%` | `1.8x` @ `38.46%` | `3` | `5.832 B₀` @ `8.65%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 94` | **`94.00%`** | `1.0372x` @ **`94.00%`** | `48` | `5.772984 B₀` @ `5.13%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 17` | `17.00%` | `5.7352x` @ `17.00%` | `1` | `5.7352 B₀` @ `17.00%` |
+| Keno ✔︎ | `Picks 1` | `25.00%` | `2.25x` @ `25.00%` | `4` | `5.695313 B₀` @ `5.08%` |
+| Primes ✔︎ | `Hard` | `16.90%` | `5.5x` @ `16.80%` | `1` | `5.5 B₀` @ `16.90%` |
+| Bear-A-Dice ✔︎ | `Hard / 2 rolls` | `11.11%` | `3.2041x` @ `2.78%` | `1` | `5.4237 B₀` @ `8.33%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 18` | `18.00%` | `5.4166x` @ `18.00%` | `1` | `5.4166 B₀` @ `18.00%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 19` | `19.00%` | `5.1315x` @ `19.00%` | `1` | `5.1315 B₀` @ `19.00%` |
+| Blocks ✔︎ | `3x3 / High / 2 rolls` | `8.07%` | `5.0625x` @ `5.30%` | `1` | `5.0625 B₀` @ `8.07%` |
+| Geez Diggerz ✔︎ | `Any spin count 1-15` | `30.00%` | `1x` @ `1.94%` | `1` | `5 B₀` @ `6.32%` |
+| Speed Keno ✔︎ | `Picks 2` | `44.74%` | `1.45x` @ `39.47%` | `1` | `5 B₀` @ `5.26%` |
+| Monkey Match ✔︎ | `Low` | `44.44%` | `1.25x` @ `23.15%` | `3` | `5 B₀` @ `5.20%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 20` | `20.00%` | `4.875x` @ `20.00%` | `1` | `4.875 B₀` @ `20.00%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 21` | `21.00%` | `4.6428x` @ `21.00%` | `1` | `4.6428 B₀` @ `21.00%` |
+| Gimboz Smash ✔︎ | `Cover 95` | **`95.00%`** | `1.0263x` @ **`95.00%`** | `58` | `4.507244 B₀` @ `5.10%` |
+| Ape Strong / Gimboz Smash ✔︎ | `Range / Cover 22` | `22.00%` | `4.4318x` @ `22.00%` | `1` | `4.4318 B₀` @ `22.00%` |
+| Bear-A-Dice ✔︎ | `Medium / 5 rolls` | `5.29%` | `2.386354x` @ `0.05%` | `1` | `4.206831 B₀` @ `5.03%` |
+| ApeStrong ✔︎ | `Range 95` | **`95.00%`** | `1.025x` @ **`95.00%`** | `58` | `4.187783 B₀` @ `5.10%` |
+| Jungle Plinko ✔︎ | `Risk 0 / Low` | **`53.33%`** | `1.2x` @ `38.10%` | `6` | `4.18176 B₀` @ `5.24%` |
+| Keno ✔︎ | `Picks 4` | `25.59%` | `2x` @ `21.42%` | `2` | `4 B₀` @ `6.55%` |
+| Keno ✔︎ | `Picks 10` | `23.23%` | `1.2x` @ `14.71%` | `1` | `4 B₀` @ `8.52%` |
+| Jungle Plinko ✔︎ | `Risk 4 / Ultra Degen` | `22.18%` | `1.4x` @ `9.87%` | `1` | `4 B₀` @ `6.38%` |
+| Keno ✔︎ | `Picks 7` | `33.75%` | `1.25x` @ `17.64%` | `1` | `4 B₀` @ `5.20%` |
+| Jungle Plinko ✔︎ | `Risk 1 / Moderate` | `40.00%` | `1.25x` @ `26.67%` | `3` | `3.90625 B₀` @ `5.31%` |
+| Sushi Showdown ✔︎ | `Any spin count 1-15` | `23.91%` | `1.25x` @ `3.97%` | `1` | `3.8194 B₀` @ `7.66%` |
+| Jungle Plinko ✔︎ | `Risk 2 / High` | `30.85%` | `1.2x` @ `16.95%` | `3` | `3.75 B₀` @ `5.19%` |
+| Blocks ✔︎ | `3x3 / Low / 3 rolls` | `59.79%` | `1.030301x` @ `17.42%` | `4` | `3.742353 B₀` @ `5.80%` |
+| Blocks ✔︎ | `3x3 / Low / 4 rolls` | `50.37%` | `1.040604x` @ `9.73%` | `3` | `3.742353 B₀` @ `5.80%` |
+| Blocks ✔︎ | `3x3 / Low / 2 rolls` | `70.97%` | `1.0201x` @ `31.19%` | `5` | `3.668614 B₀` @ `6.09%` |
+| Blocks ✔︎ | `3x3 / Low / 5 rolls` | `42.44%` | `1.05101x` @ `5.43%` | `2` | `3.668614 B₀` @ `6.09%` |
+| Keno ✔︎ | `Picks 5` | **`58.35%`** | `1.1x` @ `27.77%` | `3` | `3.4375 B₀` @ `5.96%` |
+| Speed Keno ✔︎ | `Picks 4` | `24.87%` | `1.5x` @ `21.67%` | `3` | `3.375 B₀` @ `5.07%` |
+| Jungle Plinko ✔︎ | `Risk 3 / Degen` | `23.33%` | `1.5x` @ `11.70%` | `2` | `3.15 B₀` @ `5.65%` |
+| Speed Keno ✔︎ | `Picks 3` | `14.04%` | `2.5x` @ `13.16%` | `3` | `3.125 B₀` @ `7.30%` |
+| Cosmic Plinko ✔︎ | `Mode 2 / High` | `14.37%` | `1.5x` @ `6.19%` | `1` | `3 B₀` @ `8.18%` |
+| Keno ✔︎ | `Picks 9` | `19.03%` | `1.5x` @ `10.94%` | `1` | `3 B₀` @ `8.09%` |
+| Speed Keno ✔︎ | `Picks 5` | `26.63%` | `1.25x` @ `19.37%` | `1` | `3 B₀` @ `7.26%` |
+| Cosmic Plinko ✔︎ | `Risk 0 / Low` | `17.20%` | `1.2x` @ `6.62%` | `1` | `3 B₀` @ `6.17%` |
+| Keno ✔︎ | `Picks 6` | `30.74%` | `1.5x` @ `15.47%` | `2` | `3 B₀` @ `8.72%` |
+| Blocks ✔︎ | `3x3 / Low / 1 roll` | `84.25%` | `1.01x` @ `55.85%` | `5` | `2.937888 B₀` @ `5.87%` |
+| Keno ✔︎ | `Picks 3` | `14.88%` | `2.5x` @ `13.66%` | `1` | `2.5 B₀` @ `14.88%` |
+| Keno ✔︎ | `Picks 8` | `38.78%` | `1.1x` @ `22.24%` | `3` | `2.42 B₀` @ `6.41%` |
+| Cosmic Plinko ✔︎ | `Risk 1 / Modest` | `9.87%` | `2x` @ `5.74%` | `1` | `2 B₀` @ `9.87%` |
+| Bear-A-Dice ✔︎ | `Expert / 2 rolls` | `2.78%` | `16x` @ `1.23%` | `1` | `0 B₀` @ `100.00%` |
+| Bear-A-Dice ✔︎ | `Expert / 3 rolls` | `0.463%` | `64.4812x` @ `0.14%` | `1` | `0 B₀` @ `100.00%` |
+| Bear-A-Dice ✔︎ | `Expert / 4 rolls` | `0.0772%` | `263.767x` @ `0.02%` | `1` | `0 B₀` @ `100.00%` |
+| Bear-A-Dice ✔︎ | `Expert / 5 rolls` | `0.0129%` | `1,062.98x` @ `0.00%` | `1` | `0 B₀` @ `100.00%` |
+| Bear-A-Dice ✔︎ | `Hard / 3 rolls` | `3.70%` | `5.735339x` @ `0.46%` | `1` | `0 B₀` @ `100.00%` |
+| Bear-A-Dice ✔︎ | `Hard / 4 rolls` | `1.23%` | `10.2663x` @ `0.08%` | `1` | `0 B₀` @ `100.00%` |
+| Bear-A-Dice ✔︎ | `Hard / 5 rolls` | `0.4115%` | `18.3766x` @ `0.01%` | `1` | `0 B₀` @ `100.00%` |
+| Bear-A-Dice ✔︎ | `Master / 2 rolls` | `0.3086%` | `316.84x` @ `0.31%` | `1` | `0 B₀` @ `100.00%` |
+| Bear-A-Dice ✔︎ | `Master / 3 rolls` | `0.0171%` | `5,706.55x` @ `0.02%` | `1` | `0 B₀` @ `100.00%` |
+| Bear-A-Dice ✔︎ | `Master / 4 rolls` | `0.000953%` | `102,433.35x` @ `0.00%` | `1` | `0 B₀` @ `100.00%` |
+| Bear-A-Dice ✔︎ | `Master / 5 rolls` | `0.000053%` | `1,847,949.19x` @ `0.00%` | `1` | `0 B₀` @ `100.00%` |
+| Blocks ✔︎ | `3x3 / High / 3 rolls` | `2.29%` | `11.3906x` @ `1.22%` | `1` | `0 B₀` @ `100.00%` |
+| Blocks ✔︎ | `3x3 / High / 4 rolls` | `0.6506%` | `25.6289x` @ `0.28%` | `1` | `0 B₀` @ `100.00%` |
+| Blocks ✔︎ | `3x3 / High / 5 rolls` | `0.1848%` | `57.665x` @ `0.06%` | `1` | `0 B₀` @ `100.00%` |
+| Gimboz Smash ✔︎ | `Cover 1` | `1.00%` | `97.5x` @ `1.00%` | `1` | `0 B₀` @ `100.00%` |
+| Gimboz Smash ✔︎ | `Cover 2` | `2.00%` | `48.75x` @ `2.00%` | `1` | `0 B₀` @ `100.00%` |
+| Gimboz Smash ✔︎ | `Cover 3` | `3.00%` | `32.5x` @ `3.00%` | `1` | `0 B₀` @ `100.00%` |
+| Gimboz Smash ✔︎ | `Cover 4` | `4.00%` | `24.375x` @ `4.00%` | `1` | `0 B₀` @ `100.00%` |
+| Roulette ✔︎ | `Single Number` | `2.63%` | `36.9x` @ `2.63%` | `1` | `0 B₀` @ `100.00%` |
 
 Notes:
 
@@ -563,14 +569,14 @@ Notes:
 
 ## Not Included
 
-The following supported games are not included because the local repo does not currently keep a comparable exact net-profit win-rate surface for each mode:
+The following supported games are not included because the local repo does not currently keep a comparable profit-before-additional-costs frequency surface for each mode:
 
 | Game | Reason |
 |------|--------|
 | Blackjack ✔︎ | Main game is statistical/policy-dependent under the live H17 rule surface where the dealer hits soft 17, and side-bet win-rate surfaces are not represented as reusable exact mode rows. |
 | Cash Dash ✔︎ | Whole-run results depend on cash-out policy and the chosen target depth. |
 | Hi-Lo Nebula ✔︎ | Whole-run results depend on cash-out policy, current-rank decisions, and live jackpot state. |
-| Dino Dough ✔︎ | Exact RTP and max payout are documented, but a reusable exact net-profit win-rate distribution is not currently persisted locally. |
-| Bubblegum Heist ✔︎ | Exact RTP and max payout are documented, but a reusable exact net-profit win-rate distribution is not currently persisted locally. |
+| Dino Dough ✔︎ | Exact RTP and max payout are documented, but a reusable profit-before-additional-costs frequency distribution is not currently persisted locally. |
+| Bubblegum Heist ✔︎ | Exact RTP and max payout are documented, but a reusable profit-before-additional-costs frequency distribution is not currently persisted locally. |
 
 Public games not yet supported by this CLI remain outside this file for the same reason as in [GAMES_REFERENCE.md](./GAMES_REFERENCE.md): the local source set does not provide a complete exact mode surface.

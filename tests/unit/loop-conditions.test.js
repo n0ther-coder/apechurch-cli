@@ -14,9 +14,9 @@ import {
 describe('Loop Terminal Conditions', () => {
   it('parses balance and single-game terminal options together', () => {
     assert.deepStrictEqual(parseLoopTerminalOptions({
-      takeProfit: '200',
+      maxBalance: '200',
       minProfit: '30',
-      stopLoss: '50',
+      minBalance: '50',
       maxLoss: '15',
       maxGames: '25',
       targetX: '3.5',
@@ -27,7 +27,7 @@ describe('Loop Terminal Conditions', () => {
     }), {
       targetBalance: 200,
       minProfit: 30,
-      stopLoss: 50,
+      minBalance: 50,
       maxLoss: 15,
       maxGames: 25,
       targetX: 3.5,
@@ -63,27 +63,27 @@ describe('Loop Terminal Conditions', () => {
     );
   });
 
-  it('derives stop-loss from max-loss and starting balance', () => {
+  it('derives min-balance from max-loss and starting balance', () => {
     assert.deepStrictEqual(deriveLoopLossControls({
       startingBalanceApe: 100,
       maxLoss: 25,
     }), {
-      stopLoss: 75,
+      minBalance: null,
       maxLoss: 25,
-      derivedStopLoss: true,
+      derivedMinBalance: false,
       derivedMaxLoss: false,
     });
   });
 
-  it('derives max-loss bankroll from stop-loss and starting balance', () => {
+  it('derives max-loss bankroll from min-balance and starting balance', () => {
     assert.deepStrictEqual(deriveLoopLossControls({
       startingBalanceApe: 100,
-      stopLoss: 70,
+      minBalance: 70,
     }), {
-      stopLoss: 70,
-      maxLoss: 30,
-      derivedStopLoss: false,
-      derivedMaxLoss: true,
+      minBalance: 70,
+      maxLoss: null,
+      derivedMinBalance: false,
+      derivedMaxLoss: false,
     });
   });
 
@@ -132,6 +132,7 @@ describe('Loop Terminal Conditions', () => {
     assert.deepStrictEqual(condition, {
       kind: 'target_profit',
       threshold: 200,
+      pnlApe: 225,
       wagerApe: 25,
       payoutApe: 250,
       multiplier: 10,
@@ -183,7 +184,7 @@ describe('Loop Terminal Conditions', () => {
       gamesPlayed: 4,
     });
 
-    assert.ok(message.includes('Target multiplier hit! 7.5x >= 5x'));
+    assert.ok(message.includes('Target multiplier hit! 7.50× >= 5.00×'));
     assert.ok(message.includes('Payout: 75.00 APE on 10.00 APE wager'));
     assert.ok(message.includes('Games played: 4'));
   });
@@ -207,6 +208,7 @@ describe('Loop Terminal Conditions', () => {
 
   it('detects min-profit hits from session P&L', () => {
     const condition = getBalanceLoopTerminalCondition({
+      sessionPnlApe: 23,
       currentBalanceApe: 123,
       startingBalanceApe: 100,
       minProfit: 20,
@@ -222,6 +224,7 @@ describe('Loop Terminal Conditions', () => {
 
   it('detects max-loss hits from session P&L', () => {
     const condition = getBalanceLoopTerminalCondition({
+      sessionPnlApe: -21,
       currentBalanceApe: 79,
       startingBalanceApe: 100,
       maxLoss: 20,
@@ -239,6 +242,7 @@ describe('Loop Terminal Conditions', () => {
     const terminalState = createLoopTerminalState();
 
     assert.strictEqual(getBalanceLoopTerminalCondition({
+      sessionPnlApe: -15,
       currentBalanceApe: 85,
       startingBalanceApe: 100,
       recoverLoss: 20,
@@ -247,6 +251,7 @@ describe('Loop Terminal Conditions', () => {
     }), null);
 
     assert.strictEqual(getBalanceLoopTerminalCondition({
+      sessionPnlApe: -22,
       currentBalanceApe: 78,
       startingBalanceApe: 100,
       recoverLoss: 20,
@@ -257,6 +262,7 @@ describe('Loop Terminal Conditions', () => {
     assert.equal(terminalState.recoverLossArmed, true);
 
     assert.strictEqual(getBalanceLoopTerminalCondition({
+      sessionPnlApe: -4,
       currentBalanceApe: 96,
       startingBalanceApe: 100,
       recoverLoss: 20,
@@ -265,6 +271,7 @@ describe('Loop Terminal Conditions', () => {
     }), null);
 
     assert.strictEqual(getBalanceLoopTerminalCondition({
+      sessionPnlApe: -1,
       currentBalanceApe: 99,
       startingBalanceApe: 100,
       recoverLoss: 20,
@@ -273,6 +280,7 @@ describe('Loop Terminal Conditions', () => {
     }), null);
 
     assert.deepStrictEqual(getBalanceLoopTerminalCondition({
+      sessionPnlApe: 0,
       currentBalanceApe: 100,
       startingBalanceApe: 100,
       recoverLoss: 20,
@@ -291,6 +299,7 @@ describe('Loop Terminal Conditions', () => {
     const terminalState = createLoopTerminalState();
 
     assert.strictEqual(getBalanceLoopTerminalCondition({
+      sessionPnlApe: 30,
       currentBalanceApe: 130,
       startingBalanceApe: 100,
       givebackProfit: 40,
@@ -299,6 +308,7 @@ describe('Loop Terminal Conditions', () => {
     }), null);
 
     assert.strictEqual(getBalanceLoopTerminalCondition({
+      sessionPnlApe: 42,
       currentBalanceApe: 142,
       startingBalanceApe: 100,
       givebackProfit: 40,
@@ -309,6 +319,7 @@ describe('Loop Terminal Conditions', () => {
     assert.equal(terminalState.givebackProfitArmed, true);
 
     assert.strictEqual(getBalanceLoopTerminalCondition({
+      sessionPnlApe: 5,
       currentBalanceApe: 105,
       startingBalanceApe: 100,
       givebackProfit: 40,
@@ -317,6 +328,7 @@ describe('Loop Terminal Conditions', () => {
     }), null);
 
     assert.strictEqual(getBalanceLoopTerminalCondition({
+      sessionPnlApe: 1,
       currentBalanceApe: 101,
       startingBalanceApe: 100,
       givebackProfit: 40,
@@ -325,6 +337,7 @@ describe('Loop Terminal Conditions', () => {
     }), null);
 
     assert.deepStrictEqual(getBalanceLoopTerminalCondition({
+      sessionPnlApe: 0,
       currentBalanceApe: 100,
       startingBalanceApe: 100,
       givebackProfit: 40,
@@ -352,7 +365,7 @@ describe('Loop Terminal Conditions', () => {
       gamesPlayed: 9,
     });
 
-    assert.ok(message.includes('Loss recovered! Session P&L: +0.50 APE'));
+    assert.ok(message.includes('Loss recovered! PnL Profit: +0.50 APE'));
     assert.ok(message.includes('Armed at min P&L -26.00 APE; closed after returning to break-even/profit (recovered 26.50 APE)'));
     assert.ok(message.includes('Games played: 9'));
   });
@@ -370,7 +383,7 @@ describe('Loop Terminal Conditions', () => {
       gamesPlayed: 12,
     });
 
-    assert.ok(message.includes('Profit given back! Session P&L: -0.50 APE'));
+    assert.ok(message.includes('Profit given back! PnL Profit: -0.50 APE'));
     assert.ok(message.includes('Armed at max P&L +502.41 APE; closed after returning to break-even/loss (gave back 502.91 APE)'));
     assert.ok(message.includes('Games played: 12'));
   });
@@ -386,7 +399,7 @@ describe('Loop Terminal Conditions', () => {
       gamesPlayed: 5,
     });
 
-    assert.ok(message.includes('Min-profit reached! Session P&L: +23.00 APE (target: +20.00 APE)'));
+    assert.ok(message.includes('Min-profit reached! PnL Profit: +23.00 APE (target: +20.00 APE)'));
     assert.ok(message.includes('Games played: 5'));
   });
 
@@ -401,7 +414,7 @@ describe('Loop Terminal Conditions', () => {
       gamesPlayed: 5,
     });
 
-    assert.ok(message.includes('Max-loss hit! Session P&L: -21.00 APE (limit: -20.00 APE)'));
+    assert.ok(message.includes('Max-loss hit! PnL Profit: -21.00 APE (limit: -20.00 APE)'));
     assert.ok(message.includes('Games played: 5'));
   });
 });

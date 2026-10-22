@@ -409,14 +409,14 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--side <ape>'), 'Should show player side bet option');
       assert.ok(stdout.includes('--solver-max-states <n>'), 'Should show blackjack solver state cap option');
       assert.ok(stdout.includes('--solver-timeout-ms <ms>'), 'Should show blackjack solver timeout option');
-      assert.ok(stdout.includes('--take-profit <ape>'), 'Should show take-profit stop option');
-      assert.ok(stdout.includes('--min-profit <ape>'), 'Should show min-profit stop option');
+      assert.ok(stdout.includes('--max-balance <ape>'), 'Should show max-balance stop option');
+      assert.ok(stdout.includes('--min-profit <ape-or-percent>'), 'Should show min-profit stop option');
       assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
-      assert.ok(stdout.includes('--target-profit <ape>'), 'Should show single-game payout stop option');
-      assert.ok(stdout.includes('--retrace <ape>'), 'Should show single-game loss stop option');
-      assert.ok(stdout.includes('--recover-loss <ape>'), 'Should show drawdown recovery stop option');
-      assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
-      assert.ok(stdout.includes('--max-loss <ape>'), 'Should show max-loss stop option');
+      assert.ok(stdout.includes('--target-profit <ape-or-percent>'), 'Should show single-game payout stop option');
+      assert.ok(stdout.includes('--retrace <ape-or-percent>'), 'Should show single-game loss stop option');
+      assert.ok(stdout.includes('--recover-loss <ape-or-percent>'), 'Should show drawdown recovery stop option');
+      assert.ok(stdout.includes('--giveback-profit <ape-or-percent>'), 'Should show profit giveback stop option');
+      assert.ok(stdout.includes('--max-loss <ape-or-percent>'), 'Should show max-loss stop option');
       assert.ok(stdout.includes('--bankroll <ape>'), 'Should show bankroll alias');
       assert.ok(stdout.includes('--min-bet <ape>'), 'Should show minimum bet floor option');
       assert.ok(stdout.includes('bankroll-fraction=<0..1>'), 'Should document bankroll fraction strategy syntax');
@@ -427,14 +427,14 @@ describe('CLI Commands Integration Tests', () => {
     it('video-poker --help documents hidden timing options and generic auto-play', () => {
       const { stdout } = cli('video-poker --help');
       assert.ok(stdout.includes('--auto [mode]'), 'Should still show auto option');
-      assert.ok(stdout.includes('--take-profit <ape>'), 'Should show take-profit stop option');
-      assert.ok(stdout.includes('--min-profit <ape>'), 'Should show min-profit stop option');
+      assert.ok(stdout.includes('--max-balance <ape>'), 'Should show max-balance stop option');
+      assert.ok(stdout.includes('--min-profit <ape-or-percent>'), 'Should show min-profit stop option');
       assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
-      assert.ok(stdout.includes('--target-profit <ape>'), 'Should show single-game payout stop option');
-      assert.ok(stdout.includes('--retrace <ape>'), 'Should show single-game loss stop option');
-      assert.ok(stdout.includes('--recover-loss <ape>'), 'Should show drawdown recovery stop option');
-      assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
-      assert.ok(stdout.includes('--max-loss <ape>'), 'Should show max-loss stop option');
+      assert.ok(stdout.includes('--target-profit <ape-or-percent>'), 'Should show single-game payout stop option');
+      assert.ok(stdout.includes('--retrace <ape-or-percent>'), 'Should show single-game loss stop option');
+      assert.ok(stdout.includes('--recover-loss <ape-or-percent>'), 'Should show drawdown recovery stop option');
+      assert.ok(stdout.includes('--giveback-profit <ape-or-percent>'), 'Should show profit giveback stop option');
+      assert.ok(stdout.includes('--max-loss <ape-or-percent>'), 'Should show max-loss stop option');
       assert.ok(stdout.includes('--bankroll <ape>'), 'Should show bankroll alias');
       assert.ok(stdout.includes('--min-bet <ape>'), 'Should show minimum bet floor option');
       assert.ok(stdout.includes('bankroll-fraction=<0..1>'), 'Should document bankroll fraction strategy syntax');
@@ -448,14 +448,14 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--delay <seconds>'), 'Should still show delay option');
       assert.ok(stdout.includes('--solver-max-states <n>'), 'Should show blackjack solver state cap option');
       assert.ok(stdout.includes('--solver-timeout-ms <ms>'), 'Should show blackjack solver timeout option');
-      assert.ok(stdout.includes('--take-profit <ape>'), 'Should show take-profit stop option');
-      assert.ok(stdout.includes('--min-profit <ape>'), 'Should show min-profit stop option');
+      assert.ok(stdout.includes('--max-balance <ape>'), 'Should show max-balance stop option');
+      assert.ok(stdout.includes('--min-profit <ape-or-percent>'), 'Should show min-profit stop option');
       assert.ok(stdout.includes('--target-x <x>'), 'Should show single-game multiplier stop option');
-      assert.ok(stdout.includes('--target-profit <ape>'), 'Should show single-game payout stop option');
-      assert.ok(stdout.includes('--retrace <ape>'), 'Should show single-game loss stop option');
-      assert.ok(stdout.includes('--recover-loss <ape>'), 'Should show drawdown recovery stop option');
-      assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should show profit giveback stop option');
-      assert.ok(stdout.includes('--max-loss <ape>'), 'Should show max-loss stop option');
+      assert.ok(stdout.includes('--target-profit <ape-or-percent>'), 'Should show single-game payout stop option');
+      assert.ok(stdout.includes('--retrace <ape-or-percent>'), 'Should show single-game loss stop option');
+      assert.ok(stdout.includes('--recover-loss <ape-or-percent>'), 'Should show drawdown recovery stop option');
+      assert.ok(stdout.includes('--giveback-profit <ape-or-percent>'), 'Should show profit giveback stop option');
+      assert.ok(stdout.includes('--max-loss <ape-or-percent>'), 'Should show max-loss stop option');
       assert.ok(stdout.includes('--bankroll <ape>'), 'Should show bankroll alias');
       assert.ok(stdout.includes('--min-bet <ape>'), 'Should show minimum bet floor option');
       assert.ok(stdout.includes('bankroll-fraction=<0..1>'), 'Should document bankroll fraction strategy syntax');
@@ -607,19 +607,19 @@ describe('CLI Commands Integration Tests', () => {
 
     it('help loop documents startup game estimates where RTP is known', () => {
       const { stdout } = cli('help loop');
-      assert.ok(stdout.includes('--take-profit <ape>'), 'Should document take-profit stop');
-      assert.ok(stdout.includes('--min-profit <ape>'), 'Should document min-profit stop');
+      assert.ok(stdout.includes('--max-balance <ape>'), 'Should document max-balance stop');
+      assert.ok(stdout.includes('--min-profit <ape-or-percent>'), 'Should document min-profit stop');
       assert.ok(stdout.includes('--target-x <x>'), 'Should document single-game multiplier stop');
-      assert.ok(stdout.includes('--target-profit <ape>'), 'Should document single-game payout stop');
-      assert.ok(stdout.includes('--retrace <ape>'), 'Should document single-game loss stop');
-      assert.ok(stdout.includes('--recover-loss <ape>'), 'Should document drawdown recovery stop');
-      assert.ok(stdout.includes('--giveback-profit <ape>'), 'Should document profit giveback stop');
-      assert.ok(stdout.includes('--max-loss <ape>'), 'Should document max-loss stop');
+      assert.ok(stdout.includes('--target-profit <ape-or-percent>'), 'Should document single-game payout stop');
+      assert.ok(stdout.includes('--retrace <ape-or-percent>'), 'Should document single-game loss stop');
+      assert.ok(stdout.includes('--recover-loss <ape-or-percent>'), 'Should document drawdown recovery stop');
+      assert.ok(stdout.includes('--giveback-profit <ape-or-percent>'), 'Should document profit giveback stop');
+      assert.ok(stdout.includes('--max-loss <ape-or-percent>'), 'Should document max-loss stop');
       assert.ok(stdout.includes('--bankroll <ape>'), 'Should document bankroll alias');
       assert.ok(stdout.includes('--min-bet <ape>'), 'Should document minimum bet floor');
       assert.ok(stdout.includes('bankroll-fraction=<0..1>'), 'Should document bankroll fraction strategy syntax');
       assert.ok(stdout.includes('Estimate games before wallet squandering'), 'Should document wallet squandering estimate');
-      assert.ok(stdout.includes('Estimate games before stop-loss'), 'Should document stop-loss estimate');
+      assert.ok(stdout.includes('Estimate games before min-balance'), 'Should document min-balance estimate');
       assert.ok(stdout.includes('--human'), 'Should document humanized loop pacing');
       assert.ok(stdout.includes('Proceed? (Y/n)'), 'Should document the confirmation prompt');
     });
@@ -826,9 +826,9 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('max hit (x)'), 'Should render the max hit column');
       assert.ok(stdout.includes('Keno'), 'Should include supported games in the stats table');
       assert.ok(stdout.includes('Picks 1'), 'Should include unplayed exact modes in the catalog');
-      assert.ok(stdout.includes('1,000,000.00x'), 'Should include known top payouts for exact modes with fixed decimals');
+      assert.ok(stdout.includes('1,000,000.00×'), 'Should include known top payouts for exact modes with fixed decimals');
       assert.ok(stdout.includes('Bet 10/25/50/100/250 APE'), 'Should group non-jackpot video poker bet tiers');
-      assert.ok(stdout.includes('250.00x + 💰'), 'Should mark jackpot-aware max payouts with fixed decimals');
+      assert.ok(stdout.includes('250.00× + 💰'), 'Should mark jackpot-aware max payouts with fixed decimals');
       assert.ok(stdout.includes('Legend:'), 'Should explain the RTP badges');
       assert.ok(stdout.includes('📄 documented'), 'Should explain documented RTP values');
       assert.ok(stdout.includes('👌 exact formula'), 'Should explain exact-formula RTP values');
@@ -1214,25 +1214,25 @@ describe('CLI Commands Integration Tests', () => {
     it('shows the payout table through the current cash-dash alias', () => {
       const { stdout } = cli('dash payouts');
       assert.ok(stdout.includes('Tiles'));
-      assert.ok(stdout.includes('1.9200x'));
+      assert.ok(stdout.includes('1.92×'));
     });
 
     it('shows the payout table through the canonical cash-dash command', () => {
       const { stdout } = cli('cash-dash payouts');
       assert.ok(stdout.includes('Tiles'));
-      assert.ok(stdout.includes('1.9200x'));
+      assert.ok(stdout.includes('1.92×'));
     });
 
     it('shows the payout table through the current hi-lo alias', () => {
       const { stdout } = cli('hilo payouts');
       assert.ok(stdout.includes('Same'));
-      assert.ok(stdout.includes('12.5000x'));
+      assert.ok(stdout.includes('12.50×'));
     });
 
     it('shows the payout table through the canonical hi-lo command', () => {
       const { stdout } = cli('hi-lo-nebula payouts');
       assert.ok(stdout.includes('Same'));
-      assert.ok(stdout.includes('12.5000x'));
+      assert.ok(stdout.includes('12.50×'));
     });
 
     it('documents Hi-Lo Nebula loop controls in command help', () => {
@@ -1240,8 +1240,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(code, 0);
       assert.ok(stdout.includes('--loop'), 'Should expose loop mode in hi-lo help');
       assert.ok(stdout.includes('--max-games <count>'), 'Should expose max-games in hi-lo help');
-      assert.ok(stdout.includes('--min-profit <ape>'), 'Should expose min-profit in hi-lo help');
-      assert.ok(stdout.includes('--max-loss <ape>'), 'Should expose max-loss in hi-lo help');
+      assert.ok(stdout.includes('--min-profit <ape-or-percent>'), 'Should expose min-profit in hi-lo help');
+      assert.ok(stdout.includes('--max-loss <ape-or-percent>'), 'Should expose max-loss in hi-lo help');
       assert.ok(stdout.includes('--bet-strategy <name>'), 'Should expose betting strategies in hi-lo help');
     });
 
@@ -1252,8 +1252,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--cashout-after <rows>'), 'Should expose cashout-after in cash-dash help');
       assert.ok(stdout.includes('--loop'), 'Should expose loop mode in cash-dash help');
       assert.ok(stdout.includes('--max-games <count>'), 'Should expose max-games in cash-dash help');
-      assert.ok(stdout.includes('--min-profit <ape>'), 'Should expose min-profit in cash-dash help');
-      assert.ok(stdout.includes('--max-loss <ape>'), 'Should expose max-loss in cash-dash help');
+      assert.ok(stdout.includes('--min-profit <ape-or-percent>'), 'Should expose min-profit in cash-dash help');
+      assert.ok(stdout.includes('--max-loss <ape-or-percent>'), 'Should expose max-loss in cash-dash help');
       assert.ok(stdout.includes('--bet-strategy <name>'), 'Should expose betting strategies in cash-dash help');
     });
 
@@ -1717,10 +1717,10 @@ describe('CLI Commands Integration Tests', () => {
 `,
       });
 
-      const { stdout, code } = cli('bot arg-bot --base 10 --stop-loss 50');
+      const { stdout, code } = cli('bot arg-bot --base 10 --min-balance 50');
 
       assert.strictEqual(code, 0);
-      assert.ok(stdout.includes('["--base","10","--stop-loss","50"]'));
+      assert.ok(stdout.includes('["--base","10","--min-balance","50"]'));
     });
 
     it('forwards bot-specific help flags after the bot name', () => {
@@ -1872,7 +1872,7 @@ export default async function () {
       assert.strictEqual(payload.fallbackLoss, '2');
       assert.strictEqual(payload.fallbackBot, 'next-bot');
       assert.deepStrictEqual(payload.remainingArgs, ['private']);
-      assert.strictEqual(payload.line, '# game_n: 1, status: complete, bet: 2, payout: 5, multiply: 2.50');
+      assert.strictEqual(payload.line, '# game_n: 1, status: complete, bet: 2, payout: 5, multiplier: 2.50×');
     });
 
     it('exposes a botJson helper for nested bot responses', () => {

@@ -6,7 +6,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [30.0.0]
+
+### Breaking
+- Gross wager/payout and payout multipliers are separate from net PnL Profit
+  after all actual additional execution costs. Earlier scripts are incompatible
+  without migration; see [the two-column guide](docs/MIGRATION_30.md).
+- Wallet limits are `--min-balance` / `--max-balance`; profit/loss options now
+  consistently control net results in APE or whole percentages.
+
 ### Added
+- Receipt-based accounting with separate gross wager/payout, payout multiplier,
+  additional VRF/protocol/executor/gas/other costs, and net PnL Profit
+- Persistent per-transaction cost ledgers, including reverted attempts, safe
+  pending reconciliation, and cost exports for terminal transaction errors
+- Shared economic and threshold helpers plus implementation guidance for games
+  and external bot integrations
 - Shared `sync [path] -r/--recursive` support for log and script subfolders, preserving relative paths
 - Aggregate `bucket status` shows both log/script selections and every stored bucket, including inactive entries
 - Independent `bucket:log` and `bucket:script` selections, with two-way synchronization of manually named JSON command scripts
@@ -31,6 +46,16 @@ All notable changes to this project will be documented in this file.
   - Updated `ABI_VERIFICATION`, `COMMAND_REFERENCE`, and `GAMES_REFERENCE`
 
 ### Changed
+- Wallet thresholds use `--min-balance` and `--max-balance`. Profit/loss guards
+  use net PnL in APE or whole percentages of matching wager; `--take-profit`
+  and `--stop-loss` now alias the net profit/loss guards
+- Loop totals, history win/loss classification, and result output use actual
+  additional costs. Cumulative payout multipliers divide matching cumulative
+  wager, while planning estimates remain separate from execution results
+- Explicit fixed single-game stakes preserve up to 18 decimal places; display
+  rounding does not change gameplay inputs or condition comparisons
+- Native loops stop after exhausted transaction retries and pause on pending
+  plays instead of submitting a fresh wager
 - Both bucket types now sync only direct files by default, suggest recursive mode for excluded folders, and share help that explicitly identifies unqualified sync as logs only
 - Bucket commands report environment sources without exposing values and explicitly note when a command-line bucket name takes precedence, without additional confirmation
 - Bucket documentation, command indexes, and inline help now prefer `bucket:log` and `bucket:script`, with a Cloudflare setup and credential security guide plus examples for selective sync, named script revisions, remote prefixes, deletion, and temporary downloads

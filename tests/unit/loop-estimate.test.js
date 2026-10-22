@@ -29,17 +29,17 @@ describe('Loop Estimate Helpers', () => {
     assert.equal(formatLoopRunoutEstimate(estimate), 'Estimate games before wallet squandering ~44 games');
   });
 
-  it('estimates games before stop-loss from balance delta and expected loss per game', () => {
+  it('estimates games before min-balance from balance delta and expected loss per game', () => {
     const estimate = calculateLoopRunoutEstimate({
       balanceApe: 100,
       availableApe: 99,
-      stopLossApe: 60,
+      minBalanceApe: 60,
       expectedLossPerGameApe: 2.25,
     });
 
-    assert.equal(estimate.scopeLabel, 'stop-loss');
+    assert.equal(estimate.scopeLabel, 'min-balance');
     assert.equal(estimate.estimatedGames, 17);
-    assert.equal(formatLoopRunoutEstimate(estimate), 'Estimate games before stop-loss ~17 games');
+    assert.equal(formatLoopRunoutEstimate(estimate), 'Estimate games before min-balance ~17 games');
   });
 
   it('formats positive-EV estimates as unbounded', () => {

@@ -4,9 +4,9 @@ This table compares rows where EV and variance are available as exact closed-for
 
 Definitions:
 
-- `EV` is net expected value in stake units.
+- `EV` is expected profit before additional execution costs, in stake units.
 - `VARIANCE` is over `X = payout / stake` or, for batched games, over `X = total payout / total stake` for the count shown in `mode`.
-- `net profit` is the exact probability that the overall payout multiplier is strictly greater than `1x`.
+- `profit before costs` is the exact probability that gross payout exceeds gross wager. Actual net profit also subtracts additional execution costs.
 - `most outcome` is the exact overall payout multiplier with the highest unconditional probability, including losses, refunds, partial returns, and profitable outcomes. Ties are shown together.
 - `highest P(>1)` is the exact profitable overall payout multiplier above `1x` with the highest probability. Ties are shown together.
 - `Gimboz Smash` lists the first matching Gimboz cover by criterion order against `highest P(>1)`: first the highest-probability cover paying at least that outcome with a higher probability, then the highest-payout cover paying more with at least the same probability. For tied `highest P(>1)` values, the highest tied payout is used as the comparison target.
@@ -16,7 +16,7 @@ Definitions:
 - ApeStrong and Gimboz Smash are expanded across their complete finite supported surfaces. Large or policy-dependent surfaces use the exact representative rows documented in their analytics notes.
 - Blocks uses its implicit-default `3x3` rows here so this cross-game snapshot stays compact. One-roll rows also describe the RTP and payout cap of independent `--split` play; multi-roll rows are compounding `--survive` variants. The exact `2x2`, `3x3`, and `4x4` surface is in [BLOCKS_ANALYTICS.md](./analytics/BLOCKS_ANALYTICS.md).
 
-| game | mode | EV | VARIANCE | P(net profit) | most outcome | highest P(>1) | Gimboz Smash |
+| game | mode | EV | VARIANCE | P(profit before costs) | most outcome | highest P(>1) | Gimboz Smash |
 |---|---|---:|---:|---:|---|---|---|
 | Baccarat | BANKER | -1.064000% | 0.859764 | 45.842792% | **1.95x** @ 45.842792% | 1.95x @ 45.842792% | cover 50 1.95x@50% |
 | Baccarat | PLAYER | -1.228100% | 0.904424 | 44.614651% | 0x @ 45.842792% | 2x @ 44.614651% | cover 48 2.0312x@48% |

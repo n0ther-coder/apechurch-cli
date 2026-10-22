@@ -1,5 +1,8 @@
 # Personal Bot Development
 
+CLI 30 changes accounting and breaks compatibility with earlier scripts.
+See the [migration comparison](MIGRATION_30.md) before updating integrations.
+
 > Summary: Public guide for building personal Ape Church CLI bots against the `apechurch-cli bot` loader and runtime helpers.
 
 `apechurch-cli` supports personal local bots as trusted extensions. This public repository contains the bot loader, runtime helpers, and implementation contract; personal bot implementations live in a separate local directory or Git repository chosen by the operator. A bot is an external gameplay automation module that runs public `apechurch-cli play ...` commands through the CLI bot loader. Bots can be written for human operators, AI agents, or both.
@@ -176,6 +179,7 @@ The bot handler receives one context object:
 - `balanceJson()`: read the local wallet balance through the CLI wallet runtime.
 - `captureBalanceSnapshot(details)`: read the wallet balance and record a structured snapshot for the final bot JSON.
 - `updateRunSummary(summary)`: atomically rewrite the current run JSON log with a partial summary.
+- `estimatePlayCosts(name, {config, gasUnits, additionalReserveApe})`: current read-only fee and gas-price estimate for planning. Actual result costs always come from receipts.
 - `session`: shared bot helpers for parsing, formatting, colors, P&L, and fallback behavior.
 
 Route gameplay through `play` or `playJson`. Bots should not depend on hidden contract APIs or on unrelated top-level CLI commands such as `wallet`, `send`, `house`, or `profile`.
@@ -187,14 +191,14 @@ Every bot should support:
 - `-h, --help`: print the bot's own usage, options, purpose, and operating model. `apechurch-cli bot --help` is reserved for the shared loader.
 - `--json`: print one final parseable JSON payload on stdout.
 - `--color`: force ANSI-colored plain output even when stdout is not detected as an interactive TTY. JSON stdout remains parseable; any plain progress emitted during JSON runs goes to stderr through the shared runtime.
-- `--fallback-loss <ape>` and `--fallback-bot <name>`: specify both together. If the current bot finishes below break-even and `abs(P&L) >= <ape>`, call the fallback bot with `<ape>` as its first argument.
+- `--fallback-loss <ape|n%>` and `--fallback-bot <name>`: specify both together. If the current bot finishes below break-even and `abs(P&L) >= <ape>`, call the fallback bot with `<ape>` as its first argument.
 
 Unless a bot has more specific implementation instructions, and documents those instructions in both its README and inline help, every bot should also accept the standard loop controls below:
 
-- `--take-profit <ape>` and `--stop-loss <ape>`: absolute wallet balance thresholds for the complete bot run. Bots should forward these exact absolute values to every CLI play and nested bot call so execution can stop inside a child ladder as soon as the wallet crosses either boundary.
-- `--min-profit <ape>` and `--max-loss <ape>`: relative gross P&L shortcuts for the complete bot run. At startup, derive absolute wallet `--take-profit` and `--stop-loss` thresholds from the current wallet balance and forward those derived absolute values to every CLI play and nested bot call.
+- `--max-balance <ape>` and `--min-balance <ape>`: absolute wallet balance thresholds for the complete bot run. Bots should forward these exact absolute values to every CLI play and nested bot call so execution can stop inside a child ladder as soon as the wallet crosses either boundary.
+- `--min-profit <ape|n%>` / `--take-profit` and `--max-loss <ape|n%>` / `--stop-loss`: net PnL Profit guards for the complete run. Percentages use its actual cumulative wager. They do not derive wallet thresholds.
 - `--bankroll <ape>`: alias for `--max-loss`, used by bots or strategies that express their loss budget as bankroll instead of max loss.
-- `--recover-loss <ape>` and `--giveback-profit <ape>`: net wallet P&L controls for the complete bot run. `--recover-loss` arms after P&L reaches `-<ape>` or worse and stops at break-even/profit; `--giveback-profit` arms after P&L reaches `+<ape>` or better and stops at break-even/loss.
+- `--recover-loss <ape|n%>` and `--giveback-profit <ape|n%>`: net result PnL controls for the complete bot run. `--recover-loss` arms after P&L reaches `-<ape>` or worse and stops at break-even/profit; `--giveback-profit` arms after P&L reaches `+<ape>` or better and stops at break-even/loss.
 - `--max-routines <count>`: limits routines of the main bot only. Do not forward this option to games, nested bots, or child games.
 - `--gp-ape <points>`: forwarded to each CLI play launched by the bot.
 - `--human [range]`: bots propagate this to every child CLI play and nested bot. Bare `--human` uses the weighted 3-9s profile; `weighted:3-9` is the explicit serialized form of that profile, while ranges such as `2-17` use a uniform random seconds window. Bots that manage child run loops may also apply it internally between child runs.
@@ -224,20 +228,18 @@ export default async function run(ctx) {
 
 Before a live run, a bot should confirm unsafe missing guards:
 
-- If neither `--stop-loss` nor `--max-loss` is provided, ask for confirmation before proceeding and warn that the bot could drain all available funds.
-- If `--max-loss` is provided without `--stop-loss`, calculate an absolute wallet `--stop-loss` from the current balance and pass that same absolute threshold to every CLI play or nested bot call.
-- If `--stop-loss` is provided without `--max-loss`, calculate the bot's relative bankroll as `starting balance - stop-loss` for gross P&L checks.
-- If neither `--take-profit` nor `--min-profit` is provided, ask for confirmation before proceeding and warn that the bot theoretically terminates only in loss.
-- If `--min-profit` is provided without `--take-profit`, calculate an absolute wallet `--take-profit` from the current balance and pass that same absolute threshold to every CLI play or nested bot call.
+- If neither `--min-balance` nor `--max-loss` is provided, ask for confirmation before proceeding and warn that the bot could drain all available funds.
+- A wallet floor may define initial strategy capital for sizing; it does not create an implicit net-PnL guard.
+- If neither `--max-balance` nor `--min-profit` is provided, ask for confirmation before proceeding and warn that the bot theoretically terminates only in loss.
 
 ## Output Contract
 
 Human-readable output should use this shape for each game:
 
 ```text
-# <YYYY-MMM-DD HH:mm:ss±ZZZZ> | balance: <balance>, payout_ape: <total payouts>, wager_ape: <total wagered>, gross pnl: <payouts-wagers>
-apechurch-cli play <game> ...  # bet: <bet>, payout: <payout> (<payout-bet>)
-# routine: <n>, wagered: <routine wager>, gross pnl: <payouts-wagers>, multiply: <payout/wager>
+# <YYYY-MMM-DD HH:mm:ss±ZZZZ> | balance: <balance>, payout_ape: <total payouts>, wager_ape: <total wagered>, PnL Profit: <payouts-wagers-costs>
+apechurch-cli play <game> ...  # bet: <bet>, payout: <payout> (PnL Profit: <payout-bet-costs> APE)
+# routine: <n>, wagered: <routine wager>, PnL Profit: <payouts-wagers-costs>, multiplier: <payout/wager with two decimals>×
 ```
 
 After the final game, print the balance line one more time. Prefer the session formatters instead of hand-building this output:
@@ -249,7 +251,7 @@ After the final game, print the balance line one more time. Prefer the session f
 - `session.colorPnl(...)`
 - `session.colorCommand(...)`
 
-`formatBeforeGameLine` and `formatIterationSummaryLine` default to `pnlBasis: 'gross'`. Pass `pnlBasis: 'net'` whenever `totalPnlWei` is derived from wallet-balance movement or otherwise includes fees rather than simply `payout - wager`.
+`formatBeforeGameLine` and `formatIterationSummaryLine` always label the supplied result `PnL Profit`. Pass recorded net `totalPnlWei`, subtracting additional costs once. Wallet movement is a separate reconciliation value, not a substitute for game accounting. `formatCommandEconomicsSuffix` requires a known net `pnlWei`; when it is absent, the label is unavailable rather than an inferred gross result.
 
 For JSON mode, return exactly one final summary object. The loader enriches returned summaries with `run_id`, `root_run_id`, parent call metadata, timestamps, raw `args`, `balance_snapshots`, and `nested_bot_calls`. Include each nested `playJson` payload under the matching game entry. During long runs, also pass the same summary shape to `ctx.updateRunSummary({ ...summary, status: "running" })` after each completed iteration so the JSON log remains reconstructable if the process is interrupted.
 
@@ -284,6 +286,12 @@ Keep option families separate when building command tokens:
 
 ## Implementation Checklist
 
+Follow the [accounting contract](ACCOUNTING.md) for game and nested bot results.
+Wager and payout are gross; multiplier is payout divided by matching actual
+wager. PnL Profit is net of additional child costs. Preserve cost components for
+callers and count each child transaction once. Keep historical planning estimates
+distinct from actual exported execution costs.
+
 Before considering a bot ready:
 
 - The bot directory includes a bot-specific `README.md` with the recommended structure above.
@@ -293,6 +301,21 @@ Before considering a bot ready:
 - Dry-run or mock mode covers branch logic without live wagers.
 - Live execution stops on unsettled or indeterminate play results.
 - Fallback options are parsed through `session.parseStandardBotArgs`.
-- Standard loop controls are parsed through `session.parseStandardBotArgs`, enforced against gross bot P&L, and forwarded according to the standard bot contract.
+- Standard loop controls are parsed through `session.parseStandardBotArgs`, enforced against actual net bot PnL, and forwarded according to the standard bot contract.
 - Human-readable output uses the shared session formatters.
 - Wager sizing and P&L use integer wei math.
+
+## Result accounting checklist
+
+Follow [ACCOUNTING.md](ACCOUNTING.md). `getSettledPlayEconomics` and
+`getNestedBotEconomics` return gross wager/payout and net `pnlWei`; never
+reconstruct payout from net PnL. Supply actual `totalWagerWei` and
+`routineWagerWei` to standard guards so result percentages use matching scopes.
+`getBotEconomicsFields` exports aggregate costs and deduplicates child receipt
+hashes. Include fallback children as well as direct games.
+
+Test positive payout ratios with negative net PnL, repeated calls with matching
+cumulative W/P, changing cost estimates, and failed/resumed transactions.
+Options called payout must represent payout multipliers; options called profit
+or loss represent net results. Document any fixed opening-bet percentage budget
+explicitly. Estimates must never be exported as actual transaction costs.

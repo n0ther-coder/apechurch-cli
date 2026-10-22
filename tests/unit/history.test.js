@@ -201,8 +201,9 @@ describe('History Helpers', () => {
       assert.strictEqual(entries[0].game, 'ApeStrong ✔︎');
       assert.strictEqual(entries[0].wager_ape, '1');
       assert.strictEqual(entries[0].payout_ape, '2.5');
-      assert.strictEqual(entries[0].pnl_ape, '1.5');
-      assert.strictEqual(entries[0].won, true);
+      assert.strictEqual(entries[0].gross_profit_ape, '1.5');
+      assert.strictEqual(entries[0].pnl_ape, null);
+      assert.strictEqual(entries[0].won, null);
     });
 
     it('reads video poker history via getGameInfo', async () => {
@@ -230,7 +231,8 @@ describe('History Helpers', () => {
       assert.strictEqual(entries[0].game, 'Video Poker ✔︎');
       assert.strictEqual(entries[0].wager_ape, '25');
       assert.strictEqual(entries[0].payout_ape, '45');
-      assert.strictEqual(entries[0].pnl_ape, '20');
+      assert.strictEqual(entries[0].gross_profit_ape, '20');
+      assert.strictEqual(entries[0].pnl_ape, null);
       assert.strictEqual(entries[0].settled, true);
     });
   });

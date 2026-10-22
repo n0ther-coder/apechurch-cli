@@ -25,6 +25,30 @@ function pendingPayload(overrides = {}) {
 }
 
 describe('Pending play reconciliation', () => {
+  it('retains completed loop results while reconciling only the pending wager', async () => {
+    const { createEconomics, serializeEconomics } = await import('../../lib/economics.js');
+    const settled = serializeEconomics(createEconomics({ wagerWei: parseEther('2'),
+      payoutWei: parseEther('4'), costsWei: parseEther('0.1') }));
+    const payload = { status: 'pending', loop: true, games_played: 1,
+      games_detail: [{ ...settled, result: { payout_ape: '4' } }], pending_play: pendingPayload() };
+    let reads = 0;
+    const result = await reconcilePendingPlay(payload, {
+      publicClient: { readContract: async () => { reads++;
+        return [['0x2222222222222222222222222222222222222222'], [parseEther('1')], [parseEther('1.5')], [1n], [true]];
+      } },
+      saveHistoryFn: () => {},
+    });
+    assert.equal(reads, 1);
+    assert.equal(result.status, 'complete');
+    assert.equal(result.games_played, 2);
+    assert.equal(result.wager_ape, '3');
+    assert.equal(result.payout_ape, '5.5');
+    assert.equal(result.multiplier_display, '1.83×');
+    assert.equal(result.pending_play, null);
+    // No receipt fixture was supplied, so the second game's net result must
+    // remain unknown instead of pretending that its costs were zero.
+    assert.equal(result.pnl_ape, null);
+  });
   it('extracts the immutable reference for a known pending play', () => {
     assert.deepStrictEqual(getPendingPlayReference(pendingPayload()), {
       contract: CONTRACT,

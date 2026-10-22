@@ -170,7 +170,7 @@ describe('game paytable descriptions', () => {
     assert.match(output, /Parameters/);
     assert.match(output, /picks\s+5/);
     assert.match(output, /min_multiplier\s+max_multiplier/);
-    assert.match(output, /0\.2x\s+2000x/);
-    assert.match(output, /5 hits\s+2000x/);
+    assert.match(output, /0\.20×\s+2000\.00×/);
+    assert.match(output, /5 hits\s+2000\.00×/);
   });
 });

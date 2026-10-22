@@ -13,7 +13,7 @@ describe('Glyde or Crash helpers', () => {
       multiplierBasisPoints: 15000,
       targetMultiplier: 15000,
       winChance: '64.6666%',
-      payout: '1.5x',
+      payout: '1.50×',
       exactRtp: '96.9999%',
     });
 
@@ -22,7 +22,7 @@ describe('Glyde or Crash helpers', () => {
       multiplierBasisPoints: 20000,
       targetMultiplier: 20000,
       winChance: '48.5%',
-      payout: '2x',
+      payout: '2.00×',
       exactRtp: '97%',
     });
   });
@@ -50,9 +50,9 @@ describe('Glyde or Crash helpers', () => {
     });
 
     assert.deepStrictEqual(details, {
-      target_multiplier: '50x',
+      target_multiplier: '50.00×',
       target_multiplier_bps: 500000,
-      crash_multiplier: '1.9449x',
+      crash_multiplier: '1.94×',
       crash_multiplier_bps: 19449,
       won: false,
       reached_target: false,

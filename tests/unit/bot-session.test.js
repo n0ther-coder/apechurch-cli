@@ -55,13 +55,13 @@ describe('Bot Session Helpers', () => {
 
   it('parses standard bot loop controls separately from private args', () => {
     const parsed = parseStandardBotArgs([
-      '--take-profit=12',
+      '--max-balance=12',
       '--min-profit',
       '5',
       '--recover-loss',
       '3',
       '--giveback-profit=4',
-      '--stop-loss',
+      '--min-balance',
       '8',
       '--max-loss=9',
       '--max-routines',
@@ -77,11 +77,11 @@ describe('Bot Session Helpers', () => {
     ]);
 
     assert.deepStrictEqual(parsed.loopControls, {
-      takeProfit: '12',
+      maxBalance: '12',
       minProfit: '5',
       recoverLoss: '3',
       givebackProfit: '4',
-      stopLoss: '8',
+      minBalance: '8',
       maxLoss: '9',
       retrace: null,
       maxGames: '2',
@@ -102,16 +102,16 @@ describe('Bot Session Helpers', () => {
     );
   });
 
-  it('allows --stop-loss 0 while keeping other APE loop controls positive', () => {
-    const parsed = parseStandardBotArgs(['--stop-loss', '0']);
+  it('allows --min-balance 0 while keeping other APE loop controls positive', () => {
+    const parsed = parseStandardBotArgs(['--min-balance', '0']);
 
-    assert.strictEqual(parsed.loopControls.stopLoss, '0');
+    assert.strictEqual(parsed.loopControls.minBalance, '0');
     assert.throws(
       () => parseStandardBotArgs(['--max-loss', '0']),
       /Must be a positive APE amount/,
     );
     assert.throws(
-      () => parseStandardBotArgs(['--take-profit', '0']),
+      () => parseStandardBotArgs(['--max-balance', '0']),
       /Must be a positive APE amount/,
     );
   });
@@ -219,9 +219,9 @@ describe('Bot Session Helpers', () => {
 
   it('forwards absolute wallet guards and human timing to CLI plays', async () => {
     const parsed = parseStandardBotArgs([
-      '--take-profit',
+      '--max-balance',
       '1400',
-      '--stop-loss',
+      '--min-balance',
       '300',
       '--gp-ape',
       '7.5',
@@ -238,9 +238,9 @@ describe('Bot Session Helpers', () => {
 
     assert.deepStrictEqual(
       getStandardBotCliForwardTokens(parsed.loopControls, runtime),
-      ['--take-profit', '1400', '--stop-loss', '300', '--gp-ape', '7.5', '--resilient', '--human'],
+      ['--max-balance', '1400', '--min-balance', '300', '--gp-ape', '7.5', '--resilient', '--human'],
     );
-    assert.strictEqual(parsed.loopControls.maxLoss, '700');
+    assert.strictEqual(parsed.loopControls.maxLoss, null);
   });
 
   it('derives CLI wallet guards from relative min-profit and max-loss controls', async () => {
@@ -263,7 +263,7 @@ describe('Bot Session Helpers', () => {
 
     assert.deepStrictEqual(
       getStandardBotCliForwardTokens(parsed.loopControls, runtime),
-      ['--take-profit', '105', '--stop-loss', '92', '--gp-ape', '7.5', '--human'],
+      ['--gp-ape', '7.5', '--human'],
     );
   });
 
@@ -293,14 +293,14 @@ describe('Bot Session Helpers', () => {
         remainingMaxGames: 2,
       }),
       [
-        '--take-profit',
-        '105',
+        '--min-profit',
+        '5',
         '--recover-loss',
         '3',
         '--giveback-profit',
         '4',
-        '--stop-loss',
-        '92',
+        '--max-loss',
+        '8',
         '--resilient',
       ],
     );
@@ -345,7 +345,7 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(
       getStandardBotLoopCondition({
         loopControls: parsed.loopControls,
-        totalPnlWei: 500n * 10n ** 18n,
+        totalPnlWei: parseApeToWei('-180'),
         currentBalanceApe: '820',
         startingBalanceApe: '1000',
         executions: 1,
@@ -359,7 +359,7 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(
       getStandardBotLoopCondition({
         loopControls: parsed.loopControls,
-        totalPnlWei: 500n * 10n ** 18n,
+        totalPnlWei: parseApeToWei('-90'),
         currentBalanceApe: '910',
         startingBalanceApe: '1000',
         executions: 2,
@@ -371,7 +371,7 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(
       getStandardBotLoopCondition({
         loopControls: parsed.loopControls,
-        totalPnlWei: 500n * 10n ** 18n,
+        totalPnlWei: parseApeToWei('-79'),
         currentBalanceApe: '921',
         startingBalanceApe: '1000',
         executions: 3,
@@ -383,7 +383,7 @@ describe('Bot Session Helpers', () => {
     assert.deepStrictEqual(
       getStandardBotLoopCondition({
         loopControls: parsed.loopControls,
-        totalPnlWei: 500n * 10n ** 18n,
+        totalPnlWei: parseApeToWei('0'),
         currentBalanceApe: '1000',
         startingBalanceApe: '1000',
         executions: 4,
@@ -408,7 +408,7 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(
       getStandardBotLoopCondition({
         loopControls: parsed.loopControls,
-        totalPnlWei: -1n * 10n ** 18n,
+        totalPnlWei: parseApeToWei('502.41'),
         currentBalanceApe: '1502.41',
         startingBalanceApe: '1000',
         executions: 8,
@@ -422,7 +422,7 @@ describe('Bot Session Helpers', () => {
     assert.strictEqual(
       getStandardBotLoopCondition({
         loopControls: parsed.loopControls,
-        totalPnlWei: -1n * 10n ** 18n,
+        totalPnlWei: parseApeToWei('102.4'),
         currentBalanceApe: '1102.4',
         startingBalanceApe: '1000',
         executions: 9,
@@ -434,7 +434,7 @@ describe('Bot Session Helpers', () => {
     assert.deepStrictEqual(
       getStandardBotLoopCondition({
         loopControls: parsed.loopControls,
-        totalPnlWei: -1n * 10n ** 18n,
+        totalPnlWei: parseApeToWei('0'),
         currentBalanceApe: '1000',
         startingBalanceApe: '1000',
         executions: 10,
@@ -459,8 +459,8 @@ describe('Bot Session Helpers', () => {
     );
   });
 
-  it('detects absolute wallet take-profit and stop-loss loop conditions', () => {
-    const parsed = parseStandardBotArgs(['--take-profit', '1400', '--stop-loss', '300']);
+  it('detects absolute wallet max-balance and min-balance loop conditions', () => {
+    const parsed = parseStandardBotArgs(['--max-balance', '1400', '--min-balance', '300']);
 
     assert.deepStrictEqual(
       getStandardBotLoopCondition({
@@ -470,7 +470,7 @@ describe('Bot Session Helpers', () => {
         executions: 4,
       }),
       {
-        kind: 'take_profit',
+        kind: 'max_balance',
         threshold_ape: '1400',
         balance_ape: '1400.1',
         pnl_ape: '10',
@@ -486,7 +486,7 @@ describe('Bot Session Helpers', () => {
         executions: 5,
       }),
       {
-        kind: 'stop_loss',
+        kind: 'min_balance',
         threshold_ape: '300',
         balance_ape: '299.9',
         pnl_ape: '-10',
@@ -515,7 +515,7 @@ describe('Bot Session Helpers', () => {
         totalPnlWei: 10n * 10n ** 18n,
         timestamp: new Date(2026, 6, 18, 18, 33, 15),
       }),
-      /^# 2026-JUL-18 18:33:15[+-]\d{4} \| balance: 100\.0000, payout_ape: 30, wager_ape: 20, gross pnl: 10$/,
+      /^# 2026-JUL-18 18:33:15[+-]\d{4} \| balance: 100\.0000, payout_ape: 30, wager_ape: 20, PnL Profit: 10$/,
     );
 
     assert.match(
@@ -527,7 +527,7 @@ describe('Bot Session Helpers', () => {
         pnlBasis: 'net',
         timestamp: new Date(2026, 6, 18, 18, 34, 15),
       }),
-      /^# 2026-JUL-18 18:34:15[+-]\d{4} \| balance: 105\.0000, payout_ape: 0, wager_ape: 0, net pnl: 5$/,
+      /^# 2026-JUL-18 18:34:15[+-]\d{4} \| balance: 105\.0000, payout_ape: 0, wager_ape: 0, PnL Profit: 5$/,
     );
 
     assert.strictEqual(
@@ -537,7 +537,7 @@ describe('Bot Session Helpers', () => {
         totalPayoutWei: 25n * 10n ** 18n,
         totalPnlWei: 5n * 10n ** 18n,
       }),
-      '# routine: 3, wagered: 20, gross pnl: 5, multiply: 1.25',
+      '# routine: 3, wagered: 20, PnL Profit: 5, multiplier: 1.25×',
     );
 
     assert.strictEqual(
@@ -548,7 +548,7 @@ describe('Bot Session Helpers', () => {
         totalPnlWei: 3n * 10n ** 18n,
         pnlBasis: 'net',
       }),
-      '# routine: 4, wagered: 2, net pnl: 3, multiply: 2.50',
+      '# routine: 4, wagered: 2, PnL Profit: 3, multiplier: 2.50×',
     );
 
     assert.strictEqual(
@@ -557,7 +557,7 @@ describe('Bot Session Helpers', () => {
         wager_ape: '3.248005801137022857',
         result: { payout_ape: '0' },
       }),
-      '  # bet: 3.248006, payout: 0 (-3.248006)',
+      '  # bet: 3.248006, payout: 0 (PnL Profit: -3.248006 APE)',
     );
 
     assert.strictEqual(
@@ -566,7 +566,7 @@ describe('Bot Session Helpers', () => {
         betAmountApe: 45,
         totalPayoutApe: 90,
       }),
-      '  # bet: 45, payout: 90 (+45)',
+      '  # bet: 45, payout: 90 (PnL Profit: +45 APE)',
     );
 
     assert.strictEqual(
@@ -606,8 +606,8 @@ describe('Bot Session Helpers', () => {
       "apechurch-cli play roulette 10 'RED BLACK'",
     );
     assert.strictEqual(
-      formatBotCommandLine('nested-bot', ['16', '--take-profit', '1400']),
-      'apechurch-cli bot nested-bot 16 --take-profit 1400',
+      formatBotCommandLine('nested-bot', ['16', '--max-balance', '1400']),
+      'apechurch-cli bot nested-bot 16 --max-balance 1400',
     );
   });
 
@@ -638,12 +638,12 @@ describe('Bot Session Helpers', () => {
       assert.doesNotMatch(directLine, /\x1b\[33m\x1b\[2mapechurch-cli/);
       assert.match(directLine, /payout: \x1b\[32m25\x1b\[39m/);
       assert.doesNotMatch(directLine, /payout: \x1b\[32m\x1b\[1m25/);
-      assert.match(directLine, /\(\x1b\[92m\x1b\[1m\+15\x1b\[22m\x1b\[39m\)/);
-      assert.match(directPushLine, /\(\x1b\[95m\x1b\[1m0\x1b\[22m\x1b\[39m\)/);
+      assert.match(directLine, /\(PnL Profit: \x1b\[92m\x1b\[1m\+15\x1b\[22m\x1b\[39m APE\)/);
+      assert.match(directPushLine, /\(PnL Profit: \x1b\[95m\x1b\[1m0\x1b\[22m\x1b\[39m APE\)/);
 
       assert.strictEqual(
         nestedChildLine,
-        '\x1b[33m\x1b[2mapechurch-cli play speed-keno 10  # bet: 10, payout: 25 (+15)\x1b[22m\x1b[39m',
+        '\x1b[33m\x1b[2mapechurch-cli play speed-keno 10  # bet: 10, payout: 25 (PnL Profit: +15 APE)\x1b[22m\x1b[39m',
       );
       assert.doesNotMatch(nestedChildLine, /\x1b\[92m/);
       assert.doesNotMatch(nestedChildLine, /\x1b\[1m\+15/);

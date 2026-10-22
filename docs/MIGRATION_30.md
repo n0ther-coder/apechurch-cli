@@ -1,0 +1,47 @@
+# Migrating to CLI 30: gross returns and net PnL
+
+**Breaking change: scripts written for earlier CLI versions are incompatible
+without review and migration.** Identical option names can now mean different
+things. `script read`, `script write` and `script watch` translate or launch
+commands; they do not migrate their financial semantics. Stop an old watcher,
+review its script, save a separately named revision, validate it, then restart
+the watcher explicitly. A running watcher keeps its loaded command.
+
+For each controlled result or group, W is actual gross wager, P is gross payout,
+and C is actual additional costs. **Multiplier = P/W; PnL Profit = P-W-C.**
+Do not subtract fee allocations already included in W or P. W and P must cover
+the same calls, splits and doubles. Opening capital is not cumulative wager.
+See [the accounting contract](ACCOUNTING.md) for fields and implementation rules.
+
+| Previous commands/options and output | CLI 30 replacement, operation and output |
+| --- | --- |
+| `play … --loop --take-profit 500`; stateful commands and standard bot controls used an absolute wallet target. | Use `--max-balance 500` for that same wallet target. `--take-profit 500` now aliases `--min-profit 500`: **+500 APE net session PnL**, irrespective of unrelated deposits. Reports distinguish balance limits from net profit limits. |
+| `play … --loop --stop-loss 100`; stateful commands and standard bot controls used an absolute wallet floor. | Use `--min-balance 100`. `--stop-loss 100` now aliases `--max-loss 100`: **-100 APE net session PnL**. Wallet-floor and net-loss stop reasons are distinct. |
+| `--min-profit`, `--max-loss`, `--bankroll`: gross or mixed accounting, with some guards deriving wallet thresholds. | `--min-profit` / `--max-loss` compare actual net session PnL. `--bankroll` remains an absolute-APE alias for `--max-loss`. Net guards do not silently create wallet guards. Fractional bankroll sizing can still allocate capital from an explicit wallet floor, separately from net loss limits. Output uses PnL Profit and explicit balance stop reasons. |
+| `--target-profit 25` stopped on one game's **payout** reaching 25 APE. | The same spelling now means one game's **net profit** reaches 25 APE. For W=10 and C=0.1, P=25 gives only 14.9 APE net profit and no longer passes; P must reach 35.1. Use `--target-x` when the intended condition is a payout ratio. |
+| `--retrace`, `--recover-loss`, `--giveback-profit` used older PnL/cost paths and APE-only inputs. | All use net PnL, with APE or whole percentages. `--retrace` controls the last game's loss; recovery/giveback retain their documented session-extreme behavior. Cost changes can change their activation and stop times. Output labels net PnL and the relevant threshold. |
+| Profit/loss values were primarily bare APE amounts; payout ratios could be mistaken for profit percentages. | Profit/loss controls accept APE or `25%`-style whole percentages of the controlled result's actual wager. Session percentages use cumulative session wager; last-game percentages use that game's wager. They are not wallet percentages. Payout ratios remain separate options such as `--target-x 2`. |
+| Multiplier/RTP output used inconsistent `x` notation and sometimes fee-adjusted returns. | A payout multiplier is always matching gross P/W, displayed as `2.00×`. RTP is that gross ratio as a percentage. PnL Profit is net, displayed in APE or whole percentages. W=10, P=10.1, C=0.2 means **1.01× and -0.1 APE (-1%)**. |
+| `play … <amount>` could round an explicit fixed input through a JavaScript number. | Fixed single-game inputs preserve up to 18 APE decimals and reject excess precision. Strategy progressions retain their documented sizing precision. Glyde or Crash targets preserve up to four input decimals internally, independently of two-decimal display. |
+| Game/loop JSON and child integrations used heterogeneous payout, fee and PnL fields. | Version-2 JSON exports matching gross `wager_*` / `payout_*`, `multiplier`, net `pnl_*`, `pnl_profit_percent` and detailed additional `costs`. Loop totals sum the same successful games and all their actual costs. Never reconstruct gross payout as wager plus net PnL. Update consumers to the [new schema](ACCOUNTING.md). |
+| Failed attempts could omit gas from totals; a failed transaction could be mistaken for a losing game. | Reverted mined attempts add actual gas cost without increasing settled-game counts, wager or payout. A later successful retry includes those costs. Exhausted retries export accounting with the exception; W=0 has multiplier `null`. Missing cost evidence stays unknown, not zero. |
+| A pending loop could leave an unclear relationship between requested and completed games. | A pending call exports identity/exposure separately and stops before another wager. Resumption reconciles that hash without resubmission, preserves completed games, and closes the partial call once settled; it does not launch the unused portion of its old game limit. |
+| `history`, saved statistics and win/push/loss classification could reflect gross profit or partial fee deductions. | Win/push/loss and PnL Profit use net results; RTP uses gross P/W. Cost-only failures reduce PnL without becoming games. Receipt ledgers preserve separate VRF, protocol, executor, gas and other additional costs. Old records do not gain invented receipt evidence. |
+| Stateful result/strategy displays mixed realized profit, payout ratios and expected return terminology. | Blackjack reports realized net PnL separately from the solver's expected **gross profit in APE**. Cash Dash/Hi-Lo continuation EV remains a planning estimate relative to current cashout, including quoted future costs; it is not a realized payout multiplier. Actual receipts determine realized PnL. |
+| `hi-lo-nebula … --auto winston-ladder` / `--solver winston-ladder` targeted 1.5 times opening bet on game one or total payout of 2.5 times opening bet across two games. | The strategy targets **net profit of half the opening bet**, adding recorded additional costs to required gross cashout. The two-game multiplier divides total payout by **both actual wagers**, not one opening bet. Output reports the net target and the matching payout multiplier; additional costs can delay cashout or leave a shortfall. |
+| Cash Dash/Hi-Lo decision consumers read `evMultiplier` or `continuationEvMultiplier`; helpers exposed `netEvMultiplier`. | Decision JSON uses `expectedNetReturnRatio` and, where present, `continuationNetReturnRatio`; planning helpers use `netReturnRatio`. These are expected net cashout-relative ratios, not realized payout multipliers. Update consumers; human output displays continuation EV as a whole percentage of current cashout. |
+
+## Migration procedure
+
+1. Find every wallet threshold and rename it to `--min-balance` / `--max-balance`.
+2. Check every profit/loss threshold, its sign/direction and its percentage base.
+3. Check every payout-ratio condition against matching cumulative W and P.
+4. Update JSON consumers and custom integrations to export actual additional
+   costs, including failed attempts, without double charging child ledgers.
+5. Validate the revised command with `--validate-only` where supported. Test
+   accounting and stop conditions with mocks before permitting live execution.
+
+Generic bot authors must follow [BOTS.md](BOTS.md); new game authors must follow
+[ADDING_GAMES.md](ADDING_GAMES.md). Neither estimates nor a historical payout
+table can substitute for actual settled net PnL when deciding that a target
+has been reached.

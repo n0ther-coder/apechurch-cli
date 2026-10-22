@@ -1,5 +1,8 @@
 # ApeChurch fees
 
+For runtime fields, transaction cost persistence and implementation rules, see
+the [game result accounting contract](ACCOUNTING.md).
+
 > Summary: Protocol fee accounting, measured Keno and Speed Keno transaction
 > costs, and links to the contract-specific fee references.
 
@@ -21,8 +24,8 @@ For a direct, settled Keno or Speed Keno play:
 
 ```text
 extra_call_cost = VRF_fee + opening_transaction_gas
-gross_PnL      = payout - wager
-net_PnL        = payout - wager - extra_call_cost
+gross_profit  = payout - wager
+PnL Profit    = payout - wager - extra_call_cost
 expected_loss = wager × (1 - theoretical_RTP) + expected_extra_call_cost
 ```
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { aggregateEconomicsPayloads, pickEconomicsFields } from '../lib/economics.js';
 /**
  * @fileoverview Ape Church CLI - Main entry point
  *
@@ -141,6 +142,7 @@ import {
 import {
   sanitizeError,
   formatApeAmount,
+  normalizeWagerAmount,
   ensureDir,
   addBigIntStrings,
   clampRange,
@@ -293,6 +295,7 @@ import { fitAnsiText, getVisibleWidth, truncateAnsi } from '../lib/ansi.js';
 import { formatTerminalTimestamp } from '../lib/terminal-time.js';
 import {
   formatGlydeOrCrashTargetMultiplier,
+  serializeGlydeOrCrashTargetMultiplier,
   getGameCalculatedVariantReference,
   getConfiguredGameMaxPayoutReference,
   getGameMaxPayoutVariantReference,
@@ -498,15 +501,16 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--no-resilient          Disable inherited resilient retry mode',
   '--delay <seconds>       Delay between looped games',
   '--max-games <count>     Stop after N games',
-  '--take-profit <ape>     Stop when balance reaches the target',
-  '--min-profit <ape>      Stop when session P&L reaches target profit',
+  '--max-balance <ape>     Stop when balance reaches the target',
+  '--min-profit <ape-or-percent>  Net session profit guard; --take-profit alias',
+  '--stop-loss <ape-or-percent>   Alias for net --max-loss',
   '--target-x <x>          Stop when one game pays at least this multiplier',
-  '--target-profit <ape>   Stop when one game pays at least this payout',
-  '--retrace <ape>         Stop when one game loses at least this amount',
-  '--recover-loss <ape>    Arm at -<ape> net P&L; stop at break-even/profit',
-  '--giveback-profit <ape> Arm at +<ape> net P&L; stop at break-even/loss',
-  '--stop-loss <ape>       Stop when balance drops to the threshold',
-  '--max-loss <ape>        Stop when session P&L reaches the loss limit',
+  '--target-profit <ape-or-percent>   Stop when one game reaches this net PnL Profit',
+  '--retrace <ape-or-percent>         Stop when one game loses at least this amount',
+  '--recover-loss <ape-or-percent>    Arm at -<ape> net P&L; stop at break-even/profit',
+  '--giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss',
+  '--min-balance <ape>       Stop when balance drops to the threshold',
+  '--max-loss <ape-or-percent>        Stop when net session PnL Profit reaches the loss limit',
   '--bankroll <ape>        Alias for --max-loss',
   '--bet-strategy <name>   Loop bet progression; supports bankroll-fraction=<0..1>',
   '--max-bet <ape>         Loop safety cap for progressive strategies',
@@ -551,15 +555,15 @@ const LOOP_HELP_OPTION_LINES = Object.freeze([
   '--delay <seconds>       Fixed delay between looped games',
   '--human [range]         Add humanized random delay; bare flag uses weighted:3-9',
   '--max-games <count>     Stop after N completed loop games',
-  '--take-profit <ape>     Stop when wallet balance reaches this absolute target',
-  '--min-profit <ape>      Stop when session P&L reaches this profit',
+  '--max-balance <ape>     Stop when wallet balance reaches this absolute target',
+  '--min-profit <ape-or-percent>      Stop when net session PnL Profit reaches this profit',
   '--target-x <x>          Stop when one game pays at least this multiplier',
-  '--target-profit <ape>   Stop when one game pays at least this payout',
-  '--retrace <ape>         Stop when one game loses at least this amount',
-  '--recover-loss <ape>    Arm at -<ape> net P&L; stop at break-even/profit',
-  '--giveback-profit <ape> Arm at +<ape> net P&L; stop at break-even/loss',
-  '--stop-loss <ape>       Stop when wallet balance drops to this absolute threshold',
-  '--max-loss <ape>        Stop when session P&L reaches this loss',
+  '--target-profit <ape-or-percent>   Stop when one game reaches this net PnL Profit',
+  '--retrace <ape-or-percent>         Stop when one game loses at least this amount',
+  '--recover-loss <ape-or-percent>    Arm at -<ape> net P&L; stop at break-even/profit',
+  '--giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss',
+  '--min-balance <ape>       Stop when wallet balance drops to this absolute threshold',
+  '--max-loss <ape-or-percent>        Stop when net session PnL Profit reaches this loss',
   '--bankroll <ape>        Alias for --max-loss',
   '--bet-strategy <name>   Loop bet progression strategy',
   '--max-bet <ape>         Maximum loop wager cap',
@@ -579,8 +583,9 @@ const STATEFUL_SHARED_HELP_OPTION_LINES = Object.freeze([
   '--no-resilient          Disable inherited resilient retry mode',
 ]);
 const STATEFUL_SHARED_BNF_LINES = Object.freeze([
+  '<pnl-threshold> ::= <ape> | <integer> "%" ; positive whole percentage of controlled wager',
   '<stateful-common-option> ::= "--game" <game-id> | "--display" <display> | "--json" | "-v" | "--verbose" | "--gp-ape" <points> | "--resilient" | "--no-resilient"',
-  '<stateful-loop-option> ::= "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--take-profit" <ape> | "--min-profit" <ape> | "--target-x" <number> | "--target-profit" <ape> | "--retrace" <ape> | "--recover-loss" <ape> | "--giveback-profit" <ape> | "--stop-loss" <ape-nonnegative> | "--max-loss" <ape> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape>',
+  '<stateful-loop-option> ::= "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape>',
 ]);
 
 function isPositiveApeToken(value) {
@@ -617,12 +622,12 @@ function resolveBetStrategyOrExit(rawName, { json = false } = {}) {
   return { betStrategyName, betStrategy };
 }
 
-function formatDerivedLoopLossNotice({ derivedStopLoss, derivedMaxLoss, stopLoss, maxLoss }) {
-  if (derivedStopLoss) {
-    return `Derived stop-loss: ${Number(stopLoss).toFixed(6).replace(/\.?0+$/, '')} APE from bankroll ${maxLoss} APE`;
+function formatDerivedLoopLossNotice({ derivedMinBalance, derivedMaxLoss, minBalance, maxLoss }) {
+  if (derivedMinBalance) {
+    return `Derived min-balance: ${Number(minBalance).toFixed(6).replace(/\.?0+$/, '')} APE from bankroll ${maxLoss} APE`;
   }
   if (derivedMaxLoss) {
-    return `Derived bankroll: ${Number(maxLoss).toFixed(6).replace(/\.?0+$/, '')} APE from stop-loss ${stopLoss} APE`;
+    return `Derived bankroll: ${Number(maxLoss).toFixed(6).replace(/\.?0+$/, '')} APE from min-balance ${minBalance} APE`;
   }
   return null;
 }
@@ -1278,7 +1283,7 @@ function formatPlayHelpAppendix() {
       '<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>',
       '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
       '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count> | "--resilient" | "--no-resilient"',
-      '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--take-profit" <ape> | "--min-profit" <ape> | "--target-x" <number> | "--target-profit" <ape> | "--retrace" <ape> | "--recover-loss" <ape> | "--giveback-profit" <ape> | "--stop-loss" <ape-nonnegative> | "--max-loss" <ape> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
+      '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
       ...SIMPLE_GAME_HELP_BNF_LINES,
       ...COMMON_BNF_LINES.filter((line) => !line.startsWith('<ape') && !line.startsWith('<points>')),
     ],
@@ -1756,7 +1761,7 @@ function formatStatefulCommandHelpAppendix(gameKey) {
         `${BINARY_NAME} blackjack 25 --auto best`,
         `${BINARY_NAME} blackjack 25 --solver max`,
         `${BINARY_NAME} blackjack hit --game 123`,
-        `${BINARY_NAME} blackjack 10 --auto --loop --take-profit 500`,
+        `${BINARY_NAME} blackjack 10 --auto --loop --max-balance 500`,
       ],
       notes: ['Dealer hits soft 17. best/max modes use the exact-EV worker and fall back to simple mode on cap/timeout.'],
     },
@@ -2429,7 +2434,7 @@ function formatHistoryStatsReport(stats) {
     `   🎰 Games: ${stats.games}`,
     `   💸 Contract fees paid: ${formatPlainApe(stats.contract_fees_paid_ape, 4)}`,
     `   ⛽️ Gas paid: ${formatPlainApe(stats.gas_paid_ape, 4)}`,
-    `   ${netResultIcon} Net result: ${formatPnL(stats.net_result_ape, 2)} ${theme.dim(`(gross ${formatPlainApe(stats.gross_result_ape)})`)}`,
+    `   ${netResultIcon} PnL Profit: ${formatPnL(stats.net_result_ape, 2)} ${theme.dim(`(gross ${formatPlainApe(stats.gross_result_ape)})`)}`,
     `   ✌️  Win rate: ${stats.win_rate.toFixed(2)}% (${stats.wins}/${stats.games})`,
     `   ${formatRtpTripletLine({ currentRtp: stats.rtp })} ${formatHistoryRtpDetails(stats)}`,
     `   🎟️  APE Wagered (wAPE): ${formatNullableValue(stats.current_wape_balance_ape, (value) => formatPlainTokenAmount(value, 2))}/${formatPlainTokenAmount(stats.total_wape_received_ape, 2)}`,
@@ -2463,7 +2468,7 @@ function formatHistoryBreakdownReport(gameStats) {
     lines.push(`      🎰 Games: ${stats.games}`);
     lines.push(`      💸 Contract fees paid: ${formatPlainApe(stats.contract_fees_paid_ape, 4)}`);
     lines.push(`      ⛽️ Gas paid: ${formatPlainApe(stats.gas_paid_ape, 4)}`);
-    lines.push(`      ${netResultIcon} Net result: ${formatPnL(stats.net_result_ape, 2)} ${theme.dim(`(gross ${formatPlainApe(stats.gross_result_ape)})`)}`);
+    lines.push(`      ${netResultIcon} PnL Profit: ${formatPnL(stats.net_result_ape, 2)} ${theme.dim(`(gross ${formatPlainApe(stats.gross_result_ape)})`)}`);
     lines.push(`      ✌️  Win rate: ${stats.win_rate.toFixed(2)}% (${stats.wins}/${stats.games})`);
     lines.push(`      ${formatRtpTripletLine({
       game: stats.rtp_game || stats.game_key || stats.game,
@@ -3777,7 +3782,7 @@ function formatObservedMultiplier(value) {
     maximumFractionDigits: 2,
   });
 
-  return theme.value(`${display}x`);
+  return theme.value(`${display}×`);
 }
 
 function formatGameStatsMaxPayout(reference) {
@@ -3796,7 +3801,7 @@ function formatGameStatsMaxPayout(reference) {
   });
   const jackpotSuffix = String(reference.display || '').includes('💰') ? ' + 💰' : '';
 
-  return theme.value(`${display}x${jackpotSuffix}`);
+  return theme.value(`${display}×${jackpotSuffix}`);
 }
 
 function normalizeStoredHistoryVariants(history) {
@@ -5699,7 +5704,7 @@ program
     if (gameEntry?.type === 'speedcrash' && opts.multiplier !== undefined) {
       try {
         const multiplierBasisPoints = parseGlydeOrCrashTargetMultiplierInput(opts.multiplier);
-        opts.multiplier = formatGlydeOrCrashTargetMultiplier(multiplierBasisPoints);
+        opts.multiplier = serializeGlydeOrCrashTargetMultiplier(multiplierBasisPoints);
       } catch (error) {
         console.error(JSON.stringify({ error: sanitizeError(error) }));
         process.exit(1);
@@ -5820,15 +5825,17 @@ program
   .option('--delay <seconds>', 'Fixed delay between looped games')
   .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
-  .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
-  .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
+  .option('--max-balance <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--take-profit <ape-or-percent>', 'Stop at this net PnL Profit (alias for --min-profit)')
+  .option('--stop-loss <ape-or-percent>', 'Stop at this net PnL loss (alias for --max-loss)')
+  .option('--min-profit <ape-or-percent>', 'Stop when net session PnL Profit reaches +this amount or better (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
-  .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
-  .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
-  .option('--recover-loss <ape>', 'Arm when net session P&L reaches -<ape>; stop at break-even/profit (use with --loop)')
-  .option('--giveback-profit <ape>', 'Arm when net session P&L reaches +<ape>; stop at break-even/loss (use with --loop)')
-  .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
-  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
+  .option('--target-profit <ape-or-percent>', 'Stop when a single game reaches this net PnL Profit (use with --loop)')
+  .option('--retrace <ape-or-percent>', 'Stop when a single game loses at least this much APE (use with --loop)')
+  .option('--recover-loss <ape-or-percent>', 'Arm when net session PnL Profit reaches -<ape>; stop at break-even/profit (use with --loop)')
+  .option('--giveback-profit <ape-or-percent>', 'Arm when net session PnL Profit reaches +<ape>; stop at break-even/loss (use with --loop)')
+  .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--max-loss <ape-or-percent>', 'Stop when net session PnL Profit reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
@@ -5898,14 +5905,16 @@ program
       '--delay',
       '--human',
       '--max-games',
-      '--take-profit',
+      '--max-balance',
       '--min-profit',
+      '--take-profit',
+      '--stop-loss',
       '--target-x',
       '--target-profit',
       '--retrace',
       '--recover-loss',
       '--giveback-profit',
-      '--stop-loss',
+      '--min-balance',
       '--max-loss',
       '--bankroll',
       '--bet-strategy',
@@ -5947,11 +5956,11 @@ program
     // Parse and validate loop parameters
     let targetBalance;
     let minProfit;
-    let stopLoss;
+    let minBalance;
     let maxLoss;
     let maxGames;
     let targetX;
-    let targetPayoutApe;
+    let targetProfitApe;
     let retrace;
     let recoverLoss;
     let givebackProfit;
@@ -5964,11 +5973,11 @@ program
       ({
         targetBalance,
         minProfit,
-        stopLoss,
+        minBalance,
         maxLoss,
         maxGames,
         targetX,
-        targetProfit: targetPayoutApe,
+        targetProfit: targetProfitApe,
         retrace,
         recoverLoss,
         givebackProfit,
@@ -6055,7 +6064,7 @@ program
     const betStrategyUsageError = getBetStrategyUsageError(betStrategy, {
       loopMode,
       hasBaseBet: amountInput !== undefined,
-      stopLoss,
+      minBalance,
       maxLoss,
     });
     if (betStrategyUsageError) {
@@ -6157,7 +6166,7 @@ program
       if (explicitMultiplier !== undefined) {
         try {
           const multiplierBasisPoints = parseGlydeOrCrashTargetMultiplierInput(explicitMultiplier);
-          positionalConfig.multiplier = formatGlydeOrCrashTargetMultiplier(multiplierBasisPoints);
+          positionalConfig.multiplier = serializeGlydeOrCrashTargetMultiplier(multiplierBasisPoints);
         } catch (error) {
           const message = sanitizeError(error);
           if (opts.json) console.error(JSON.stringify({ error: message }));
@@ -6231,15 +6240,15 @@ program
       const maxBetInfo = maxBet ? ` | Max bet: ${maxBet} APE` : '';
       const minBetInfo = minBet ? ` | Min bet: ${minBet} APE` : '';
       console.log(`\n🔄 Loop mode: ${gameInfo} (${delayLabel}${strategyInfo}${maxBetInfo}${minBetInfo})`);
-      if (targetBalance) console.log(`   🎯 Take-profit: ${targetBalance} APE`);
-      if (minProfit) console.log(`   💰 Min-profit: ${minProfit} APE session P&L`);
-      if (targetX) console.log(`   🎯 Target multiplier: ${targetX}x`);
-      if (targetPayoutApe) console.log(`   💰 Target payout: ${targetPayoutApe} APE`);
+      if (targetBalance) console.log(`   🎯 Maximum balance: ${targetBalance} APE`);
+      if (minProfit) console.log(`   💰 Min-profit: ${minProfit} APE net session PnL Profit`);
+      if (targetX) console.log(`   🎯 Target multiplier: ${Number(targetX).toFixed(2)}×`);
+      if (targetProfitApe) console.log(`   💰 Target PnL Profit: ${targetProfitApe} APE`);
       if (retrace) console.log(`   📉 Retrace: ${retrace} APE single-game loss`);
       if (recoverLoss) console.log(`   🛟 Recover-loss: ${recoverLoss} APE drawdown`);
       if (givebackProfit) console.log(`   📉 Giveback-profit: ${givebackProfit} APE run-up`);
-      if (stopLoss) console.log(`   🛑 Stop-loss: ${stopLoss} APE`);
-      if (maxLoss) console.log(`   🛑 Max-loss: ${maxLoss} APE session P&L`);
+      if (minBalance) console.log(`   🛑 Minimum balance: ${minBalance} APE`);
+      if (maxLoss) console.log(`   🛑 Max-loss: ${maxLoss} APE net session PnL Profit`);
       if (maxGames) console.log(`   🏁 Max games: ${maxGames}`);
       console.log('─'.repeat(50));
     }
@@ -6288,19 +6297,19 @@ program
       const balanceApe = parseFloat(formatEther(balance));
       const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
 
-      if (stopLoss !== null && balanceApe <= stopLoss) {
+      if (minBalance !== null && balanceApe <= minBalance) {
         const response = {
           action: 'play',
           status: 'skipped',
-          reason: 'stop_loss',
+          reason: 'min_balance',
           balance_ape: balanceApe.toFixed(6),
-          stop_loss_ape: stopLoss.toFixed(6),
+          min_balance_ape: minBalance.toFixed(6),
         };
         if (opts.json) console.log(JSON.stringify(response));
         else console.log(JSON.stringify(response, null, 2));
         return {
           shouldStop: true,
-          reason: 'stop_loss',
+          reason: 'min_balance',
           gameId: null,
           gameResult: null,
           playedGameKey: null,
@@ -6601,7 +6610,9 @@ program
         };
       }
 
-      const wagerApeString = formatApeAmount(wagerApe);
+      const wagerApeString = amountInput && (betOverride === null || (betStrategyName === 'flat' && Number(betOverride) === Number(amountInput)))
+        ? normalizeWagerAmount(amountInput)
+        : formatApeAmount(wagerApe);
 
       // Build description for human output
       let gameDesc = getGameDisplayName(gameEntry);
@@ -6647,15 +6658,15 @@ program
             gameEntry,
             config: gameConfig,
           });
-          const sessionStopLossApe = maxLoss !== null ? Math.max(balanceApe - maxLoss, 0) : null;
-          const estimateStopLossApe = stopLoss !== null && sessionStopLossApe !== null
-            ? Math.max(stopLoss, sessionStopLossApe)
-            : (stopLoss ?? sessionStopLossApe);
+          const sessionMinBalanceApe = typeof maxLoss === 'number' ? Math.max(balanceApe - maxLoss, 0) : null;
+          const estimateMinBalanceApe = minBalance !== null && sessionMinBalanceApe !== null
+            ? Math.max(minBalance, sessionMinBalanceApe)
+            : (minBalance ?? sessionMinBalanceApe);
           const estimateLine = formatLoopRunoutEstimate(
             estimateConfiguredGameLoopRunout({
               balanceApe,
               availableApe,
-              stopLossApe: estimateStopLossApe,
+              minBalanceApe: estimateMinBalanceApe,
               gameEntry,
               wagerApe,
               config: gameConfig,
@@ -6741,7 +6752,10 @@ program
         let pnlApe = 0;
         
         if (hasResult) {
-          const pnlWei = BigInt(playResponse.result.payout_wei) - BigInt(playResponse.result.buy_in_wei);
+          const pnlWei = playResponse.accounting_version === 2
+            ? (playResponse.pnl_wei === null ? null : BigInt(playResponse.pnl_wei))
+            : BigInt(playResponse.result.payout_wei) - BigInt(playResponse.result.buy_in_wei);
+          if (pnlWei === null) throw Object.assign(new Error('Settled game costs are incomplete; reconcile transaction receipts before continuing.'), { code: 'ACCOUNTING_INCOMPLETE' });
           pnlApe = parseFloat(formatEther(pnlWei));
           won = pnlWei > 0n;
           
@@ -6765,7 +6779,10 @@ program
         if (opts.json) {
           // Full JSON for agents/scripts
           jsonPayload = {
+            ...pickEconomicsFields(playResponse),
             status: playResponse.status,
+            contract: playResponse.contract,
+            gameId: playResponse.gameId,
             game: gameEntry.key,
             tx: playResponse.tx,
             game_url: playResponse.game_url,
@@ -6774,7 +6791,8 @@ program
             result: playResponse.result ? {
               payout_ape: playResponse.result.payout_ape,
               won,
-              pnl_ape: pnlApe.toFixed(6),
+              ...pickEconomicsFields(playResponse.result),
+              pnl_ape: playResponse.pnl_ape ?? pnlApe.toFixed(6),
               details: playResponse.result.details || null,
             } : null,
           };
@@ -6843,11 +6861,15 @@ program
           bet: parseFloat(wagerApeString),
           payout: parseFloat(playResponse.result.payout_ape),
           exactPayout: true,
+          ...pickEconomicsFields(playResponse),
+          feesPaidApe: Number(playResponse.cost_ape ?? 0),
         } : null;
         
         return {
-          shouldStop: false,
+          shouldStop: !hasResult,
           completed: hasResult,
+          counted: hasResult,
+          pendingPayload: hasResult ? null : playResponse,
           gameId: playResponse.gameId,
           gameResult,
           error: false,
@@ -6856,14 +6878,15 @@ program
           jsonPayload,
         };
       } catch (error) {
+        process.exitCode = 1;
         if (opts.json) {
-          console.error(JSON.stringify({ error: error.message }));
+          console.error(JSON.stringify({ error: error.message, ...(error.accounting ?? {}) }));
         } else {
           console.error(`\n❌ Error: ${error.message}\n`);
         }
         // Return error indicator - let loop decide whether to stop
         return {
-          shouldStop: false,
+          shouldStop: true,
           reason: 'error',
           completed: false,
           counted: false,
@@ -6872,6 +6895,7 @@ program
           error: true,
           playedGameKey: null,
           playedConfig: null,
+          failureAccounting: error.accounting ?? null,
         };
       }
     }
@@ -6883,14 +6907,13 @@ program
       let betStrategyState = betStrategy.init(baseBet, { maxBet, minBet, fraction: betStrategy.fraction });
       
       // Track consecutive errors - stop loop after 3 in a row
-      let consecutiveErrors = 0;
-      const MAX_CONSECUTIVE_ERRORS = 3;
+      let pendingLoopPlay = null;
       let lastPlayedGameKey = fixedGame?.key || null;
       let lastPlayedConfig = fixedGame ? { ...positionalConfig } : null;
       const loopGamePayloads = [];
       
       while (true) {
-        // Check balance for target/stop-loss
+        // Check balance for target/min-balance
         const { publicClient } = createClients();
         const balance = await getBalanceWithRetry(publicClient, account.address);
         const balanceApe = parseFloat(formatEther(balance));
@@ -6900,14 +6923,14 @@ program
         if (startingBalance === null) {
           startingBalance = balanceApe;
           const derivedLossControls = deriveLoopLossControls({
-            stopLoss,
+            minBalance,
             maxLoss,
             startingBalanceApe: startingBalance,
           });
-          stopLoss = derivedLossControls.stopLoss;
+          minBalance = derivedLossControls.minBalance;
           maxLoss = derivedLossControls.maxLoss;
 
-          const bankrollFractionRuntimeError = getBankrollFractionRuntimeError(betStrategy, { maxLoss });
+          const bankrollFractionRuntimeError = getBankrollFractionRuntimeError(betStrategy, { maxLoss: getRemainingBankrollApe({ currentBalanceApe: startingBalance, startingBalanceApe: startingBalance, maxLoss, minBalance, sessionPnlApe: 0 }) });
           if (bankrollFractionRuntimeError) {
             console.error(JSON.stringify({ error: bankrollFractionRuntimeError }));
             process.exit(1);
@@ -6920,15 +6943,15 @@ program
           
           // Validate target is achievable (higher than current balance)
           if (targetBalance !== null && targetBalance <= balanceApe) {
-            console.log(`\n⚠️  Take-profit (${targetBalance} APE) is already reached! Current balance: ${balanceApe.toFixed(2)} APE`);
-            console.log(`   Use a higher take-profit or omit --take-profit to play without one.\n`);
+            console.log(`\n⚠️  Maximum balance (${targetBalance} APE) is already reached! Current balance: ${balanceApe.toFixed(2)} APE`);
+            console.log(`   Use a higher max-balance or omit --max-balance to play without one.\n`);
             break;
           }
           
-          // Validate stop-loss makes sense (lower than current balance)
-          if (stopLoss !== null && stopLoss >= balanceApe) {
-            console.log(`\n⚠️  Stop-loss (${stopLoss} APE) is at or above current balance (${balanceApe.toFixed(2)} APE)!`);
-            console.log(`   Use a lower stop-loss value.\n`);
+          // Validate min-balance makes sense (lower than current balance)
+          if (minBalance !== null && minBalance >= balanceApe) {
+            console.log(`\n⚠️  Minimum balance (${minBalance} APE) is at or above current balance (${balanceApe.toFixed(2)} APE)!`);
+            console.log(`   Use a lower min-balance value.\n`);
             break;
           }
           
@@ -6940,11 +6963,13 @@ program
         }
         
         const preGameTerminalCondition = getBalanceLoopTerminalCondition({
+          sessionPnlApe: loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe,
+          totalWagerApe: loopStats.totalWageredApe,
           currentBalanceApe: balanceApe,
           startingBalanceApe: startingBalance,
           targetBalance,
           minProfit,
-          stopLoss,
+          minBalance,
           maxLoss,
           maxGames,
           recoverLoss,
@@ -6965,6 +6990,9 @@ program
         
         // Calculate next bet using betting strategy
         const bankrollRemainingApe = getRemainingBankrollApe({
+          minBalance,
+          sessionPnlApe: loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe,
+          totalWagerApe: loopStats.totalWageredApe,
           currentBalanceApe: balanceApe,
           startingBalanceApe: startingBalance,
           maxLoss,
@@ -6982,6 +7010,12 @@ program
         }
         
         const result = await playOnce(nextBet);
+        pendingLoopPlay = result.pendingPayload ?? null;
+        if (result.failureAccounting) {
+          const failure = result.failureAccounting;
+          loopStats.totalFeesPaidApe += Number(failure.cost_ape ?? 0);
+          loopGamePayloads.push({ status: 'error', error: true, ...failure });
+        }
         if (result.counted !== false) {
           gamesPlayed++;
         }
@@ -7005,27 +7039,10 @@ program
             won: result.gameResult.won,
             wageredApe: result.gameResult.bet,
             payoutApe: result.gameResult.payout,
+            feesPaidApe: result.gameResult.feesPaidApe,
             rtpGame: result.playedGameKey || lastPlayedGameKey,
             rtpConfig: result.playedConfig || lastPlayedConfig,
           });
-          consecutiveErrors = 0; // Reset on success
-        }
-        
-        // Handle errors with consecutive tracking
-        if (result.error) {
-          consecutiveErrors++;
-          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-            if (!opts.json) {
-              console.log(`\n🛑 Stopping: ${MAX_CONSECUTIVE_ERRORS} consecutive errors`);
-              console.log(`   Games played: ${gamesPlayed}\n`);
-            }
-            break;
-          }
-          if (!opts.json) {
-            console.log(`   ⚠️  Retrying next game in 5s (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS} consecutive errors)...\n`);
-          }
-          await sleep(5000);
-          continue;
         }
         
         if (result.shouldStop) break;
@@ -7043,18 +7060,20 @@ program
         const singleGameTerminalCondition = getSingleGameLoopTerminalCondition({
           gameResult: lastGameResult,
           targetX,
-          targetProfit: targetPayoutApe,
+          targetProfit: targetProfitApe,
           retrace,
         });
         const { publicClient: pc } = createClients();
         const currentBal = await getBalanceWithRetry(pc, account.address);
         const currentApe = parseFloat(formatEther(currentBal));
         const sessionTerminalCondition = getBalanceLoopTerminalCondition({
+          sessionPnlApe: loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe,
+          totalWagerApe: loopStats.totalWageredApe,
           currentBalanceApe: currentApe,
           startingBalanceApe: startingBalance,
           targetBalance,
           minProfit,
-          stopLoss,
+          minBalance,
           maxLoss,
           maxGames,
           recoverLoss,
@@ -7102,23 +7121,39 @@ program
       }
 
       if (opts.json) {
-        const netResultApe = loopStats.totalPayoutApe - loopStats.totalWageredApe;
+        const netResultApe = loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe;
         const totalWagerApe = formatApeAmount(loopStats.totalWageredApe);
         const totalPayoutApe = formatApeAmount(loopStats.totalPayoutApe);
         const completedGames = loopStats.completedGames;
+        const failureEntries = loopGamePayloads.filter((game) => game.counts_as_game === false);
+        const aggregateInputs = loopGamePayloads.filter((game) => game.result || game.failed_transaction_only);
+        const economics = aggregateEconomicsPayloads(aggregateInputs);
+        // A failed action following a successful opening can still hold an
+        // unsettled wager. Export its costs without inventing a settled result.
+        if (failureEntries.some((entry) => !entry.failed_transaction_only)) {
+          economics.pnl_wei = null;
+          economics.pnl_ape = null;
+          economics.total_pnl_ape = null;
+          economics.pnl_profit_percent = null;
+        }
         console.log(JSON.stringify({
-          status: completedGames > 0 ? 'complete' : 'loop_control_reached',
+          status: pendingLoopPlay ? 'pending' : failureEntries.length ? 'error' : completedGames > 0 ? 'complete' : 'loop_control_reached',
           loop: true,
           game: lastPlayedGameKey,
           games_played: gamesPlayed,
           completed_games: completedGames,
           total_wager_ape: totalWagerApe,
           total_payout_ape: totalPayoutApe,
+          ...economics,
           games_detail: loopGamePayloads,
+          failed_attempts: failureEntries,
+          ...(pendingLoopPlay ? { pending_play: pendingLoopPlay,
+            pending_exposure_ape: pendingLoopPlay.wager_ape,
+            contract: pendingLoopPlay.contract, gameId: pendingLoopPlay.gameId, tx: pendingLoopPlay.tx } : {}),
           result: completedGames > 0 ? {
             wager_ape: totalWagerApe,
             payout_ape: totalPayoutApe,
-            pnl_ape: formatApeAmount(netResultApe),
+            pnl_ape: economics.pnl_ape,
             won: netResultApe > 0,
           } : null,
           loop_control: completedGames > 0 ? null : { kind: 'no_completed_loop_games' },
@@ -8076,15 +8111,15 @@ ${'─'.repeat(60)}
                  Best-EV worker timeout; default 5000. Timeout falls back
                  to simple strategy without blocking the main CLI process.
   --loop          Keep playing until balance runs out
-  --take-profit <ape>  Stop when balance reaches this amount
-  --min-profit <ape>  Stop when session P&L reaches this profit
+  --max-balance <ape>  Stop when balance reaches this amount
+  --min-profit <ape-or-percent>  Stop when net session PnL Profit reaches this profit
   --target-x <x>  Stop when a hand pays at least this multiplier
-  --target-profit <ape>  Stop when a hand pays at least this payout
-  --retrace <ape>  Stop when a hand loses at least this amount
-  --recover-loss <ape>  Arm at -<ape> net P&L; stop at break-even/profit
-  --giveback-profit <ape>  Arm at +<ape> net P&L; stop at break-even/loss
-  --stop-loss <ape>  Stop when balance drops to this amount
-  --max-loss <ape>  Stop when session P&L reaches this loss
+  --target-profit <ape-or-percent>  Stop when a hand reaches this net PnL Profit
+  --retrace <ape-or-percent>  Stop when a hand loses at least this amount
+  --recover-loss <ape-or-percent>  Arm at -<ape> net P&L; stop at break-even/profit
+  --giveback-profit <ape-or-percent>  Arm at +<ape> net P&L; stop at break-even/loss
+  --min-balance <ape>  Stop when balance drops to this amount
+  --max-loss <ape-or-percent>  Stop when net session PnL Profit reaches this loss
   --bankroll <ape>  Alias for --max-loss
 
 ${'─'.repeat(60)}
@@ -8124,14 +8159,14 @@ ${'─'.repeat(60)}
   ${BINARY_NAME} blackjack 25 --auto max        Exact EV solver with 150000 states / 30000 ms
   ${BINARY_NAME} blackjack 25 --solver max      Manual play with worker and simple suggestions
   ${BINARY_NAME} blackjack 25 --auto --loop     Bot grinds until broke
-  ${BINARY_NAME} blackjack 10 --auto --loop --take-profit 500
+  ${BINARY_NAME} blackjack 10 --auto --loop --max-balance 500
                                            Bot plays until 500 APE balance
   ${BINARY_NAME} blackjack 10 --auto --loop --target-x 2.5
                                            Stop after any 2.5x-or-better hand
   ${BINARY_NAME} blackjack 10 --auto --loop --recover-loss 25
                                            Stop once a 25 APE drawdown returns to break-even/profit
   ${BINARY_NAME} blackjack 10 --auto --loop --min-profit 40
-                                           Stop once session P&L reaches +40 APE
+                                           Stop once net session PnL Profit reaches +40 APE
 
 ${'═'.repeat(60)}
 `);
@@ -8180,16 +8215,16 @@ ${'─'.repeat(60)}
   --solver        Show the best continuation suggestion in manual mode
   --loop          Keep starting new runs until a stop condition triggers
   --max-games <count> Stop after N runs in loop mode
-  --take-profit <ape> Stop when balance reaches this amount
-  --min-profit <ape> Stop when session P&L reaches this profit
+  --max-balance <ape> Stop when balance reaches this amount
+  --min-profit <ape-or-percent> Stop when net session PnL Profit reaches this profit
   --target-x <x> Stop when a run pays at least this multiplier
-  --target-profit <ape> Stop when a run pays at least this payout
-  --stop-loss <ape> Stop when balance drops to this amount
-  --max-loss <ape> Stop when session P&L reaches this loss
+  --target-profit <ape-or-percent> Stop when a run reaches this net PnL Profit
+  --min-balance <ape> Stop when balance drops to this amount
+  --max-loss <ape-or-percent> Stop when net session PnL Profit reaches this loss
   --bankroll <ape> Alias for --max-loss
-  --retrace <ape> Stop when a run loses at least this amount
-  --recover-loss <ape> Arm at -<ape> net P&L; stop at break-even/profit
-  --giveback-profit <ape> Arm at +<ape> net P&L; stop at break-even/loss
+  --retrace <ape-or-percent> Stop when a run loses at least this amount
+  --recover-loss <ape-or-percent> Arm at -<ape> net P&L; stop at break-even/profit
+  --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
   --bet-strategy <name> Betting strategy for loop mode; supports bankroll-fraction=<0..1>
   --max-bet <ape> Maximum bet amount for progressive strategies
   --min-bet <ape> Minimum bet amount floor for dynamic strategies
@@ -8272,16 +8307,16 @@ ${'─'.repeat(60)}
   --solver [mode] Show a continuation suggestion in manual mode (default: best)
   --loop          Keep starting new runs until a stop condition triggers
   --max-games <count> Stop after N runs in loop mode
-  --take-profit <ape>  Stop when balance reaches this amount
-  --min-profit <ape> Stop when session P&L reaches this profit
+  --max-balance <ape>  Stop when balance reaches this amount
+  --min-profit <ape-or-percent> Stop when net session PnL Profit reaches this profit
   --target-x <x> Stop when a run pays at least this multiplier
-  --target-profit <ape> Stop when a run pays at least this payout
-  --stop-loss <ape> Stop when balance drops to this amount
-  --max-loss <ape> Stop when session P&L reaches this loss
+  --target-profit <ape-or-percent> Stop when a run reaches this net PnL Profit
+  --min-balance <ape> Stop when balance drops to this amount
+  --max-loss <ape-or-percent> Stop when net session PnL Profit reaches this loss
   --bankroll <ape> Alias for --max-loss
-  --retrace <ape> Stop when a run loses at least this amount
-  --recover-loss <ape> Arm at -<ape> net P&L; stop at break-even/profit
-  --giveback-profit <ape> Arm at +<ape> net P&L; stop at break-even/loss
+  --retrace <ape-or-percent> Stop when a run loses at least this amount
+  --recover-loss <ape-or-percent> Arm at -<ape> net P&L; stop at break-even/profit
+  --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
   --bet-strategy <name> Betting strategy for loop mode; supports bankroll-fraction=<0..1>
   --max-bet <ape> Maximum bet amount for progressive strategies
   --min-bet <ape> Minimum bet amount floor for dynamic strategies
@@ -8302,7 +8337,7 @@ ${'─'.repeat(60)}
 
   simple          Cash first available payout; otherwise pick highest hit rate
   best            Net-EV continuation solver with VRF and jackpot snapshot
-  winston-ladder  Two-game, seven-guess target ladder; ignores VRF in target
+  winston-ladder  Two-game, seven-guess ladder; target is net of recorded costs
 
 ${'─'.repeat(60)}
   ACTIONS (during game)
@@ -8374,15 +8409,15 @@ ${'─'.repeat(60)}
 
   --auto [mode]   Auto-play the hand
   --loop          Keep playing until balance runs out
-  --take-profit <ape>  Stop when balance reaches this amount
-  --min-profit <ape>  Stop when session P&L reaches this profit
+  --max-balance <ape>  Stop when balance reaches this amount
+  --min-profit <ape-or-percent>  Stop when net session PnL Profit reaches this profit
   --target-x <x>  Stop when a hand pays at least this multiplier
-  --target-profit <ape>  Stop when a hand pays at least this payout
-  --retrace <ape>  Stop when a hand loses at least this amount
-  --recover-loss <ape>  Arm at -<ape> net P&L; stop at break-even/profit
-  --giveback-profit <ape>  Arm at +<ape> net P&L; stop at break-even/loss
-  --stop-loss <ape>  Stop when balance drops to this amount
-  --max-loss <ape>  Stop when session P&L reaches this loss
+  --target-profit <ape-or-percent>  Stop when a hand reaches this net PnL Profit
+  --retrace <ape-or-percent>  Stop when a hand loses at least this amount
+  --recover-loss <ape-or-percent>  Arm at -<ape> net P&L; stop at break-even/profit
+  --giveback-profit <ape-or-percent>  Arm at +<ape> net P&L; stop at break-even/loss
+  --min-balance <ape>  Stop when balance drops to this amount
+  --max-loss <ape-or-percent>  Stop when net session PnL Profit reaches this loss
   --bankroll <ape>  Alias for --max-loss
 
 ${'─'.repeat(60)}
@@ -8419,7 +8454,7 @@ ${'─'.repeat(60)}
   ${BINARY_NAME} video-poker 25 --auto --loop --giveback-profit 40
                                         Stop once a 40 APE run-up is given back
   ${BINARY_NAME} video-poker 25 --auto --loop --min-profit 50
-                                        Stop once session P&L reaches +50 APE
+                                        Stop once net session PnL Profit reaches +50 APE
 
 ${'═'.repeat(60)}
 `);
@@ -8648,15 +8683,15 @@ ENVIRONMENT
 
 LOOP OPTIONS
   --loop                  Play continuously
-  --take-profit <ape>     Stop when balance reaches target
-  --min-profit <ape>      Stop when session P&L reaches the target profit
+  --max-balance <ape>     Stop when balance reaches target
+  --min-profit <ape-or-percent>      Stop when net session PnL Profit reaches the target profit
   --target-x <x>          Stop when one game pays at least Xx
-  --target-profit <ape>   Stop when one game pays at least this payout
-  --retrace <ape>         Stop when one game loses at least this amount
-  --recover-loss <ape>    Arm at -<ape> net P&L; stop at break-even/profit
-  --giveback-profit <ape> Arm at +<ape> net P&L; stop at break-even/loss
-  --stop-loss <ape>       Stop when balance drops to limit
-  --max-loss <ape>        Stop when session P&L reaches the loss limit
+  --target-profit <ape-or-percent>   Stop when one game reaches this net PnL Profit
+  --retrace <ape-or-percent>         Stop when one game loses at least this amount
+  --recover-loss <ape-or-percent>    Arm at -<ape> net P&L; stop at break-even/profit
+  --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
+  --min-balance <ape>       Stop when balance drops to limit
+  --max-loss <ape-or-percent>        Stop when net session PnL Profit reaches the loss limit
   --bankroll <ape>        Alias for --max-loss
   --max-games <count>     Stop after N games
   --bet-strategy <name>   Betting strategy (flat, martingale, bankroll-fraction=<0..1>, etc.)
@@ -8682,9 +8717,9 @@ EXAMPLES
   ${BINARY_NAME} play glyde-or-crash 10 2x
 
   # Loop with safety limits
-  ${BINARY_NAME} play --loop --take-profit 200 --stop-loss 50
+  ${BINARY_NAME} play --loop --max-balance 200 --min-balance 50
 
-  # Stop on session P&L thresholds
+  # Stop on net session PnL Profit thresholds
   ${BINARY_NAME} play roulette 10 RED --loop --min-profit 25 --max-loss 20
 
   # Martingale: start at 10, double on loss, max 100
@@ -8694,7 +8729,7 @@ EXAMPLES
   ${BINARY_NAME} play roulette --bet RED --loop --bankroll 500 --bet-strategy bankroll-fraction=0.09 --max-bet 100 --min-bet 5
 
   # Blackjack with strategy
-  ${BINARY_NAME} blackjack 5 --auto --loop --bet-strategy martingale --take-profit 100
+  ${BINARY_NAME} blackjack 5 --auto --loop --bet-strategy martingale --max-balance 100
 
   # Run exactly 20 games
   ${BINARY_NAME} play ape-strong 10 --loop --max-games 20
@@ -8764,37 +8799,40 @@ ${'─'.repeat(70)}
 
 ${'─'.repeat(70)}
   SAFETY CONTROLS (Highly Recommended!)
+  Profit/loss amounts accept APE or whole percentages of actual wager.
+  --take-profit aliases --min-profit; --stop-loss aliases --max-loss.
+  Balance thresholds are separate from net PnL Profit guards.
 ${'─'.repeat(70)}
 
-  --take-profit <ape>  Stop when balance REACHES this amount
-                       Example: --take-profit 200 (stop at 200 APE)
+  --max-balance <ape>  Stop when balance REACHES this amount
+                       Example: --max-balance 200 (stop at 200 APE)
 
-  --min-profit <ape>   Stop when session P&L reaches +<ape> or better
-                       Example: --min-profit 25 (stop at +25 APE session P&L)
+  --min-profit <ape-or-percent>   Stop when net session PnL Profit reaches +<ape> or better
+                       Example: --min-profit 25 (stop at +25 APE net session PnL Profit)
 
   --target-x <x>       Stop when a single game pays at least this multiplier
                        Example: --target-x 10 (stop on any 10x+ hit)
 
-  --target-profit <ape>  Stop when a single game pays at least this payout
-                         Example: --target-profit 250 (stop on any 250+ APE payout)
+  --target-profit <ape-or-percent>  Stop when a single game reaches this net PnL Profit
+                         Example: --target-profit 250 (stop on a game with at least 250 APE net PnL Profit)
 
-  --retrace <ape>        Stop when a single game loses at least this amount
+  --retrace <ape-or-percent>        Stop when a single game loses at least this amount
                          Example: --retrace 25 (stop on any 25+ APE loss)
 
-  --recover-loss <ape>   Arm once net session P&L reaches -<ape> or worse;
+  --recover-loss <ape-or-percent>   Arm once net session PnL Profit reaches -<ape> or worse;
                          stop once current net P&L returns to break-even/profit
                          Example: --recover-loss 25
 
-  --giveback-profit <ape> Arm once net session P&L reaches +<ape> or better;
+  --giveback-profit <ape-or-percent> Arm once net session PnL Profit reaches +<ape> or better;
                           stop once current net P&L returns to break-even/loss
                           Example: --giveback-profit 40
                        
-  --stop-loss <ape>    Stop when balance DROPS to this amount
-                       Example: --stop-loss 50 (stop if you hit 50 APE)
+  --min-balance <ape>    Stop when balance DROPS to this amount
+                       Example: --min-balance 50 (stop if you hit 50 APE)
 
-  --max-loss <ape> / --bankroll <ape>
-                       Stop when session P&L reaches -<ape> or worse
-                       Example: --bankroll 20 (stop at -20 APE session P&L)
+  --max-loss <ape-or-percent> / --bankroll <ape>
+                       Stop when net session PnL Profit reaches -<ape> or worse
+                       Example: --bankroll 20 (stop at -20 APE net session PnL Profit)
                        
   --max-games <n>      Stop after exactly N games
                        Example: --max-games 100 (play 100 games then stop)
@@ -8808,7 +8846,7 @@ ${'─'.repeat(70)}
                        If --delay is also set, it is added on top
 
   These can be combined:
-    ${BINARY_NAME} play --loop --take-profit 200 --min-profit 25 --stop-loss 50 --max-loss 20 --max-games 500
+    ${BINARY_NAME} play --loop --max-balance 200 --min-profit 25 --min-balance 50 --max-loss 20 --max-games 500
     ${BINARY_NAME} play roulette 10 RED --loop --recover-loss 25
     ${BINARY_NAME} play roulette 10 RED --loop --human
     ${BINARY_NAME} play roulette 10 RED --loop --human 2-17
@@ -8817,7 +8855,7 @@ ${'─'.repeat(70)}
   Games with a full Monte Carlo model show the typical run plus lucky / bad-run bounds:
     Estimate games before wallet squandering: ~8 ⚠️. On a lucky day, it could be 104 🍀; on a bad run, just 3 💀. Proceed? (Y/n)
   Other supported games fall back to an EV-based estimate:
-    Estimate games before stop-loss ~17 games. Proceed? (Y/n)
+    Estimate games before min-balance ~17 games. Proceed? (Y/n)
 
 ${'─'.repeat(70)}
   BETTING STRATEGIES (use with --loop)
@@ -8837,7 +8875,7 @@ ${'─'.repeat(70)}
     ${BINARY_NAME} play roulette 10 RED --loop \\
       --bet-strategy martingale \\
       --max-bet 100 \\
-      --stop-loss 50
+      --min-balance 50
 
   Example - Bankroll fraction:
     ${BINARY_NAME} play roulette --bet RED --loop \\
@@ -8853,21 +8891,21 @@ ${'─'.repeat(70)}
 ${'─'.repeat(70)}
 
   Each iteration shows:
-    • Current balance and session P&L
+    • Current balance and net session PnL Profit
     • Game played and result
     • Bet amount (and if capped by --max-bet)
     • Running win/loss count
 
   Loop exits cleanly on:
-    • Reaching --take-profit balance
-    • Reaching --min-profit session P&L
+    • Reaching --max-balance balance
+    • Reaching --min-profit net session PnL Profit
     • Hitting --target-x on a single game
     • Hitting --target-profit on a single game
     • Hitting --retrace on a single game loss
     • Returning to break-even/profit after --recover-loss is armed
     • Returning to break-even/loss after --giveback-profit is armed
-    • Hitting --stop-loss floor
-    • Hitting --max-loss session P&L
+    • Hitting --min-balance floor
+    • Hitting --max-loss net session PnL Profit
     • Completing --max-games
     • Balance too low for minimum bet
     • Ctrl+C (manual interrupt)
@@ -8982,9 +9020,9 @@ ${'─'.repeat(70)}
   Bets a fixed fraction of the remaining session bankroll.
   Use bankroll-fraction=<decimal> where the decimal is strictly between 0 and 1.
 
-  • Requires: --bankroll/--max-loss or --stop-loss
+  • Requires: --bankroll/--max-loss or --min-balance
   • Conflicts with: explicit <base-bet> or --amount
-  • Remaining bankroll: --bankroll plus session P&L, or current balance minus --stop-loss
+  • Remaining bankroll: --bankroll plus net session PnL Profit, or current balance minus --min-balance
   • Supports: --max-bet cap and --min-bet floor
 
   Example:
@@ -9089,10 +9127,10 @@ ${'─'.repeat(70)}
   winston-ladder:
     • Plays up to two on-chain games with up to seven guesses each
     • Opens the first game with the highest hit-rate branch
-    • Cashes the first game at 1.5x, otherwise compares continuing with
-      banking and targeting the second game
-    • The second game uses the same initial bet and targets 2.5x total
-      payout across the ladder; VRF fees are ignored by the ladder target
+    • Targets net profit of half the opening bet, adding recorded costs
+      to gross cashout targets; otherwise compares continuing with banking
+    • The second game uses the same initial bet; its total payout multiplier
+      divides both games’ gross payouts by both games’ actual wagers
 
   Commands:
     ${BINARY_NAME} hi-lo-nebula 10 --auto            # One run, auto-play
@@ -9163,7 +9201,7 @@ ${'─'.repeat(70)}
   
     ${BINARY_NAME} blackjack 10 --auto --loop \\
       --bet-strategy martingale --max-bet 100 \\
-      --take-profit 200 --stop-loss 50
+      --max-balance 200 --min-balance 50
 
 ${'─'.repeat(70)}
   TIMING EXAMPLE
@@ -10377,15 +10415,17 @@ program
   .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
-  .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
-  .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
+  .option('--max-balance <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--take-profit <ape-or-percent>', 'Stop at this net PnL Profit (alias for --min-profit)')
+  .option('--stop-loss <ape-or-percent>', 'Stop at this net PnL loss (alias for --max-loss)')
+  .option('--min-profit <ape-or-percent>', 'Stop when net session PnL Profit reaches +this amount or better (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
-  .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
-  .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
-  .option('--recover-loss <ape>', 'Arm when net session P&L reaches -<ape>; stop at break-even/profit (use with --loop)')
-  .option('--giveback-profit <ape>', 'Arm when net session P&L reaches +<ape>; stop at break-even/loss (use with --loop)')
-  .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
-  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
+  .option('--target-profit <ape-or-percent>', 'Stop when a single game reaches this net PnL Profit (use with --loop)')
+  .option('--retrace <ape-or-percent>', 'Stop when a single game loses at least this much APE (use with --loop)')
+  .option('--recover-loss <ape-or-percent>', 'Arm when net session PnL Profit reaches -<ape>; stop at break-even/profit (use with --loop)')
+  .option('--giveback-profit <ape-or-percent>', 'Arm when net session PnL Profit reaches +<ape>; stop at break-even/loss (use with --loop)')
+  .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--max-loss <ape-or-percent>', 'Stop when net session PnL Profit reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
@@ -10418,15 +10458,17 @@ program
   .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
-  .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
-  .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
+  .option('--max-balance <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--take-profit <ape-or-percent>', 'Stop at this net PnL Profit (alias for --min-profit)')
+  .option('--stop-loss <ape-or-percent>', 'Stop at this net PnL loss (alias for --max-loss)')
+  .option('--min-profit <ape-or-percent>', 'Stop when net session PnL Profit reaches +this amount or better (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
-  .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
-  .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
-  .option('--recover-loss <ape>', 'Arm when net session P&L reaches -<ape>; stop at break-even/profit (use with --loop)')
-  .option('--giveback-profit <ape>', 'Arm when net session P&L reaches +<ape>; stop at break-even/loss (use with --loop)')
-  .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
-  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
+  .option('--target-profit <ape-or-percent>', 'Stop when a single game reaches this net PnL Profit (use with --loop)')
+  .option('--retrace <ape-or-percent>', 'Stop when a single game loses at least this much APE (use with --loop)')
+  .option('--recover-loss <ape-or-percent>', 'Arm when net session PnL Profit reaches -<ape>; stop at break-even/profit (use with --loop)')
+  .option('--giveback-profit <ape-or-percent>', 'Arm when net session PnL Profit reaches +<ape>; stop at break-even/loss (use with --loop)')
+  .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--max-loss <ape-or-percent>', 'Stop when net session PnL Profit reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
@@ -10458,15 +10500,17 @@ program
   .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
-  .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
-  .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
+  .option('--max-balance <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--take-profit <ape-or-percent>', 'Stop at this net PnL Profit (alias for --min-profit)')
+  .option('--stop-loss <ape-or-percent>', 'Stop at this net PnL loss (alias for --max-loss)')
+  .option('--min-profit <ape-or-percent>', 'Stop when net session PnL Profit reaches +this amount or better (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
-  .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
-  .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
-  .option('--recover-loss <ape>', 'Arm when net session P&L reaches -<ape>; stop at break-even/profit (use with --loop)')
-  .option('--giveback-profit <ape>', 'Arm when net session P&L reaches +<ape>; stop at break-even/loss (use with --loop)')
-  .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
-  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
+  .option('--target-profit <ape-or-percent>', 'Stop when a single game reaches this net PnL Profit (use with --loop)')
+  .option('--retrace <ape-or-percent>', 'Stop when a single game loses at least this much APE (use with --loop)')
+  .option('--recover-loss <ape-or-percent>', 'Arm when net session PnL Profit reaches -<ape>; stop at break-even/profit (use with --loop)')
+  .option('--giveback-profit <ape-or-percent>', 'Arm when net session PnL Profit reaches +<ape>; stop at break-even/loss (use with --loop)')
+  .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--max-loss <ape-or-percent>', 'Stop when net session PnL Profit reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
@@ -10496,15 +10540,17 @@ program
   .addOption(new Option('--human [range]', 'Add humanized random timing (bare/default weighted:3-9, e.g. 2-17); if --delay is set, it is added on top').hideHelp())
   .option('--loop', 'Keep playing until balance runs out')
   .option('--max-games <count>', 'Stop after N games (use with --loop)')
-  .option('--take-profit <ape>', 'Stop when balance reaches this amount (use with --loop)')
-  .option('--min-profit <ape>', 'Stop when session P&L reaches +this amount or better (use with --loop)')
+  .option('--max-balance <ape>', 'Stop when balance reaches this amount (use with --loop)')
+  .option('--take-profit <ape-or-percent>', 'Stop at this net PnL Profit (alias for --min-profit)')
+  .option('--stop-loss <ape-or-percent>', 'Stop at this net PnL loss (alias for --max-loss)')
+  .option('--min-profit <ape-or-percent>', 'Stop when net session PnL Profit reaches +this amount or better (use with --loop)')
   .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
-  .option('--target-profit <ape>', 'Stop when a single game pays at least this much APE (use with --loop)')
-  .option('--retrace <ape>', 'Stop when a single game loses at least this much APE (use with --loop)')
-  .option('--recover-loss <ape>', 'Arm when net session P&L reaches -<ape>; stop at break-even/profit (use with --loop)')
-  .option('--giveback-profit <ape>', 'Arm when net session P&L reaches +<ape>; stop at break-even/loss (use with --loop)')
-  .option('--stop-loss <ape>', 'Stop when balance drops to this amount (use with --loop)')
-  .option('--max-loss <ape>', 'Stop when session P&L reaches -this amount or worse (use with --loop)')
+  .option('--target-profit <ape-or-percent>', 'Stop when a single game reaches this net PnL Profit (use with --loop)')
+  .option('--retrace <ape-or-percent>', 'Stop when a single game loses at least this much APE (use with --loop)')
+  .option('--recover-loss <ape-or-percent>', 'Arm when net session PnL Profit reaches -<ape>; stop at break-even/profit (use with --loop)')
+  .option('--giveback-profit <ape-or-percent>', 'Arm when net session PnL Profit reaches +<ape>; stop at break-even/loss (use with --loop)')
+  .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
+  .option('--max-loss <ape-or-percent>', 'Stop when net session PnL Profit reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
@@ -10529,7 +10575,17 @@ if (topLevelVersionArgs.isJson) {
 if (!topLevelVersionArgs.isVersionRequest) {
   printInvocationVersion();
 }
-await program.parseAsync(process.argv);
+try {
+  await program.parseAsync(process.argv);
+} catch (error) {
+  process.exitCode = error.exitCode ?? 1;
+  if (process.argv.includes('--json')) {
+    console.error(JSON.stringify({ error: sanitizeError(error), ...(error.accounting ?? {}) }));
+  } else {
+    console.error(`Error: ${sanitizeError(error)}`);
+    if (error.accounting?.cost_ape != null) console.error(`Additional transaction costs: ${error.accounting.cost_ape} APE`);
+  }
+}
 
 // Show update notification if available (after command completes)
 if (notifier) {

@@ -81,9 +81,9 @@ describe('RTP Helpers', () => {
       display: variant.calculated.display,
       maxPayout: variant.maxPayout.display,
     })), [
-      { variantLabel: 'PLAYER', display: '98.77%', maxPayout: '2x' },
-      { variantLabel: 'BANKER', display: '98.94%', maxPayout: '1.95x' },
-      { variantLabel: 'TIE', display: '85.88%', maxPayout: '9x' },
+      { variantLabel: 'PLAYER', display: '98.77%', maxPayout: '2.00×' },
+      { variantLabel: 'BANKER', display: '98.94%', maxPayout: '1.95×' },
+      { variantLabel: 'TIE', display: '85.88%', maxPayout: '9.00×' },
     ]);
   });
 
@@ -95,8 +95,8 @@ describe('RTP Helpers', () => {
       display: variant.calculated.display,
       maxPayout: variant.maxPayout.display,
     })), [
-      { variantLabel: 'Low', display: '97.99%', maxPayout: '50x' },
-      { variantLabel: 'High', display: '98.29%', maxPayout: '50x' },
+      { variantLabel: 'Low', display: '97.99%', maxPayout: '50.00×' },
+      { variantLabel: 'High', display: '98.29%', maxPayout: '50.00×' },
     ]);
   });
 
@@ -106,16 +106,16 @@ describe('RTP Helpers', () => {
 
     assert.strictEqual(variants.length, 36);
     assert.strictEqual(byLabel.get('Low / 1 roll').calculated.display, '97.97%');
-    assert.strictEqual(byLabel.get('Low / 5 rolls').maxPayout.display, '97,656,250,000,000,000x');
+    assert.strictEqual(byLabel.get('Low / 5 rolls').maxPayout.display, '97,656,250,000,000,000.00×');
     assert.strictEqual(byLabel.get('High / 1 roll').calculated.display, '97.86%');
-    assert.strictEqual(byLabel.get('High / 5 rolls').maxPayout.display, '3,125,000,000,000,000,000x');
+    assert.strictEqual(byLabel.get('High / 5 rolls').maxPayout.display, '3,125,000,000,000,000,000.00×');
     assert.strictEqual(byLabel.get('4x4 / High / 1 roll').calculated.display, '97.91%');
     assert.strictEqual(byLabel.get('2x2 / Low / 1 roll').calculated.display, '97.69%');
-    assert.strictEqual(byLabel.get('2x2 / High / 5 rolls').maxPayout.display, '345,025,251x');
+    assert.strictEqual(byLabel.get('2x2 / High / 5 rolls').maxPayout.display, '345,025,251.00×');
     assert.strictEqual(byLabel.get('Low / Independent').calculated.display, '97.97%');
-    assert.strictEqual(byLabel.get('Low / Independent').maxPayout.display, '2,500x');
+    assert.strictEqual(byLabel.get('Low / Independent').maxPayout.display, '2,500.00×');
     assert.strictEqual(byLabel.get('4x4 / High / Independent').calculated.display, '97.91%');
-    assert.strictEqual(byLabel.get('2x2 / High / Independent').maxPayout.display, '51x');
+    assert.strictEqual(byLabel.get('2x2 / High / Independent').maxPayout.display, '51.00×');
   });
 
   it('uses the lowest verified exact RTP when Bear-A-Dice has multiple difficulty/roll variants', () => {
@@ -134,7 +134,7 @@ describe('RTP Helpers', () => {
     assert.strictEqual(variants.length, 25);
     assert.strictEqual(byLabel.get('Easy / 1 roll').calculated.display, '97.89%');
     assert.strictEqual(byLabel.get('Medium / 5 rolls').calculated.display, '97.25%');
-    assert.strictEqual(byLabel.get('Master / 5 rolls').maxPayout.display, '1,847,949.193x');
+    assert.strictEqual(byLabel.get('Master / 5 rolls').maxPayout.display, '1,847,949.19×');
   });
 
   it('exposes exact calculated RTP constants for each verified Keno pick count and the best EV at 5 picks', () => {
@@ -143,7 +143,7 @@ describe('RTP Helpers', () => {
 
     assert.strictEqual(byLabel.get('Picks 1').calculated.display, '93.75%');
     assert.strictEqual(byLabel.get('Picks 5').calculated.display, '94.68%');
-    assert.strictEqual(byLabel.get('Picks 10').maxPayout.display, '1,000,000x');
+    assert.strictEqual(byLabel.get('Picks 10').maxPayout.display, '1,000,000.00×');
 
     const bestVariant = variants.reduce((best, candidate) => (
       candidate.calculated.value > best.calculated.value ? candidate : best
@@ -159,7 +159,7 @@ describe('RTP Helpers', () => {
 
     assert.strictEqual(byLabel.get('Picks 1').calculated.display, '97.50%');
     assert.strictEqual(byLabel.get('Picks 5').calculated.display, '97.84%');
-    assert.strictEqual(byLabel.get('Picks 5').maxPayout.display, '2,000x');
+    assert.strictEqual(byLabel.get('Picks 5').maxPayout.display, '2,000.00×');
 
     const bestVariant = variants.reduce((best, candidate) => (
       candidate.calculated.value > best.calculated.value ? candidate : best
@@ -182,7 +182,7 @@ describe('RTP Helpers', () => {
     assert.strictEqual(expected.display, '97.99%');
     assert.strictEqual(expected.referenceType, 'calculated');
     assert.strictEqual(expected.calculationKind, 'exact');
-    assert.strictEqual(maxPayout.display, '1,000x');
+    assert.strictEqual(maxPayout.display, '1,000.00×');
   });
 
   it('uses the on-chain Cosmic Plinko mode table even when split count is specified', () => {
@@ -198,7 +198,7 @@ describe('RTP Helpers', () => {
     assert.strictEqual(expected.display, '97.80%');
     assert.strictEqual(expected.referenceType, 'calculated');
     assert.strictEqual(expected.calculationKind, 'exact');
-    assert.strictEqual(maxPayout.display, '250x');
+    assert.strictEqual(maxPayout.display, '250.00×');
   });
 
   it('uses the verified crash formula for configured Glyde or Crash targets', () => {
@@ -231,7 +231,7 @@ describe('RTP Helpers', () => {
     assert.strictEqual(nearWorst.calculationKind, 'exact');
     assert.ok(Math.abs(nearWorst.value - 96.01020424) < 1e-12);
 
-    assert.strictEqual(maxPayout.display, '10,000x');
+    assert.strictEqual(maxPayout.display, '10,000.00×');
   });
 
   it('uses the verified Blocks mode and roll table when survive attempts are specified', () => {
@@ -247,7 +247,7 @@ describe('RTP Helpers', () => {
     assert.strictEqual(expected.display, '89.76%');
     assert.strictEqual(expected.referenceType, 'calculated');
     assert.strictEqual(expected.calculationKind, 'exact');
-    assert.strictEqual(maxPayout.display, '3,125,000,000,000,000,000x');
+    assert.strictEqual(maxPayout.display, '3,125,000,000,000,000,000.00×');
   });
 
   it('uses per-roll Blocks RTP and max payout for independent split attempts', () => {
@@ -264,7 +264,7 @@ describe('RTP Helpers', () => {
     assert.strictEqual(expected.display, '97.91%');
     assert.strictEqual(expected.referenceType, 'calculated');
     assert.strictEqual(expected.calculationKind, 'exact');
-    assert.strictEqual(maxPayout.display, '25,000x');
+    assert.strictEqual(maxPayout.display, '25,000.00×');
   });
 
   it('uses the verified Bear-A-Dice payout table for configured RTP and max payout', () => {
@@ -281,7 +281,7 @@ describe('RTP Helpers', () => {
     assert.strictEqual(expected.referenceType, 'calculated');
     assert.strictEqual(expected.calculationKind, 'exact');
     assert.ok(Math.abs(expected.value - 97.79744326762116) < 1e-12);
-    assert.strictEqual(maxPayout.display, '1,847,949.193x');
+    assert.strictEqual(maxPayout.display, '1,847,949.19×');
   });
 
   it('canonicalizes Plinko variants to risk mode only, ignoring split count', () => {
@@ -390,11 +390,11 @@ describe('RTP Helpers', () => {
     assert.deepStrictEqual(glyde, {
       gameKey: 'glyde-or-crash',
       variantKey: 'glyde-or-crash:target:20000',
-      variantLabel: 'Target 2x',
+      variantLabel: 'Target 2.00×',
       rtpGame: 'glyde-or-crash',
       rtpConfig: {
         multiplierBasisPoints: 20000,
-        multiplier: '2x',
+        multiplier: '2.00×',
       },
     });
   });
@@ -479,11 +479,11 @@ describe('RTP Helpers', () => {
       display: variant.calculated.display,
       maxPayout: variant.maxPayout.display,
     })), [
-      { variantLabel: 'Low', display: '98.00%', maxPayout: '2.2x' },
-      { variantLabel: 'Moderate', display: '97.97%', maxPayout: '5x' },
-      { variantLabel: 'High', display: '97.97%', maxPayout: '15x' },
-      { variantLabel: 'Degen', display: '97.94%', maxPayout: '100x' },
-      { variantLabel: 'Ultra Degen', display: '97.99%', maxPayout: '1,000x' },
+      { variantLabel: 'Low', display: '98.00%', maxPayout: '2.20×' },
+      { variantLabel: 'Moderate', display: '97.97%', maxPayout: '5.00×' },
+      { variantLabel: 'High', display: '97.97%', maxPayout: '15.00×' },
+      { variantLabel: 'Degen', display: '97.94%', maxPayout: '100.00×' },
+      { variantLabel: 'Ultra Degen', display: '97.99%', maxPayout: '1,000.00×' },
     ]);
   });
 
@@ -495,16 +495,16 @@ describe('RTP Helpers', () => {
       display: variant.calculated.display,
       maxPayout: variant.maxPayout.display,
     })), [
-      { variantLabel: 'Low', display: '97.73%', maxPayout: '50x' },
-      { variantLabel: 'Modest', display: '97.76%', maxPayout: '100x' },
-      { variantLabel: 'High', display: '97.80%', maxPayout: '250x' },
+      { variantLabel: 'Low', display: '97.73%', maxPayout: '50.00×' },
+      { variantLabel: 'Modest', display: '97.76%', maxPayout: '100.00×' },
+      { variantLabel: 'High', display: '97.80%', maxPayout: '250.00×' },
     ]);
   });
 
   it('returns the highest known max payout for a game when mode is unspecified', () => {
     const maxPayout = getGameMaxPayoutReference('keno');
 
-    assert.strictEqual(maxPayout.display, '1,000,000x');
+    assert.strictEqual(maxPayout.display, '1,000,000.00×');
     assert.strictEqual(maxPayout.value, 1000000);
   });
 
@@ -518,9 +518,9 @@ describe('RTP Helpers', () => {
     const monkeyMatch = getUniformGameMaxPayoutReference('monkey-match');
     const sushi = getUniformGameMaxPayoutReference('sushi-showdown');
 
-    assert.strictEqual(monkeyMatch.display, '50x');
+    assert.strictEqual(monkeyMatch.display, '50.00×');
     assert.strictEqual(monkeyMatch.value, 50);
-    assert.strictEqual(sushi.display, '500x');
+    assert.strictEqual(sushi.display, '500.00×');
     assert.strictEqual(sushi.value, 500);
   });
 
@@ -528,8 +528,8 @@ describe('RTP Helpers', () => {
     const exact = getConfiguredGameMaxPayoutReference({ game: 'keno', config: { picks: 5 } });
     const formula = getConfiguredGameMaxPayoutReference({ game: 'ape-strong', config: { range: 25 } });
 
-    assert.strictEqual(exact.display, '200x');
-    assert.strictEqual(formula.display, '3.9x');
+    assert.strictEqual(exact.display, '200.00×');
+    assert.strictEqual(formula.display, '3.90×');
   });
 
   it('uses the verified ApeStrong live payout table for configured RTP and max payout', () => {
@@ -546,7 +546,7 @@ describe('RTP Helpers', () => {
     assert.strictEqual(rtp.referenceType, 'calculated');
     assert.strictEqual(rtp.calculationKind, 'exact');
     assert.ok(Math.abs(rtp.value - 97.4925) < 1e-12);
-    assert.strictEqual(maxPayout.display, '1.025x');
+    assert.strictEqual(maxPayout.display, '1.03×');
     assert.ok(Math.abs(maxPayout.value - 1.025) < 1e-12);
   });
 
@@ -564,7 +564,7 @@ describe('RTP Helpers', () => {
     assert.strictEqual(rtp.referenceType, 'calculated');
     assert.strictEqual(rtp.calculationKind, 'exact');
     assert.ok(Math.abs(rtp.value - 97.5) < 1e-12);
-    assert.strictEqual(maxPayout.display, '97.5x');
+    assert.strictEqual(maxPayout.display, '97.50×');
     assert.ok(Math.abs(maxPayout.value - 97.5) < 1e-12);
   });
 
@@ -573,7 +573,7 @@ describe('RTP Helpers', () => {
     const byLabel = new Map(variants.map((variant) => [variant.variantLabel, variant]));
 
     assert.strictEqual(variants.length, 95);
-    assert.strictEqual(byLabel.get('Cover 1').maxPayout.display, '97.5x');
+    assert.strictEqual(byLabel.get('Cover 1').maxPayout.display, '97.50×');
     assert.strictEqual(byLabel.get('Cover 75').calculated.display, '97.50%');
     assert.ok(Math.abs(byLabel.get('Cover 95').calculated.value - 97.4985) < 1e-12);
   });
@@ -662,10 +662,10 @@ describe('RTP Helpers', () => {
     assert.strictEqual(sushi.calculationKind, 'exact');
     assert.ok(Math.abs(sushi.value - 97.87165381190353) < 1e-12);
 
-    assert.strictEqual(dinoMaxPayout.display, '333x');
-    assert.strictEqual(bubblegumMaxPayout.display, '100x');
-    assert.strictEqual(geezMaxPayout.display, '50x');
-    assert.strictEqual(sushiMaxPayout.display, '500x');
+    assert.strictEqual(dinoMaxPayout.display, '333.00×');
+    assert.strictEqual(bubblegumMaxPayout.display, '100.00×');
+    assert.strictEqual(geezMaxPayout.display, '50.00×');
+    assert.strictEqual(sushiMaxPayout.display, '500.00×');
   });
 
   it('computes config-aware max payout for combo-aware games', () => {
@@ -679,9 +679,9 @@ describe('RTP Helpers', () => {
       config: { betAmountApe: 400, jackpotApe: 25000 },
     });
 
-    assert.strictEqual(roulette.display, '1.025x');
-    assert.strictEqual(baccarat.display, '1.8x');
-    assert.strictEqual(videoPoker.display, '312.5x + 💰');
+    assert.strictEqual(roulette.display, '1.03×');
+    assert.strictEqual(baccarat.display, '1.80×');
+    assert.strictEqual(videoPoker.display, '312.50× + 💰');
   });
 
   it('groups video poker variants into base bets and the jackpot tier', () => {
@@ -691,8 +691,8 @@ describe('RTP Helpers', () => {
       variantLabel: variant.variantLabel,
       maxPayout: variant.maxPayout.display,
     })), [
-      { variantLabel: 'Bet 10/25/50/100/250 APE', maxPayout: '250x' },
-      { variantLabel: 'Bet 400 APE', maxPayout: '250x + 💰' },
+      { variantLabel: 'Bet 10/25/50/100/250 APE', maxPayout: '250.00×' },
+      { variantLabel: 'Bet 400 APE', maxPayout: '250.00× + 💰' },
     ]);
   });
 

@@ -128,8 +128,8 @@ describe('Wallet History Analysis', () => {
       assert.strictEqual(summary.games, 2);
       assert.strictEqual(summary.unsynced_games, 1);
       assert.strictEqual(summary.wins, 1);
-      assert.strictEqual(summary.pushes, 1);
-      assert.strictEqual(summary.losses, 0);
+      assert.strictEqual(summary.pushes, 0);
+      assert.strictEqual(summary.losses, 1);
       assert.strictEqual(summary.total_wagered_ape, '15');
       assert.strictEqual(summary.total_payout_ape, '25');
       assert.strictEqual(summary.contract_fees_paid_ape, '1');
@@ -273,7 +273,7 @@ describe('Wallet History Analysis', () => {
 
       assert.strictEqual(roulette.total_saved_games, 1);
       assert.strictEqual(roulette.games, 1);
-      assert.strictEqual(roulette.pushes, 1);
+      assert.strictEqual(roulette.pushes, 0);
       assert.strictEqual(roulette.total_wagered_ape, '5');
       assert.strictEqual(roulette.total_payout_ape, '5');
       assert.strictEqual(roulette.max_hit_x, 1);
@@ -1103,7 +1103,7 @@ describe('Wallet History Analysis', () => {
         numWinIntervals: 2,
         winCount: 41,
         winChance: '41%',
-        payout: '2.378x',
+        payout: '2.38×',
       });
       assert.strictEqual(result.games[0].variant_key, 'gimboz-smash:count:41');
       assert.strictEqual(result.games[0].variant_label, 'Cover 41');
@@ -1144,7 +1144,7 @@ describe('Wallet History Analysis', () => {
         numWinIntervals: 1,
         winCount: 65,
         winChance: '65%',
-        payout: '1.5x',
+        payout: '1.50×',
       });
       assert.strictEqual(result.games[0].variant_key, 'gimboz-smash:count:65');
       assert.strictEqual(result.games[0].variant_label, 'Cover 65');
@@ -1196,14 +1196,14 @@ describe('Wallet History Analysis', () => {
         multiplierBasisPoints: 20000,
         targetMultiplier: 20000,
         winChance: '48.5%',
-        payout: '2x',
+        payout: '2.00×',
         exactRtp: '97%',
       });
       assert.strictEqual(result.games[0].variant_key, 'glyde-or-crash:target:20000');
-      assert.strictEqual(result.games[0].variant_label, 'Target 2x');
+      assert.strictEqual(result.games[0].variant_label, 'Target 2.00×');
       assert.deepStrictEqual(result.games[0].rtp_config, {
         multiplierBasisPoints: 20000,
-        multiplier: '2x',
+        multiplier: '2.00×',
       });
     });
 
@@ -1238,14 +1238,14 @@ describe('Wallet History Analysis', () => {
         multiplierBasisPoints: 98979592,
         targetMultiplier: 98979592,
         winChance: '0.0097%',
-        payout: '9,897.9592x',
+        payout: '9,897.96×',
         exactRtp: '96.01020424%',
       });
       assert.strictEqual(result.games[0].variant_key, 'glyde-or-crash:target:98979592');
-      assert.strictEqual(result.games[0].variant_label, 'Target 9,897.9592x');
+      assert.strictEqual(result.games[0].variant_label, 'Target 9,897.96×');
       assert.deepStrictEqual(result.games[0].rtp_config, {
         multiplierBasisPoints: 98979592,
-        multiplier: '9,897.9592x',
+        multiplier: '9,897.96×',
       });
     });
 
@@ -2708,5 +2708,33 @@ describe('Wallet History Analysis', () => {
         rawSpins: 4,
       });
     });
+  });
+});
+
+
+describe('history receipt accounting across failed transactions', () => {
+  it('includes failed-only gas in net result while keeping its game count zero', () => {
+    const summary = summarizeHistoryGames({ games: [{ contract: APESTRONG, gameId: 'failed',
+      cost_transactions: [{ hash: '0xfail', confirmed: true, status: 'reverted', gas_wei: '6', vrf_wei: '0' }] }] });
+    assert.equal(summary.games, 0);
+    assert.equal(summary.wins, 0);
+    assert.equal(summary.losses, 0);
+    assert.equal(summary.failed_transaction_records, 1);
+    assert.equal(summary.pnl_wei, '-6');
+    assert.equal(summary.cost_wei, '6');
+    assert.equal(summary.multiplier, null);
+  });
+  it('uses receipt costs instead of stale legacy zero gas when classifying net results', () => {
+    const summary = summarizeHistoryGames({ games: [{ contract: APESTRONG, gameId: 'settled',
+      last_sync_on: '2026-10-01T00:00:00Z', wager_wei: '100', payout_wei: '101',
+      gas_fee_wei: '0', contract_fee_wei: '0', won: true,
+      cost_transactions: [{ hash: '0xreceipt', confirmed: true, status: 'success', gas_wei: '2', vrf_wei: '1' }] }] });
+    assert.equal(summary.games, 1);
+    assert.equal(summary.losses, 1);
+    assert.equal(summary.wins, 0);
+    assert.equal(summary.pnl_wei, '-2');
+    assert.equal(summary.multiplier_display, '1.01×');
+    assert.equal(summary.costs.gas_wei, '2');
+    assert.equal(summary.costs.vrf_wei, '1');
   });
 });

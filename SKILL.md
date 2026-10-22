@@ -159,7 +159,7 @@ Sync and cache behavior:
 | `🎰 Games` | Economically synced games included in totals |
 | `💸 Contract fees paid` | Contract-side fees effectively paid by the wallet |
 | `⛽️ Gas paid` | Network gas effectively paid by the wallet |
-| `Net result` | `payout - wager - contract fees - gas` |
+| `PnL Profit` | `payout - wager - additional costs` |
 | `✌️ Win rate` | Wins divided by economically synced games |
 | `🎲 RTP` | `total payout / total wagered` |
 | `🎟️  APE Wagered (wAPE)` | Current on-chain balance / total APE wagered by synced games |
@@ -493,20 +493,20 @@ apechurch-cli play --loop --delay 5          # 5 seconds between games
 apechurch-cli play --loop --target 200
 
 # Stop when balance drops to limit
-apechurch-cli play --loop --stop-loss 50
+apechurch-cli play --loop --min-balance 50
 
 # Stop after N games
 apechurch-cli play --loop --max-games 100
 
 # Combine them all
-apechurch-cli play ape-strong 10 --cover 50 --loop --target 200 --stop-loss 50 --max-games 100
+apechurch-cli play ape-strong 10 --cover 50 --loop --target 200 --min-balance 50 --max-games 100
 ```
 
 | Option | Description |
 |--------|-------------|
 | `--target <ape>` | Stop when balance reaches this amount |
-| `--stop-loss <ape>` | Stop when balance drops to this amount; derives bankroll when no `--bankroll`/`--max-loss` is set |
-| `--bankroll <ape>`, `--max-loss <ape>` | Stop when session P&L reaches this loss; derives wallet stop-loss when no `--stop-loss` is set |
+| `--min-balance <ape>` | Stop when balance drops to this amount; derives bankroll when no `--bankroll`/`--max-loss` is set |
+| `--bankroll <ape>`, `--max-loss <ape|n%>` | Stop when net session PnL reaches this loss; no wallet threshold is derived |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
 
@@ -515,7 +515,7 @@ apechurch-cli play ape-strong 10 --cover 50 --loop --target 200 --stop-loss 50 -
 ```
 🔄 Loop mode: ApeStrong (3s delay | Strategy: martingale)
    🎯 Target: 200 APE
-   🛑 Stop-loss: 50 APE
+   🛑 Minimum balance: 50 APE
    🏁 Max games: 100
 ──────────────────────────────────────────────────
    📊 martingale: betting 10.00 APE
@@ -578,12 +578,12 @@ Lose → bet 10 → Lose → bet 10 → Lose → bet 20 → Lose → bet 30 → 
 ```bash
 --max-bet <ape>    # Cap maximum bet (prevents runaway martingale)
 --min-bet <ape>    # Floor dynamic bankroll-fraction bets
---stop-loss <ape>  # Stop if balance drops too low
+--min-balance <ape>  # Stop if balance drops too low
 ```
 
 **Recommended:** Always use `--max-bet` with progressive strategies.
 
-`bankroll-fraction=<n>` requires `--bankroll`/`--max-loss` or `--stop-loss`, conflicts with an explicit starting wager, and sizes each new play from the remaining bankroll.
+`bankroll-fraction=<n>` requires `--bankroll`/`--max-loss` or `--min-balance`, conflicts with an explicit starting wager, and sizes each new play from the remaining bankroll.
 
 ---
 
@@ -771,7 +771,7 @@ apechurch-cli video-poker payouts  # Show payout table
 | `--gp-ape <points>` | Override the current run's GP per APE rate |
 | `--solver` | Show the best-EV hold suggestion in interactive video poker |
 | `--target <ape>` | Stop at target balance |
-| `--stop-loss <ape>` | Stop at loss limit |
+| `--min-balance <ape>` | Stop at loss limit |
 | `--max-games <n>` | Stop after N games |
 | `--bet-strategy <name>` | Betting strategy, including `bankroll-fraction=<0..1>` |
 | `--max-bet <ape>` | Maximum bet cap |
@@ -972,7 +972,7 @@ All commands support `--json` for machine-readable output. Samples below are abr
 Best for hands-off autonomous play.
 
 ```bash
-apechurch-cli play --loop --target 200 --stop-loss 50 --max-games 500
+apechurch-cli play --loop --target 200 --min-balance 50 --max-games 500
 ```
 
 The agent will:
@@ -986,7 +986,7 @@ The agent will:
 Target a specific game with fixed parameters.
 
 ```bash
-apechurch-cli play ape-strong 10 --cover 50 --loop --target 150 --stop-loss 80
+apechurch-cli play ape-strong 10 --cover 50 --loop --target 150 --min-balance 80
 ```
 
 ### Pattern 3: Martingale Recovery
@@ -994,7 +994,7 @@ apechurch-cli play ape-strong 10 --cover 50 --loop --target 150 --stop-loss 80
 Progressive betting to recover losses.
 
 ```bash
-apechurch-cli play roulette 5 RED --loop --bet-strategy martingale --max-bet 50 --stop-loss 20
+apechurch-cli play roulette 5 RED --loop --bet-strategy martingale --max-bet 50 --min-balance 20
 ```
 
 **Important:** Always set `--max-bet` with martingale to prevent exponential loss.

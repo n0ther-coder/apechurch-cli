@@ -7,6 +7,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
   formatApeAmount,
+  normalizeWagerAmount,
   sanitizeError,
   randomUint256,
   randomBytes32,
@@ -36,6 +37,15 @@ describe('Utils', () => {
     it('handles zero', () => {
       const result = formatApeAmount(0);
       assert.ok(result.startsWith('0'));
+    });
+  });
+
+  describe('exact wager amounts', () => {
+    it('preserves the requested wei instead of rounding a six-decimal display amount', () => {
+      assert.equal(normalizeWagerAmount('3.123456789012345678'), '3.123456789012345678');
+      assert.equal(normalizeWagerAmount('0.000000000000000001'), '0.000000000000000001');
+      assert.equal(normalizeWagerAmount('0003.10'), '3.1');
+      assert.throws(() => normalizeWagerAmount('3.1234567890123456789'), /18 decimals/);
     });
   });
 

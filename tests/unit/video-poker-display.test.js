@@ -145,7 +145,7 @@ describe('Video Poker Display', () => {
 
     const plain = stripAnsi(output);
     assert.match(plain, /💀 No winning hand/);
-    assert.match(plain, /\(net profit -25\.0000 APE\)/);
+    assert.match(plain, /\(PnL Profit: -25\.0000 APE\)/);
     assert.doesNotMatch(output, /❌ No winning hand/);
   });
 
@@ -169,9 +169,9 @@ describe('Video Poker Display', () => {
       totalPayoutApe: 0,
     });
 
-    assert.match(stripAnsi(winFooter), /🎉 Straight! → 100 APE \(4x\) \(net profit \+75\.0000 APE\)/);
-    assert.match(stripAnsi(pushFooter), /🤝 Jacks or Better! → 25 APE \(1x\) \(net profit 0\.0000 APE\)/);
-    assert.match(stripAnsi(lossFooter), /💀 No winning hand \(net profit -25\.0000 APE\)/);
+    assert.match(stripAnsi(winFooter), /🎉 Straight! → 100 APE \(4\.00×\) \(PnL Profit: \+75\.0000 APE\)/);
+    assert.match(stripAnsi(pushFooter), /🤝 Jacks or Better! → 25 APE \(1\.00×\) \(PnL Profit: 0\.0000 APE\)/);
+    assert.match(stripAnsi(lossFooter), /💀 No winning hand \(PnL Profit: -25\.0000 APE\)/);
   });
 
   it('keeps the full-mode result line only in the footer for completed hands', () => {
@@ -194,7 +194,7 @@ describe('Video Poker Display', () => {
     }, { displayMode: 'full' });
 
     assert.doesNotMatch(output, /║ → Flush\s+║/);
-    assert.match(stripAnsi(output), /🎉 Flush! → 150 APE \(6x\) \(net profit \+125\.0000 APE\)/);
+    assert.match(stripAnsi(output), /🎉 Flush! → 150 APE \(6\.00×\) \(PnL Profit: \+125\.0000 APE\)/);
   });
 
   it('serializes bigint fields in json mode', () => {

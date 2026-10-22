@@ -81,6 +81,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 <integer> ::= ...                                 ; base-10 integer token accepted by the CLI
 <token> ::= ...                                   ; one shell token
 <ape> ::= <number>                                ; decimal APE amount; value > 0
+<pnl-threshold> ::= <ape> | <integer> "%"          ; positive whole percentage of actual result wager
 <ape-nonnegative> ::= <number>                    ; decimal APE amount; value >= 0
 <points> ::= <number>                             ; decimal GP per APE rate; value > 0
 <block> ::= <integer>                             ; value >= 0
@@ -100,7 +101,7 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 <cover> ::= <integer>                           ; ApeStrong uses 5..95; Gimboz Smash randomizes a 1..95 inside/outside cover
 <range> ::= <target-range> | <target-range> "," <target-range>
                                                 ; Gimboz Smash uses one or two inclusive target ranges on 1..100
-<multiplier> ::= <number> [ "x" ]                ; 1.01 <= value <= 10000 and at most 4 decimal places
+<multiplier> ::= <number> [ "x" | "×" ]                ; 1.01 <= value <= 10000 and at most 4 decimal places
 <target-range> ::= <integer> "-" <integer>      ; each endpoint is within 1..100, each range is inclusive, total covered numbers across all ranges is within 1..95
 <out-range> ::= <target-range>                    ; one excluded inclusive range for Gimboz Smash outside bets; excluded coverage is within 5..95
 <simple-game-key> ::= "ape-strong"
@@ -680,15 +681,15 @@ For Blocks, `--split 1-5` divides the wager across independent rolls and sums th
                        | "--delay" <seconds>
                        | "--human" [ <human-range> ]
                        | "--max-games" <count>
-                       | "--take-profit" <ape>
-                       | "--min-profit" <ape>
+                       | "--max-balance" <ape>
+                       | "--min-profit" <pnl-threshold>
                        | "--target-x" <number>
-                       | "--target-profit" <ape>
-                       | "--retrace" <ape>
-                       | "--recover-loss" <ape>
-                       | "--giveback-profit" <ape>
-                       | "--stop-loss" <ape-nonnegative>
-                       | "--max-loss" <ape>
+                       | "--target-profit" <pnl-threshold>
+                       | "--retrace" <pnl-threshold>
+                       | "--recover-loss" <pnl-threshold>
+                       | "--giveback-profit" <pnl-threshold>
+                       | "--min-balance" <ape-nonnegative>
+                       | "--max-loss" <pnl-threshold>
                        | "--bankroll" <ape>
                        | "--bet-strategy" <bet-strategy>
                        | "--max-bet" <ape>
@@ -699,6 +700,11 @@ For Blocks, `--split 1-5` divides the wager across independent rolls and sums th
                        | "--color"
                        | "--json"
 ```
+
+`--take-profit` aliases `--min-profit`; `--stop-loss` aliases `--max-loss`.
+Profit/loss percentages use the actual wager of the controlled result: one
+settled game for `--target-profit` / `--retrace`, the complete session for session
+guards. They do not create wallet balance thresholds. See [ACCOUNTING.md](ACCOUNTING.md).
 
 The positional tail after `<ape>` is game-specific. See [GAMES_REFERENCE.md](./GAMES_REFERENCE.md) or `apechurch-cli game <name>` for the exact grammar per stateless game.
 
@@ -765,15 +771,15 @@ These options are accepted by the `play` command for both stateless and stateful
 | `--delay <seconds>` | Delay between looped games |
 | `--human [range]` | Add humanized loop pacing. Bare `--human` uses weighted 3-9s; `weighted:3-9` is the explicit form of that profile, while a range such as `2-17` uses a uniform random seconds window |
 | `--max-games <count>` | Stop loop after N games |
-| `--take-profit <ape>` | Stop loop when balance reaches the target |
-| `--min-profit <ape>` | Stop loop when session P&L reaches the target profit |
+| `--max-balance <ape>` | Stop loop when balance reaches the target |
+| `--min-profit <ape|n%>` | Stop loop when session P&L reaches the target profit |
 | `--target-x <x>` | Stop loop when one game pays at least the target multiplier |
-| `--target-profit <ape>` | Stop loop when one game pays at least the target payout |
-| `--retrace <ape>` | Stop loop when one game loses at least this amount |
-| `--recover-loss <ape>` | Stop loop when net session P&L returns to break-even/profit after a drawdown of at least this size |
-| `--giveback-profit <ape>` | Stop loop when net session P&L returns to break-even/loss after a run-up of at least this size |
-| `--stop-loss <ape>` | Stop before a play/loop iteration when wallet balance is at or below the threshold. If set without `--max-loss`/`--bankroll`, the session bankroll is derived as `starting balance - stop-loss` |
-| `--max-loss <ape>`, `--bankroll <ape>` | Stop loop when session P&L reaches the loss limit. If set without `--stop-loss`, the wallet stop-loss is derived as `starting balance - bankroll` |
+| `--target-profit <ape|n%>` | Stop loop when one game reaches the target net PnL Profit |
+| `--retrace <ape|n%>` | Stop loop when one game loses at least this amount |
+| `--recover-loss <ape|n%>` | Stop loop when net session P&L returns to break-even/profit after a drawdown of at least this size |
+| `--giveback-profit <ape|n%>` | Stop loop when net session P&L returns to break-even/loss after a run-up of at least this size |
+| `--min-balance <ape>` | Stop before a play/loop iteration when wallet balance is at or below the threshold. It can define starting sizing capital as `starting balance - min-balance`, without creating a net loss guard |
+| `--max-loss <ape|n%>`, `--bankroll <ape>` | Stop loop when session P&L reaches the loss limit. No wallet threshold is derived from this net result limit |
 | `--bet-strategy <name>` | Loop bet progression, including `bankroll-fraction=<0..1>` |
 | `--max-bet <ape>` | Loop safety cap for progressive strategies |
 | `--min-bet <ape>` | Loop minimum bet floor for dynamic strategies |
@@ -784,7 +790,7 @@ These options are accepted by the `play` command for both stateless and stateful
 
 The resilient schedules are fixed, not configurable. Generic transient errors and reverted receipts use `30s`, `1m`, `2m`, `5m`, `10m × 6`, and `1h × 7` (17 retries over `8h08m30s`). Network/DNS outages, `PRICE TOO LOW, PvH GAMES PAUSED`, `All Games Paused`, `Paused`, propagated RNG/VRF errors, out-of-gas failures, and RPC-node errors use `3m`, `7m`, `10m × 5`, `30m × 10`, and `1h × 18` (35 retries over 24 hours). Retry notices include the next local attempt timestamp in `YYYY-MMM-DD HH:mm:ss±ZZZZ` form.
 
-`bankroll-fraction=<fraction>` requires `--bankroll`/`--max-loss` or `--stop-loss`, and it conflicts with an explicit wager amount (`<amount>` or `--amount`). Each loop iteration bets `fraction * remaining bankroll`; `--max-bet` caps that dynamic wager and `--min-bet` floors it.
+`bankroll-fraction=<fraction>` requires `--bankroll`/`--max-loss` or `--min-balance`, and it conflicts with an explicit wager amount (`<amount>` or `--amount`). Each loop iteration bets `fraction * remaining bankroll`; `--max-bet` caps that dynamic wager and `--min-bet` floors it.
 
 ### GP Rate Controls
 
@@ -803,13 +809,13 @@ The resilient schedules are fixed, not configurable. Generic transient errors an
 ### `bot [name] [args...]`
 
 ```bnf
-<bot-command> ::= "bot" [ <bot-name> ] [ <token>* ] [ "-h" | "--help" ] [ "--color" ] [ "--json" ] [ "--fallback-loss" <ape> "--fallback-bot" <bot-name> ] [ "--list" ]
+<bot-command> ::= "bot" [ <bot-name> ] [ <token>* ] [ "-h" | "--help" ] [ "--color" ] [ "--json" ] [ "--fallback-loss" <pnl-threshold> "--fallback-bot" <bot-name> ] [ "--list" ]
 <bot-name> ::= <token>
 ```
 
 `bot` discovers personal local bot folders from `$APECHURCH_CLI_CONFIG_DIR/bots` by default, where `APECHURCH_CLI_CONFIG_DIR` defaults to `~/.apechurch-cli`. Set `APECHURCH_CLI_BOTS_DIR` when the bot root lives elsewhere, including a separate private or public Git repository; its value must be the actual local bot root that contains bot folders with `bot.json`, not a parent directory. Bot logs belong under `APECHURCH_CLI_LOG_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/log`. Each bot is defined by `bot.json` plus an entry module. Use `bot --list` to inspect discovery, `bot --help` for the shared loader help, then `bot <name> ...` to execute one bot. Use `bot <name> -h` or `bot <name> --help` for bot-specific help.
 
-The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. Local bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape>`, `--fallback-bot <name>`, and standard loop controls. `--take-profit` and `--stop-loss` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` derive absolute thresholds from the bot's starting balance, while a lone `--stop-loss` derives the bot's relative bankroll as `starting balance - stop-loss`. `--max-routines` limits the main bot's own routines and is not forwarded; `--preflight` delays the main bot before balance reads and is not forwarded; `--max-games` remains a game loop option and is invalid when passed to a bot. Bot code is trusted local code, so only run bots from directories you control. See [BOTS.md](./BOTS.md) for the public bot development guide.
+The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. Local bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape|n%>`, `--fallback-bot <name>`, and standard loop controls. `--max-balance` and `--min-balance` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` use actual net PnL and do not derive wallet thresholds; an implementation may use `starting balance - min-balance` as initial sizing capital independently. `--max-routines` limits the main bot's own routines and is not forwarded; `--preflight` delays the main bot before balance reads and is not forwarded; `--max-games` remains a game loop option and is invalid when passed to a bot. Bot code is trusted local code, so only run bots from directories you control. See [BOTS.md](./BOTS.md) for the public bot development guide.
 
 The runtime surface is intentionally narrow: bots receive positional args, command-registry helpers `resolveGame(command)` and `resolveBot(command)`, gameplay helpers `play(tokens)`, `playJson(tokens)`, `gamePaytable(name, tokens)`, `reconcilePendingPlay(payload, options)`, `validatePlayArgs(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, and `validateBotArgs(name, tokens)`, resume fields `resumeRequested` and `resumeSummary`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and bot-specific `bot.logDir`. The resolvers use the same game catalog and bot registry as the CLI and return a descriptor or `null`; they do not execute or validate a wager. `gamePaytable` reads payout metadata without starting a game. Reconciliation reads only an already-submitted stateless game identified by `contract` and `gameId`; it never sends a replacement transaction. Bot summary logs are written under `paths.logDir/<bot-name>/` with a `.json` extension when the summary contains a full transaction hash, a positive recorded wager, or a resumable top-level `pending` status. Runs that fail, exit, or are interrupted before material gameplay still return or print their summary without creating empty local or mirrored log files.
 
@@ -1030,15 +1036,15 @@ Alias: `bj`
                      | "--human" [ <human-range> ]
                      | "--loop"
                      | "--max-games" <count>
-                     | "--take-profit" <ape>
-                     | "--min-profit" <ape>
+                     | "--max-balance" <ape>
+                     | "--min-profit" <pnl-threshold>
                      | "--target-x" <number>
-                     | "--target-profit" <ape>
-                     | "--retrace" <ape>
-                     | "--recover-loss" <ape>
-                     | "--giveback-profit" <ape>
-                     | "--stop-loss" <ape-nonnegative>
-                     | "--max-loss" <ape>
+                     | "--target-profit" <pnl-threshold>
+                     | "--retrace" <pnl-threshold>
+                     | "--recover-loss" <pnl-threshold>
+                     | "--giveback-profit" <pnl-threshold>
+                     | "--min-balance" <ape-nonnegative>
+                     | "--max-loss" <pnl-threshold>
                      | "--bankroll" <ape>
                      | "--bet-strategy" <bet-strategy>
                      | "--max-bet" <ape>
@@ -1082,15 +1088,15 @@ Aliases: `cashdash`, `dash`
                      | "--human" [ <human-range> ]
                      | "--loop"
                      | "--max-games" <count>
-                     | "--take-profit" <ape>
-                     | "--min-profit" <ape>
+                     | "--max-balance" <ape>
+                     | "--min-profit" <pnl-threshold>
                      | "--target-x" <number>
-                     | "--target-profit" <ape>
-                     | "--retrace" <ape>
-                     | "--recover-loss" <ape>
-                     | "--giveback-profit" <ape>
-                     | "--stop-loss" <ape-nonnegative>
-                     | "--max-loss" <ape>
+                     | "--target-profit" <pnl-threshold>
+                     | "--retrace" <pnl-threshold>
+                     | "--recover-loss" <pnl-threshold>
+                     | "--giveback-profit" <pnl-threshold>
+                     | "--min-balance" <ape-nonnegative>
+                     | "--max-loss" <pnl-threshold>
                      | "--bankroll" <ape>
                      | "--bet-strategy" <bet-strategy>
                      | "--max-bet" <ape>
@@ -1135,15 +1141,15 @@ Aliases: `hilonebula`, `hilo`, `nebula`
                         | "--human" [ <human-range> ]
                         | "--loop"
                         | "--max-games" <count>
-                        | "--take-profit" <ape>
-                        | "--min-profit" <ape>
+                        | "--max-balance" <ape>
+                        | "--min-profit" <pnl-threshold>
                         | "--target-x" <number>
-                        | "--target-profit" <ape>
-                        | "--retrace" <ape>
-                        | "--recover-loss" <ape>
-                        | "--giveback-profit" <ape>
-                        | "--stop-loss" <ape-nonnegative>
-                        | "--max-loss" <ape>
+                        | "--target-profit" <pnl-threshold>
+                        | "--retrace" <pnl-threshold>
+                        | "--recover-loss" <pnl-threshold>
+                        | "--giveback-profit" <pnl-threshold>
+                        | "--min-balance" <ape-nonnegative>
+                        | "--max-loss" <pnl-threshold>
                         | "--bankroll" <ape>
                         | "--bet-strategy" <bet-strategy>
                         | "--max-bet" <ape>
@@ -1151,7 +1157,7 @@ Aliases: `hilonebula`, `hilo`, `nebula`
                         | "--gp-ape" <points>
 ```
 
-If the first positional token is numeric, the command starts a new run. `--solver` shows the manual `Suggested action` line and defaults to `best`; `--solver simple`, `--solver best`, and `--solver winston-ladder` select the same decision engines exposed by `--auto`. `--auto best` is a VRF-aware net-EV continuation solver over the verified rank-only branch table, using the live jackpot snapshot as the terminal bonus reference. `--auto winston-ladder` can play up to two on-chain games with the same initial bet, up to seven guesses per game, targeting a first-game 1.5x cashout or a 2.5x total ladder payout; VRF fees are ignored by that ladder target. `--human [range]` is supported but hidden from standard `--help`.
+If the first positional token is numeric, the command starts a new run. `--solver` shows the manual `Suggested action` line and defaults to `best`; `--solver simple`, `--solver best`, and `--solver winston-ladder` select the same decision engines exposed by `--auto`. `--auto best` is a VRF-aware net-EV continuation solver over the verified rank-only branch table, using the live jackpot snapshot as the terminal bonus reference. `--auto winston-ladder` can play up to two on-chain games with the same initial bet, up to seven guesses per game, targeting net profit of half the opening bet over one or two games. It adds recorded additional costs to the gross cashout targets; its cumulative multiplier always divides by both actual game wagers. `--human [range]` is supported but hidden from standard `--help`.
 
 ### `video-poker [action] [amount]`
 
@@ -1176,15 +1182,15 @@ Alias: `vp`
                        | "--human" [ <human-range> ]
                        | "--loop"
                        | "--max-games" <count>
-                       | "--take-profit" <ape>
-                       | "--min-profit" <ape>
+                       | "--max-balance" <ape>
+                       | "--min-profit" <pnl-threshold>
                        | "--target-x" <number>
-                       | "--target-profit" <ape>
-                       | "--retrace" <ape>
-                       | "--recover-loss" <ape>
-                       | "--giveback-profit" <ape>
-                       | "--stop-loss" <ape-nonnegative>
-                       | "--max-loss" <ape>
+                       | "--target-profit" <pnl-threshold>
+                       | "--retrace" <pnl-threshold>
+                       | "--recover-loss" <pnl-threshold>
+                       | "--giveback-profit" <pnl-threshold>
+                       | "--min-balance" <ape-nonnegative>
+                       | "--max-loss" <pnl-threshold>
                        | "--bankroll" <ape>
                        | "--bet-strategy" <bet-strategy>
                        | "--max-bet" <ape>

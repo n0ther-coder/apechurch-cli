@@ -126,7 +126,7 @@ describe('Cash Dash strategy helpers', () => {
     const decision = getBestDecision(state, { vrfFee: 0n }, { cashoutAfter: 3 });
     assert.strictEqual(decision.type, 'guess');
     assert.strictEqual(decision.index, 0);
-    assert.ok(decision.evMultiplier < 1);
+    assert.ok(decision.expectedNetReturnRatio < 1);
   });
 
   it('models one-step continuation EV from row payout and survival odds', () => {
@@ -139,7 +139,7 @@ describe('Cash Dash strategy helpers', () => {
 
     assert.strictEqual(ev.tileCount, 6);
     assert.strictEqual(ev.payoutMultiplier, 1.15);
-    assert.strictEqual(Number(ev.netEvMultiplier.toFixed(6)), 0.958333);
+    assert.strictEqual(Number(ev.netReturnRatio.toFixed(6)), 0.958333);
   });
 });
 
@@ -147,17 +147,17 @@ describe('Cash Dash display helpers', () => {
   it('keeps solver suggestion text compact enough for the boxed view', () => {
     const cashoutLine = formatDecisionSuggestion({
       type: 'cashout',
-      continuationEvMultiplier: 0.958333,
+      continuationNetReturnRatio: 0.958333,
     });
     const guessLine = formatDecisionSuggestion({
       type: 'guess',
       index: 0,
       label: 'Tile 1',
-      evMultiplier: 0.958333,
+      expectedNetReturnRatio: 0.958333,
     });
 
-    assert.strictEqual(cashoutLine, 'Cash Out (c) | Continue EV 0.958x');
-    assert.strictEqual(guessLine, 'Tile 1 (1) | EV 0.958x');
+    assert.strictEqual(cashoutLine, 'Cash Out (c) | Continuation EV -4% of cashout');
+    assert.strictEqual(guessLine, 'Tile 1 (1) | continuation EV -4% of cashout');
     assert.ok(`Suggestion: ${cashoutLine}`.length <= 68);
     assert.ok(`Suggestion: ${guessLine}`.length <= 68);
   });

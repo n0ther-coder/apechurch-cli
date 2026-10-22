@@ -8,7 +8,7 @@ const ANSI_REGEX = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
 function makeDecisionState() {
   return {
     gameId: '123',
-    player: '0x1111111111111111111111111111111111111111',
+    player: '0\.00×1111111111111111111111111111111111111111',
     initialBetAmount: 25000000000000000000n,
     initialBetAmountApe: 25,
     payout: 0n,
@@ -63,7 +63,7 @@ describe('Hi-Lo Nebula Display', () => {
     assert.match(output, /HI-LO NEBULA ✔︎/);
     assert.match(output, /ACTIONS:/);
     assert.match(output, /DRAW: 9[♥♦♣♠] \(•\)\( \)\( \)\( \)/u);
-    assert.match(output, /\[h\] Higher 2\.5000x/);
+    assert.match(output, /\[h\] Higher 2\.50×/);
     assert.match(output, /Bet: 25 APE/);
     assert.match(output, /Cashout: 44\.64 APE/);
     assert.match(output, /Jackpot: 1\.2 APE/);
@@ -97,7 +97,7 @@ describe('Hi-Lo Nebula Display', () => {
   it('renders the verified payout table including SAME and ace edge cases', () => {
     const table = renderPayoutTable();
     assert.match(table, /Same\s+│/);
-    assert.match(table, /│ 2\s+│ 1\.0600x\s+│ N\/A\s+│ 12\.5000x\s+│/);
-    assert.match(table, /│ A\s+│ N\/A\s+│ 1\.0600x\s+│ 12\.5000x\s+│/);
+    assert.match(table, /│ 2\s+│ 1\.06×\s+│ N\/A\s+│ 12\.50×\s+│/);
+    assert.match(table, /│ A\s+│ N\/A\s+│ 1\.06×\s+│ 12\.50×\s+│/);
   });
 });

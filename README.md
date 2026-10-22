@@ -1,5 +1,9 @@
 # @n0ther/apechurch-cli
 
+**CLI 30 breaks compatibility with scripts written for earlier versions.**
+Review and migrate wallet limits, profit/loss thresholds, JSON consumers and
+output assumptions using the [two-column migration guide](docs/MIGRATION_30.md).
+
 > Summary: Ape Church CLI with encrypted local wallet handling, game automation, on-chain history reporting, and JSON interfaces for bots and AI agents.
 
 CLI for [Ape Church](https://ape.church) games on ApeChain.
@@ -22,12 +26,12 @@ The package provides:
 
 `apechurch-cli` treats personal bots as a first-class local extension point. This repository contains the bot loader, runtime helpers, and public contract; personal bot implementations live in a separate local directory or Git repository that you control. A bot is trusted code discovered by the CLI, run through the same encrypted local wallet, and constrained by the same command grammar, wallet guards, and JSON reporting surfaces as manual play.
 
-For human operators, this means private routines can be packaged as named commands instead of fragile shell scripts: recovery play, bankroll routing, game-specific experiments, scheduled loop variants, or multi-step strategies can live under a bot directory with its own `README.md`, `bot.json`, usage help, and run logs. Operators can list available bots, inspect their help, pass standard stop-loss/take-profit controls, and review JSON summaries after each run:
+For human operators, this means private routines can be packaged as named commands instead of fragile shell scripts: recovery play, bankroll routing, game-specific experiments, scheduled loop variants, or multi-step strategies can live under a bot directory with its own `README.md`, `bot.json`, usage help, and run logs. Operators can list available bots, inspect their help, pass standard min-balance/max-balance controls, and review JSON summaries after each run:
 
 ```bash
 apechurch-cli bot --list
 apechurch-cli bot <bot-command> --help
-apechurch-cli bot <bot-command> 10 --take-profit 25 --stop-loss 5
+apechurch-cli bot <bot-command> 10 --max-balance 25 --min-balance 5
 ```
 
 For AI agents, the same surface is intentionally machine-friendly. `lib/bots.js` exposes a narrow runtime context with helpers such as `ctx.resolveGame(...)`, `ctx.resolveBot(...)`, `ctx.play(...)`, `ctx.playJson(...)`, `ctx.gamePaytable(...)`, `ctx.reconcilePendingPlay(...)`, `ctx.botRun(...)`, `ctx.botJson(...)`, `ctx.validatePlayArgs(...)`, and `ctx.validateBotArgs(...)`, so an agent can classify commands through the game catalog and bot registry, inspect payout bounds without wagering, compose live plays, reconcile already-submitted stateless games, validate arguments before execution, and consume structured results without scraping terminal output. The bot runtime also tracks nested calls, forwards chimes through parent/child bot chains, and writes per-bot JSON logs under `APECHURCH_CLI_LOG_DIR`.
@@ -85,7 +89,7 @@ This design keeps bot strategy private while still giving both humans and AI age
 - **Exact Plinko modeling:** Jungle and Cosmic Plinko mode RTP and top payouts are derived from the live on-chain bucket tables, and Plinko stats are grouped by risk level rather than by ball count
 - **Per-wallet history cache:** `wallet download` reconstructs supported on-chain history into a local cache, with incremental backfills and offline `history` reads across 26 tracked public game contracts
 - **Game reporting:** `Recent Games`, compact `Game Status`, and full `Game Stats` views show net profit, win rate, RTP, unfinished local games, and per-game breakdowns
-- **Automation tooling:** loop mode supports `take-profit`, `retrace`, `stop-loss`, `max-games`, machine-readable JSON output, and strategy-driven game/config selection
+- **Automation tooling:** loop mode supports `max-balance`, `retrace`, `min-balance`, `max-games`, machine-readable JSON output, and strategy-driven game/config selection
 - **Stateful UX improvements:** unfinished-game recovery, blackjack side bets, solver-backed auto decisions, and EV / Monte Carlo helpers for loop planning
 - **Documentation:** formal BNF argument grammar in CLI help, a bundled games reference, examples, and explicit coverage and limitations for on-chain reporting
 
@@ -320,7 +324,7 @@ Text output includes:
 - `🎰 Games`: economically synced games included in totals
 - `💸 Contract fees paid`: contract-side fees actually paid by the wallet
 - `⛽️ Gas paid`: network gas actually paid by the wallet
-- `Net result`: `payout - wager - contract fees - gas`
+- `PnL Profit`: `payout - wager - additional costs`
 - `✌️ Win rate`: wins divided by economically synced games
 - `🎲 RTP`: `total payout / total wagered`
 - `🎟️  APE Wagered (wAPE)`: current on-chain balance / total APE wagered by synced games
@@ -428,7 +432,7 @@ Play continuously with safety controls:
 apechurch-cli play --loop
 
 # With safety limits
-apechurch-cli play --loop --take-profit 200 --stop-loss 50 --max-games 100
+apechurch-cli play --loop --max-balance 200 --min-balance 50 --max-games 100
 
 # Stop on session P&L thresholds
 apechurch-cli play roulette 10 RED --loop --min-profit 25
@@ -444,23 +448,28 @@ apechurch-cli play roulette 10 RED --loop --recover-loss 25
 apechurch-cli play roulette 10 RED --loop --giveback-profit 40
 
 # Specific game
-apechurch-cli play ape-strong 10 --cover 50 --loop --take-profit 150
+apechurch-cli play ape-strong 10 --cover 50 --loop --max-balance 150
 ```
 
 | Option | Description |
 |--------|-------------|
-| `--take-profit <ape>` | Stop when balance reaches target |
-| `--min-profit <ape>` | Stop when session P&L reaches the target profit |
+| `--max-balance <ape>` | Stop when balance reaches target |
+| `--min-profit <ape|n%>` | Stop when session P&L reaches the target profit |
 | `--target-x <x>` | Stop when one game pays at least this multiplier |
-| `--target-profit <ape>` | Stop when one game pays at least this payout |
-| `--retrace <ape>` | Stop when one game loses at least this amount |
-| `--recover-loss <ape>` | Arm when net session P&L reaches `-<ape>` or worse; stop when it returns to break-even/profit |
-| `--giveback-profit <ape>` | Arm when net session P&L reaches `+<ape>` or better; stop when it returns to break-even/loss |
-| `--stop-loss <ape>` | Stop when balance drops to limit; if used without `--bankroll`/`--max-loss`, the session bankroll is derived as `starting balance - stop-loss` |
-| `--max-loss <ape>`, `--bankroll <ape>` | Stop when session P&L reaches the loss limit; if used without `--stop-loss`, the wallet stop-loss is derived as `starting balance - bankroll` |
+| `--target-profit <ape|n%>` | Stop when one game reaches this net PnL Profit |
+| `--retrace <ape|n%>` | Stop when one game loses at least this amount |
+| `--recover-loss <ape|n%>` | Arm when net session P&L reaches `-<ape>` or worse; stop when it returns to break-even/profit |
+| `--giveback-profit <ape|n%>` | Arm when net session P&L reaches `+<ape>` or better; stop when it returns to break-even/loss |
+| `--min-balance <ape>` | Stop when balance drops to limit; if used without `--bankroll`/`--max-loss`, the session bankroll is derived as `starting balance - min-balance` |
+| `--max-loss <ape|n%>`, `--bankroll <ape>` | Stop when net session PnL reaches the loss limit; no wallet threshold is derived |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
 | `--gp-ape <points>` | Override the loop points conversion for this run |
+
+Profit/loss thresholds accept APE amounts or whole percentages of the actual
+wager in the controlled result. `--take-profit` aliases `--min-profit` and
+`--stop-loss` aliases `--max-loss`; wallet limits remain `--max-balance` and
+`--min-balance`. See [Accounting](docs/ACCOUNTING.md).
 
 Loop summaries now assume a base rate of `5 GP/APE`. Use `--gp-ape <points>` for a one-off override, or persist a wallet-specific current rate with `apechurch-cli profile set --gp-ape <points>`.
 
@@ -494,9 +503,9 @@ apechurch-cli play roulette --bet RED --loop --bankroll 500 --bet-strategy bankr
 | `reverse-martingale` | Double on win, reset on loss |
 | `fibonacci` | Fibonacci sequence on losses |
 | `dalembert` | +1 unit on loss, -1 on win |
-| `bankroll-fraction=<n>` | Bet fraction `n` of remaining bankroll each game; requires `--bankroll`/`--max-loss` or `--stop-loss`, and conflicts with an explicit wager amount |
+| `bankroll-fraction=<n>` | Bet fraction `n` of remaining bankroll each game; requires `--bankroll`/`--max-loss` or `--min-balance`, and conflicts with an explicit wager amount |
 
-`bankroll-fraction=<n>` uses remaining bankroll as `--bankroll + session P&L`; when only `--stop-loss` is supplied, the bankroll is derived from `starting balance - stop-loss`. `--max-bet` caps the dynamic wager and `--min-bet` floors it.
+`bankroll-fraction=<n>` uses remaining bankroll as `--bankroll + session P&L`; when only `--min-balance` is supplied, the bankroll is derived from `starting balance - min-balance`. `--max-bet` caps the dynamic wager and `--min-bet` floors it.
 When using bankroll-fraction, omit the wager amount and use named game configuration flags such as `--bet RED` or `--cover 50`.
 
 ## Stateful Games
@@ -532,7 +541,7 @@ apechurch-cli cash-dash 10              # Prompts for the opening tile
 - `blackjack --solver [simple|best|max]` shows manual suggestions; `best` and `max` print both the worker choice and the simple-strategy choice
 - `cash-dash` shows the opening row and prompts for the first tile when `--tile` is omitted in manual mode
 - `cash-dash --cashout-after <rows>` lets auto-play target deeper rows before cashing out
-- `hi-lo-nebula --auto winston-ladder` plays up to two on-chain games with the same initial bet, up to seven guesses each, targeting a 1.5x first-game cashout or a 2.5x total ladder payout before fees
+- `hi-lo-nebula --auto winston-ladder` plays up to two on-chain games with the same initial bet, up to seven guesses each, targeting net profit of half the opening bet, over one or two games, with recorded additional costs included
 - `hi-lo-nebula --solver [mode]` defaults to `best` and can show manual hints for `simple`, `best`, or `winston-ladder`
 - `video-poker --solver` shows the same best-EV hold suggestion in interactive mode
 - `video-poker --display full` now uses the boxed ASCII table layout; `simple` keeps the compact text layout
