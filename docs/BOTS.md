@@ -319,3 +319,19 @@ cumulative W/P, changing cost estimates, and failed/resumed transactions.
 Options called payout must represent payout multipliers; options called profit
 or loss represent net results. Document any fixed opening-bet percentage budget
 explicitly. Estimates must never be exported as actual transaction costs.
+
+## Terminal failures and partial results
+
+Call `ctx.updateRunSummary` after each settled child and before unrelated I/O.
+Do not replace accumulated economic fields or child arrays with a minimal error
+object. The runtime preserves the last progress snapshot when a handler throws,
+returns a nonzero exit code or returns a minimal failed summary. Plain output
+includes `# partial:` and an error diagnostic; JSON retains the partial state.
+Pending results remain resumable and are not reported as completed failures.
+
+`session.formatPartialRunSummary(summary)` formats accounted totals without
+inventing a completed routine. A handler that already prints its terminal
+failure may return `terminalOutputHandled: true` to avoid duplicate output;
+this affects display only and never suppresses error logging or exit status.
+Thrown errors may carry the same flag. Keep actual additional costs and
+unresolved exposure separate, and never turn a failed submission into a game.

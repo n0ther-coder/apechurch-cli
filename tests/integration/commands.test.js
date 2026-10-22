@@ -2409,6 +2409,40 @@ export default async function ({ paths, bot }) {
       });
     });
 
+    it('preserves progress and reports terminal results for returned and thrown bot errors', () => {
+      resetBotFixtures();
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT, folderName: 'partial-bot',
+        script: `export default async function ({ args, updateRunSummary }) {
+  updateRunSummary({ status: 'running', total_wager_ape: '2', total_payout_ape: '3',
+    total_pnl_ape: '0.9', settled_games_played: 1,
+    games: [{ status: 'complete', wager_ape: '2', payout_ape: '3', pnl_ape: '0.9' }] });
+  if (args.includes('--throw')) throw new Error('Synthetic interruption');
+  return { exitCode: 1, summary: { status: 'error', error: 'Synthetic interruption' } };
+}
+`,
+      });
+      const env = { [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT, [LOG_DIR_ENV]: logDir };
+      for (const flag of ['', '--throw']) {
+        const result = cli('bot partial-bot ' + flag, { env });
+        assert.equal(result.code, 1);
+        assert.match(result.stdout, /# partial: settled games: 1, wagered: 2, payout: 3, net PnL: 0.9/);
+        assert.match(result.stdout, /Synthetic interruption/);
+        const json = cli('bot partial-bot --json ' + flag, { env });
+        assert.equal(json.code, 1);
+        const summary = JSON.parse(json.stdout.split('\n').find(line => line.startsWith('{')));
+        assert.equal(summary.total_wager_ape, '2');
+        assert.equal(summary.total_pnl_ape, '0.9');
+        assert.equal(summary.settled_games_played, 1);
+        assert.equal(summary.partial, true);
+        assert.doesNotMatch(json.stdout, /# partial:/);
+      }
+      const summaries = listBotLogFiles(logDir, 'partial-bot').map(file => JSON.parse(fs.readFileSync(path.join(logDir, 'partial-bot', file), 'utf8')));
+      assert.equal(summaries.length, 4);
+      assert.ok(summaries.every(summary => summary.total_pnl_ape === '0.9'));
+    });
+
     it('does not write an error json log when a bot throws before any transaction', () => {
       resetBotFixtures();
       const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');

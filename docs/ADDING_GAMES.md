@@ -325,3 +325,14 @@ Shipping support for a game and promoting it to `ABI verified` are separate step
 - `ABI verified` means the local ABI, config limits, read/write paths, and payout or solver logic have been checked against verified on-chain contract data.
 
 Before adding the `✔︎` marker or setting `abiVerified: true`, complete the checklist in [docs/ABI_VERIFICATION.md](./ABI_VERIFICATION.md).
+
+## Interrupted loops
+
+Record a successful settlement before fetching the final wallet balance or
+performing unrelated RPC reads. If a later step fails, retain the completed
+games and receipt economics and report a partial terminal result with a nonzero
+exit status. Failed-only transaction costs reduce net PnL without increasing
+wager, payout or game count. An unresolved wager is not a settled loss.
+Stateful JSON errors expose `partial_summary` alongside the original error;
+plain output uses `# partial:`. Do not emit two final JSON documents for one
+stateful command. Loop and bot failure helpers live in `lib/terminal-summary.js`.

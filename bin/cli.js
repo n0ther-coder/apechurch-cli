@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { reportLoopFailure, buildLoopFailureSummary, formatPartialRunSummary } from '../lib/terminal-summary.js';
 import { aggregateEconomicsPayloads, pickEconomicsFields } from '../lib/economics.js';
 /**
  * @fileoverview Ape Church CLI - Main entry point
@@ -2908,11 +2909,16 @@ async function runStatefulGameCommand(gameKey, action, amount, opts = {}) {
   try {
     return await runStatefulGameCommandUnsafe(gameKey, action, amount, opts);
   } catch (error) {
-    const payload = serializeStatefulCommandError(error);
+    if (!error.partial_summary && error.accounting) {
+      reportLoopFailure(createLoopStats(), { game: gameKey, error,
+        json: opts.json || opts.display === 'json', silent: opts.json || opts.display === 'json', loop: Boolean(opts.loop) });
+    }
+    const payload = { ...serializeStatefulCommandError(error),
+      ...(error.partial_summary ? { partial_summary: error.partial_summary } : {}) };
     process.exitCode = 1;
     if (opts.json || opts.display === 'json') {
       console.log(JSON.stringify(payload));
-    } else {
+    } else if (!error.terminalOutputHandled) {
       console.error(`\n❌ ${payload.error}\n`);
     }
     return payload;
@@ -6594,12 +6600,14 @@ program
           }
         }
       } catch (error) {
+        process.exitCode = 1;
         const message = sanitizeError(error);
         if (opts.json) console.error(JSON.stringify({ error: message }));
         else console.error(`\n❌ ${message}\n`);
         return {
           shouldStop: true,
           reason: 'invalid_config',
+          errorMessage: message,
           completed: false,
           counted: false,
           gameId: null,
@@ -6879,6 +6887,7 @@ program
         };
       } catch (error) {
         process.exitCode = 1;
+        if (!loopMode && !opts.json && error.accounting) reportLoopFailure(createLoopStats(), { game: gameEntry.key, error, loop: false });
         if (opts.json) {
           console.error(JSON.stringify({ error: error.message, ...(error.accounting ?? {}) }));
         } else {
@@ -6896,6 +6905,7 @@ program
           playedGameKey: null,
           playedConfig: null,
           failureAccounting: error.accounting ?? null,
+          errorMessage: error.message,
         };
       }
     }
@@ -6911,7 +6921,8 @@ program
       let lastPlayedGameKey = fixedGame?.key || null;
       let lastPlayedConfig = fixedGame ? { ...positionalConfig } : null;
       const loopGamePayloads = [];
-      
+      let loopError = null;
+      try {
       while (true) {
         // Check balance for target/min-balance
         const { publicClient } = createClients();
@@ -7011,6 +7022,9 @@ program
         
         const result = await playOnce(nextBet);
         pendingLoopPlay = result.pendingPayload ?? null;
+        if (result.error || result.reason === 'invalid_config') {
+          loopError = Object.assign(new Error(result.errorMessage || 'Game execution failed'), { accounting: result.failureAccounting });
+        }
         if (result.failureAccounting) {
           const failure = result.failureAccounting;
           loopStats.totalFeesPaidApe += Number(failure.cost_ape ?? 0);
@@ -7040,6 +7054,7 @@ program
             wageredApe: result.gameResult.bet,
             payoutApe: result.gameResult.payout,
             feesPaidApe: result.gameResult.feesPaidApe,
+            economics: result.gameResult.accounting_version ? result.gameResult : null,
             rtpGame: result.playedGameKey || lastPlayedGameKey,
             rtpConfig: result.playedConfig || lastPlayedConfig,
           });
@@ -7120,6 +7135,18 @@ program
         await sleep(getLoopDelayMs({ delaySeconds: loopDelaySeconds, human: humanTiming }));
       }
 
+      } catch (error) {
+        reportLoopFailure(loopStats, { game: lastPlayedGameKey, error, json: opts.json });
+        throw error;
+      }
+      if (!opts.json) {
+        if (loopError) reportLoopFailure(loopStats, { game: lastPlayedGameKey, error: loopError });
+        else {
+          const summary = buildLoopFailureSummary(loopStats, { game: lastPlayedGameKey });
+          delete summary.error;
+          console.log(formatPartialRunSummary(summary).replace('# partial:', pendingLoopPlay ? '# partial (pending):' : '# summary:'));
+        }
+      }
       if (opts.json) {
         const netResultApe = loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe;
         const totalWagerApe = formatApeAmount(loopStats.totalWageredApe);
@@ -7137,7 +7164,7 @@ program
           economics.pnl_profit_percent = null;
         }
         console.log(JSON.stringify({
-          status: pendingLoopPlay ? 'pending' : failureEntries.length ? 'error' : completedGames > 0 ? 'complete' : 'loop_control_reached',
+          status: pendingLoopPlay ? 'pending' : loopError || failureEntries.length ? 'error' : completedGames > 0 ? 'complete' : 'loop_control_reached',
           loop: true,
           game: lastPlayedGameKey,
           games_played: gamesPlayed,
@@ -7147,6 +7174,7 @@ program
           ...economics,
           games_detail: loopGamePayloads,
           failed_attempts: failureEntries,
+          ...(loopError ? { error: loopError.message, partial: true } : {}),
           ...(pendingLoopPlay ? { pending_play: pendingLoopPlay,
             pending_exposure_ape: pendingLoopPlay.wager_ape,
             contract: pendingLoopPlay.contract, gameId: pendingLoopPlay.gameId, tx: pendingLoopPlay.tx } : {}),

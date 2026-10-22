@@ -55,6 +55,11 @@ function createContext(rawArgs = [], runtimeOptions = {}) {
 }
 
 describe('Bot Runtime Context', () => {
+  it('does not report a failed summary as a successful bot exit', () => {
+    for (const summary of [{ status: 'error' }, { status: 'indeterminate_error' }, { error: 'Interrupted' }]) {
+      assert.equal(normalizeBotRuntimeResult({ exitCode: 0, summary }).exitCode, 1);
+    }
+  });
   it('preserves exhausted retry costs through game and nested bot exceptions', async () => {
     const ctx = createContext();
     for (const call of [() => ctx.playJson(['ape-strong', '1', '--emit-cost-error']),
