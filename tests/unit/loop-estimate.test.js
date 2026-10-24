@@ -20,7 +20,7 @@ describe('Loop Estimate Helpers', () => {
   it('samples Roulette using explicit component amounts rather than an equal split', () => {
     const estimate = estimateConfiguredGameLoopRunout({
       balanceApe: 20, availableApe: 20, gameEntry: resolveGame('roulette'), wagerApe: 5,
-      config: { bet: 'RED:3,BLACK:1', chips: '5' }, sessionCount: 1,
+      config: { bet: 'RED=3,BLACK=1', chips: '5' }, sessionCount: 1,
       rng: () => 0.09,
     });
     assert.equal(estimate.method, 'monte-carlo');

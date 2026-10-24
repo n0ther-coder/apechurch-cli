@@ -5,7 +5,8 @@
 ## Source Basis
 
 - Contract used by the CLI: `0x1f48A104C1808eb4107f3999999D36aeafEC56d5`
-- Explorer address page: `https://apescan.io/address/0x1f48A104C1808eb4107f3999999D36aeafEC56d5#code`
+- [Verified contract source](https://apescan.io/address/0x1f48A104C1808eb4107f3999999D36aeafEC56d5#code)
+- [Explorer source API](https://apescan.io/api?module=contract&action=getsourcecode&address=0x1f48A104C1808eb4107f3999999D36aeafEC56d5)
 - Local write-path reference: `lib/games/roulette.js`
 - Local RTP/reference model: `lib/rtp.js`
 
@@ -27,24 +28,28 @@ The CLI encodes `gameData` as:
 
 Key verified behavior:
 
-- `MAX_GUESSES` controls the live distinct-entry limit (`50` at ApeChain block `52833196`); the owner can change it
+- `MAX_GUESSES` controls the live distinct-entry limit (`50` at ApeChain block `52907849`); the owner can change it
 - the contract uses numeric bet codes rather than string labels
 - numbers are encoded as `0 -> 1`, `1..36 -> 2..37`, `00 -> 38`
 - outside bets are encoded as:
-  - `FIRST_THIRD=39`
-  - `SECOND_THIRD=40`
-  - `THIRD_THIRD=41`
-  - `FIRST_COL=42`
-  - `SECOND_COL=43`
-  - `THIRD_COL=44`
-  - `FIRST_HALF=45`
-  - `SECOND_HALF=46`
-  - `EVEN=47`
-  - `ODD=48`
-  - `BLACK=49`
-  - `RED=50`
+  - `DOZEN:1` → code `39`
+  - `DOZEN:2` → code `40`
+  - `DOZEN:3` → code `41`
+  - `COLUMN:1` → code `42`
+  - `COLUMN:2` → code `43`
+  - `COLUMN:3` → code `44`
+  - `LOW` → code `45`
+  - `HIGH` → code `46`
+  - `EVEN` → code `47`
+  - `ODD` → code `48`
+  - `BLACK` → code `49`
+  - `RED` → code `50`
 
-The wager allocation is not a UI-only convention. The contract expects a positive `amounts[]` component per distinct bet, each strictly below `totalBetAmount`, and requires `sum(amounts) <= totalBetAmount`. The CLI parses `BET:CHIPS` counts and derives the purchased chip count from their sum unless `--chips` supplies it explicitly. It computes the chip's wei value with integer division of the total wager by purchased chips and multiplies by each component count. A higher explicit purchased count warns and continues; a lower count fails before any transaction. Division dust and unallocated chips stay in the wager without covering another outcome. A sole component equal to the total is reduced by one wei to satisfy the strict per-component limit. Plain lists assign one chip per entry and retain equal splitting.
+The wager allocation is not a UI-only convention. The contract expects a positive `amounts[]` component per distinct bet, each strictly below `totalBetAmount`, and requires `sum(amounts) <= totalBetAmount`. The CLI parses `BET=CHIPS` counts and derives the purchased chip count from their sum unless `--chips` supplies it explicitly. It computes the chip's wei value with integer division of the total wager by purchased chips and multiplies by each component count. A higher explicit purchased count warns and continues; a lower count fails before any transaction. Division dust and unallocated chips stay in the wager without covering another outcome. A sole component equal to the total is reduced by one wei to satisfy the strict per-component limit. Plain lists assign one chip per entry and retain equal splitting.
+
+The contract has no dedicated SPLIT/STREET/SQUARE/LINE codes. The CLI composes them into 2/3/4/6 equal straight-number allocations on the 1–36 grid, floors each share to wei, and merges repeated native numbers before encoding. Thus the native code domain remains exactly 1–50. Group division dust stays unallocated. The live `MAX_GUESSES` check applies after this expansion and merge.
+
+Read-only verification at ApeChain block `52907849` compared the CLI model with `determinePayout` for all `152` CLI selections (`50` native and `102` grid groups), plus two overlapping compositions, over every one of the `38` pockets: `5,852` exact integer-wei payout comparisons passed. Both `MAX_BET_NUMBER_ENTRY` and `MAX_GUESSES` returned `50`. These are contract reads, not live wager submissions.
 
 `getVRFFee()` exists as the repo's fee path, but the contract-side getter forwards the live RNG fee rather than exposing a hardcoded constant.
 

@@ -15,6 +15,7 @@
  *
  * @module registry
  */
+import { ROULETTE_BNF } from './lib/roulette-layout.js';
 import {
   APESTRONG_CONTRACT,
   BACCARAT_CONTRACT,
@@ -187,19 +188,12 @@ export const GAME_REGISTRY = [
     abiVerified: true,
     config: {
       bet: {
-        description: 'Numbers (0-36, 00), colors, parity, halves, thirds, or columns. Use BET:CHIPS entries to assign chip counts; --chips optionally sets the purchased total.',
-        bnf: [
-          '<bet-list> ::= <roulette-entry> ( "," <roulette-entry> )*',
-          '<roulette-entry> ::= <roulette-bet> [ ":" <integer> ]',
-          '; chip counts are positive integers; omitted counts mean one chip',
-          '<roulette-bet> ::= "0" | "00" | <roulette-number> | "RED" | "BLACK" | "ODD" | "EVEN" | "FIRST_HALF" | "SECOND_HALF" | "FIRST_THIRD" | "SECOND_THIRD" | "THIRD_THIRD" | "FIRST_COL" | "SECOND_COL" | "THIRD_COL"',
-          '<roulette-number> ::= <integer>',
-          '; semantic constraint: 1 <= value <= 36',
-        ],
-        examples: ['RED', 'BLACK', '17', '0', '00', 'RED,BLACK', 'FIRST_THIRD', 'ODD'],
+        description: 'Numbers, outside bets and composed SPLIT/STREET/SQUARE/LINE bets on the 1–36 grid. BET=CHIPS assigns counts; --shuffle preserves joint wins and payouts.',
+        bnf: ROULETTE_BNF,
+        examples: ['RED', 'BLACK', '17', '0', '00', 'RED,BLACK', 'DOZEN:1=2', 'COLUMN:2=1', 'SPLIT:8-11=2', 'STREET:4=1', 'SQUARE:2-6=1', 'LINE:7-12=1', 'LOW', 'ODD'],
       },
       chips: {
-        description: 'Optional purchased chip count. Chip value is total wager divided by this count, defaulting to the sum in BET:CHIPS. Excess purchased chips stay unallocated and at risk.',
+        description: 'Optional purchased chip count. Chip value is total wager divided by this count, defaulting to the sum in BET=CHIPS. Excess purchased chips stay unallocated and at risk.',
         bnf: [
           '<chips> ::= <integer> ; positive; defaults to the sum in --bet',
           '; --chips below the sum in --bet fails before wallet access or transactions',
@@ -222,17 +216,9 @@ export const GAME_REGISTRY = [
       '0': 1,                // Zero
       '00': 38,              // Double Zero (American roulette)
       // Numbers 1-36 map to 2-37 (handled dynamically in encoder)
-      'FIRST_THIRD': 39,     // 1-12
-      'SECOND_THIRD': 40,    // 13-24
-      'THIRD_THIRD': 41,     // 25-36
-      'FIRST_COL': 42,       // Column 1 (1,4,7,10,...)
-      'FIRST_COLUMN': 42,
-      'SECOND_COL': 43,      // Column 2 (2,5,8,11,...)
-      'SECOND_COLUMN': 43,
-      'THIRD_COL': 44,       // Column 3 (3,6,9,12,...)
-      'THIRD_COLUMN': 44,
-      'FIRST_HALF': 45,      // 1-18
-      'SECOND_HALF': 46,     // 19-36
+      'DOZEN:1': 39, 'DOZEN:2': 40, 'DOZEN:3': 41,
+      'COLUMN:1': 42, 'COLUMN:2': 43, 'COLUMN:3': 44,
+      'LOW': 45, 'HIGH': 46,
       'EVEN': 47,
       'ODD': 48,
       'BLACK': 49,
@@ -243,9 +229,14 @@ export const GAME_REGISTRY = [
       number: 36.9,   // Single number (including 0, 00) - true odds would be 38:1
       color: 2.05,    // RED, BLACK
       parity: 2.05,   // ODD, EVEN
-      half: 2.05,     // FIRST_HALF, SECOND_HALF
-      third: 3.075,   // FIRST_THIRD, SECOND_THIRD, THIRD_THIRD
-      column: 3.075,  // FIRST_COL, SECOND_COL, THIRD_COL
+      half: 2.05,     // LOW, HIGH
+      third: 3.075,   // DOZEN:1, DOZEN:2, DOZEN:3
+      // Composed straight bets, before wei rounding
+      split: 18.45,
+      street: 12.3,
+      square: 9.225,
+      line: 6.15,
+      column: 3.075,  // COLUMN:1, COLUMN:2, COLUMN:3
     },
     vrf: {
       type: 'static',

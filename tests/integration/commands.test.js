@@ -12,6 +12,8 @@ import { decodeAbiParameters, parseEther } from 'viem';
 import { execSync, spawn, spawnSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getRouletteWinSignature, parseRouletteBetEntries } from '../../lib/roulette-layout.js';
+import { resolveRouletteWager } from '../../lib/roulette-bets.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_PATH = path.join(__dirname, '../../bin/cli.js');
@@ -479,7 +481,7 @@ describe('CLI Commands Integration Tests', () => {
     });
 
     it('validates Roulette chip allocations and enumerates their exact paytable without a wallet', () => {
-      const valid = cli('play roulette 4 --bet RED:3,BLACK:1 --validate-only --json');
+      const valid = cli('play roulette 4 --bet RED=3,BLACK=1 --validate-only --json');
       assert.strictEqual(valid.code, 0);
       const config = JSON.parse(valid.stdout).config;
       assert.strictEqual(config.chipValue, '1');
@@ -487,7 +489,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.deepStrictEqual(config.betAmountsWei, ['3000000000000000000', '1000000000000000000']);
       assert.strictEqual(config.unallocatedAmountApe, '0');
       assert.strictEqual(config.chips, '4');
-      const paytable = cli('game roulette --paytable --amount 4 --bet RED:3,BLACK:1 --json');
+      const paytable = cli('game roulette --paytable --amount 4 --bet RED=3,BLACK=1 --json');
       assert.strictEqual(paytable.code, 0);
       assert.deepStrictEqual(JSON.parse(paytable.stdout).payouts.map(row => row.multiplier), ['0', '0.5125', '1.5375']);
     });
@@ -496,11 +498,12 @@ describe('CLI Commands Integration Tests', () => {
       for (const command of ['play --help', 'bet --help', 'game --help']) {
         const result = cli(command);
         assert.strictEqual(result.code, 0);
-        assert.ok(result.stdout.includes('<roulette-entry> ::= <roulette-bet> [ ":" <roulette-chip-count> ]'), command);
+        assert.ok(result.stdout.includes('<roulette-entry> ::= <roulette-bet> [ "=" <roulette-chip-count> ]'), command);
         assert.ok(result.stdout.includes('"--chips" <roulette-chips>'), command);
         assert.ok(result.stdout.includes('defaults to the sum of per-bet counts'), command);
         assert.ok(result.stdout.includes('is an error before wallet access or transactions'), command);
         assert.ok(result.stdout.includes('warns and continues'), command);
+        for (const token of ['SPLIT:', 'STREET:', 'SQUARE:', 'LINE:', 'DOZEN:', 'COLUMN:', '"--shuffle"']) assert.ok(result.stdout.includes(token), `${command}: ${token}`);
       }
       const metadata = cli('game roulette');
       assert.ok(metadata.stdout.includes('<chips> ::= <integer>'));
@@ -509,8 +512,8 @@ describe('CLI Commands Integration Tests', () => {
 
     it('warns once on stderr for excess Roulette chips while preserving JSON stdout', () => {
       for (const args of [
-        ['play', 'roulette', '5', '--chips', '5', '--bet', 'RED:3,BLACK:1', '--validate-only', '--json'],
-        ['game', 'roulette', '--paytable', '--amount', '5', '--chips', '5', '--bet', 'RED:3,BLACK:1', '--json'],
+        ['play', 'roulette', '5', '--chips', '5', '--bet', 'RED=3,BLACK=1', '--validate-only', '--json'],
+        ['game', 'roulette', '--paytable', '--amount', '5', '--chips', '5', '--bet', 'RED=3,BLACK=1', '--json'],
       ]) {
         const result = spawnSync(process.execPath, [CLI_PATH, ...args], { encoding: 'utf8', env: buildCliEnv() });
         assert.strictEqual(result.status, 0, result.stderr);
@@ -519,7 +522,7 @@ describe('CLI Commands Integration Tests', () => {
         assert.match(result.stderr, /1 unallocated chip/);
         assert.strictEqual((payload.config?.warnings || payload.warnings).length, 1);
       }
-      const exact = spawnSync(process.execPath, [CLI_PATH, 'play', 'roulette', '5', '--chips', '4', '--bet', 'RED:3,BLACK:1', '--validate-only', '--json'], { encoding: 'utf8', env: buildCliEnv() });
+      const exact = spawnSync(process.execPath, [CLI_PATH, 'play', 'roulette', '5', '--chips', '4', '--bet', 'RED=3,BLACK=1', '--validate-only', '--json'], { encoding: 'utf8', env: buildCliEnv() });
       assert.strictEqual(exact.status, 0);
       assert.strictEqual(exact.stderr, '');
       assert.strictEqual(JSON.parse(exact.stdout).config.chipValue, '1.25');
@@ -558,7 +561,7 @@ describe('CLI Commands Integration Tests', () => {
           ['bet', '--game', 'roulette', '--amount', '5', '--chips', '5'],
         ]) {
           const result = spawnSync(process.execPath, ['--loader', loaderPath, CLI_PATH, ...args,
-            '--bet', 'RED:3,BLACK:1'], {
+            '--bet', 'RED=3,BLACK=1'], {
             encoding: 'utf8', timeout: 10000,
             env: { ...buildCliEnv(), [CONFIG_DIR_ENV]: temporaryDir, NODE_NO_WARNINGS: '1' },
           });
@@ -575,6 +578,25 @@ describe('CLI Commands Integration Tests', () => {
           assert.deepStrictEqual(codes, [50, 49]);
           assert.deepStrictEqual(amounts, [parseEther('3'), parseEther('1')]);
         }
+        const bet = 'SPLIT:8-11=2,STREET:4=1,SQUARE:2-6=1,LINE:7-12=1,LOW=1';
+        for (const args of [['play', 'roulette', '6', '--json'], ['bet', '--game', 'roulette', '--amount', '6']]) {
+          const result = spawnSync(process.execPath, ['--loader', loaderPath, CLI_PATH, ...args, '--bet', bet, '--shuffle'], {
+            encoding: 'utf8', timeout: 10000,
+            env: { ...buildCliEnv(), [CONFIG_DIR_ENV]: temporaryDir, NODE_NO_WARNINGS: '1' },
+          });
+          assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+          const payload = JSON.parse(result.stdout);
+          assert.strictEqual(payload.config.shuffle.originalBet, bet);
+          assert.strictEqual(getRouletteWinSignature(parseRouletteBetEntries(payload.config.bet)), getRouletteWinSignature(parseRouletteBetEntries(bet)));
+          const allocation = resolveRouletteWager({ wagerWei: parseEther('6'), bet: payload.config.bet });
+          const [codes, amounts] = decodeAbiParameters([
+            { type: 'uint8[]' }, { type: 'uint256[]' }, { type: 'uint256' }, { type: 'address' }, { type: 'bytes32' },
+          ], payload.encodedData);
+          assert.deepStrictEqual(codes, allocation.gameNumbers);
+          assert.deepStrictEqual(amounts, allocation.amounts);
+          assert.deepStrictEqual(payload.config.betAmountsWei, amounts.map(String));
+          assert.strictEqual(new Set(codes).size, codes.length);
+        }
       } finally {
         fs.rmSync(temporaryDir, { recursive: true, force: true });
       }
@@ -582,28 +604,39 @@ describe('CLI Commands Integration Tests', () => {
 
     it('rejects invalid Roulette allocations before wallet access', () => {
       for (const command of [
-        'play roulette 5 --chips 5 --bet RED:3,BLACK:3',
-        'play roulette 5 --chips 0 --bet RED:2',
-        'play roulette --chips 2 --bet RED:2',
-        'play roulette 5 --chips 3 --bet RED:1,RED:2',
-        'play roulette 5 --chips 1.5 --bet RED:1',
+        'play roulette 5 --chips 5 --bet RED=3,BLACK=3',
+        'play roulette 5 --chips 0 --bet RED=2',
+        'play roulette --chips 2 --bet RED=2',
+        'play roulette 5 --chips 3 --bet RED=1,RED=2',
+        'play roulette 5 --chips 1.5 --bet RED=1',
         'play keno 5 --chips 1',
         'play blackjack 5 --chips 1',
-        'bet --game roulette --amount 5 --chips 4 --bet RED:5',
+        'bet --game roulette --amount 5 --chips 4 --bet RED=5',
         'bet --game keno --amount 5 --chips 1',
+        'play keno 5 --shuffle',
+        'play blackjack 5 --shuffle',
+        'play --auto --amount 5 --shuffle',
+        'play roulette 5 --shuffle',
+        'play roulette 5 --bet SPLIT:3-4=1',
+        'play roulette 5 --bet STREET:0=1',
+        'play roulette 5 --bet SQUARE:3-7=1',
+        'play roulette 5 --bet LINE:2-7=1',
+        'play roulette 5 --bet FIRST_THIRD:2',
+        'play roulette 5 --bet RED:1',
+        'bet --game baccarat --amount 5 --bet PLAYER --shuffle',
       ]) {
         const result = cli(command);
         assert.strictEqual(result.code, 1, command);
         assert.ok(!result.stdout.includes('No wallet found'), command);
         assert.ok(JSON.parse(result.stdout).error, command);
       }
-      const removedOption = cli('play roulette 5 --chip-value 1 --bet RED:3,BLACK:1 --validate-only --json');
+      const removedOption = cli('play roulette 5 --chip-value 1 --bet RED=3,BLACK=1 --validate-only --json');
       assert.strictEqual(removedOption.code, 1);
       assert.match(removedOption.stdout, /unknown option '--chip-value'/);
     });
 
     it('validates weighted Roulette loop bets with a derived chip value', () => {
-      const result = cli('play roulette 4 --bet RED:3,BLACK:1 --loop --bet-strategy martingale --validate-only --json');
+      const result = cli('play roulette 4 --bet RED=3,BLACK=1 --loop --bet-strategy martingale --validate-only --json');
       assert.strictEqual(result.code, 0);
       assert.strictEqual(JSON.parse(result.stdout).config.chipValue, '1');
     });

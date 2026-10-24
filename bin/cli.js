@@ -227,7 +227,9 @@ import { parseBaccaratBet } from '../lib/games/baccarat.js';
 import { resolveBearDiceConfig } from '../lib/games/beardice.js';
 import { getBlocksGridLabel, parseBlocksGrid } from '../lib/games/blocks.js';
 import { parseGimbozSmashInput } from '../lib/games/gimbozsmash.js';
-import { parseRouletteBets, resolveRouletteWager, serializeRouletteWager } from '../lib/roulette-bets.js';
+import { parseRouletteBets, serializeRouletteWager } from '../lib/roulette-bets.js';
+import { ROULETTE_BNF } from '../lib/roulette-layout.js';
+import { prepareRouletteWager } from '../lib/roulette-shuffle.js';
 import { resolveSlotsConfig } from '../lib/games/slots.js';
 import { validateDojoDropWager } from '../lib/games/dojo-drop.js';
 import {
@@ -423,17 +425,7 @@ const GAME_TITLE_COLLATOR = new Intl.Collator('en', {
   sensitivity: 'base',
   numeric: true,
 });
-const ROULETTE_HELP_BNF_LINES = Object.freeze([
-  '<roulette-bets> ::= <roulette-entry> ( "," <roulette-entry> )*',
-  '<roulette-entry> ::= <roulette-bet> [ ":" <roulette-chip-count> ]',
-  '<roulette-bet> ::= "0" | "00" | <roulette-number> | "RED" | "BLACK" | "ODD" | "EVEN" | "FIRST_HALF" | "SECOND_HALF" | "FIRST_THIRD" | "SECOND_THIRD" | "THIRD_THIRD" | "FIRST_COL" | "SECOND_COL" | "THIRD_COL"',
-  '<roulette-number> ::= <integer>                    ; 1 <= value <= 36',
-  '<roulette-chip-count> ::= <integer>                ; positive; omitted per-bet count defaults to 1',
-  '<roulette-chips> ::= <integer>                     ; positive purchased count; defaults to the sum of per-bet counts',
-  '; Roulette: purchased chips < allocated chips is an error before wallet access or transactions.',
-  '; Roulette: purchased chips > allocated chips warns and continues with the difference unallocated.',
-  '; Roulette chip value = floor(total wager in wei / purchased chips).',
-]);
+const ROULETTE_HELP_BNF_LINES = ROULETTE_BNF;
 const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<ape> ::= <number>                                 ; decimal APE amount; value > 0',
   '<points> ::= <number>                              ; decimal GP per APE rate; value > 0',
@@ -470,8 +462,9 @@ const PLAY_STATELESS_OPTION_LINES = Object.freeze([
   '--split <count>         Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots',
   '--survive <count>       All-or-nothing survival attempts for Bear Dice and Blocks',
   '--spins <count>         Slots-only alias for --split',
-  '--bet <bet>             Roulette/Baccarat bet payload; optional BET:CHIPS entries',
+  '--bet <bet>             Roulette/Baccarat bet payload; optional BET=CHIPS entries',
   '--chips <integer>     Roulette chips purchased; defaults to the sum in --bet',
+  '--shuffle             Roulette: sample a structurally equivalent bet allocation',
   '--cover <cover>         ApeStrong cover or Gimboz Smash random cover',
   '--range <range>         Gimboz Smash inside range',
   '--multiplier <x>        Glyde or Crash target multiplier',
@@ -1227,6 +1220,7 @@ function formatBetHelpAppendix() {
       '--spins <count>        Slots-only alias for --split',
       '--bet <bet>            Roulette or baccarat bet payload',
       '--chips <integer>     Roulette chips purchased; defaults to the sum in --bet',
+      '--shuffle             Roulette: sample a structurally equivalent bet allocation',
       '--cover <cover>        ApeStrong cover or Gimboz Smash random cover',
       '--range <range>        Gimboz Smash inside range',
       '--multiplier <x>       Glyde or Crash target multiplier',
@@ -1243,7 +1237,7 @@ function formatBetHelpAppendix() {
     ],
     bnf: [
       '<bet-command> ::= "bet" "--game" <stateless-game> "--amount" <ape> <bet-option>*',
-      '<bet-option> ::= "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--chips" <roulette-chips> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
+      '<bet-option> ::= "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
       ...SIMPLE_GAME_HELP_BNF_LINES,
     ],
     examples: [
@@ -1294,7 +1288,7 @@ function formatPlayHelpAppendix() {
       '<play-positional> ::= <stateless-game> [ <ape> <token>* ] | <stateful-game> [ <stateful-head> ] [ <token> ]',
       '<stateful-head> ::= <ape> | "resume" | "status" | "clear" | "payouts" | "table" | <token>',
       '<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>',
-      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--chips" <roulette-chips> | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
+      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spins" <spins> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
       '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count> | "--resilient" | "--no-resilient"',
       '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
       ...SIMPLE_GAME_HELP_BNF_LINES,
@@ -1605,6 +1599,7 @@ function formatGameHelpAppendix() {
       '--picks <count>        Keno pick count used by play',
       '--bet <bet>            Roulette or Baccarat bet',
       '--chips <integer>     Roulette chips purchased; defaults to the sum in --bet',
+      '--shuffle             Roulette: sample a structurally equivalent bet allocation',
       '--cover <count>        ApeStrong or Gimboz Smash cover',
       '--range <range>        Gimboz Smash target range',
       '--out-range <range>    Gimboz Smash excluded range',
@@ -1614,7 +1609,7 @@ function formatGameHelpAppendix() {
     ],
     bnf: [
       '<game-command> ::= "game" <game-name> [ "--paytable" <paytable-option>* ] [ "--json" ]',
-      '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--spins" <integer> | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--multiplier" <multiplier> | "--amount" <ape> | "--side" <ape>',
+      '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--spins" <integer> | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--multiplier" <multiplier> | "--amount" <ape> | "--side" <ape>',
       '<game-name> ::= <stateless-game> | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
       '<stateless-game> ::= <game-key> | <game-alias>',
       ...ROULETTE_HELP_BNF_LINES,
@@ -3481,11 +3476,11 @@ function validateResolvedGameConfig(gameEntry, gameConfig = {}, { amountInput = 
       maxCount: 5,
     });
   } else if (gameEntry.type === 'roulette') {
-    if (gameConfig.chips !== undefined || String(gameConfig.bet).includes(':')) {
+    if (gameConfig.chips !== undefined || gameConfig.shuffle || /[:=]/.test(String(gameConfig.bet))) {
       if (amountInput === undefined) throw new Error('Roulette chip allocations require an explicit total --amount or positional amount.');
-      const allocation = resolveRouletteWager({
+      const allocation = prepareRouletteWager({
         wagerWei: parseEther(normalizeWagerAmount(amountInput)),
-        bet: gameConfig.bet, chips: gameConfig.chips, gameEntry,
+        bet: gameConfig.bet, chips: gameConfig.chips, shuffle: gameConfig.shuffle === true, gameEntry,
       });
       Object.assign(gameConfig, serializeRouletteWager(allocation));
       reportRouletteWarnings(allocation.warnings);
@@ -3558,12 +3553,13 @@ function reportRouletteWarnings(warnings = []) {
 }
 
 function validateRouletteChipUsage(gameEntry, opts, amountInput) {
-  if (opts.chips === undefined && !String(opts.bet || '').includes(':')) return;
+  if (opts.chips === undefined && !opts.shuffle && !/[:=]/.test(String(opts.bet || ''))) return;
   if (gameEntry?.type !== 'roulette') {
+    if (opts.shuffle) throw new Error('--shuffle requires an explicitly selected Roulette game.');
     if (opts.chips !== undefined) throw new Error('--chips requires an explicitly selected Roulette game.');
     return;
   }
-  if (!opts.bet) throw new Error('--chips requires an explicit Roulette bet list.');
+  if (!opts.bet) throw new Error('--chips/--shuffle require an explicit Roulette bet list.');
   if (amountInput === undefined) throw new Error('Roulette chip allocations require an explicit total --amount or positional amount.');
 }
 
@@ -5699,8 +5695,9 @@ program
   .option('--split <count>', 'Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots')
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
   .option('--spins <count>', 'Slots-only alias for --split')
-  .option('--bet <bet>', 'Roulette/Baccarat bet; Roulette supports BET:CHIPS entries')
+  .option('--bet <bet>', 'Roulette/Baccarat bet; Roulette supports BET=CHIPS entries')
   .option('--chips <integer>', 'Roulette chips purchased with the total wager (default: sum in --bet)')
+  .option('--shuffle', 'Roulette: random equivalent with identical types, chip counts and joint win probabilities')
   .option('--cover <cover>', 'ApeStrong cover or Gimboz Smash random cover')
   .option('--range <range>', 'Gimboz Smash inside range')
   .option('--multiplier <x>', 'Glyde or Crash target multiplier')
@@ -5774,7 +5771,11 @@ program
       }
       validateRouletteChipUsage(gameEntry, opts, opts.amount);
       if (gameEntry?.type === 'roulette') {
-        validateResolvedGameConfig(gameEntry, { bet: opts.bet, chips: opts.chips }, { amountInput: opts.amount });
+        const prepared = { bet: opts.bet, chips: opts.chips, shuffle: opts.shuffle };
+        validateResolvedGameConfig(gameEntry, prepared, { amountInput: opts.amount });
+        opts.bet = prepared.bet;
+        opts.rouletteShuffle = typeof prepared.shuffle === 'object' ? prepared.shuffle : undefined;
+        opts.shuffle = false;
       }
     } catch (error) {
       failPlayValidation(error);
@@ -5827,6 +5828,8 @@ program
         spins: opts.spins,
         bet: opts.bet,
         chips: opts.chips,
+        shuffle: opts.shuffle,
+        rouletteShuffle: opts.rouletteShuffle,
         range: gameEntry?.type === 'apestrong' ? opts.cover : (gameEntry?.type === 'gimbozsmash' ? explicitGimbozRange : undefined),
         cover: gameEntry?.type === 'gimbozsmash' ? explicitGimbozCover : undefined,
         multiplier: opts.multiplier,
@@ -5865,8 +5868,9 @@ program
   .option('--split <count>', 'Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots')
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
   .option('--spins <count>', 'Slots-only alias for --split')
-  .option('--bet <bet>', 'Roulette/Baccarat bet; Roulette supports BET:CHIPS entries')
+  .option('--bet <bet>', 'Roulette/Baccarat bet; Roulette supports BET=CHIPS entries')
   .option('--chips <integer>', 'Roulette chips purchased with the total wager (default: sum in --bet)')
+  .option('--shuffle', 'Roulette: random equivalent with identical types, chip counts and joint win probabilities')
   .option('--cover <cover>', 'ApeStrong cover or Gimboz Smash random cover')
   .option('--range <range>', 'Gimboz Smash inside range')
   .option('--multiplier <x>', 'Glyde or Crash target multiplier')
@@ -6009,7 +6013,7 @@ program
 
     const statefulDispatch = resolveStatefulPlayDispatch({ gameArg, amountArg, configArgs, opts });
     if (statefulDispatch) {
-      if (opts.chips !== undefined) failPlayValidation(new Error('--chips is only for Roulette.'));
+      if (opts.chips !== undefined || opts.shuffle) failPlayValidation(new Error('--chips and --shuffle are only for Roulette.'));
       if (opts.validateOnly) {
         try {
           console.log(JSON.stringify(validateStatefulPlayDispatch(statefulDispatch)));
@@ -6270,7 +6274,7 @@ program
       }
     }
 
-    if (fixedGame?.type === 'roulette' || fixedGame?.key === 'dojo-drop' || opts.chips !== undefined) {
+    if (!opts.validateOnly && (fixedGame?.type === 'roulette' || fixedGame?.key === 'dojo-drop' || opts.chips !== undefined || opts.shuffle)) {
       try {
         validateStatelessPlayTarget({ fixedGame, opts, positionalConfig, amountInput, loopMode });
       } catch (error) {
@@ -6675,7 +6679,7 @@ program
             gameConfig.split = randomIntInclusive(min, max);
           }
         }
-        if (gameEntry.type === 'roulette' && (gameConfig.chips !== undefined || String(gameConfig.bet).includes(':'))) {
+        if (gameEntry.type === 'roulette') {
           const actualWager = amountInput && (betOverride === null || (betStrategyName === 'flat' && Number(betOverride) === Number(amountInput)))
             ? normalizeWagerAmount(amountInput) : formatApeAmount(wagerApe);
           validateResolvedGameConfig(gameEntry, gameConfig, { amountInput: actualWager });
@@ -6816,6 +6820,8 @@ program
           spins: gameEntry.type === 'slots' ? gameConfig.spins : undefined,
           bet: gameConfig.bet,
           chips: gameConfig.chips,
+          shuffle: gameConfig.shuffle === true,
+          rouletteShuffle: typeof gameConfig.shuffle === 'object' ? gameConfig.shuffle : undefined,
           range: gameEntry.type === 'gimbozsmash'
             ? (gameConfig.outRange ? undefined : gameConfig.targets)
             : gameConfig.range,
@@ -8137,6 +8143,7 @@ program
   .option('--picks <count>', 'Keno pick count used by play')
   .option('--bet <bet>', 'Roulette or Baccarat bet')
   .option('--chips <integer>', 'Roulette chips purchased with the total wager (default: sum in --bet)')
+  .option('--shuffle', 'Roulette: random equivalent with identical types, chip counts and joint win probabilities')
   .option('--cover <cover>', 'ApeStrong or Gimboz Smash cover')
   .option('--range <range>', 'Gimboz Smash inside range')
   .option('--out-range <range>', 'Gimboz Smash outside range')
@@ -8149,7 +8156,7 @@ program
     const paytableOnlyOption = [
       ['risk', '--risk'], ['grid', '--grid'], ['split', '--split'],
       ['survive', '--survive'], ['spins', '--spins'], ['picks', '--picks'],
-      ['bet', '--bet'], ['chips', '--chips'], ['cover', '--cover'], ['range', '--range'],
+      ['bet', '--bet'], ['chips', '--chips'], ['shuffle', '--shuffle'], ['cover', '--cover'], ['range', '--range'],
       ['outRange', '--out-range'], ['multiplier', '--multiplier'],
       ['amount', '--amount'], ['side', '--side'],
     ].find(([key]) => opts[key] !== undefined)?.[1];

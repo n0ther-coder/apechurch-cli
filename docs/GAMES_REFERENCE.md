@@ -612,38 +612,67 @@ Pirate-themed match-anywhere cascade slot. The public docs describe regular-symb
 **Verification notes:** [ROULETTE_CONTRACT.md](./verification/ROULETTE_CONTRACT.md)
 **Analytics:** [ROULETTE_ANALYTICS.md](./analytics/ROULETTE_ANALYTICS.md)
 
-American roulette on a `38`-pocket wheel. The contract supports single numbers, colors, parity, halves, dozens, and columns. The wager buys chips whose value is derived from the total amount and purchased chip count. Counts in `BET:CHIPS` allocate those chips across bets. Plain bet lists assign one chip per entry and retain equal splitting.
+American roulette on a `38`-pocket wheel: `0`, `00`, and `1–36`. The contract natively accepts straight numbers and outside bets. The CLI also composes grid SPLIT, STREET, SQUARE and LINE bets from equal allocations to native straight numbers. These groups cover only the `1–36` grid; `0` and `00` are distinct straight selections and lose on every outside bet.
 
-**Command:** `apechurch-cli play roulette <amount> --bet <bet-list> [--chips <integer>]` (the bet list may also be positional)
+**Command:** `apechurch-cli play roulette <amount> --bet <bet-list> [--chips <integer>] [--shuffle]` (the bet list may also be positional)
 
 ```bnf
 <amount> ::= <ape>
 <bet-list> ::= <roulette-entry> ( "," <roulette-entry> )*
-<roulette-entry> ::= <roulette-bet> [ ":" <chip-count> ]
+<roulette-entry> ::= <roulette-bet> [ "=" <chip-count> ]
 <chip-count> ::= <integer>        ; positive; omitted counts mean one chip
 <chips> ::= <integer>             ; positive purchased total; defaults to the sum in --bet
-<roulette-bet> ::= "0" | "00" | <roulette-number> | "RED" | "BLACK" | "ODD" | "EVEN" | "FIRST_HALF" | "SECOND_HALF" | "FIRST_THIRD" | "SECOND_THIRD" | "THIRD_THIRD" | "FIRST_COL" | "SECOND_COL" | "THIRD_COL"
-<roulette-number> ::= <integer>    ; 1 <= value <= 36
+<roulette-bet> ::= "0" | "00" | <n> | "RED" | "BLACK" | "EVEN" | "ODD" | "LOW" | "HIGH" | "DOZEN:" <section> | "COLUMN:" <section> | "SPLIT:" <n> "-" <n> | "STREET:" <n> | "SQUARE:" <n> "-" <n> | "LINE:" <n> "-" <n>
+<section> ::= "1" | "2" | "3"
+<n> ::= <integer>                ; 1 <= value <= 36; no leading zeroes
+<roulette-option> ::= "--chips" <chips> | "--shuffle"
 ```
 
-Each entry uses `BET:CHIPS`; an omitted count means one chip and an omitted bet receives no chips. Every supported bet token can carry a count. Without `--chips`, the purchased count is the sum of all chip counts in the bet list. The chip value is `floor(total wager in wei / purchased chips)`; each component receives `chip value × its count`.
+| Selection | Valid coverage | Gross multiplier before wei rounding |
+|---|---|---:|
+| `0`, `00`, `1` through `36` | One distinct pocket | 36.9× |
+| `SPLIT:a-b` | `a < b`: horizontal neighbours in one row, or `b = a + 3` | 18.45× |
+| `STREET:n` | `n,n+1,n+2`, where `n = 1,4,…,34` | 12.3× |
+| `SQUARE:a-b` | `a,a+1,a+3,a+4`, where `b = a + 4`, `a ≤ 32`, and `a` is in column 1 or 2 | 9.225× |
+| `LINE:a-b` | Six consecutive grid numbers, where `b = a + 5` and `a = 1,4,…,31` | 6.15× |
+| `RED`, `BLACK`, `EVEN`, `ODD`, `LOW`, `HIGH` | 18 pockets; LOW = 1–18, HIGH = 19–36 | 2.05× |
+| `DOZEN:1`, `DOZEN:2`, `DOZEN:3` | 1–12, 13–24, 25–36 | 3.075× |
+| `COLUMN:1`, `COLUMN:2`, `COLUMN:3` | Grid columns starting at 1, 2, 3 with step 3 | 3.075× |
+
+Each entry uses `BET=CHIPS`; an omitted count means one chip. Without `--chips`, the purchased count is the sum of entry counts. Chip value is `floor(total wager in wei / purchased chips)`. An entry receives `chip value × its count`; each inside group divides that amount equally over its covered numbers, rounding each share down to wei. Overlapping groups and straight bets merge their shares per native number, because the contract rejects repeated codes. JSON reports the semantic `bet` and `chipCounts` in entry order; `gameNumbers`, `numBets`, and `betAmountsWei` describe the merged native entries and can have a different length.
 
 ```bash
-apechurch-cli play roulette 2 --bet RED:3,BLACK:1
-apechurch-cli play roulette 2.5 --chips 5 --bet RED:3,BLACK:1
-apechurch-cli game roulette --paytable --amount 2 --bet RED:3,BLACK:1
+apechurch-cli play roulette 2 --bet 'RED=3,BLACK=1'
+apechurch-cli play roulette 2.5 --chips 5 --bet 'RED=3,BLACK=1'
+apechurch-cli play roulette 6 --bet 'SPLIT:8-11=2,STREET:4=1,SQUARE:2-6=1,LINE:7-12=1,LOW=1' --validate-only --json
+apechurch-cli game roulette --paytable --amount 2 --bet '9=1,RED=1' --shuffle --json
 ```
 
-The first example buys four chips worth `0.5 APE` each. The second buys five chips of the same value, allocates four, and continues with a warning about the unallocated chip. If `--chips` is less than the allocated count, the CLI fails before accessing the wallet or submitting a transaction. Equal explicit and inferred counts behave identically without a warning. Warnings go to stderr and are also included in JSON metadata, keeping stdout parseable.
+Excess purchased chips warn and remain unallocated and at risk. An insufficient purchased count fails before wallet access or any transaction. Warnings go to stderr and JSON metadata. Duplicate semantic selections are rejected; different overlapping selections are allowed. Chip-division dust, group-division dust, and unallocated chips remain part of the wager denominator. A sole native entry equal to the total is reduced by one wei for the contract's strict component limit. Groups need at least one wei per covered number. VRF and gas are additional costs. Each play reads the live `MAX_GUESSES` limit and checks the number of merged native entries before submission.
 
-Chip counts must be positive integers. Duplicate bets (including column aliases) are rejected; combine their chips into one entry. The explicit total is required for chip-count bets. Unallocated chips and integer-division dust remain part of the total wager without adding outcome coverage; configured payout multipliers and RTP include them in the denominator. A sole component equal to the total is reduced by one wei to satisfy the contract's strict per-component limit. VRF and gas are additional costs.
+Chip value is recomputed from each actual loop wager. `--validate-only --json` inspects the exact allocation without wallet access. Use `game roulette --paytable --amount ... --bet ...` to enumerate the effective gross payouts.
 
-The chip value is recomputed from each actual wager, including when a loop's betting strategy changes that wager. `--validate-only` reports purchased and allocated chip counts, computed chip value, encoded wei amounts, allocated APE, and unallocated APE without accessing a wallet.
+**Shuffle equivalence:** `--shuffle` keeps each entry's type and chip count, the purchased chip count, and the exact probability of every joint win/loss pattern across the 38 pockets. It then verifies the complete distribution of actual integer-wei payouts. Choices can change within each class, including number selections, and 0/00 remain distinct pockets excluded from all outside bets. Thus a number originally covered by a color selection remains covered by the chosen color. Entries are matched by position; this conservative structural definition excludes mixes that merely happen to share a payout histogram while changing the relationships between bets.
 
-**Compare:**
-- Exact RTP: `97.11%` across all verified supported bet classes.
-- Max payout: `36.9x` on a single number, `0`, or `00`.
-- Operational note: `RED,BLACK` is the low-volatility hedge baseline and only loses to `0/00`.
+The sampler draws uniformly and independently from each entry's class, rejecting the entire candidate when a constraint fails. This samples accepted assignments without enumerating or storing all combinations. The original combination can be selected again. Search stops after 50,000 attempts or 500,000 entry checks; exhaustion raises an error before a transaction, without substituting an unchecked combination. A preview and a later play are independent samples; loops sample anew for each wager. JSON includes the selected `bet` and `shuffle.originalBet`.
+
+**Compare:** Fully allocated stakes before wei rounding share RTP `36.9 / 38 ≈ 97.105263%`. The exact configured RTP and maximum payout use the actual merged amounts, all 38 outcomes, and the full wager denominator.
+
+### Roulette syntax migration
+
+Version 31 replaces the earlier outside-bet labels and `BET:CHIPS` counts. Use `=` for chip counts and `:` to select a numbered section or inside group. New commands reject the previous syntax; saved historical configurations and native on-chain allocations remain readable.
+
+| Previous selection | Version 31 |
+|---|---|
+| `RED:3,BLACK:1` | `RED=3,BLACK=1` |
+| `17:2` | `17=2` |
+| `FIRST_HALF`, `SECOND_HALF` | `LOW`, `HIGH` |
+| `FIRST_THIRD:2` | `DOZEN:1=2` |
+| `SECOND_THIRD`, `THIRD_THIRD` | `DOZEN:2`, `DOZEN:3` |
+| `FIRST_COL:2` / `FIRST_COLUMN:2` | `COLUMN:1=2` |
+| `SECOND_COL`, `THIRD_COL` | `COLUMN:2`, `COLUMN:3` |
+
+Bare selections still mean one chip. The purchased `--chips` count and its warning/error rules are unchanged. Update command strings using the table above; the full grammar, composed group rules and `--shuffle` behavior are documented in this Roulette section.
 
 ## Speed Keno ✔︎
 

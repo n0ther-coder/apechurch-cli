@@ -6,6 +6,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [31.0.0]
+
+### Breaking
+- Roulette uses `BET=CHIPS`, `LOW/HIGH`, `DOZEN:1..3` and `COLUMN:1..3`.
+  Saved history remains readable; see [migration](docs/GAMES_REFERENCE.md#roulette-syntax-migration).
+
+### Added
+- SPLIT, STREET, SQUARE and LINE selectors on the 1–36 grid, composed from
+  verified native straight bets with overlap merging and explicit wei dust.
+- Roulette `--shuffle` preserves bet types, chip counts, every joint win
+  probability and the exact native payout distribution; bounded search fails
+  before submission when no sample is found.
+- A live native-entry limit check, shared BNF/help, and contract-backed payout
+  verification for every supported selector.
+
 ## [30.0.0]
 
 ### Breaking

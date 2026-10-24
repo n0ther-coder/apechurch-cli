@@ -381,7 +381,7 @@ Coverage and limits:
 | Game | Command | Aliases | Description |
 |------|---------|---------|-------------|
 | ApeStrong ✔︎ | `play ape-strong 10 --cover 50` | `apestrong`, `strong` | Pick-your-odds dice |
-| Roulette ✔︎ | `play roulette 10 RED` | - | American roulette; `BET:CHIPS` sets chip counts; optional `--chips <integer>` sets the purchased total |
+| Roulette ✔︎ | `play roulette 10 RED` | - | American roulette; `BET=CHIPS`, grid groups, purchased `--chips`, and exact `--shuffle` |
 | Baccarat ✔︎ | `play baccarat 10 BANKER` | - | Classic baccarat |
 | Jungle Plinko ✔︎ | `play jungle-plinko 10 --risk 0 --split 100` | `jungleplinko`, `jungle` | Drop balls for multipliers |
 | Cosmic Plinko ✔︎ | `play cosmic-plinko 10 --risk 0 --split 30` | `cosmic` | Asymmetric plinko with higher top-end payouts |
@@ -415,11 +415,27 @@ The CLI help now exposes formal argument grammar in `apechurch-cli play --help`,
 <speed-keno-numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*
 <speed-keno-number> ::= <integer>            ; 1 <= value <= 20
 <roulette-bets> ::= <roulette-entry> ( "," <roulette-entry> )*
-<roulette-entry> ::= <roulette-bet> [ ":" <integer> ] ; positive chip count; --chips defaults to the sum of counts
+<roulette-entry> ::= <roulette-bet> [ "=" <roulette-chip-count> ]
+<roulette-bet> ::= "0" | "00" | <roulette-number> | "RED" | "BLACK" | "EVEN" | "ODD" | "LOW" | "HIGH" | "DOZEN:" <roulette-section> | "COLUMN:" <roulette-section> | "SPLIT:" <roulette-number> "-" <roulette-number> | "STREET:" <roulette-number> | "SQUARE:" <roulette-number> "-" <roulette-number> | "LINE:" <roulette-number> "-" <roulette-number>
+<roulette-section> ::= "1" | "2" | "3"
+<roulette-number> ::= <integer>                    ; 1 <= value <= 36
+<roulette-chip-count> ::= <integer>                ; positive; omitted per-bet count defaults to 1
+<roulette-chips> ::= <integer>                     ; positive purchased count; defaults to the sum of per-bet counts
+; SPLIT: adjacent grid numbers a < b; STREET: first number is 1,4,...,34.
+; SQUARE: lower/upper endpoints a,b with b=a+4, a in columns 1 or 2.
+; LINE: endpoints a,b with b=a+5, a=1,4,...,31. Inside groups exclude 0 and 00.
+; Roulette: purchased chips < allocated chips is an error before wallet access or transactions.
+; Roulette: purchased chips > allocated chips warns and continues with the difference unallocated.
+; Roulette chip value = floor(total wager in wei / purchased chips).
+; Inside groups split their allocation equally over native straight bets, rounding down to wei.
+; --shuffle preserves types, chip counts, all joint win probabilities and exact payout distribution.
+; Shuffle uses bounded rejection sampling; failure stops before submitting a transaction.
 <baccarat-bet> ::= "PLAYER" | "BANKER" | "TIE" | <combo-baccarat-bet>
 <combo-baccarat-bet> ::= <ape> <baccarat-side> <ape> "TIE"
 <baccarat-side> ::= "PLAYER" | "BANKER"
 ```
+
+Roulette supports all native outside/straight bets and composed grid SPLIT, STREET, SQUARE and LINE bets. See [complete syntax and shuffle rules](docs/GAMES_REFERENCE.md#roulette-) and [version 31 migration](docs/GAMES_REFERENCE.md#roulette-syntax-migration).
 
 `--numbers` must be passed as one CLI token, for example `--numbers 1,7,13,25,40`.
 

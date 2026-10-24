@@ -59,12 +59,12 @@ describe('game paytable descriptions', () => {
   });
 
   it('uses explicit Roulette chips instead of evenly redistributing the total', () => {
-    const result = getGamePaytable(resolveGame('roulette'), { bet: 'RED:3,BLACK:1', chips: '5', amount: '5' });
-    assert.deepStrictEqual(result.parameters, { bet: 'RED:3,BLACK:1', amount: '5', chips: '5', chipValue: '1' });
+    const result = getGamePaytable(resolveGame('roulette'), { bet: 'RED=3,BLACK=1', chips: '5', amount: '5' });
+    assert.deepStrictEqual(result.parameters, { bet: 'RED=3,BLACK=1', amount: '5', chips: '5', chipValue: '1' });
     assert.deepStrictEqual(result.payouts.map(row => row.multiplier), ['0', '0.41', '1.23']);
     assert.strictEqual(result.warnings.length, 1);
-    const inferred = getGamePaytable(resolveGame('roulette'), { bet: 'RED:3,BLACK:1', amount: '5' });
-    assert.deepStrictEqual(inferred.parameters, { bet: 'RED:3,BLACK:1', amount: '5', chips: '4', chipValue: '1.25' });
+    const inferred = getGamePaytable(resolveGame('roulette'), { bet: 'RED=3,BLACK=1', amount: '5' });
+    assert.deepStrictEqual(inferred.parameters, { bet: 'RED=3,BLACK=1', amount: '5', chips: '4', chipValue: '1.25' });
     assert.deepStrictEqual(inferred.payouts.map(row => row.multiplier), ['0', '0.5125', '1.5375']);
     assert.ok(!inferred.warnings);
     assert.throws(() => getGamePaytable(resolveGame('keno'), { chips: '5' }), /only for Roulette/);

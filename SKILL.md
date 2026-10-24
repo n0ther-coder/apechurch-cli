@@ -258,7 +258,7 @@ American roulette with 0, 00, and 1-36.
 apechurch-cli play roulette <amount> <bet>
 apechurch-cli play roulette 10 RED        # Color bet (2.05x)
 apechurch-cli play roulette 10 17         # Single number (36.9x)
-apechurch-cli play roulette 10 RED,BLACK  # Split bet (hedge)
+apechurch-cli play roulette 10 RED,BLACK  # Two color bets (hedge)
 apechurch-cli play roulette 10 0          # Zero (36.9x)
 apechurch-cli play roulette 10 00         # Double zero (36.9x)
 ```
@@ -269,11 +269,19 @@ apechurch-cli play roulette 10 00         # Double zero (36.9x)
 | Numbers | 0, 00, 1-36 | 36.9x |
 | Colors | RED, BLACK | 2.05x |
 | Parity | ODD, EVEN | 2.05x |
-| Halves | FIRST_HALF, SECOND_HALF | 2.05x |
-| Thirds | FIRST_THIRD, SECOND_THIRD, THIRD_THIRD | 3.075x |
-| Columns | FIRST_COL, SECOND_COL, THIRD_COL | 3.075x |
+| Halves | LOW, HIGH | 2.05x |
+| Thirds | DOZEN:1, DOZEN:2, DOZEN:3 | 3.075x |
+| Columns | COLUMN:1, COLUMN:2, COLUMN:3 | 3.075x |
+| Split | SPLIT:a-b, adjacent grid numbers | 18.45x |
+| Street | STREET:n, n = 1,4,…,34 | 12.3x |
+| Square | SQUARE:a-b, b = a + 4, lower corner in column 1 or 2 | 9.225x |
+| Line | LINE:a-b, b = a + 5, a = 1,4,…,31 | 6.15x |
 
-**Multi-bet:** `RED,BLACK` allocates one chip to each bet. `BET:CHIPS` assigns positive integer chip counts, for example `play roulette 2 --bet RED:3,BLACK:1`. The purchased count defaults to the sum in the bet list; `--chips <integer>` overrides it. Chip value is total wager divided by purchased count, rounded down to wei. A larger purchased count warns and continues with unallocated chips at risk; a smaller count fails before wallet access or transaction submission. Duplicate bets are rejected. Integer-division dust stays in the total, and a sole component equal to the total is reduced by one wei for the contract. Value is recomputed for each actual loop wager. Add `--validate-only --json` to inspect amounts without a wallet, or use `game roulette --paytable --amount 2 --bet RED:3,BLACK:1`. Warnings use stderr and JSON metadata; VRF and gas remain additional costs.
+**Multi-bet:** `RED,BLACK` allocates one chip to each bet. `BET=CHIPS` assigns positive integer chip counts, for example `play roulette 2 --bet RED=3,BLACK=1`. The purchased count defaults to the sum in the bet list; `--chips <integer>` overrides it. Chip value is total wager divided by purchased count, rounded down to wei. A larger purchased count warns and continues with unallocated chips at risk; a smaller count fails before wallet access or transaction submission. Duplicate bets are rejected. Integer-division dust stays in the total, and a sole component equal to the total is reduced by one wei for the contract. Value is recomputed for each actual loop wager. Add `--validate-only --json` to inspect amounts without a wallet, or use `game roulette --paytable --amount 2 --bet RED=3,BLACK=1`. Warnings use stderr and JSON metadata; VRF and gas remain additional costs.
+
+Inside groups use only 1–36 and expand into equal native straight-number shares, rounded down to wei. Overlapping shares are merged per number. The contract has no dedicated group codes. Multipliers above are nominal before wei rounding.
+
+`--shuffle` preserves every entry type/count, all joint win probabilities, and the exact payout distribution; it samples new selections for each play. Search exhaustion fails before a transaction. See [Roulette syntax, BNF and shuffle semantics](docs/GAMES_REFERENCE.md#roulette-), including the precise square and line endpoint constraints.
 
 **Alias:** `rl`
 

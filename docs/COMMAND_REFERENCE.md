@@ -623,7 +623,8 @@ Notes:
 | `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--spins <count>` | Slots-only alias for `--split` |
-| `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET:CHIPS` counts |
+| `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET=CHIPS` counts |
+| `--shuffle` | Roulette: randomize selections while preserving types, chip counts, all joint win probabilities and exact payouts; bounded search fails before submission |
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
 | `--cover <cover>` | ApeStrong cover, or a randomized Gimboz Smash cover |
 | `--range <range>` | Gimboz Smash one-or-two target intervals |
@@ -727,7 +728,8 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--spins <count>` | Slots-only alias for `--split` |
-| `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET:CHIPS` counts |
+| `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET=CHIPS` counts |
+| `--shuffle` | Roulette: randomize selections while preserving types, chip counts, all joint win probabilities and exact payouts; bounded search fails before submission |
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
 | `--cover <cover>` | ApeStrong cover, or a randomized Gimboz Smash cover |
 | `--range <range>` | Gimboz Smash one-or-two target intervals |
@@ -956,7 +958,7 @@ JSON multipliers are decimal strings; repeating ratios use up to 18 fractional d
 }
 ```
 
-Fixed `play` defaults are reused. If a required paytable parameter has no fixed default, the command fails and names the missing option. Roulette and Baccarat require `--bet` and `--amount`: the wager determines exact wei-level payouts, including Roulette allocations and Baccarat's Banker rounding. Roulette paytables accept the same optional `--chips` and `BET:CHIPS` entries as play. Chip value is total wager divided by purchased chips, defaulting to the sum in the bet list. Unallocated chips and division dust remain in the multiplier denominator; count mismatches follow the same warning/error rules as play. Video Poker requires `--amount` because the maximum bet enables its progressive jackpot. A split greater than one suppresses payout enumeration and reports only the overall bounds. Where wager rounding affects those bounds, `--amount` is required and included among the resolved parameters. A static single-attempt paytable is listed when the repository can enumerate it, including for stateful games with fixed payouts. The `400 APE` Video Poker jackpot is dynamic, so that configuration reports bounds only. Dynamic or insufficiently verified outcome spaces also report bounds only, and an unknowable public bound is represented by `null` rather than an invented value.
+Fixed `play` defaults are reused. If a required paytable parameter has no fixed default, the command fails and names the missing option. Roulette and Baccarat require `--bet` and `--amount`: the wager determines exact wei-level payouts, including Roulette allocations and Baccarat's Banker rounding. Roulette paytables accept the same optional `--chips`, `--shuffle`, and `BET=CHIPS` entries as play; see [all Roulette selectors and geometry](GAMES_REFERENCE.md#roulette-). Inside groups expand to merged native straight bets, with group shares rounded down to wei. Shuffle preserves all joint win probabilities and the exact payout distribution; preview and later play are independent samples. Chip value is total wager divided by purchased chips, defaulting to the sum in the bet list. Unallocated chips and division dust remain in the multiplier denominator; count mismatches follow the same warning/error rules as play. Video Poker requires `--amount` because the maximum bet enables its progressive jackpot. A split greater than one suppresses payout enumeration and reports only the overall bounds. Where wager rounding affects those bounds, `--amount` is required and included among the resolved parameters. A static single-attempt paytable is listed when the repository can enumerate it, including for stateful games with fixed payouts. The `400 APE` Video Poker jackpot is dynamic, so that configuration reports bounds only. Dynamic or insufficiently verified outcome spaces also report bounds only, and an unknowable public bound is represented by `null` rather than an invented value.
 
 Dojo Drop accepts `play dojo-drop <total-APE> [<split>]`, `--split`, and the
 `--spins` alias, with 1–15 paid spins (default 15). The total must cover at

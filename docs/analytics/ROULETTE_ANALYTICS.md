@@ -8,7 +8,7 @@ This note summarizes the exact **single-leg payout distributions** for the verif
 
 - **Source:** The verified American-wheel pocket mapping and bet-class multipliers are in [payout-tables.js](../../lib/payout-tables.js); [rtp.js](../../lib/rtp.js) derives class probabilities and RTP.
 - **Contract control:** The verified ABI has no `oddsLocked` or payout-multiplier setter. An owner `setMaxGuesses` changes the allowed bet-count limit, not the 38-pocket wheel or per-leg gross multipliers; platform fees affect net returns.
-- **Play settings:** Bet class and chosen pocket set change coverage and payout. `BET:CHIPS` assigns chip counts, and the chip value is total wager divided by the purchased count (`--chips`, defaulting to the sum in the bet list), rounded down to wei. Plain lists allocate one chip per entry. A sole component equal to the total subtracts one wei. Custom mixes change the distribution. The configured RTP and maximum payout use the actual wei amounts across all 38 pockets, including unallocated wager and per-leg payout rounding.
+- **Play settings:** Bet class and chosen pocket set change coverage and payout. `BET=CHIPS` assigns chip counts, and the chip value is total wager divided by the purchased count (`--chips`, defaulting to the sum in the bet list), rounded down to wei. Plain lists allocate one chip per entry. A sole component equal to the total subtracts one wei. Custom mixes change the distribution. The configured RTP and maximum payout use the actual wei amounts across all 38 pockets, including unallocated wager and per-leg payout rounding.
 
 ## How Roulette works
 
@@ -19,6 +19,10 @@ For this document, each column represents the full class distribution of any one
 - any single number behaves like any other single number;
 - any color, parity, or half bet behaves like its peers;
 - any dozen or column behaves like its peers.
+
+SPLIT, STREET, SQUARE and LINE are CLI compositions of 2, 3, 4 or 6 native straight selections on the 1–36 grid. Their nominal gross returns are 18.45×, 12.3×, 9.225× and 6.15×, with win probabilities 2/38, 3/38, 4/38 and 6/38. The CLI floors each equal share to wei and merges overlapping straight allocations before computing payouts. These are not additional native contract codes.
+
+`--shuffle` preserves all indexed joint win probabilities and verifies the exact actual payout histogram, including 0, 00, merged amounts, and rounding. The configured RTP is therefore unchanged. See [the full rules](../GAMES_REFERENCE.md#roulette-).
 
 Multi-leg wagers are not expanded exhaustively here because their session distribution depends on the exact leg mix.
 
