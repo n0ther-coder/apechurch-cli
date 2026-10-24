@@ -414,6 +414,18 @@ describe('RTP Helpers', () => {
     });
   });
 
+  it('uses actual Roulette weights, uncovered wager, and chosen pockets for RTP and caps', () => {
+    const config = { bet: 'RED:3,BLACK:1', chips: '5', wagerAmountApe: '5' };
+    const expected = getConfiguredGameExpectedRtpReference({ game: 'roulette', config });
+    assert.ok(Math.abs(expected.value - (97.10526315789474 * 4 / 5)) < 1e-10);
+    assert.strictEqual(getConfiguredGameMaxPayoutReference({ game: 'roulette', config }).value, 1.23);
+    const variant = resolveConfiguredGameVariant({ game: 'roulette', config });
+    const swapped = resolveConfiguredGameVariant({ game: 'roulette', config: { ...config, bet: 'RED:1,BLACK:3' } });
+    assert.match(variant.variantKey, /^roulette:allocation:/);
+    assert.notStrictEqual(variant.variantKey, swapped.variantKey);
+    assert.strictEqual(getConfiguredGameExpectedRtpReference({ game: 'roulette', config: { bet: 'RED:3', chips: '5' } }), null);
+  });
+
   it('canonicalizes Bear-A-Dice variants by exact difficulty and roll count', () => {
     const variant = resolveConfiguredGameVariant({
       game: 'bear-dice',

@@ -7,6 +7,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
+import os from 'node:os';
+import { decodeAbiParameters, parseEther } from 'viem';
 import { execSync, spawn, spawnSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -474,6 +476,136 @@ describe('CLI Commands Integration Tests', () => {
 
       assert.strictEqual(code, 1);
       assert.match(stdout, /unknown option '--resilient=false'|--resilient does not accept a value/);
+    });
+
+    it('validates Roulette chip allocations and enumerates their exact paytable without a wallet', () => {
+      const valid = cli('play roulette 4 --bet RED:3,BLACK:1 --validate-only --json');
+      assert.strictEqual(valid.code, 0);
+      const config = JSON.parse(valid.stdout).config;
+      assert.strictEqual(config.chipValue, '1');
+      assert.deepStrictEqual(config.chipCounts, ['3', '1']);
+      assert.deepStrictEqual(config.betAmountsWei, ['3000000000000000000', '1000000000000000000']);
+      assert.strictEqual(config.unallocatedAmountApe, '0');
+      assert.strictEqual(config.chips, '4');
+      const paytable = cli('game roulette --paytable --amount 4 --bet RED:3,BLACK:1 --json');
+      assert.strictEqual(paytable.code, 0);
+      assert.deepStrictEqual(JSON.parse(paytable.stdout).payouts.map(row => row.multiplier), ['0', '0.5125', '1.5375']);
+    });
+
+    it('documents Roulette chip grammar and mismatch rules in command help', () => {
+      for (const command of ['play --help', 'bet --help', 'game --help']) {
+        const result = cli(command);
+        assert.strictEqual(result.code, 0);
+        assert.ok(result.stdout.includes('<roulette-entry> ::= <roulette-bet> [ ":" <roulette-chip-count> ]'), command);
+        assert.ok(result.stdout.includes('"--chips" <roulette-chips>'), command);
+        assert.ok(result.stdout.includes('defaults to the sum of per-bet counts'), command);
+        assert.ok(result.stdout.includes('is an error before wallet access or transactions'), command);
+        assert.ok(result.stdout.includes('warns and continues'), command);
+      }
+      const metadata = cli('game roulette');
+      assert.ok(metadata.stdout.includes('<chips> ::= <integer>'));
+      assert.ok(metadata.stdout.includes('chip value = floor(total wager in wei / purchased chips)'));
+    });
+
+    it('warns once on stderr for excess Roulette chips while preserving JSON stdout', () => {
+      for (const args of [
+        ['play', 'roulette', '5', '--chips', '5', '--bet', 'RED:3,BLACK:1', '--validate-only', '--json'],
+        ['game', 'roulette', '--paytable', '--amount', '5', '--chips', '5', '--bet', 'RED:3,BLACK:1', '--json'],
+      ]) {
+        const result = spawnSync(process.execPath, [CLI_PATH, ...args], { encoding: 'utf8', env: buildCliEnv() });
+        assert.strictEqual(result.status, 0, result.stderr);
+        const payload = JSON.parse(result.stdout);
+        assert.strictEqual((result.stderr.match(/Warning:/g) || []).length, 1);
+        assert.match(result.stderr, /1 unallocated chip/);
+        assert.strictEqual((payload.config?.warnings || payload.warnings).length, 1);
+      }
+      const exact = spawnSync(process.execPath, [CLI_PATH, 'play', 'roulette', '5', '--chips', '4', '--bet', 'RED:3,BLACK:1', '--validate-only', '--json'], { encoding: 'utf8', env: buildCliEnv() });
+      assert.strictEqual(exact.status, 0);
+      assert.strictEqual(exact.stderr, '');
+      assert.strictEqual(JSON.parse(exact.stdout).config.chipValue, '1.25');
+    });
+
+    it('passes Roulette chip allocations from play and bet through to encoded transaction data', () => {
+      const temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'roulette-cli-'));
+      const loaderPath = path.join(temporaryDir, 'synthetic-loader.mjs');
+      // Replace wallet access and stop at the transaction boundary. The real CLI,
+      // dispatcher, parser, allocator, and ABI encoder still run in the child.
+      fs.writeFileSync(loaderPath, `
+        export async function load(url, context, nextLoad) {
+          const result = await nextLoad(url, context);
+          if (result.format !== 'module' || result.source === undefined) return result;
+          let source = result.source.toString();
+          if (url.endsWith('/bin/cli.js')) source = source.replace(
+            'async function getWalletWithPrompt(opts = {}) {',
+            'async function getWalletWithPrompt(opts = {}) { return { address: "0x1111111111111111111111111111111111111111" };'
+          );
+          if (url.endsWith('/lib/wallet.js')) source = source.replace(
+            'export function createClients(account) {',
+            'export function createClients(account) { return { publicClient: { async getBalance() { return 100000000000000000000n; }, async readContract() { return 125000000000000000n; } }, walletClient: { async writeContract() { throw new Error("Unexpected transaction submission"); } } };'
+          );
+          if (url.endsWith('/lib/games/base.js')) source = source.replace(
+            '// Total transaction value = bet amount + VRF fee',
+            'process.stdout.write(JSON.stringify({ encodedData, wager: wager.toString(), vrfFee: vrfFee.toString(), config })); process.exit(0);'
+          );
+          return { ...result, source };
+        }
+      `);
+      try {
+        for (const args of [
+          ['play', 'roulette', '4', '--json'],
+          ['play', 'roulette', '5', '--chips', '5', '--json'],
+          ['bet', '--game', 'roulette', '--amount', '4'],
+          ['bet', '--game', 'roulette', '--amount', '5', '--chips', '5'],
+        ]) {
+          const result = spawnSync(process.execPath, ['--loader', loaderPath, CLI_PATH, ...args,
+            '--bet', 'RED:3,BLACK:1'], {
+            encoding: 'utf8', timeout: 10000,
+            env: { ...buildCliEnv(), [CONFIG_DIR_ENV]: temporaryDir, NODE_NO_WARNINGS: '1' },
+          });
+          assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+          const payload = JSON.parse(result.stdout);
+          assert.strictEqual(payload.config.chipValue, '1');
+          const hasUnallocatedChips = args.includes('--chips');
+          assert.strictEqual(payload.config.unallocatedAmountApe, hasUnallocatedChips ? '1' : '0');
+          assert.strictEqual(payload.wager, parseEther(hasUnallocatedChips ? '5' : '4').toString());
+          assert.strictEqual((result.stderr.match(/Warning:/g) || []).length, hasUnallocatedChips ? 1 : 0);
+          const [codes, amounts] = decodeAbiParameters([
+            { type: 'uint8[]' }, { type: 'uint256[]' }, { type: 'uint256' }, { type: 'address' }, { type: 'bytes32' },
+          ], payload.encodedData);
+          assert.deepStrictEqual(codes, [50, 49]);
+          assert.deepStrictEqual(amounts, [parseEther('3'), parseEther('1')]);
+        }
+      } finally {
+        fs.rmSync(temporaryDir, { recursive: true, force: true });
+      }
+    });
+
+    it('rejects invalid Roulette allocations before wallet access', () => {
+      for (const command of [
+        'play roulette 5 --chips 5 --bet RED:3,BLACK:3',
+        'play roulette 5 --chips 0 --bet RED:2',
+        'play roulette --chips 2 --bet RED:2',
+        'play roulette 5 --chips 3 --bet RED:1,RED:2',
+        'play roulette 5 --chips 1.5 --bet RED:1',
+        'play keno 5 --chips 1',
+        'play blackjack 5 --chips 1',
+        'bet --game roulette --amount 5 --chips 4 --bet RED:5',
+        'bet --game keno --amount 5 --chips 1',
+      ]) {
+        const result = cli(command);
+        assert.strictEqual(result.code, 1, command);
+        assert.ok(!result.stdout.includes('No wallet found'), command);
+        assert.ok(JSON.parse(result.stdout).error, command);
+      }
+      const removedOption = cli('play roulette 5 --chip-value 1 --bet RED:3,BLACK:1 --validate-only --json');
+      assert.strictEqual(removedOption.code, 1);
+      assert.match(removedOption.stdout, /unknown option '--chip-value'/);
+    });
+
+    it('validates weighted Roulette loop bets with a derived chip value', () => {
+      const result = cli('play roulette 4 --bet RED:3,BLACK:1 --loop --bet-strategy martingale --validate-only --json');
+      assert.strictEqual(result.code, 0);
+      assert.strictEqual(JSON.parse(result.stdout).config.chipValue, '1');
     });
 
     it('play validate-only checks game option values without requiring a wallet', () => {
@@ -1857,6 +1989,33 @@ export default async function () {
 
       assert.strictEqual(code, 1);
       assert.strictEqual(payload.error, 'Bad startup option');
+    });
+
+    it('bot validate-only recursively validates configured child commands without a wallet or logs', () => {
+      resetBotFixtures();
+      const baseDir = path.join(NO_WALLET_HOME, '.apechurch-cli');
+      writeBotFixture({ baseDir, folderName: 'leaf-validator', script: `
+export function parseArgs(args) {
+  if (args.includes('--invalid')) throw Error('Unknown leaf option');
+}
+export default function () { throw Error('Leaf gameplay handler called'); }
+` });
+      writeBotFixture({ baseDir, folderName: 'parent-validator', script: `
+export async function validateArgs(args, session, validation) {
+  if (!(await validation.resolveGame('roulette'))) throw Error('Game registry missing');
+  await validation.validatePlayArgs(['roulette', '2', '--bet', 'RED']);
+  await validation.validateBotArgs('leaf-validator', args);
+}
+export default function () { throw Error('Parent gameplay handler called'); }
+` });
+      const valid = cli('bot parent-validator --validate-only --json');
+      assert.strictEqual(valid.code, 0);
+      assert.strictEqual(JSON.parse(valid.stdout).status, 'valid');
+      const invalid = cli('bot parent-validator --invalid --validate-only --json');
+      assert.strictEqual(invalid.code, 1);
+      assert.match(JSON.parse(invalid.stdout).error, /Unknown leaf option/);
+      assert.deepStrictEqual(listBotLogFiles(path.join(baseDir, 'log'), 'parent-validator'), []);
+      assert.deepStrictEqual(listBotLogFiles(path.join(baseDir, 'log'), 'leaf-validator'), []);
     });
 
     it('exposes a playJson helper for parsed play responses', () => {

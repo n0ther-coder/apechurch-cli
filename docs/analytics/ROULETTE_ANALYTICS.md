@@ -8,7 +8,7 @@ This note summarizes the exact **single-leg payout distributions** for the verif
 
 - **Source:** The verified American-wheel pocket mapping and bet-class multipliers are in [payout-tables.js](../../lib/payout-tables.js); [rtp.js](../../lib/rtp.js) derives class probabilities and RTP.
 - **Contract control:** The verified ABI has no `oddsLocked` or payout-multiplier setter. An owner `setMaxGuesses` changes the allowed bet-count limit, not the 38-pocket wheel or per-leg gross multipliers; platform fees affect net returns.
-- **Play settings:** Bet class and chosen pocket set change coverage and payout. Multi-leg mixes change the overall distribution, and the contract's leg splitting and one-wei adjustment can slightly change effective wager-level multipliers.
+- **Play settings:** Bet class and chosen pocket set change coverage and payout. `BET:CHIPS` assigns chip counts, and the chip value is total wager divided by the purchased count (`--chips`, defaulting to the sum in the bet list), rounded down to wei. Plain lists allocate one chip per entry. A sole component equal to the total subtracts one wei. Custom mixes change the distribution. The configured RTP and maximum payout use the actual wei amounts across all 38 pockets, including unallocated wager and per-leg payout rounding.
 
 ## How Roulette works
 

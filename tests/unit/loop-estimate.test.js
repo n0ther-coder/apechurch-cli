@@ -17,6 +17,17 @@ import {
 import { resolveGame } from '../../registry.js';
 
 describe('Loop Estimate Helpers', () => {
+  it('samples Roulette using explicit component amounts rather than an equal split', () => {
+    const estimate = estimateConfiguredGameLoopRunout({
+      balanceApe: 20, availableApe: 20, gameEntry: resolveGame('roulette'), wagerApe: 5,
+      config: { bet: 'RED:3,BLACK:1', chips: '5' }, sessionCount: 1,
+      rng: () => 0.09,
+    });
+    assert.equal(estimate.method, 'monte-carlo');
+    assert.equal(estimate.estimatedGames, 6);
+    assert.equal(estimate.positiveEv, false);
+  });
+
   it('estimates games before wallet squandering from expected loss per game', () => {
     const estimate = calculateLoopRunoutEstimate({
       balanceApe: 100,

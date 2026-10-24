@@ -576,16 +576,33 @@ Pirate-themed match-anywhere cascade slot. The public docs describe regular-symb
 **Verification notes:** [ROULETTE_CONTRACT.md](./verification/ROULETTE_CONTRACT.md)
 **Analytics:** [ROULETTE_ANALYTICS.md](./analytics/ROULETTE_ANALYTICS.md)
 
-American roulette on a `38`-pocket wheel. The contract supports single numbers, colors, parity, halves, dozens, and columns; multi-bets split the wager across legs, while one-leg bets subtract `1 wei` because each encoded leg must stay strictly below the post-fee total.
+American roulette on a `38`-pocket wheel. The contract supports single numbers, colors, parity, halves, dozens, and columns. The wager buys chips whose value is derived from the total amount and purchased chip count. Counts in `BET:CHIPS` allocate those chips across bets. Plain bet lists assign one chip per entry and retain equal splitting.
 
-**Command:** `apechurch-cli play roulette <amount> <bet>`
+**Command:** `apechurch-cli play roulette <amount> --bet <bet-list> [--chips <integer>]` (the bet list may also be positional)
 
 ```bnf
 <amount> ::= <ape>
-<bet-list> ::= <roulette-bet> ( "," <roulette-bet> )*
+<bet-list> ::= <roulette-entry> ( "," <roulette-entry> )*
+<roulette-entry> ::= <roulette-bet> [ ":" <chip-count> ]
+<chip-count> ::= <integer>        ; positive; omitted counts mean one chip
+<chips> ::= <integer>             ; positive purchased total; defaults to the sum in --bet
 <roulette-bet> ::= "0" | "00" | <roulette-number> | "RED" | "BLACK" | "ODD" | "EVEN" | "FIRST_HALF" | "SECOND_HALF" | "FIRST_THIRD" | "SECOND_THIRD" | "THIRD_THIRD" | "FIRST_COL" | "SECOND_COL" | "THIRD_COL"
 <roulette-number> ::= <integer>    ; 1 <= value <= 36
 ```
+
+Each entry uses `BET:CHIPS`; an omitted count means one chip and an omitted bet receives no chips. Every supported bet token can carry a count. Without `--chips`, the purchased count is the sum of all chip counts in the bet list. The chip value is `floor(total wager in wei / purchased chips)`; each component receives `chip value × its count`.
+
+```bash
+apechurch-cli play roulette 2 --bet RED:3,BLACK:1
+apechurch-cli play roulette 2.5 --chips 5 --bet RED:3,BLACK:1
+apechurch-cli game roulette --paytable --amount 2 --bet RED:3,BLACK:1
+```
+
+The first example buys four chips worth `0.5 APE` each. The second buys five chips of the same value, allocates four, and continues with a warning about the unallocated chip. If `--chips` is less than the allocated count, the CLI fails before accessing the wallet or submitting a transaction. Equal explicit and inferred counts behave identically without a warning. Warnings go to stderr and are also included in JSON metadata, keeping stdout parseable.
+
+Chip counts must be positive integers. Duplicate bets (including column aliases) are rejected; combine their chips into one entry. The explicit total is required for chip-count bets. Unallocated chips and integer-division dust remain part of the total wager without adding outcome coverage; configured payout multipliers and RTP include them in the denominator. A sole component equal to the total is reduced by one wei to satisfy the contract's strict per-component limit. VRF and gas are additional costs.
+
+The chip value is recomputed from each actual wager, including when a loop's betting strategy changes that wager. `--validate-only` reports purchased and allocated chip counts, computed chip value, encoded wei amounts, allocated APE, and unallocated APE without accessing a wallet.
 
 **Compare:**
 - Exact RTP: `97.11%` across all verified supported bet classes.

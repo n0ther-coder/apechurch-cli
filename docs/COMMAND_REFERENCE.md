@@ -623,7 +623,8 @@ Notes:
 | `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--spins <count>` | Slots-only alias for `--split` |
-| `--bet <bet>` | Roulette or baccarat bet payload |
+| `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET:CHIPS` counts |
+| `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
 | `--cover <cover>` | ApeStrong cover, or a randomized Gimboz Smash cover |
 | `--range <range>` | Gimboz Smash one-or-two target intervals |
 | `--multiplier <x>` | Glyde or Crash target multiplier |
@@ -726,7 +727,8 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--spins <count>` | Slots-only alias for `--split` |
-| `--bet <bet>` | Roulette or baccarat bet payload |
+| `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET:CHIPS` counts |
+| `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
 | `--cover <cover>` | ApeStrong cover, or a randomized Gimboz Smash cover |
 | `--range <range>` | Gimboz Smash one-or-two target intervals |
 | `--multiplier <x>` | Glyde or Crash target multiplier |
@@ -954,7 +956,7 @@ JSON multipliers are decimal strings; repeating ratios use up to 18 fractional d
 }
 ```
 
-Fixed `play` defaults are reused. If a required paytable parameter has no fixed default, the command fails and names the missing option. Roulette and Baccarat require `--bet` and `--amount`: the wager determines exact wei-level payouts, including Roulette bet splitting and Baccarat's Banker rounding. Video Poker requires `--amount` because the maximum bet enables its progressive jackpot. A split greater than one suppresses payout enumeration and reports only the overall bounds. Where wager rounding affects those bounds, `--amount` is required and included among the resolved parameters. A static single-attempt paytable is listed when the repository can enumerate it, including for stateful games with fixed payouts. The `400 APE` Video Poker jackpot is dynamic, so that configuration reports bounds only. Dynamic or insufficiently verified outcome spaces also report bounds only, and an unknowable public bound is represented by `null` rather than an invented value.
+Fixed `play` defaults are reused. If a required paytable parameter has no fixed default, the command fails and names the missing option. Roulette and Baccarat require `--bet` and `--amount`: the wager determines exact wei-level payouts, including Roulette allocations and Baccarat's Banker rounding. Roulette paytables accept the same optional `--chips` and `BET:CHIPS` entries as play. Chip value is total wager divided by purchased chips, defaulting to the sum in the bet list. Unallocated chips and division dust remain in the multiplier denominator; count mismatches follow the same warning/error rules as play. Video Poker requires `--amount` because the maximum bet enables its progressive jackpot. A split greater than one suppresses payout enumeration and reports only the overall bounds. Where wager rounding affects those bounds, `--amount` is required and included among the resolved parameters. A static single-attempt paytable is listed when the repository can enumerate it, including for stateful games with fixed payouts. The `400 APE` Video Poker jackpot is dynamic, so that configuration reports bounds only. Dynamic or insufficiently verified outcome spaces also report bounds only, and an unknowable public bound is represented by `null` rather than an invented value.
 
 The public source and coverage for every game's payout values are listed in [PAYTABLE_SOURCES.md](./PAYTABLE_SOURCES.md).
 

@@ -272,7 +272,7 @@ apechurch-cli play roulette 10 00         # Double zero (36.9x)
 | Thirds | FIRST_THIRD, SECOND_THIRD, THIRD_THIRD | 3.075x |
 | Columns | FIRST_COL, SECOND_COL, THIRD_COL | 3.075x |
 
-**Multi-bet:** Comma-separate to split wager evenly: `RED,BLACK`
+**Multi-bet:** `RED,BLACK` allocates one chip to each bet. `BET:CHIPS` assigns positive integer chip counts, for example `play roulette 2 --bet RED:3,BLACK:1`. The purchased count defaults to the sum in the bet list; `--chips <integer>` overrides it. Chip value is total wager divided by purchased count, rounded down to wei. A larger purchased count warns and continues with unallocated chips at risk; a smaller count fails before wallet access or transaction submission. Duplicate bets are rejected. Integer-division dust stays in the total, and a sole component equal to the total is reduced by one wei for the contract. Value is recomputed for each actual loop wager. Add `--validate-only --json` to inspect amounts without a wallet, or use `game roulette --paytable --amount 2 --bet RED:3,BLACK:1`. Warnings use stderr and JSON metadata; VRF and gas remain additional costs.
 
 **Alias:** `rl`
 

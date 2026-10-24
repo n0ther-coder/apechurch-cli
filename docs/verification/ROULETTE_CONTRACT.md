@@ -27,7 +27,7 @@ The CLI encodes `gameData` as:
 
 Key verified behavior:
 
-- the game accepts up to `25` distinct bet entries
+- `MAX_GUESSES` controls the live distinct-entry limit (`50` at ApeChain block `52833196`); the owner can change it
 - the contract uses numeric bet codes rather than string labels
 - numbers are encoded as `0 -> 1`, `1..36 -> 2..37`, `00 -> 38`
 - outside bets are encoded as:
@@ -44,7 +44,7 @@ Key verified behavior:
   - `BLACK=49`
   - `RED=50`
 
-The wager split is not a UI-only convention. The contract expects an `amounts[]` leg for each encoded bet. Every encoded leg must remain strictly less than the post-fee total bet amount, so the CLI reduces a one-leg wager by `1 wei` before encoding. Multi-leg wagers split the total evenly across all legs.
+The wager allocation is not a UI-only convention. The contract expects a positive `amounts[]` component per distinct bet, each strictly below `totalBetAmount`, and requires `sum(amounts) <= totalBetAmount`. The CLI parses `BET:CHIPS` counts and derives the purchased chip count from their sum unless `--chips` supplies it explicitly. It computes the chip's wei value with integer division of the total wager by purchased chips and multiplies by each component count. A higher explicit purchased count warns and continues; a lower count fails before any transaction. Division dust and unallocated chips stay in the wager without covering another outcome. A sole component equal to the total is reduced by one wei to satisfy the strict per-component limit. Plain lists assign one chip per entry and retain equal splitting.
 
 `getVRFFee()` exists as the repo's fee path, but the contract-side getter forwards the live RNG fee rather than exposing a hardcoded constant.
 
@@ -93,7 +93,7 @@ That surface is what the repo uses to reconstruct roulette outcomes and history.
 
 ## Exact RTP
 
-Because every supported bet class resolves on the same `38`-pocket wheel and the multipliers above already include the house edge, the exact RTP is the same across the verified supported surface:
+For fully allocated stakes before integer rounding, every supported bet class resolves on the same `38`-pocket wheel and the multipliers above already include the house edge; the class-level RTP is the same across the verified supported surface:
 
 | Verified bet class | Exact RTP | Basis |
 |--------------------|-----------|-------|
@@ -103,6 +103,8 @@ Because every supported bet class resolves on the same `38`-pocket wheel and the
 | Halves | `97.11%` | Exact weighted sum on the 38-pocket wheel |
 | Thirds / Dozens | `97.11%` | Exact weighted sum on the 38-pocket wheel |
 | Columns | `97.11%` | Exact weighted sum on the 38-pocket wheel |
+
+Wager-level RTP additionally accounts for unallocated amounts and per-component integer payout rounding. Custom allocations are enumerated over all 38 pockets by the shared allocation/payout helpers.
 
 Operationally useful consequence:
 

@@ -155,6 +155,43 @@ export default async function ({ args, play, bot }) {
 
 The entry module must export a default function or a named `run` function. Return an integer process code; omitted or non-integer returns are treated as `0`.
 
+## Offline argument validation
+
+`apechurch-cli bot <name> ... --validate-only` imports the entry module without
+calling its gameplay handler or creating a runtime context. Export
+`parseArgs(args, session)` for a bot with no configurable children. A bot that
+composes other commands must export
+`async validateArgs(args, session, validationContext)` instead, reuse its parser,
+and await validation of every configured child that can be checked at startup.
+The loader prefers `validateArgs` over `parseArgs`.
+
+The validation context exposes only `session`, `resolveGame(name)`,
+`resolveBot(name)`, `validatePlayArgs(tokens)`, and
+`validateBotArgs(name, tokens)`. Resolvers use the CLI's game catalog and bot
+registry. Play validation invokes only `play --validate-only`; bot validation
+recursively invokes the child's exported validator. Repeated calls in separate
+branches are allowed; recursive call cycles and nesting beyond 32 validators
+are rejected. It does not expose wallet access, gameplay, waits or log writers.
+Validators themselves are trusted module code and must remain free of these
+side effects, including during module import.
+
+```js
+export async function validateArgs(args, session, validation) {
+  const options = parseArgs(args, session);
+  await validation.validatePlayArgs(options.playTokens);
+  if (options.childBot) {
+    await validation.validateBotArgs(options.childBot, options.childArgs);
+  }
+  return options;
+}
+```
+
+Validate known fixed child amounts as well as their options. Explain in the
+bot's own documentation which result-dependent amounts cannot be determined
+offline, and validate those again immediately before execution. A `valid`
+response confirms the checks implemented by the bot's validation export; it
+does not establish wallet availability, future outcomes, fees or affordability.
+
 ## Runtime Context
 
 The bot handler receives one context object:

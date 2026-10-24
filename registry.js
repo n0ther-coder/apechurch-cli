@@ -186,14 +186,26 @@ export const GAME_REGISTRY = [
     abiVerified: true,
     config: {
       bet: {
-        description: 'What to bet on. Numbers (0-36, 00), colors (RED, BLACK), parity (ODD, EVEN), sections, etc.',
+        description: 'Numbers (0-36, 00), colors, parity, halves, thirds, or columns. Use BET:CHIPS entries to assign chip counts; --chips optionally sets the purchased total.',
         bnf: [
-          '<bet-list> ::= <roulette-bet> ( "," <roulette-bet> )*',
+          '<bet-list> ::= <roulette-entry> ( "," <roulette-entry> )*',
+          '<roulette-entry> ::= <roulette-bet> [ ":" <integer> ]',
+          '; chip counts are positive integers; omitted counts mean one chip',
           '<roulette-bet> ::= "0" | "00" | <roulette-number> | "RED" | "BLACK" | "ODD" | "EVEN" | "FIRST_HALF" | "SECOND_HALF" | "FIRST_THIRD" | "SECOND_THIRD" | "THIRD_THIRD" | "FIRST_COL" | "SECOND_COL" | "THIRD_COL"',
           '<roulette-number> ::= <integer>',
           '; semantic constraint: 1 <= value <= 36',
         ],
         examples: ['RED', 'BLACK', '17', '0', '00', 'RED,BLACK', 'FIRST_THIRD', 'ODD'],
+      },
+      chips: {
+        description: 'Optional purchased chip count. Chip value is total wager divided by this count, defaulting to the sum in BET:CHIPS. Excess purchased chips stay unallocated and at risk.',
+        bnf: [
+          '<chips> ::= <integer> ; positive; defaults to the sum in --bet',
+          '; --chips below the sum in --bet fails before wallet access or transactions',
+          '; --chips above the sum in --bet warns and continues with unallocated chips',
+          '; chip value = floor(total wager in wei / purchased chips)',
+        ],
+        examples: ['4', '5'],
       },
     },
     /**

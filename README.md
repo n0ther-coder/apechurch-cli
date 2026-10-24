@@ -381,7 +381,7 @@ Coverage and limits:
 | Game | Command | Aliases | Description |
 |------|---------|---------|-------------|
 | ApeStrong ✔︎ | `play ape-strong 10 --cover 50` | `apestrong`, `strong` | Pick-your-odds dice |
-| Roulette ✔︎ | `play roulette 10 RED` | - | American roulette |
+| Roulette ✔︎ | `play roulette 10 RED` | - | American roulette; `BET:CHIPS` sets chip counts; optional `--chips <integer>` sets the purchased total |
 | Baccarat ✔︎ | `play baccarat 10 BANKER` | - | Classic baccarat |
 | Jungle Plinko ✔︎ | `play jungle-plinko 10 --risk 0 --split 100` | `jungleplinko`, `jungle` | Drop balls for multipliers |
 | Cosmic Plinko ✔︎ | `play cosmic-plinko 10 --risk 0 --split 30` | `cosmic` | Asymmetric plinko with higher top-end payouts |
@@ -413,7 +413,8 @@ The CLI help now exposes formal argument grammar in `apechurch-cli play --help`,
 <keno-number> ::= <integer>                  ; 1 <= value <= 40
 <speed-keno-numbers> ::= "random" | <speed-keno-number> ( "," <speed-keno-number> )*
 <speed-keno-number> ::= <integer>            ; 1 <= value <= 20
-<roulette-bets> ::= <roulette-bet> ( "," <roulette-bet> )*
+<roulette-bets> ::= <roulette-entry> ( "," <roulette-entry> )*
+<roulette-entry> ::= <roulette-bet> [ ":" <integer> ] ; positive chip count; --chips defaults to the sum of counts
 <baccarat-bet> ::= "PLAYER" | "BANKER" | "TIE" | <combo-baccarat-bet>
 <combo-baccarat-bet> ::= <ape> <baccarat-side> <ape> "TIE"
 <baccarat-side> ::= "PLAYER" | "BANKER"

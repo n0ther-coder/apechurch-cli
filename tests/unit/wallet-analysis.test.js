@@ -1371,6 +1371,31 @@ describe('Wallet History Analysis', () => {
       assert.deepStrictEqual(result.games[3].rtp_config, { mode: 2 });
     });
 
+    it('retains unequal Roulette amounts and unallocated wager when rebuilding contract history', async () => {
+      const result = await inferSavedHistoryGameVariants({
+        async readContract() {
+          return { gameNumbers: [50, 49], betsPerNumbers: [parseEther('3'), parseEther('1')], betAmount: parseEther('5') };
+        },
+      }, [{ contract: ROULETTE, game_key: 'roulette', gameId: '401' }]);
+      const config = result.games[0].config;
+      assert.deepStrictEqual(config.gameNumbers, [50, 49]);
+      assert.deepStrictEqual(config.betAmountsWei, ['3000000000000000000', '1000000000000000000']);
+      assert.strictEqual(config.wagerAmountApe, '5');
+      assert.match(result.games[0].variant_key, /^roulette:allocation:/);
+    });
+
+    it('retains unequal Roulette amounts decoded from transaction calldata', async () => {
+      const data = encodeAbiParameters([
+        { type: 'uint8[]' }, { type: 'uint256[]' }, { type: 'uint256' }, { type: 'address' }, { type: 'bytes32' },
+      ], [[50, 49], [parseEther('3'), parseEther('1')], 402n, '0x0000000000000000000000000000000000000000', `0x${'1'.repeat(64)}`]);
+      const input = encodeFunctionData({ abi: GAME_CONTRACT_ABI, functionName: 'play', args: [WALLET, data] });
+      const result = await inferSavedHistoryGameVariants({ async getTransaction() { return { input }; } }, [
+        { contract: ROULETTE, game_key: 'roulette', gameId: '402', tx: `0x${'2'.repeat(64)}`, wager_wei: parseEther('5').toString() },
+      ]);
+      assert.strictEqual(result.games[0].config.wagerAmountApe, '5');
+      assert.deepStrictEqual(result.games[0].config.betAmountsWei, ['3000000000000000000', '1000000000000000000']);
+    });
+
     it('reconstructs ApeStrong, Baccarat, Roulette, Keno, Jungle Plinko, Monkey Match, and Slots from getGameInfo', async () => {
       const result = await inferSavedHistoryGameVariants({
         async getTransaction() {
