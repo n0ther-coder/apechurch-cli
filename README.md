@@ -72,7 +72,7 @@ This design keeps bot strategy private while still giving both humans and AI age
 
 ### Supported Games
 
-- **22 implemented games:** `ApeStrong ✔︎`, `Roulette ✔︎`, `Baccarat ✔︎`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough ✔︎`, `Bubblegum Heist ✔︎`, `Geez Diggerz ✔︎`, `Gimboz Smash ✔︎`, `Glyde or Crash ✔︎`, `Reel Pirates`, `Cash Dash ✔︎`, `Hi-Lo Nebula ✔︎`, `Sushi Showdown ✔︎`, `Monkey Match ✔︎`, `Bear-A-Dice ✔︎`, `Blocks ✔︎`, `Primes ✔︎`, `Blackjack ✔︎`, and `Video Poker ✔︎ / Gimboz Poker`. Of these, 21 are ABI-verified; `Reel Pirates` is playable but not ABI-verified.
+- **23 implemented games:** `ApeStrong ✔︎`, `Roulette ✔︎`, `Baccarat ✔︎`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough ✔︎`, `Bubblegum Heist ✔︎`, `Geez Diggerz ✔︎`, `Gimboz Smash ✔︎`, `Glyde or Crash ✔︎`, `Reel Pirates`, `Dojo Drop`, `Cash Dash ✔︎`, `Hi-Lo Nebula ✔︎`, `Sushi Showdown ✔︎`, `Monkey Match ✔︎`, `Bear-A-Dice ✔︎`, `Blocks ✔︎`, `Primes ✔︎`, `Blackjack ✔︎`, and `Video Poker ✔︎ / Gimboz Poker`. Of these, 21 are ABI-verified; `Dojo Drop` and `Reel Pirates` are playable but not ABI-verified.
 - **Personal bot support:** humans and AI agents can package private routines as local bots with manifests, help text, nested calls, JSON summaries, and standard wallet guards
 - **Fully AI agents playable:** browserless CLI flows, local signing, JSON output, formal command grammar, and self-describing game metadata make it straightforward for coding agents and automations to use directly
 - **Improved auto gameplay:** `Blackjack ✔︎`, `Cash Dash ✔︎`, `Hi-Lo Nebula ✔︎`, and `Video Poker ✔︎ / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
@@ -393,6 +393,7 @@ Coverage and limits:
 | Geez Diggerz ✔︎ | `play geez-diggerz 10 --split 15` | `geezdiggerz`, `geez`, `diggerz` | Slot machine |
 | Gimboz Smash ✔︎ | `play gimboz-smash 10 1-50`, `play gimboz-smash 10 --cover 50`, or `play gimboz-smash 10 --out-range 45-50` | `gimbozsmash`, `smash` | One-or-two interval target game on a 1-100 board |
 | Glyde or Crash ✔︎ | `play glyde-or-crash 10 2x` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` | Target a crash multiplier |
+| Dojo Drop | `play dojo-drop 25 --split 10` | `dojodrop`, `dojo` | Blades, blocks, bonus drops, and chest multipliers; minimum 2.5 APE per paid spin |
 | Reel Pirates | `play reel-pirates 40 --split 15` | `reelpirates`, `pirates`, `reel` | Match-anywhere cascade slot |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula 10 --auto winston-ladder` | `hilonebula`, `hilo`, `nebula` | Stateful higher/lower/same card streak game with cash-out and ladder auto-play |
 | Sushi Showdown ✔︎ | `play sushi-showdown 10 --split 15` | `sushishowdown`, `sushi` | Slot machine |

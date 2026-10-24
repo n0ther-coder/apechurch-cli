@@ -958,6 +958,17 @@ JSON multipliers are decimal strings; repeating ratios use up to 18 fractional d
 
 Fixed `play` defaults are reused. If a required paytable parameter has no fixed default, the command fails and names the missing option. Roulette and Baccarat require `--bet` and `--amount`: the wager determines exact wei-level payouts, including Roulette allocations and Baccarat's Banker rounding. Roulette paytables accept the same optional `--chips` and `BET:CHIPS` entries as play. Chip value is total wager divided by purchased chips, defaulting to the sum in the bet list. Unallocated chips and division dust remain in the multiplier denominator; count mismatches follow the same warning/error rules as play. Video Poker requires `--amount` because the maximum bet enables its progressive jackpot. A split greater than one suppresses payout enumeration and reports only the overall bounds. Where wager rounding affects those bounds, `--amount` is required and included among the resolved parameters. A static single-attempt paytable is listed when the repository can enumerate it, including for stateful games with fixed payouts. The `400 APE` Video Poker jackpot is dynamic, so that configuration reports bounds only. Dynamic or insufficiently verified outcome spaces also report bounds only, and an unknowable public bound is represented by `null` rather than an invented value.
 
+Dojo Drop accepts `play dojo-drop <total-APE> [<split>]`, `--split`, and the
+`--spins` alias, with 1–15 paid spins (default 15). The total must cover at
+least 2.5 APE per paid spin; the default therefore needs 37.5 APE. Counts must
+be integers, conflicting aliases fail, and invalid explicit wagers fail
+before wallet access. Fees are additional. Its paytable reports a dated
+1,000x gross upper bound without enumerating outcomes; it asserts no
+probabilities or theoretical RTP. Settled JSON includes `spin_payouts_wei`,
+`spin_details`, bonus indexes and chest/cap masks when the optional on-chain
+replay fetch succeeds. [Contract notes](verification/DOJO_DROP_CONTRACT.md)
+explain the getter layouts and limits.
+
 The public source and coverage for every game's payout values are listed in [PAYTABLE_SOURCES.md](./PAYTABLE_SOURCES.md).
 
 Examples:

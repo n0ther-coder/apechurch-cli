@@ -104,7 +104,7 @@ Only after the checks above are complete:
 
 ## Current Backlog
 
-As of **2026-04-24**, `Reel Pirates` is supported as a playable command but remains in the ABI-verification backlog because ApeScan shows the live contract as unverified.
+As of **2026-10-24**, `Dojo Drop` and `Reel Pirates` are supported as playable commands but remain in the ABI-verification backlog because their live contracts lack verified Solidity source.
 
 Ordering: alphabetical by game title.
 
@@ -114,6 +114,7 @@ Supported but not promoted:
 
 | Game | Note | Missing evidence |
 |------|------|------------------|
+| Dojo Drop | `docs/verification/DOJO_DROP_CONTRACT.md` | Verified Solidity source and exact RNG, damage, bonus, rounding and payout model; frontend ABI is corroborated by read calls and RPC simulation only |
 | Reel Pirates | `docs/verification/REEL_PIRATES_CONTRACT.md` | Verified Solidity source or enough live getter/source evidence to prove the cascade outcome model and exact odds |
 
 Every promoted game now has a dedicated verification note under `docs/verification/`:

@@ -608,6 +608,93 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(JSON.parse(result.stdout).config.chipValue, '1');
     });
 
+    it('validates Dojo Drop flags, aliases, defaults and minimums before wallet access', () => {
+      for (const command of [
+        'play dojo 5 --split 2',
+        'play dojodrop 5 --spins 2',
+        'play dojo-drop 5 2',
+        'play --game dojo-drop --amount 5 --split 2',
+      ]) {
+        const result = cli(`${command} --validate-only --json`);
+        assert.strictEqual(result.code, 0, result.stdout);
+        assert.deepStrictEqual(JSON.parse(result.stdout).config, { split: 2 });
+      }
+      const defaulted = cli('play dojo-drop 40 --validate-only --json');
+      assert.strictEqual(JSON.parse(defaulted.stdout).config.split, 15);
+      for (const command of [
+        'play dojo-drop 5 --split 3',
+        'play dojo-drop 4.999999999999999999 --split 2',
+        'play dojo-drop 40 --split 16',
+        'play dojo-drop 40 --split 0',
+        'play dojo-drop 40 --split 1.5',
+        'play dojo-drop 40 2junk',
+        'play dojo-drop 40 --split 2 --spins 3',
+        'bet --game dojo-drop --amount 5 --split 3',
+      ]) {
+        const result = cli(command.startsWith('bet ') ? command : `${command} --json`);
+        assert.strictEqual(result.code, 1, command);
+        assert.ok(!result.stdout.includes('No wallet found'), command);
+        assert.match(JSON.parse(result.stdout).error, /Dojo Drop|Conflicting/);
+      }
+      const metadata = JSON.parse(cli('game dojo --json').stdout);
+      assert.strictEqual(metadata.abiVerified, false);
+      assert.deepStrictEqual(metadata.aliases, ['dojodrop', 'dojo']);
+      const table = JSON.parse(cli('game dojo --paytable --split 1 --json').stdout);
+      assert.strictEqual(table.max_multiplier, '1000');
+      assert.strictEqual(table.payouts_enumerated, false);
+    });
+
+    it('routes Dojo Drop play and bet to the exact payable transaction boundary', () => {
+      const temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dojo-cli-'));
+      const loaderPath = path.join(temporaryDir, 'synthetic-loader.mjs');
+      fs.writeFileSync(loaderPath, `
+        export async function load(url, context, nextLoad) {
+          const result = await nextLoad(url, context);
+          if (result.format !== 'module' || result.source === undefined) return result;
+          let source = result.source.toString();
+          if (url.endsWith('/bin/cli.js')) source = source.replace(
+            'async function getWalletWithPrompt(opts = {}) {',
+            'async function getWalletWithPrompt(opts = {}) { return { address: "0x1111111111111111111111111111111111111111" };'
+          );
+          if (url.endsWith('/lib/wallet.js')) source = source.replace(
+            'export function createClients(account) {',
+            'export function createClients(account) { return { publicClient: { async getBalance() { return 100000000000000000000n; }, async readContract({functionName}) { return functionName === "EXECUTOR_FEE" ? 7n : 23n; } }, walletClient: { async writeContract() { throw new Error("Unexpected transaction submission"); } } };'
+          );
+          if (url.endsWith('/lib/games/base.js')) source = source.replace(
+            '// Total transaction value = bet amount + VRF fee',
+            'process.stdout.write(JSON.stringify({ encodedData, wager, vrfFee, feeComponentsWei, config }, (_, value) => typeof value === "bigint" ? value.toString() : value)); process.exit(0);'
+          );
+          return { ...result, source };
+        }
+      `);
+      try {
+        for (const args of [
+          ['play', 'dojo-drop', '5', '--split', '2', '--json'],
+          ['play', 'dojo', '5', '--spins', '2', '--json'],
+          ['bet', '--game', 'dojodrop', '--amount', '5', '--split', '2'],
+        ]) {
+          const result = spawnSync(process.execPath, ['--loader', loaderPath, CLI_PATH, ...args,
+            '--x-gameId', '42', '--x-ref', '0x0000000000000000000000000000000000000000',
+            '--x-userRandomWord', `0x${'1'.repeat(64)}`], {
+            encoding: 'utf8', timeout: 10000,
+            env: { ...buildCliEnv(), [CONFIG_DIR_ENV]: temporaryDir, NODE_NO_WARNINGS: '1' },
+          });
+          assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+          const payload = JSON.parse(result.stdout);
+          assert.strictEqual(payload.wager, parseEther('5').toString());
+          assert.strictEqual(payload.vrfFee, '37');
+          assert.deepStrictEqual(payload.feeComponentsWei, { vrf: '23', executor: '14' });
+          const [spins, gameId] = decodeAbiParameters([
+            { type: 'uint8' }, { type: 'uint256' }, { type: 'address' }, { type: 'bytes32' },
+          ], payload.encodedData);
+          assert.strictEqual(spins, 2);
+          assert.strictEqual(gameId, 42n);
+        }
+      } finally {
+        fs.rmSync(temporaryDir, { recursive: true, force: true });
+      }
+    });
+
     it('play validate-only checks game option values without requiring a wallet', () => {
       const { stdout, code } = cli('play cosmic-plinko 1 --risk Wrong --validate-only --json');
       const payload = JSON.parse(stdout);
@@ -931,6 +1018,7 @@ describe('CLI Commands Integration Tests', () => {
         'Sushi Showdown ✔︎',
       ]);
       assertSectionOrder('Slot Machines With Sub-Game', [
+        'Dojo Drop',
         'Reel Pirates',
       ]);
     });
@@ -1015,6 +1103,7 @@ describe('CLI Commands Integration Tests', () => {
           'dino-dough',
           'geez-diggerz',
           'sushi-showdown',
+          'dojo-drop',
           'reel-pirates',
         ],
         'Games JSON should be ordered by catalog group and alphabetically inside each group'
@@ -1043,7 +1132,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Survive Games: bear-dice | blocks'));
       assert.ok(stdout.includes('Split Bet Games: cosmic-plinko | jungle-plinko | primes | speed-keno'));
       assert.ok(stdout.includes('Classic Slot Machines: bubblegum-heist | dino-dough | geez-diggerz | sushi-showdown'));
-      assert.ok(stdout.includes('Slot Machines With Sub-Game: reel-pirates'));
+      assert.ok(stdout.includes('Slot Machines With Sub-Game: dojo-drop | reel-pirates'));
     });
 
     it('returns the full alphabetized available catalog in JSON when the name is invalid', () => {
@@ -1060,6 +1149,7 @@ describe('CLI Commands Integration Tests', () => {
         'cash-dash',
         'cosmic-plinko',
         'dino-dough',
+        'dojo-drop',
         'geez-diggerz',
         'gimboz-smash',
         'glyde-or-crash',

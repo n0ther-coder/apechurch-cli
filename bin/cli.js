@@ -229,6 +229,7 @@ import { getBlocksGridLabel, parseBlocksGrid } from '../lib/games/blocks.js';
 import { parseGimbozSmashInput } from '../lib/games/gimbozsmash.js';
 import { parseRouletteBets, resolveRouletteWager, serializeRouletteWager } from '../lib/roulette-bets.js';
 import { resolveSlotsConfig } from '../lib/games/slots.js';
+import { validateDojoDropWager } from '../lib/games/dojo-drop.js';
 import {
   getGameConfigCliName,
   getGameConfigDisplayDefault,
@@ -3459,6 +3460,10 @@ function validateResolvedGameConfig(gameEntry, gameConfig = {}, { amountInput = 
     );
   }
 
+  if (gameEntry.key === 'dojo-drop' && amountInput !== undefined) {
+    validateDojoDropWager(parseEther(normalizeWagerAmount(amountInput)), gameConfig.split);
+  }
+
   if (gameEntry.type === 'keno') {
     validateNumberSelection(gameConfig.numbers, {
       label: 'keno',
@@ -3627,7 +3632,7 @@ const CLASSIC_SLOT_KEYS = Object.freeze([
   'geez-diggerz',
   'sushi-showdown',
 ]);
-const SUBGAME_SLOT_KEYS = Object.freeze(['reel-pirates']);
+const SUBGAME_SLOT_KEYS = Object.freeze(['dojo-drop', 'reel-pirates']);
 
 function getGameCatalogGroupId(game) {
   if (game?.type === 'stateful') return 'stateful';
@@ -5763,6 +5768,10 @@ program
     }
 
     try {
+      if (gameEntry?.key === 'dojo-drop') {
+        const gameConfig = resolveValidationGameConfig({ fixedGame: gameEntry, opts, positionalConfig: {}, loopMode: false });
+        validateResolvedGameConfig(gameEntry, gameConfig, { amountInput: opts.amount });
+      }
       validateRouletteChipUsage(gameEntry, opts, opts.amount);
       if (gameEntry?.type === 'roulette') {
         validateResolvedGameConfig(gameEntry, { bet: opts.bet, chips: opts.chips }, { amountInput: opts.amount });
@@ -6143,7 +6152,8 @@ program
         if (normalizedConfigArgs[0]) positionalConfig.risk = normalizedConfigArgs[0];
         if (normalizedConfigArgs[1]) positionalConfig.balls = parseInt(normalizedConfigArgs[1]);
       } else if (fixedGame.type === 'slots') {
-        if (normalizedConfigArgs[0]) positionalConfig.spins = parseInt(normalizedConfigArgs[0]);
+        if (normalizedConfigArgs[0]) positionalConfig.spins = fixedGame.key === 'dojo-drop'
+          ? normalizedConfigArgs[0] : parseInt(normalizedConfigArgs[0]);
       } else if (fixedGame.type === 'roulette' || fixedGame.type === 'baccarat') {
         positionalConfig.bet = normalizedConfigArgs.join(',');
       } else if (fixedGame.type === 'apestrong') {
@@ -6260,7 +6270,7 @@ program
       }
     }
 
-    if (fixedGame?.type === 'roulette' || opts.chips !== undefined) {
+    if (fixedGame?.type === 'roulette' || fixedGame?.key === 'dojo-drop' || opts.chips !== undefined) {
       try {
         validateStatelessPlayTarget({ fixedGame, opts, positionalConfig, amountInput, loopMode });
       } catch (error) {

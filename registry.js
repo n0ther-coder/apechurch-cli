@@ -27,6 +27,7 @@ import {
   COSMIC_PLINKO_CONTRACT,
   CULT_QUEST_CONTRACT,
   DINO_DOUGH_CONTRACT,
+  DOJO_DROP_CONTRACT,
   GEEZ_DIGGERZ_CONTRACT,
   GIMBOZ_GALAXY_CONTRACT,
   GIMBOZ_SMASH_CONTRACT,
@@ -670,6 +671,42 @@ export const GAME_REGISTRY = [
       type: 'slots-dynamic',
       baseGas: 550000,
       perUnitGas: 200000,
+      executorFee: 'per-spin',
+    },
+  },
+
+  // ===========================================================================
+  // DOJO DROP - Blades, persistent bonus drops, and column chests
+  // ===========================================================================
+  {
+    key: 'dojo-drop',
+    name: 'Dojo Drop',
+    aliases: ['dojodrop', 'dojo'],
+    slug: 'dojo-drop',
+    type: 'slots',
+    description: 'Drop blades into a 5x6 wall, collect broken-block prizes, and clear columns for multiplying chests. Three Lucky Cats award four bonus drops. The current public configuration caps each paid spin at 1,000x; theoretical RTP is unverified.',
+    contract: DOJO_DROP_CONTRACT,
+    abiVerified: false,
+    config: {
+      spins: {
+        min: 1,
+        max: 15,
+        default: 15,
+        cliName: 'split',
+        description: 'Independent paid spins, with the total wager split across them. Minimum 2.5 APE per spin. --spins is an alias for --split; bonus drops do not add to this count.',
+        bnf: [
+          '<split> ::= <integer>',
+          '; semantic constraint: 1 <= value <= 15; default: 15',
+          '; total wager >= 2.5 APE × split; invalid counts and smaller totals fail before wallet access',
+        ],
+      },
+      gameDataOrder: 'spins-first-uint8',
+      minBetPerSpinApe: 2.5,
+    },
+    vrf: {
+      type: 'slots-dynamic',
+      baseGas: 500000,
+      perUnitGas: 150000,
       executorFee: 'per-spin',
     },
   },

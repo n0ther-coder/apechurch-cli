@@ -4,7 +4,7 @@
 
 Compact syntax and comparison notes for all Ape Church CLI games.
 
-The CLI currently implements 22 playable games. Of those, 21 are ABI-verified and marked with `✔︎`; `Reel Pirates` is playable but not ABI-verified. Wallet history tracks 26 distinct Ape Church games by also including history-only coverage for `Blizzard Blitz`, `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`.
+The CLI currently implements 23 playable games. Of those, 21 are ABI-verified and marked with `✔︎`; `Dojo Drop` and `Reel Pirates` are playable but not ABI-verified. Wallet history tracks 27 distinct Ape Church games by also including history-only coverage for `Blizzard Blitz`, `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`.
 
 Treat published running RTP values as observed snapshots, not guaranteed long-run returns. For ABI-backed tuple layouts, payout matrices, and maintainer-facing verification evidence, follow the per-game links in `docs/verification/`. For compact exact outcome distributions meant to help choose variants, see [docs/analytics/README.md](./analytics/README.md).
 
@@ -27,6 +27,7 @@ Ordering: alphabetical by game title.
 | Cash Dash ✔︎ | `cash-dash <amt>` | `cash-dash <amt> --auto --cashout-after N` | `cashdash`, `dash` |
 | Cosmic Plinko ✔︎ | `play cosmic-plinko <amt> <risk> <split>` | `--game cosmic-plinko --amount X --risk Y --split Z` | `cosmic` |
 | Dino Dough ✔︎ | `play dino-dough <amt> <split>` | `--game dino-dough --amount X --split Y` (`--spins Y` alias) | `dinodough`, `dino` |
+| Dojo Drop | `play dojo-drop <amt> [<split>]` | `--game dojo-drop --amount X --split Y` | `dojodrop`, `dojo` |
 | Geez Diggerz ✔︎ | `play geez-diggerz <amt> <split>` | `--game geez-diggerz --amount X --split Y` (`--spins Y` alias) | `geezdiggerz`, `geez`, `diggerz` |
 | Gimboz Smash ✔︎ | `play gimboz-smash <amt> <range>` | `--game gimboz-smash --amount X --range Y` or `--cover N` | `gimbozsmash`, `smash` |
 | Glyde or Crash ✔︎ | `play glyde-or-crash <amt> <multiplier>` | `--game glyde-or-crash --amount X --multiplier Y` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` |
@@ -345,6 +346,41 @@ Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` 
 - Exact RTP: **`97.89751366817333%`** per spin.
 - Max payout: `333x`.
 - Operational note: much deeper ordered paytable than the public crop suggests; use the analytics note for the full ordered triple matrix.
+
+## Dojo Drop
+
+**Type:** Slots / Block destruction
+**Contract:** `0x914d11f805586dF8Ed440Fe23dcdce929965FBb1`
+**Aliases:** `dojodrop`, `dojo`
+**ABI verified:** `false`
+**Contract notes:** [DOJO_DROP_CONTRACT.md](./verification/DOJO_DROP_CONTRACT.md)
+
+Blades attack a five-column wall. Broken blocks pay gross prizes; cleared
+columns unlock multiplying chests. Three Lucky Cats trigger four bonus drops
+on a fresh copy of the same wall, with damage carried between bonus drops.
+Results and replay masks are read from the contract.
+
+```bnf
+<command> ::= "play" "dojo-drop" <amount> [ <split> ]
+<amount> ::= <ape>              ; total wager >= 2.5 APE × split
+<split> ::= <integer>           ; 1 <= value <= 15; default 15
+; --split <split> is the named form; --spins is an alias
+; conflicting aliases, malformed counts, and insufficient totals are errors
+```
+
+```bash
+apechurch-cli play dojo-drop 25 --split 10 --validate-only --json
+apechurch-cli game dojo --paytable --split 1
+apechurch-cli play dojo-drop 5 --split 2 --json
+```
+
+VRF uses `500000 + 150000 × split` callback gas; the live executor fee is added
+per paid spin. Bonus drops are included in the paid-spin result. Wager and
+gross payout remain separate from VRF, executor and transaction gas costs.
+The dated public configuration has a `1,000x` gross cap per paid spin;
+`--paytable` reports that bound without enumerating outcomes. Theoretical RTP
+and exact outcome probabilities remain unverified. The live `getGameConfig`
+can be read through the replay adapter; checked-in bounds are a snapshot.
 
 ## Geez Diggerz ✔︎
 
