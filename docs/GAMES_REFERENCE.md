@@ -23,12 +23,12 @@ Ordering: alphabetical by game title.
 | Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --survive Z` | `bear`, `dice` |
 | Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` | `bj` |
 | Blocks ✔︎ | `play blocks <amt> <risk> <survive>` | `--game blocks --amount X --risk Y --grid 2x2\|3x3\|4x4 [--split Z \| --survive Z]` | - |
-| Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <split>` | `--game bubblegum-heist --amount X --split Y` (`--spins Y` alias) | `bubblegumheist`, `bubblegum`, `heist` |
+| Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <split>` | `--game bubblegum-heist --amount X --split Y` | `bubblegumheist`, `bubblegum`, `heist` |
 | Cash Dash ✔︎ | `cash-dash <amt>` | `cash-dash <amt> --auto --cashout-after N` | `cashdash`, `dash` |
 | Cosmic Plinko ✔︎ | `play cosmic-plinko <amt> <risk> <split>` | `--game cosmic-plinko --amount X --risk Y --split Z` | `cosmic` |
-| Dino Dough ✔︎ | `play dino-dough <amt> <split>` | `--game dino-dough --amount X --split Y` (`--spins Y` alias) | `dinodough`, `dino` |
+| Dino Dough ✔︎ | `play dino-dough <amt> <split>` | `--game dino-dough --amount X --split Y` | `dinodough`, `dino` |
 | Dojo Drop | `play dojo-drop <amt> [<split>]` | `--game dojo-drop --amount X --split Y` | `dojodrop`, `dojo` |
-| Geez Diggerz ✔︎ | `play geez-diggerz <amt> <split>` | `--game geez-diggerz --amount X --split Y` (`--spins Y` alias) | `geezdiggerz`, `geez`, `diggerz` |
+| Geez Diggerz ✔︎ | `play geez-diggerz <amt> <split>` | `--game geez-diggerz --amount X --split Y` | `geezdiggerz`, `geez`, `diggerz` |
 | Gimboz Smash ✔︎ | `play gimboz-smash <amt> <range>` | `--game gimboz-smash --amount X --range Y` or `--cover N` | `gimbozsmash`, `smash` |
 | Glyde or Crash ✔︎ | `play glyde-or-crash <amt> <multiplier>` | `--game glyde-or-crash --amount X --multiplier Y` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` | `hilonebula`, `hilo`, `nebula` |
@@ -36,10 +36,10 @@ Ordering: alphabetical by game title.
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` | - |
 | Monkey Match ✔︎ | `play monkey-match <amt>` | `--game monkey-match --amount X --risk Y` | `monkeymatch`, `monkey` |
 | Primes ✔︎ | `play primes <amt> <risk> <split>` | `--game primes --amount X --risk Y --split Z` | - |
-| Reel Pirates | `play reel-pirates <amt> <split>` | `--game reel-pirates --amount X --split Y` (`--spins Y` alias) | `reelpirates`, `pirates`, `reel` |
+| Reel Pirates | `play reel-pirates <amt> <split>` | `--game reel-pirates --amount X --split Y` | `reelpirates`, `pirates`, `reel` |
 | Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` | - |
 | Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --split Z` | `speedkeno`, `skeno`, `speed` |
-| Sushi Showdown ✔︎ | `play sushi-showdown <amt> <split>` | `--game sushi-showdown --amount X --split Y` (`--spins Y` alias) | `sushishowdown`, `sushi` |
+| Sushi Showdown ✔︎ | `play sushi-showdown <amt> <split>` | `--game sushi-showdown --amount X --split Y` | `sushishowdown`, `sushi` |
 | Video Poker ✔︎ / Gimboz Poker | `video-poker <amt>` | `video-poker <amt> --auto best` | `vp` |
 
 ## Grammar Conventions
@@ -76,6 +76,13 @@ apechurch-cli play keno 10 --numbers 1 7 13 25 40
 ## Accepted Wagers
 
 For simple `play` games, the CLI accepts any positive APE amount that can be parsed and funded by the current wallet. There is no shared fixed-denomination whitelist for those games. In loop mode, the built-in strategy presets still default to a `1 APE` floor unless you override strategy settings. The main exceptions are `video-poker`, which is fixed-denomination, and `blackjack`, which separates the main bet from optional side exposure.
+
+For independent split games and slots, `--spin <APE>` fixes the exact stake per
+attempt and derives the maximum count within the amount budget and contract
+limits. For example, `play dino-dough 23 --spin 4` wagers 20 APE over five
+spins, leaving 3 APE unspent. Fees are additional. This is mutually exclusive
+with `--split`, `--survive`, and positional attempt counts. See the
+[command reference](./COMMAND_REFERENCE.md#bet) for sizing and validation rules.
 
 Ordering: alphabetical by game title.
 
@@ -364,8 +371,8 @@ Results and replay masks are read from the contract.
 <command> ::= "play" "dojo-drop" <amount> [ <split> ]
 <amount> ::= <ape>              ; total wager >= 2.5 APE × split
 <split> ::= <integer>           ; 1 <= value <= 15; default 15
-; --split <split> is the named form; --spins is an alias
-; conflicting aliases, malformed counts, and insufficient totals are errors
+; --split <split> is the named count form; --spin <ape> sets APE per spin
+; conflicting counts, malformed counts, and insufficient totals are errors
 ```
 
 ```bash

@@ -107,12 +107,12 @@ describe('Dojo Drop integration', () => {
     assert.deepEqual(decoded, [2, 42n, zero, entropy]);
   });
 
-  it('rejects insufficient stake and conflicting counts before any RPC', async () => {
+  it('rejects insufficient stake and invalid counts before any RPC', async () => {
     const publicClient = { async readContract() { throw Error('RPC must not be reached'); } };
     for (const config of [{ split: 2, wager: parseEther('4.999999999999999999') },
-      { split: '2.1', wager: parseEther('10') }, { split: 2, spins: 3, wager: parseEther('10') }]) {
+      { split: '2.1', wager: parseEther('10') }]) {
       await assert.rejects(playSlots({ account: { address: player }, gameEntry, publicClient,
-        walletClient: {}, timeoutMs: 0, ...config }), /at least 2.5|integer between|Conflicting/);
+        walletClient: {}, timeoutMs: 0, ...config }), /at least 2.5|integer between/);
     }
   });
 

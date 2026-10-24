@@ -34,19 +34,6 @@ describe('Slots config resolution', () => {
     assert.deepStrictEqual(config, { split: 12 });
   });
 
-  it('accepts --spins as a slots-only alias for --split', () => {
-    const config = resolveSlotsConfig({
-      opts: { spins: '12' },
-      positionalConfig: { spins: 9 },
-      strategyConfig: { slots: { spins: [7, 12] } },
-      randomIntInclusive: () => 8,
-      gameEntry,
-      preferGameDefault: true,
-    });
-
-    assert.deepStrictEqual(config, { split: 12 });
-  });
-
   it('prefers positional spins over the registry default', () => {
     const config = resolveSlotsConfig({
       opts: {},
@@ -154,7 +141,7 @@ describe('Slots VRF fee config', () => {
         walletClient: {},
         gameEntry,
         wager: parseEther('20'),
-        spins: 10,
+        split: 10,
         timeoutMs: 0,
       }),
       /requires at least 2\.5 APE per spin \(25 APE total for 10 spins\)/

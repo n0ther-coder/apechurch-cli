@@ -659,6 +659,15 @@ Stateful games treat a delayed VRF callback as an outstanding game to reconcile,
 
 Use `apechurch-cli games` or `apechurch-cli game <name>` to see the current alias set in the terminal.
 
+For split games (including slots), `--split <count>` sets the number of
+independent attempts. `--spin <APE>` instead sets exact APE per attempt and
+uses the maximum supported count that fits the wager budget. For example,
+`apechurch-cli play dino-dough 23 --spin 4` wagers 20 APE across five spins,
+leaving 3 APE unspent; fees are additional. Invalid sizes or zero attempts
+produce an error before submission. `--spin` conflicts with `--split`,
+`--survive`, and positional attempt counts. See the
+[command reference](./docs/COMMAND_REFERENCE.md#bet).
+
 `apechurch-cli game <name> --paytable` inspects payouts without starting a game. Terminal output is tabular; `--json` returns the same data for automation. Every result includes the resolved values of all parameters that can change that game's paytable and the overall `min_multiplier` and `max_multiplier`. The command reuses the same fixed defaults as `play`; when no fixed default exists, the error names the required option. For split games, `--split 1` enumerates the paytable when the underlying outcomes are static, while a split greater than one reports only the overall bounds. Games with dynamic or otherwise non-enumerable payout sets also report only their bounds. A bound is `null` when public contract data cannot determine it safely.
 
 ## For AI Agents

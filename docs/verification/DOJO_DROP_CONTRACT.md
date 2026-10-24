@@ -31,8 +31,11 @@ apechurch-cli game dojo --paytable --split 1 --json
 apechurch-cli play dojo-drop 5 --split 2 --json
 ```
 
-Aliases: `dojodrop`, `dojo`. Total wager is the amount supplied to `play` or
-`bet`; `--split`, positional count and `--spins` select 1–15 paid spins.
+Aliases: `dojodrop`, `dojo`. In count mode the total wager is the amount
+supplied to `play` or `bet`; `--split` and the positional count select
+1–15 paid spins. With `--spin <APE>`, that amount is a budget: maximize the
+paid count within it and the live limit, wagering only `count × spin` and
+leaving the remainder unspent. The option conflicts with explicit counts.
 Default: 15 spins. At least 2.5 APE per spin is required; malformed or
 fractional counts, conflicting flags and smaller explicit totals fail before
 wallet access. Auto-play retains the existing slots strategy behavior.

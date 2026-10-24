@@ -433,7 +433,7 @@ export const GAME_REGISTRY = [
         max: 15,
         default: 15,
         cliName: 'split',
-        description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance. Slots also accept --spins as an alias.',
+        description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance.',
         bnf: [
           '<split> ::= <integer>',
           '; semantic constraint: 1 <= value <= 15',
@@ -463,7 +463,7 @@ export const GAME_REGISTRY = [
         max: 15,
         default: 15,
         cliName: 'split',
-        description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance. Slots also accept --spins as an alias.',
+        description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance.',
         bnf: [
           '<split> ::= <integer>',
           '; semantic constraint: 1 <= value <= 15',
@@ -493,7 +493,7 @@ export const GAME_REGISTRY = [
         max: 15,
         default: 15,
         cliName: 'split',
-        description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance. Slots also accept --spins as an alias.',
+        description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance.',
         bnf: [
           '<split> ::= <integer>',
           '; semantic constraint: 1 <= value <= 15',
@@ -619,7 +619,7 @@ export const GAME_REGISTRY = [
         max: 15,
         default: 15,
         cliName: 'split',
-        description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance. Slots also accept --spins as an alias.',
+        description: 'Number of independent paid spins. Wager is split across all spins. Higher split count = smoother variance.',
         bnf: [
           '<split> ::= <integer>',
           '; semantic constraint: 1 <= value <= 15',
@@ -649,7 +649,7 @@ export const GAME_REGISTRY = [
         max: 15,
         default: 15,
         cliName: 'split',
-        description: 'Number of independent paid base spins in the session. Wager is split across all base spins; total wager must be at least 2.5 APE per spin. Slots also accept --spins as an alias.',
+        description: 'Number of independent paid base spins in the session. Wager is split across all base spins; total wager must be at least 2.5 APE per spin.',
         bnf: [
           '<split> ::= <integer>',
           '; semantic constraint: 1 <= value <= 15',
@@ -684,7 +684,7 @@ export const GAME_REGISTRY = [
         max: 15,
         default: 15,
         cliName: 'split',
-        description: 'Independent paid spins, with the total wager split across them. Minimum 2.5 APE per spin. --spins is an alias for --split; bonus drops do not add to this count.',
+        description: 'Independent paid spins, with the total wager split across them. Minimum 2.5 APE per spin. Bonus drops do not add to this count.',
         bnf: [
           '<split> ::= <integer>',
           '; semantic constraint: 1 <= value <= 15; default: 15',
@@ -907,6 +907,22 @@ export const GAME_REGISTRY = [
     },
   },
 ];
+
+// Shared exact-stake option for independent split games.
+for (const game of GAME_REGISTRY) {
+  if (['blocks', 'plinko', 'primes', 'speedkeno', 'slots'].includes(game.type)) {
+    game.config.spin = {
+      cliName: 'spin',
+      description: 'Exact APE per independent attempt. Maximize count within the wager budget and contract limits; leave the remainder unspent. Cannot be combined with --split, --survive, or positional counts. Fees are additional.',
+      bnf: [
+        '<spin> ::= <ape>',
+        '; positive decimal APE with at most 18 decimals; subject to contract bet-size limits',
+        '; count = min(floor(budget / spin), supported contract attempt limit); count must be at least 1',
+        '; actual wager = count × spin; unused budget is not wagered',
+      ],
+    };
+  }
+}
 
 // ============================================================================
 // GAME INDEX (Fast Lookup)

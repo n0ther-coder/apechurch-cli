@@ -641,10 +641,74 @@ describe('CLI Commands Integration Tests', () => {
       assert.strictEqual(JSON.parse(result.stdout).config.chipValue, '1');
     });
 
+    it('resolves exact stakes across every split game without wallet access', () => {
+      for (const game of ['blocks', 'jungle-plinko', 'cosmic-plinko', 'primes', 'speed-keno',
+        'dino-dough', 'bubblegum-heist', 'geez-diggerz', 'sushi-showdown', 'dojo-drop', 'reel-pirates']) {
+        const result = cli(`play ${game} 23 --spin 4 --validate-only --json`);
+        assert.strictEqual(result.code, 0, result.stdout);
+        const config = JSON.parse(result.stdout).config;
+        assert.strictEqual(config.split, 5, game);
+        assert.strictEqual(config.spin, '4', game);
+        assert.strictEqual(config.amount, '20', game);
+        assert.strictEqual(config.unspent, '3', game);
+        assert.strictEqual(config.survive, undefined, game);
+        if (game === 'blocks') assert.strictEqual(config.compounding, false);
+      }
+    });
+
+    it('rejects invalid exact stakes and conflicting counts before wallet access', () => {
+      for (const command of [
+        'play dino-dough 3 --spin 4', 'play dino-dough 23 --spin 0',
+        'play dino-dough 23 --spin 1e0', 'play dino-dough 23 --spin 4 --split 5',
+        'play blocks 23 --spin 4 --survive 1', 'play dino-dough 23 5 --spin 4',
+        'play primes 23 0 5 --spin 4', 'play jungle-plinko 23 0 5 --spin 4',
+        'play speed-keno 23 5 --spin 4', 'play roulette 23 --spin 4',
+        'play blackjack 23 --spin 4', 'play --auto --amount 23 --spin 4',
+        'play dojo-drop 23 --spin 2.499999999999999999',
+        'play reel-pirates 23 --spin 2',
+      ]) {
+        const result = cli(`${command} --validate-only --json`);
+        assert.strictEqual(result.code, 1, command + result.stdout);
+        assert.match(JSON.parse(result.stdout).error, /--spin/, command);
+        assert.ok(!result.stdout.includes('No wallet found'), command);
+      }
+      for (const command of ['bet --game dino-dough --amount 3 --spin 4',
+        'bet --game dino-dough --amount 23 --spin 4 --split 5']) {
+        const result = cli(command);
+        assert.strictEqual(result.code, 1, command);
+        assert.match(JSON.parse(result.stdout).error, /--spin/);
+        assert.ok(!result.stdout.includes('No wallet found'));
+      }
+    });
+
+    it('removes the slot-count alias from parsers, help, and grammar', () => {
+      for (const command of ['play dino-dough 23 --spins 5 --validate-only --json',
+        'bet --game dino-dough --amount 23 --spins 5',
+        'game dino-dough --paytable --spins 5 --json']) {
+        const result = cli(command);
+        assert.strictEqual(result.code, 1, command);
+        assert.match(result.stdout, /unknown option '--spins'/);
+      }
+      for (const command of ['play --help', 'bet --help', 'game --help', 'commands', 'games --list', 'game dino-dough --json']) {
+        const result = cli(command);
+        assert.ok(!result.stdout.includes('--spins'), command);
+        if (command !== 'commands') assert.match(result.stdout, /--spin|"spin"/, command);
+      }
+    });
+
+    it('uses the actual exact-spin wager for paytable inspection', () => {
+      const result = cli('game speed-keno --paytable --amount 23 --spin 4 --json');
+      assert.strictEqual(result.code, 0, result.stdout);
+      assert.deepStrictEqual(JSON.parse(result.stdout).parameters,
+        { picks: 3, split: 5, amount: '20', spin: '4', unspent: '3' });
+      const missingBudget = cli('game dino-dough --paytable --spin 4 --json');
+      assert.strictEqual(missingBudget.code, 1);
+      assert.match(JSON.parse(missingBudget.stdout).error, /budget/);
+    });
+
     it('validates Dojo Drop flags, aliases, defaults and minimums before wallet access', () => {
       for (const command of [
         'play dojo 5 --split 2',
-        'play dojodrop 5 --spins 2',
         'play dojo-drop 5 2',
         'play --game dojo-drop --amount 5 --split 2',
       ]) {
@@ -661,7 +725,6 @@ describe('CLI Commands Integration Tests', () => {
         'play dojo-drop 40 --split 0',
         'play dojo-drop 40 --split 1.5',
         'play dojo-drop 40 2junk',
-        'play dojo-drop 40 --split 2 --spins 3',
         'bet --game dojo-drop --amount 5 --split 3',
       ]) {
         const result = cli(command.startsWith('bet ') ? command : `${command} --json`);
@@ -703,7 +766,9 @@ describe('CLI Commands Integration Tests', () => {
       try {
         for (const args of [
           ['play', 'dojo-drop', '5', '--split', '2', '--json'],
-          ['play', 'dojo', '5', '--spins', '2', '--json'],
+          ['play', 'dojo', '5', '--spin', '2.5', '--json'],
+          ['play', 'dojo', '5.9', '--spin', '2.5', '--loop', '--max-games', '1', '--json'],
+          ['bet', '--game', 'dojo', '--amount', '5.9', '--spin', '2.5'],
           ['bet', '--game', 'dojodrop', '--amount', '5', '--split', '2'],
         ]) {
           const result = spawnSync(process.execPath, ['--loader', loaderPath, CLI_PATH, ...args,
@@ -1061,9 +1126,9 @@ describe('CLI Commands Integration Tests', () => {
       const lines = stdout.trim().split('\n');
 
       assert.ok(lines.every((line) => line.startsWith('[play] ')), 'Should only print play-list lines');
-      assert.ok(lines.includes('[play] blocks <ape> --grid <grid> --risk <risk> --split <split> --survive <survive>'), 'Should show --split and --survive for Blocks');
-      assert.ok(lines.includes('[play] primes <ape> --risk <risk> --split <split>'), 'Should use --split for Primes');
-      assert.ok(lines.includes('[play] reel-pirates <ape> --split <split>'), 'Should use --split for Reel Pirates');
+      assert.ok(lines.includes('[play] blocks <ape> --grid <grid> --risk <risk> --split <split> --survive <survive> --spin <spin>'), 'Should show --split and --survive for Blocks');
+      assert.ok(lines.includes('[play] primes <ape> --risk <risk> --split <split> --spin <spin>'), 'Should use --split for Primes');
+      assert.ok(lines.includes('[play] reel-pirates <ape> --split <split> --spin <spin>'), 'Should use --split for Reel Pirates');
       assert.ok(!stdout.includes('--rolls'), 'Should not advertise old roll flags');
       assert.ok(!stdout.includes('--runs'), 'Should not advertise old run flags');
       assert.ok(!stdout.includes('--balls'), 'Should not advertise old ball flags');

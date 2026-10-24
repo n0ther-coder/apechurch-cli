@@ -212,12 +212,12 @@ Sync and cache behavior:
 | Cosmic Plinko ✔︎ | `play cosmic 10 1 10` | Plinko | `--mode 0-2` `--balls 1-30` |
 | Keno ✔︎ | `play keno 10` | Keno | `--picks 1-10` `--numbers 1-40` |
 | Speed Keno ✔︎ | `play speed-keno 10` | Keno | `--picks 1-5` `--games 1-20` |
-| Dino Dough ✔︎ | `play dino-dough 10 10` | Slots | `--spins 1-15` |
-| Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | Slots | `--spins 1-15` |
-| Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | Slots | `--spins 1-15` |
-| Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | Slots | `--spins 1-15` |
-| Dojo Drop | `play dojo-drop 25 --split 10` | Block destruction slots | `--split 1-15`; `--spins` alias; minimum 2.5 APE per spin |
-| Reel Pirates | `play reel-pirates 20` | Cascade Slots | `--spins 1-15` |
+| Dino Dough ✔︎ | `play dino-dough 10 10` | Slots | `--split 1-15` |
+| Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | Slots | `--split 1-15` |
+| Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | Slots | `--split 1-15` |
+| Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | Slots | `--split 1-15` |
+| Dojo Drop | `play dojo-drop 25 --split 10` | Block destruction slots | `--split 1-15`; minimum 2.5 APE per spin |
+| Reel Pirates | `play reel-pirates 20` | Cascade Slots | `--split 1-15` |
 | Monkey Match ✔︎ | `play monkey-match 10` | Match | `--mode 1-2` |
 | Bear-A-Dice ✔︎ | `play bear-dice 10` | Dice | `--difficulty 0-4` `--rolls 1-5` |
 | Primes ✔︎ | `play primes 10 0 20` | Number | `--difficulty 0-3` `--runs 1-20` |
@@ -418,7 +418,17 @@ apechurch-cli play sushi-showdown 10 10  # 10 APE, 10 spins
 **Verified runtime:** all four games decode `(gameId, numSpins, ref, userRandomWord)`, use a live `getVRFFee()` read, request `numSpins * 3` VRF words, and resolve ordered symbol triples through cumulative reel-stop tables.
 **Slot-family note:** Dino Dough and Geez Diggerz are currently exact-match verified on ApeScan; Bubblegum Heist and Sushi Showdown are currently linked `Similar Match` deployments in the same verified `Slots` family.
 **Exact RTP:** `97.90%` for Dino Dough, `97.80%` for Bubblegum Heist, `97.69%` for Geez Diggerz, and `97.87%` for Sushi Showdown from live reel/payout snapshots recorded in the repo.
-**Dojo Drop:** `play dojo-drop <total-APE> [--split <1-15>]` also accepts a positional count or `--spins`. Default: 15 paid spins, requiring at least 37.5 APE total. Invalid counts, conflicting aliases, and totals below 2.5 APE per spin fail before wallet access. Fees are additional: `getVRFFee(500000 + 150000 × split)` plus `EXECUTOR_FEE() × split`, with actual gas accounted separately. `game dojo-drop --paytable` reports the dated 1,000x gross cap without enumerating outcomes. Settled JSON includes on-chain spin details; no theoretical RTP is asserted. See [contract notes](docs/verification/DOJO_DROP_CONTRACT.md).
+**Exact stake per split attempt:** `play <split-game> <budget-APE> --spin <APE>`
+maximizes independent attempts within the budget and supported contract limit.
+`play dino-dough 23 --spin 4` wagers 20 APE as five 4-APE spins; 3 APE remains
+unspent and fees are additional. This applies to Blocks, Plinko, Primes,
+Speed Keno, and slots. Conflicts with `--split`, `--survive`, and positional
+attempt counts are errors. Invalid sizes and zero attempts fail before play.
+Live limit reads and successful gas estimation are required before submission;
+offline validation uses registry limits. See the
+[command reference](docs/COMMAND_REFERENCE.md#bet).
+
+**Dojo Drop:** `play dojo-drop <total-APE> [--split <1-15>]` also accepts a positional count. Default: 15 paid spins, requiring at least 37.5 APE total. Invalid or conflicting counts and totals below 2.5 APE per spin fail before wallet access. Fees are additional: `getVRFFee(500000 + 150000 × split)` plus `EXECUTOR_FEE() × split`, with actual gas accounted separately. `game dojo-drop --paytable` reports the dated 1,000x gross cap without enumerating outcomes. Settled JSON includes on-chain spin details; no theoretical RTP is asserted. See [contract notes](docs/verification/DOJO_DROP_CONTRACT.md).
 
 **Reel Pirates note:** playable but not ABI verified; the observed gameplay tx uses `(numSpins, gameId, ref, userRandomWord)` and the exact cascade odds are not public in this repo.
 **Current max payout:** `333x` for Dino Dough, `100x` for Bubblegum Heist, `50x` for Geez Diggerz, and `500x` for Sushi Showdown.
