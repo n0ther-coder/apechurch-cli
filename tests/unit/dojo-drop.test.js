@@ -71,6 +71,7 @@ describe('Dojo Drop integration', () => {
       assert.throws(() => resolveSlotsConfig({ opts: { split: value }, positionalConfig: {}, gameEntry }), /integer between/);
     }
     assert.equal(parseDojoDropSpins('15'), 15);
+    assert.throws(() => resolveSlotsConfig({ opts: { split: 2 }, positionalConfig: { spins: 3 }, gameEntry }), /Conflicting/);
   });
 
   it('derives dynamic VRF gas and preserves executor costs separately', async () => {

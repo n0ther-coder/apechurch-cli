@@ -667,6 +667,42 @@ export const GAME_REGISTRY = [
   },
 
   // ===========================================================================
+  // BLIZZARD BLITZ - Match-anywhere cascades and optional bonus buy
+  // ===========================================================================
+  {
+    key: 'blizzard-blitz',
+    name: 'Blizzard Blitz',
+    aliases: ['blizzardblitz', 'blizzard'],
+    slug: 'blizzard-blitz',
+    type: 'slots',
+    description: '5x5 match-anywhere cascade slot. Seven matching regular symbols pay; five scatters trigger five free spins. Bonus chests double the spin multiplier (advertised up to 4,096x). Supports a direct bonus buy. Settlement is on-chain; exact RTP and the overall maximum are unverified.',
+    contract: BLIZZARD_BLITZ_CONTRACT,
+    abiVerified: false,
+    config: {
+      spins: {
+        min: 1, max: 20, default: 10, cliName: 'split',
+        description: 'Paid base spins sharing the total wager; minimum 2.5 APE per spin. Free spins are included in the settled result. --spin instead sets exact APE per paid spin within the amount budget, leaving the remainder unspent.',
+        bnf: [
+          '<blizzard-command> ::= "play" <blizzard-game> <ape> [ <split> | "--split" <split> | "--spin" <ape> | "--bonus" ] <play-shared-option>*',
+          '<blizzard-game> ::= "blizzard-blitz" | "blizzardblitz" | "blizzard"',
+          '<split> ::= <integer>',
+          '; 1 <= split <= 20; default 10; total wager >= 2.5 APE × split',
+          '; --spin maximizes count <= 20 within the amount budget; fees are additional',
+          '; duplicate positional/named counts must agree; malformed counts are errors',
+          '; also accepts timeout and entropy/referral overrides; shared grammar and loop/stop/bet-strategy controls: see play --help',
+        ],
+      },
+      bonus: {
+        cliName: 'bonus', flag: true, default: false,
+        description: 'Buy one bonus round instead of base spins. Amount is the full purchase cost (minimum 100 APE), with a reference spin stake of amount / 32. Rejects --split, --spin and positional counts. Fees are additional; loop repeats purchases.',
+        bnf: ['<bonus-option> ::= "--bonus"', '; one bonus purchase; amount >= 100 APE; five free spins; default: base play'],
+      },
+      gameDataOrder: 'spins-first-uint8-bonus', minBetPerSpinApe: 2.5,
+    },
+    vrf: { type: 'slots-dynamic', baseGas: 550000, perUnitGas: 200000, executorFee: 'per-spin' },
+  },
+
+  // ===========================================================================
   // DOJO DROP - Blades, persistent bonus drops, and column chests
   // ===========================================================================
   {
@@ -686,9 +722,14 @@ export const GAME_REGISTRY = [
         cliName: 'split',
         description: 'Independent paid spins, with the total wager split across them. Minimum 2.5 APE per spin. Bonus drops do not add to this count.',
         bnf: [
+          '<dojo-command> ::= "play" <dojo-game> <ape> [ <split> | "--split" <split> | "--spin" <ape> ] <play-shared-option>*',
+          '<dojo-game> ::= "dojo-drop" | "dojodrop" | "dojo"',
           '<split> ::= <integer>',
           '; semantic constraint: 1 <= value <= 15; default: 15',
           '; total wager >= 2.5 APE × split; invalid counts and smaller totals fail before wallet access',
+          '; --spin maximizes count within budget/live limit and leaves the remainder unspent; it rejects explicit counts',
+          '; duplicate positional/named counts must agree; bonus drops are automatic, with no bonus buy',
+          '; timeout, entropy/referral, loop/stop/bet-strategy, retry and JSON options: see play --help',
         ],
       },
       gameDataOrder: 'spins-first-uint8',

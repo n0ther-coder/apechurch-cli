@@ -4,7 +4,7 @@
 
 Compact syntax and comparison notes for all Ape Church CLI games.
 
-The CLI currently implements 23 playable games. Of those, 21 are ABI-verified and marked with `✔︎`; `Dojo Drop` and `Reel Pirates` are playable but not ABI-verified. Wallet history tracks 27 distinct Ape Church games by also including history-only coverage for `Blizzard Blitz`, `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`.
+The CLI currently implements 24 playable games. Of those, 21 are ABI-verified and marked with `✔︎`; `Blizzard Blitz`, `Dojo Drop` and `Reel Pirates` are playable but not ABI-verified. Wallet history tracks 27 distinct Ape Church games by also including history-only coverage for `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`.
 
 Treat published running RTP values as observed snapshots, not guaranteed long-run returns. For ABI-backed tuple layouts, payout matrices, and maintainer-facing verification evidence, follow the per-game links in `docs/verification/`. For compact exact outcome distributions meant to help choose variants, see [docs/analytics/README.md](./analytics/README.md).
 
@@ -22,6 +22,7 @@ Ordering: alphabetical by game title.
 | Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` | - |
 | Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --survive Z` | `bear`, `dice` |
 | Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` | `bj` |
+| Blizzard Blitz | `play blizzard-blitz <amt> [<split>]` | `--game blizzard-blitz --amount X [--split Y \| --spin Z \| --bonus]` | `blizzardblitz`, `blizzard` |
 | Blocks ✔︎ | `play blocks <amt> <risk> <survive>` | `--game blocks --amount X --risk Y --grid 2x2\|3x3\|4x4 [--split Z \| --survive Z]` | - |
 | Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <split>` | `--game bubblegum-heist --amount X --split Y` | `bubblegumheist`, `bubblegum`, `heist` |
 | Cash Dash ✔︎ | `cash-dash <amt>` | `cash-dash <amt> --auto --cashout-after N` | `cashdash`, `dash` |
@@ -354,6 +355,48 @@ Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` 
 - Max payout: `333x`.
 - Operational note: much deeper ordered paytable than the public crop suggests; use the analytics note for the full ordered triple matrix.
 
+## Blizzard Blitz
+
+**Type:** Slots / Match-anywhere cascades and bonus rounds
+**Contract:** `0x64b27c1c69559A795C98958614398dD7195AE1B8`
+**Aliases:** `blizzardblitz`, `blizzard`
+**ABI verified:** `false`
+**Evidence:** [contract](verification/BLIZZARD_BLITZ_CONTRACT.md),
+[analytics and symbol table](analytics/BLIZZARD_BLITZ_ANALYTICS.md).
+
+Seven ordinary symbols anywhere on a 5 × 5 grid can pay; winning symbols
+cascade. Five scatters advertise five free spins. Bonus chests double a
+spin multiplier, advertised up to 4,096×; this is not a verified whole-game cap.
+
+```bnf
+<game> ::= "blizzard-blitz" | "blizzardblitz" | "blizzard"
+<base> ::= "play" <game> <ape> [ <split> | "--split" <split> | "--spin" <ape> ]
+<bonus> ::= "play" <game> <ape> "--bonus"
+<split> ::= <integer> ; 1 ≤ value ≤ 20; default 10
+; base total ≥ 2.5 APE × split
+; --spin sets exact APE per paid spin, maximizes count within budget/limit,
+; and leaves unused budget unspent; it rejects explicit counts
+; --bonus buys one five-free-spin round for amount ≥ 100 APE,
+; reference stake = amount / 32; rejects --split, --spin and positional counts
+; normal loop/stop/bet-strategy, timeout, retry, JSON and expert controls apply
+```
+
+```bash
+apechurch-cli play blizzard 25 --split 10 --validate-only --json
+apechurch-cli play blizzardblitz 23 --spin 4 --validate-only --json
+apechurch-cli play blizzard 100 --bonus --validate-only --json
+apechurch-cli bet --game blizzard --amount 25 --split 10
+apechurch-cli game blizzard --paytable --bonus --json
+```
+
+Fees: live `getVRFFee(550000 + 200000 × encoded spins)` plus
+`EXECUTOR_FEE() × encoded spins`, with actual gas accounted separately.
+A bonus purchase encodes one spin for fees, with the full purchase cost
+as wager; loop limits and gross payout ratios use that cost. All settlement
+values and optional reel-offset detail come from the contract. No exact
+RTP, full outcome probabilities or overall maximum are asserted.
+`--paytable` separates visible symbol awards from whole-game bounds.
+
 ## Dojo Drop
 
 **Type:** Slots / Block destruction
@@ -361,6 +404,7 @@ Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` 
 **Aliases:** `dojodrop`, `dojo`
 **ABI verified:** `false`
 **Contract notes:** [DOJO_DROP_CONTRACT.md](./verification/DOJO_DROP_CONTRACT.md)
+**Analytics:** [DOJO_DROP_ANALYTICS.md](./analytics/DOJO_DROP_ANALYTICS.md)
 
 Blades attack a five-column wall. Broken blocks pay gross prizes; cleared
 columns unlock multiplying chests. Three Lucky Cats trigger four bonus drops
@@ -368,11 +412,17 @@ on a fresh copy of the same wall, with damage carried between bonus drops.
 Results and replay masks are read from the contract.
 
 ```bnf
-<command> ::= "play" "dojo-drop" <amount> [ <split> ]
+<game> ::= "dojo-drop" | "dojodrop" | "dojo"
+<command> ::= "play" <game> <amount> [ <split> | "--split" <split> | "--spin" <ape> ]
+<bet> ::= "bet" "--game" <game> "--amount" <ape> [ "--split" <split> | "--spin" <ape> ]
+<table> ::= "game" <game> "--paytable" [ "--amount" <ape> ] [ "--split" <split> | "--spin" <ape> ] [ "--json" ]
 <amount> ::= <ape>              ; total wager >= 2.5 APE × split
 <split> ::= <integer>           ; 1 <= value <= 15; default 15
 ; --split <split> is the named count form; --spin <ape> sets APE per spin
+; --spin rejects explicit counts and leaves unused budget unspent
 ; conflicting counts, malformed counts, and insufficient totals are errors
+; standard loop/stop/bet-strategy, retry, timeout, JSON and expert controls apply
+; bonus drops are automatic; no separate bonus-buy option
 ```
 
 ```bash

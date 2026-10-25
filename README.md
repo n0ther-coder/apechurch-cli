@@ -16,7 +16,7 @@ The package provides:
 
 - **Local custody:** `bin/cli.js` and `lib/wallet.js` enforce encrypted wallet storage, local password prompts, multi-wallet selection, password rotation, and local signing.
 - **A maintained game registry:** `registry.js` centralizes supported games, aliases, verified ABI metadata, RTP references, VRF fee behavior, and display names, so the CLI can expose consistent help, JSON, docs, and automation behavior across the catalog.
-- **Verified game coverage:** `docs/verification/` and `lib/games/` back the ABI-verified labels used by the CLI; the catalog covers 22 implemented games and 26 tracked history contracts.
+- **Verified game coverage:** `docs/verification/` and `lib/games/` back the ABI-verified labels used by the CLI; the catalog covers 24 implemented games and 27 tracked history games.
 - **Stateful game engines:** `lib/stateful/blackjack/`, `lib/stateful/video-poker/`, `lib/stateful/hi-lo-nebula/`, and `lib/stateful/cash-dash/` include resumable local state, command-specific actions, display layers, auto-play, and solver/strategy code.
 - **Operator-grade history and reporting:** `lib/wallet-analysis.js`, `lib/history.js`, `lib/scores.js`, and the `history`, `scoreboard`, and `fees` commands build local per-wallet caches, reconstruct game variants, report real wallet economics, and keep offline reads fast.
 - **AI-agent and bot runtime:** `lib/bots.js` exposes `ctx.playJson(...)`, `ctx.gamePaytable(...)`, `ctx.botJson(...)`, session helpers, nested bot chime propagation, logs, and machine-readable command output so external agents can run the CLI without a browser.
@@ -72,7 +72,7 @@ This design keeps bot strategy private while still giving both humans and AI age
 
 ### Supported Games
 
-- **23 implemented games:** `ApeStrong ✔︎`, `Roulette ✔︎`, `Baccarat ✔︎`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough ✔︎`, `Bubblegum Heist ✔︎`, `Geez Diggerz ✔︎`, `Gimboz Smash ✔︎`, `Glyde or Crash ✔︎`, `Reel Pirates`, `Dojo Drop`, `Cash Dash ✔︎`, `Hi-Lo Nebula ✔︎`, `Sushi Showdown ✔︎`, `Monkey Match ✔︎`, `Bear-A-Dice ✔︎`, `Blocks ✔︎`, `Primes ✔︎`, `Blackjack ✔︎`, and `Video Poker ✔︎ / Gimboz Poker`. Of these, 21 are ABI-verified; `Dojo Drop` and `Reel Pirates` are playable but not ABI-verified.
+- **24 implemented games:** `ApeStrong ✔︎`, `Roulette ✔︎`, `Baccarat ✔︎`, `Jungle Plinko ✔︎`, `Cosmic Plinko ✔︎`, `Keno ✔︎`, `Speed Keno ✔︎`, `Dino Dough ✔︎`, `Bubblegum Heist ✔︎`, `Geez Diggerz ✔︎`, `Gimboz Smash ✔︎`, `Glyde or Crash ✔︎`, `Reel Pirates`, `Dojo Drop`, `Blizzard Blitz`, `Cash Dash ✔︎`, `Hi-Lo Nebula ✔︎`, `Sushi Showdown ✔︎`, `Monkey Match ✔︎`, `Bear-A-Dice ✔︎`, `Blocks ✔︎`, `Primes ✔︎`, `Blackjack ✔︎`, and `Video Poker ✔︎ / Gimboz Poker`. Of these, 21 are ABI-verified; `Blizzard Blitz`, `Dojo Drop` and `Reel Pirates` are playable but not ABI-verified.
 - **Personal bot support:** humans and AI agents can package private routines as local bots with manifests, help text, nested calls, JSON summaries, and standard wallet guards
 - **Fully AI agents playable:** browserless CLI flows, local signing, JSON output, formal command grammar, and self-describing game metadata make it straightforward for coding agents and automations to use directly
 - **Improved auto gameplay:** `Blackjack ✔︎`, `Cash Dash ✔︎`, `Hi-Lo Nebula ✔︎`, and `Video Poker ✔︎ / Gimboz Poker` include interactive flows, better auto-play, solver-backed decisions, and loop-friendly automation controls
@@ -87,7 +87,7 @@ This design keeps bot strategy private while still giving both humans and AI age
 - **ABI-verified game metadata:** verified contracts are marked with `✔︎` in CLI output, help, JSON payloads, and docs; ApeStrong ✔︎, Roulette ✔︎, Baccarat ✔︎, Jungle Plinko ✔︎, Cosmic Plinko ✔︎, Keno ✔︎, Speed Keno ✔︎, Dino Dough ✔︎, Bubblegum Heist ✔︎, Geez Diggerz ✔︎, Gimboz Smash ✔︎, Glyde or Crash ✔︎, Cash Dash ✔︎, Hi-Lo Nebula ✔︎, Sushi Showdown ✔︎, Monkey Match ✔︎, Bear-A-Dice ✔︎, Blocks ✔︎, Primes ✔︎, Blackjack ✔︎, and Video Poker ✔︎ use verified on-chain contract data
 - **RTP and payout modeling:** expected RTP, reported RTP, current RTP, and max-payout references across the game catalog, with exact/formula/statistical provenance markers where available
 - **Exact Plinko modeling:** Jungle and Cosmic Plinko mode RTP and top payouts are derived from the live on-chain bucket tables, and Plinko stats are grouped by risk level rather than by ball count
-- **Per-wallet history cache:** `wallet download` reconstructs supported on-chain history into a local cache, with incremental backfills and offline `history` reads across 26 tracked public game contracts
+- **Per-wallet history cache:** `wallet download` reconstructs supported on-chain history into a local cache, with incremental backfills and offline `history` reads across 27 tracked public games
 - **Game reporting:** `Recent Games`, compact `Game Status`, and full `Game Stats` views show net profit, win rate, RTP, unfinished local games, and per-game breakdowns
 - **Automation tooling:** loop mode supports `max-balance`, `retrace`, `min-balance`, `max-games`, machine-readable JSON output, and strategy-driven game/config selection
 - **Stateful UX improvements:** unfinished-game recovery, blackjack side bets, solver-backed auto decisions, and EV / Monte Carlo helpers for loop planning
@@ -237,7 +237,7 @@ Profile flags:
 
 Use `wallet download` to reconstruct supported gaming history from ApeChain into a per-wallet local file, then read that cache with `history` without rebuilding the chain view every time.
 
-The CLI currently implements 22 playable games, 21 of which are ABI-verified. Wallet history tracks 26 distinct Ape Church games: the 22 implemented games plus history-only support for `Blizzard Blitz`, `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`. Locally started Cash Dash runs are tracked through the same unfinished-game and local-history flow as the other stateful commands.
+The CLI currently implements 24 playable games, 21 of which are ABI-verified. Wallet history tracks 27 distinct Ape Church games: the 24 implemented games plus history-only support for `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`. Locally started Cash Dash runs are tracked through the same unfinished-game and local-history flow as the other stateful commands.
 
 If `[address]` is omitted, both commands use the local wallet address.
 
@@ -372,7 +372,7 @@ Coverage and limits:
 
 - Downloaded histories live under `~/.apechurch-cli/history/<wallet>_history.json`.
 - Economic totals only include games whose wager, payout, fees, gas, and GP can be reconstructed exactly from on-chain data. Total wAPE wagered uses canonical `wager_wei`.
-- The downloader tracks 26 distinct public games. Stateless implemented and history-only contracts are reconstructed from settlement logs, fallback play logs, and `getEssentialGameInfo`; locally-known stateful entries are refreshed through their game-specific getters.
+- The downloader tracks 27 distinct public games. Stateless implemented and history-only contracts are reconstructed from settlement logs, fallback play logs, and `getEssentialGameInfo`; locally-known stateful entries are refreshed through their game-specific getters.
 - `Blackjack` and `Video Poker` (`Gimboz Poker` in Ape Church naming) cannot yet be generically enumerated from raw RPC, so locally-known entries remain minimal until a reliable fetch path is implemented.
 - Sponsored transactions contribute `0` contract fees and `0` gas for the analyzed wallet.
 
@@ -393,6 +393,7 @@ Coverage and limits:
 | Geez Diggerz ✔︎ | `play geez-diggerz 10 --split 15` | `geezdiggerz`, `geez`, `diggerz` | Slot machine |
 | Gimboz Smash ✔︎ | `play gimboz-smash 10 1-50`, `play gimboz-smash 10 --cover 50`, or `play gimboz-smash 10 --out-range 45-50` | `gimbozsmash`, `smash` | One-or-two interval target game on a 1-100 board |
 | Glyde or Crash ✔︎ | `play glyde-or-crash 10 2x` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` | Target a crash multiplier |
+| Blizzard Blitz | `play blizzard 25 --split 10` or `play blizzard 100 --bonus` | `blizzardblitz`, `blizzard` | 5 × 5 cascades; 1–20 paid spins or one bonus purchase; exact RTP unverified |
 | Dojo Drop | `play dojo-drop 25 --split 10` | `dojodrop`, `dojo` | Blades, blocks, bonus drops, and chest multipliers; minimum 2.5 APE per paid spin |
 | Reel Pirates | `play reel-pirates 40 --split 15` | `reelpirates`, `pirates`, `reel` | Match-anywhere cascade slot |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula 10 --auto winston-ladder` | `hilonebula`, `hilo`, `nebula` | Stateful higher/lower/same card streak game with cash-out and ladder auto-play |
@@ -403,6 +404,16 @@ Coverage and limits:
 | Primes ✔︎ | `play primes 10 --risk 0 --split 20` | - | Prime-or-zero number draws with split-bet runs |
 | Blackjack ✔︎ | `blackjack 25 --side 1 --auto` | `bj` | H17 card game with auto-play and optional player side bet |
 | Video Poker ✔︎ / Gimboz Poker | `video-poker 10 --auto` | `vp` | Jacks or Better with auto-play and solver tools |
+
+Blizzard Blitz supports the slot-family `--split` count and exact-stake
+`--spin` budget modes (base default 10, range 1–20, minimum 2.5 APE per spin).
+`--bonus` buys one five-free-spin round for the amount, at least 100 APE,
+and rejects explicit counts and `--spin`. Fees are additional. The bonus
+reference stake is amount ⁄ 32, while payout ratios and net PnL use the full
+purchase cost. Both modes use the standard loop/stop/bet-strategy controls.
+`game blizzard --paytable` separates symbol awards from unverified complete
+outcomes. See [Blizzard Blitz](docs/verification/BLIZZARD_BLITZ_CONTRACT.md)
+and [Dojo Drop analytics](docs/analytics/DOJO_DROP_ANALYTICS.md).
 
 ## Argument Grammar (BNF)
 

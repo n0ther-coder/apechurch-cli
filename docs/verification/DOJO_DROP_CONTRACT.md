@@ -17,7 +17,8 @@ its full probability model.
   `42220-9cf77c8720759af1.js` (transaction construction). These filenames
   identify the checked deployment; subsequent deployments may rename them.
 - ApeChain JSON-RPC: `https://rpc.apechain.com/http`, chain ID `33139`.
-  The configuration snapshot below was read at block `52884995`.
+  The configuration snapshot below was read at block `52884995`; all ten
+  fields matched a reread at block `52978021` on 2026-10-25.
 
 The contract address is
 `0x914d11f805586dF8Ed440Fe23dcdce929965FBb1`. The official frontend catalog
@@ -63,6 +64,9 @@ rejected 0 and 16 spins. Simulations used synthetic calldata and sent no
 transaction. House limits, paused state and fee values can change; the
 contract enforces the live conditions. No GP-spending transaction path is
 implemented; `--gp-ape` retains its existing reward-accounting meaning.
+
+For the compact cap, configuration and probability limitations, see
+[DOJO_DROP_ANALYTICS.md](../analytics/DOJO_DROP_ANALYTICS.md).
 
 ## Live configuration snapshot
 

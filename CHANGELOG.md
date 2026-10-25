@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [31.1.0]
+
+### Added
+- Blizzard Blitz base spins and direct bonus purchases, including aliases,
+  strict split/exact-stake validation, dynamic VRF/executor fees, contract
+  settlement and optional reel-offset details with existing history variants.
+- Component symbol paytable, exhaustive help and BNF, contract evidence and
+  analytics limitations for Blizzard Blitz; complete shared documentation
+  and analytics coverage for Dojo Drop.
+
+### Fixed
+- Reject conflicting positional and named Dojo Drop spin counts.
+- Reconcile playable/history catalog counts and Blizzard Blitz classifications.
+
 ## [31.0.0]
 
 ### Breaking

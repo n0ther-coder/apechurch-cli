@@ -216,6 +216,7 @@ Sync and cache behavior:
 | Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | Slots | `--split 1-15` |
 | Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | Slots | `--split 1-15` |
 | Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | Slots | `--split 1-15` |
+| Blizzard Blitz | `play blizzard 25 --split 10` or `play blizzard 100 --bonus` | Cascade slots with bonus buy | Base 1–20 spins, default 10, ≥ 2.5 APE per spin; bonus ≥ 100 APE |
 | Dojo Drop | `play dojo-drop 25 --split 10` | Block destruction slots | `--split 1-15`; minimum 2.5 APE per spin |
 | Reel Pirates | `play reel-pirates 20` | Cascade Slots | `--split 1-15` |
 | Monkey Match ✔︎ | `play monkey-match 10` | Match | `--mode 1-2` |
@@ -428,7 +429,9 @@ Live limit reads and successful gas estimation are required before submission;
 offline validation uses registry limits. See the
 [command reference](docs/COMMAND_REFERENCE.md#bet).
 
-**Dojo Drop:** `play dojo-drop <total-APE> [--split <1-15>]` also accepts a positional count. Default: 15 paid spins, requiring at least 37.5 APE total. Invalid or conflicting counts and totals below 2.5 APE per spin fail before wallet access. Fees are additional: `getVRFFee(500000 + 150000 × split)` plus `EXECUTOR_FEE() × split`, with actual gas accounted separately. `game dojo-drop --paytable` reports the dated 1,000x gross cap without enumerating outcomes. Settled JSON includes on-chain spin details; no theoretical RTP is asserted. See [contract notes](docs/verification/DOJO_DROP_CONTRACT.md).
+**Blizzard Blitz:** `play blizzard <total-APE> [--split <1-20> | --spin <APE> | --bonus]`. Base default: 10 paid spins. Exact-stake mode leaves the unused budget unspent. Bonus mode buys one round with five free spins: amount is the full purchase cost (minimum 100 APE), reference stake amount / 32; explicit counts and `--spin` conflict with `--bonus`. Live fees: `getVRFFee(550000 + 200000 × encoded spins)` plus `EXECUTOR_FEE() × encoded spins`, with one encoded spin for bonus purchases and separate actual gas. Standard loop, stop and bet-strategy controls apply to purchase costs. Optional JSON enrichment returns contract reel offsets; no exact RTP, full distribution or overall maximum is asserted. The paytable separates symbol awards from whole-game bounds. See [contract](docs/verification/BLIZZARD_BLITZ_CONTRACT.md) and [analytics](docs/analytics/BLIZZARD_BLITZ_ANALYTICS.md).
+
+**Dojo Drop:** `play dojo-drop <total-APE> [--split <1-15>]` also accepts a positional count. Default: 15 paid spins, requiring at least 37.5 APE total. Invalid or conflicting counts and totals below 2.5 APE per spin fail before wallet access. Fees are additional: `getVRFFee(500000 + 150000 × split)` plus `EXECUTOR_FEE() × split`, with actual gas accounted separately. `game dojo-drop --paytable` reports the dated 1,000x gross cap without enumerating outcomes. Settled JSON includes on-chain spin details; no theoretical RTP is asserted. See [contract notes](docs/verification/DOJO_DROP_CONTRACT.md) and [analytics](docs/analytics/DOJO_DROP_ANALYTICS.md).
 
 **Reel Pirates note:** playable but not ABI verified; the observed gameplay tx uses `(numSpins, gameId, ref, userRandomWord)` and the exact cascade odds are not public in this repo.
 **Current max payout:** `333x` for Dino Dough, `100x` for Bubblegum Heist, `50x` for Geez Diggerz, and `500x` for Sushi Showdown.

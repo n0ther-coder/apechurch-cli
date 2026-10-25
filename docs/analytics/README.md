@@ -29,6 +29,8 @@ These notes belong under `docs/analytics/` when the repo has a defensible exact 
 | Hi-Lo Nebula ✔︎ | [HI_LO_NEBULA_ANALYTICS.md](./HI_LO_NEBULA_ANALYTICS.md) | The verified rank-only paytable collapses to a compact per-rank branch table with exact hit rates and branch EV. |
 | Sushi Showdown ✔︎ | [SUSHI_SHOWDOWN_ANALYTICS.md](./SUSHI_SHOWDOWN_ANALYTICS.md) | The checked-in ordered-triple matrix stays readable as a `45`-row exact per-spin distribution. |
 | Video Poker ✔︎ | [VIDEO_POKER_ANALYTICS.md](./VIDEO_POKER_ANALYTICS.md) | Exact documented final-hand/paytable surface plus jackpot formula; pre-draw policy remains strategy-dependent. |
+| Blizzard Blitz | [BLIZZARD_BLITZ_ANALYTICS.md](./BLIZZARD_BLITZ_ANALYTICS.md) | Complete visible component awards and live strip counts; full cascade/bonus odds, RTP and maximum remain unverified. |
+| Dojo Drop | [DOJO_DROP_ANALYTICS.md](./DOJO_DROP_ANALYTICS.md) | Dated live configuration, block factors and gross cap; complete outcome probabilities remain unverified. |
 | Reel Pirates | [REEL_PIRATES_ANALYTICS.md](./REEL_PIRATES_ANALYTICS.md) | Public mechanics and observed running statistics are useful, but exact odds are intentionally not claimed. |
 
 ## Selection Rule

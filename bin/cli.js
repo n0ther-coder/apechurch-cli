@@ -233,6 +233,7 @@ import { ROULETTE_BNF } from '../lib/roulette-layout.js';
 import { prepareRouletteWager } from '../lib/roulette-shuffle.js';
 import { resolveSlotsConfig } from '../lib/games/slots.js';
 import { validateDojoDropWager } from '../lib/games/dojo-drop.js';
+import { validateBlizzardBlitzOptions, validateBlizzardBlitzWager } from '../lib/games/blizzard-blitz.js';
 import {
   getGameConfigCliName,
   getGameConfigDisplayDefault,
@@ -463,6 +464,7 @@ const PLAY_STATELESS_OPTION_LINES = Object.freeze([
   '--split <count>         Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots',
   '--survive <count>       All-or-nothing survival attempts for Bear Dice and Blocks',
   '--spin <ape>            Exact APE per attempt; maximize count within the wager budget',
+  '--bonus                 Blizzard Blitz: one bonus purchase, minimum 100 APE',
   '--bet <bet>             Roulette/Baccarat bet payload; optional BET=CHIPS entries',
   '--chips <integer>     Roulette chips purchased; defaults to the sum in --bet',
   '--shuffle             Roulette: sample a structurally equivalent bet allocation',
@@ -1218,6 +1220,7 @@ function formatBetHelpAppendix() {
       '--split <count>        Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots',
       '--survive <count>      All-or-nothing survival attempts for Bear Dice and Blocks',
       '--spin <ape>           Exact APE per attempt; leave unused budget unspent',
+      '--bonus                Blizzard Blitz: one bonus purchase, minimum 100 APE',
       '--bet <bet>            Roulette or baccarat bet payload',
       '--chips <integer>     Roulette chips purchased; defaults to the sum in --bet',
       '--shuffle             Roulette: sample a structurally equivalent bet allocation',
@@ -1237,7 +1240,7 @@ function formatBetHelpAppendix() {
     ],
     bnf: [
       '<bet-command> ::= "bet" "--game" <stateless-game> "--amount" <ape> <bet-option>*',
-      '<bet-option> ::= "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spin" <spin> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
+      '<bet-option> ::= "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
       ...SIMPLE_GAME_HELP_BNF_LINES,
     ],
     examples: [
@@ -1254,6 +1257,7 @@ function formatBetHelpAppendix() {
       'Blocks accepts either --split for independent rolls or --survive for compounding rolls, never both.',
       '--spin sets exact APE per attempt: count = min(floor(budget / spin), supported contract limit); only count × spin is wagered. Fees are additional.',
       '--spin rejects zero attempts, invalid bet sizes, --split, --survive, and explicit positional attempt counts.',
+      'Blizzard Blitz: base default 10 spins, range 1-20, minimum 2.5 APE per spin. --bonus buys one five-free-spin round for the amount (minimum 100 APE; reference stake amount / 32); rejects --split, --spin and positional counts. Fees are additional.',
       `Run ${BINARY_NAME} game <name> for per-game parameter details.`,
     ],
   });
@@ -1290,7 +1294,7 @@ function formatPlayHelpAppendix() {
       '<play-positional> ::= <stateless-game> [ <ape> <token>* ] | <stateful-game> [ <stateful-head> ] [ <token> ]',
       '<stateful-head> ::= <ape> | "resume" | "status" | "clear" | "payouts" | "table" | <token>',
       '<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>',
-      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spin" <spin> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
+      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
       '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count> | "--resilient" | "--no-resilient"',
       '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
       ...SIMPLE_GAME_HELP_BNF_LINES,
@@ -1318,6 +1322,7 @@ function formatPlayHelpAppendix() {
       'Blocks accepts either --split for independent rolls or --survive for compounding rolls, never both.',
       '--spin sets exact APE per attempt: count = min(floor(budget / spin), supported contract limit); only count × spin is wagered. Fees are additional.',
       '--spin rejects zero attempts, invalid bet sizes, --split, --survive, and explicit positional attempt counts.',
+      'Blizzard Blitz: base default 10 spins, range 1-20, minimum 2.5 APE per spin. --bonus buys one five-free-spin round for the amount (minimum 100 APE; reference stake amount / 32); rejects --split, --spin and positional counts. Fees are additional.',
       'Bare `play` does not auto-run a random game; use `play --auto` or pass a game.',
       'For stateful resume/action through `play`, prefer `--game-id <id>` because `--game <name>` selects the target game.',
       `Run ${BINARY_NAME} game <name> for per-game config grammar.`,
@@ -1600,6 +1605,7 @@ function formatGameHelpAppendix() {
       '--split <count>        Independent split count used by play',
       '--survive <count>      Compounding survival count used by play',
       '--spin <ape>           Exact APE per attempt; requires --amount for the budget',
+      '--bonus                Blizzard Blitz: one bonus purchase, minimum 100 APE',
       '--picks <count>        Keno pick count used by play',
       '--bet <bet>            Roulette or Baccarat bet',
       '--chips <integer>     Roulette chips purchased; defaults to the sum in --bet',
@@ -1613,7 +1619,7 @@ function formatGameHelpAppendix() {
     ],
     bnf: [
       '<game-command> ::= "game" <game-name> [ "--paytable" <paytable-option>* ] [ "--json" ]',
-      '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--spin" <ape> | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--multiplier" <multiplier> | "--amount" <ape> | "--side" <ape>',
+      '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--spin" <ape> | "--bonus" | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--multiplier" <multiplier> | "--amount" <ape> | "--side" <ape>',
       '<game-name> ::= <stateless-game> | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
       '<stateless-game> ::= <game-key> | <game-alias>',
       ...ROULETTE_HELP_BNF_LINES,
@@ -3219,6 +3225,7 @@ function getAttemptOptionUsageError({ gameEntry = null, rawArgs = [], opts = {} 
   }
 
   try { validateSpinUsage(gameEntry, opts); } catch (error) { return error.message; }
+  try { validateBlizzardBlitzOptions(gameEntry, opts); } catch (error) { return error.message; }
 
   if (gameEntry?.type === 'blocks' && opts.split !== undefined && opts.survive !== undefined) {
     return 'Options --split and --survive cannot be used together for Blocks.';
@@ -3451,6 +3458,9 @@ function validateResolvedGameConfig(gameEntry, gameConfig = {}, { amountInput = 
   if (gameEntry.key === 'dojo-drop' && amountInput !== undefined && gameConfig.split !== undefined) {
     validateDojoDropWager(parseEther(normalizeWagerAmount(amountInput)), gameConfig.split);
   }
+  if (gameEntry.key === 'blizzard-blitz' && amountInput !== undefined && gameConfig.split !== undefined) {
+    validateBlizzardBlitzWager(parseEther(normalizeWagerAmount(amountInput)), gameConfig.split, gameConfig.bonus ?? false);
+  }
 
   if (gameEntry.type === 'keno') {
     validateNumberSelection(gameConfig.numbers, {
@@ -3632,7 +3642,7 @@ const CLASSIC_SLOT_KEYS = Object.freeze([
   'geez-diggerz',
   'sushi-showdown',
 ]);
-const SUBGAME_SLOT_KEYS = Object.freeze(['dojo-drop', 'reel-pirates']);
+const SUBGAME_SLOT_KEYS = Object.freeze(['blizzard-blitz', 'dojo-drop', 'reel-pirates']);
 
 function getGameCatalogGroupId(game) {
   if (game?.type === 'stateful') return 'stateful';
@@ -3682,7 +3692,7 @@ function formatGameListParameters(game) {
 
   for (const [field] of configEntries) {
     const cliName = getGameConfigCliName(game, field);
-    parameters.push(`--${cliName} <${cliName}>`);
+    parameters.push(game.config[field].flag ? `[--${cliName}]` : `--${cliName} <${cliName}>`);
   }
 
   return parameters.join(' ');
@@ -5699,6 +5709,7 @@ program
   .option('--split <count>', 'Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots')
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
   .option('--spin <ape>', 'Exact APE per independent attempt; maximize count within the wager budget')
+  .option('--bonus', 'Blizzard Blitz: buy one bonus round; amount is purchase cost, minimum 100 APE')
   .option('--bet <bet>', 'Roulette/Baccarat bet; Roulette supports BET=CHIPS entries')
   .option('--chips <integer>', 'Roulette chips purchased with the total wager (default: sum in --bet)')
   .option('--shuffle', 'Roulette: random equivalent with identical types, chip counts and joint win probabilities')
@@ -5770,7 +5781,7 @@ program
 
     try {
       if (opts.spin !== undefined) resolveSpinWager(gameEntry, opts.amount, opts.spin);
-      if (gameEntry?.key === 'dojo-drop' && opts.spin === undefined) {
+      if (['dojo-drop', 'blizzard-blitz'].includes(gameEntry?.key) && opts.spin === undefined) {
         const gameConfig = resolveValidationGameConfig({ fixedGame: gameEntry, opts, positionalConfig: {}, loopMode: false });
         validateResolvedGameConfig(gameEntry, gameConfig, { amountInput: opts.amount });
       }
@@ -5831,6 +5842,7 @@ program
         split: opts.split,
         survive: opts.survive,
         spin: opts.spin,
+        bonus: opts.bonus,
         bet: opts.bet,
         chips: opts.chips,
         shuffle: opts.shuffle,
@@ -5873,6 +5885,7 @@ program
   .option('--split <count>', 'Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots')
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
   .option('--spin <ape>', 'Exact APE per independent attempt; maximize count within the wager budget')
+  .option('--bonus', 'Blizzard Blitz: buy one bonus round; amount is purchase cost, minimum 100 APE')
   .option('--bet <bet>', 'Roulette/Baccarat bet; Roulette supports BET=CHIPS entries')
   .option('--chips <integer>', 'Roulette chips purchased with the total wager (default: sum in --bet)')
   .option('--shuffle', 'Roulette: random equivalent with identical types, chip counts and joint win probabilities')
@@ -5957,6 +5970,7 @@ program
       '--survive',
       '--balls',
       '--spin',
+      '--bonus',
       '--bet',
       '--chips',
       '--cover',
@@ -6019,6 +6033,7 @@ program
     const statefulDispatch = resolveStatefulPlayDispatch({ gameArg, amountArg, configArgs, opts });
     if (statefulDispatch) {
       if (opts.spin !== undefined) failPlayValidation(new Error('--spin is only for split games.'));
+      if (opts.bonus !== undefined) failPlayValidation(new Error('--bonus is only for Blizzard Blitz.'));
       if (opts.chips !== undefined || opts.shuffle) failPlayValidation(new Error('--chips and --shuffle are only for Roulette.'));
       if (opts.validateOnly) {
         try {
@@ -6162,7 +6177,7 @@ program
         if (normalizedConfigArgs[0]) positionalConfig.risk = normalizedConfigArgs[0];
         if (normalizedConfigArgs[1]) positionalConfig.balls = parseInt(normalizedConfigArgs[1]);
       } else if (fixedGame.type === 'slots') {
-        if (normalizedConfigArgs[0]) positionalConfig.spins = fixedGame.key === 'dojo-drop'
+        if (normalizedConfigArgs[0]) positionalConfig.spins = ['dojo-drop', 'blizzard-blitz'].includes(fixedGame.key)
           ? normalizedConfigArgs[0] : parseInt(normalizedConfigArgs[0]);
       } else if (fixedGame.type === 'roulette' || fixedGame.type === 'baccarat') {
         positionalConfig.bet = normalizedConfigArgs.join(',');
@@ -6280,7 +6295,7 @@ program
       }
     }
 
-    if (!opts.validateOnly && (opts.spin !== undefined || fixedGame?.type === 'roulette' || fixedGame?.key === 'dojo-drop' || opts.chips !== undefined || opts.shuffle)) {
+    if (!opts.validateOnly && (opts.spin !== undefined || fixedGame?.type === 'roulette' || ['dojo-drop', 'blizzard-blitz'].includes(fixedGame?.key) || opts.chips !== undefined || opts.shuffle)) {
       try {
         validateStatelessPlayTarget({ fixedGame, opts, positionalConfig, amountInput, loopMode });
       } catch (error) {
@@ -6732,7 +6747,7 @@ program
         const riskLabel = getGameOptionLabel(gameEntry, 'mode', gameConfig.mode, `Risk ${gameConfig.mode}`);
         gameDesc += ` (${riskLabel}, ${gameConfig.split} split)`;
       } else if (gameEntry.type === 'slots') {
-        gameDesc += ` (${gameConfig.split} split)`;
+        gameDesc += gameConfig.bonus ? ' (bonus buy)' : ` (${gameConfig.split} split)`;
       } else if (gameEntry.type === 'roulette' || gameEntry.type === 'baccarat') {
         gameDesc += ` — ${gameConfig.bet}`;
       } else if (gameEntry.type === 'apestrong') {
@@ -6828,6 +6843,7 @@ program
           grid: gameConfig.grid,
           gridMode: gameConfig.gridMode,
           mode: gameConfig.mode,
+          bonus: gameConfig.bonus,
           split: gameConfig.split
             ?? (gameEntry.type === 'plinko' ? gameConfig.balls : undefined)
             ?? (gameEntry.type === 'slots' ? gameConfig.spins : undefined)
@@ -8159,6 +8175,7 @@ program
   .option('--split <count>', 'Independent split count used by play')
   .option('--survive <count>', 'Compounding survival count used by play')
   .option('--spin <ape>', 'Exact APE per independent attempt; maximize count within the wager budget')
+  .option('--bonus', 'Blizzard Blitz: buy one bonus round; amount is purchase cost, minimum 100 APE')
   .option('--picks <count>', 'Keno pick count used by play')
   .option('--bet <bet>', 'Roulette or Baccarat bet')
   .option('--chips <integer>', 'Roulette chips purchased with the total wager (default: sum in --bet)')
@@ -8174,7 +8191,7 @@ program
     const matchedCatalogEntry = resolveCatalogGameEntry(name);
     const paytableOnlyOption = [
       ['risk', '--risk'], ['grid', '--grid'], ['split', '--split'],
-      ['survive', '--survive'], ['spin', '--spin'], ['picks', '--picks'],
+      ['survive', '--survive'], ['spin', '--spin'], ['bonus', '--bonus'], ['picks', '--picks'],
       ['bet', '--bet'], ['chips', '--chips'], ['shuffle', '--shuffle'], ['cover', '--cover'], ['range', '--range'],
       ['outRange', '--out-range'], ['multiplier', '--multiplier'],
       ['amount', '--amount'], ['side', '--side'],

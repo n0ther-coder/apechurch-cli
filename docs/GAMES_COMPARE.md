@@ -371,6 +371,9 @@ Definitions:
 
 ## Omitted Or Policy-Dependent Rows
 
+- Blizzard Blitz base sessions and bonus purchases have no verified exact RTP, profit frequency or variance. The public symbol table and reel frequencies do not establish joint cascade/bonus odds; the 4,096× chest factor is not a total-payout cap. See [analytics](analytics/BLIZZARD_BLITZ_ANALYTICS.md).
+- Dojo Drop has a dated 1,000× gross cap and readable block/bonus configuration, but no verified complete outcome distribution, exact RTP, profit frequency or variance. It cannot be ranked using its cap alone. See [analytics](analytics/DOJO_DROP_ANALYTICS.md).
+
 - Dino Dough has an exact per-spin distribution and variance in its analytics note, but this comparison has not been expanded with Dino multi-spin rows.
 - Reel Pirates has only observed running statistics in the current public source set; exact RTP and variance are not defensible without the verified settlement source or a complete stochastic surface snapshot.
 - Blackjack main-hand, Hi-Lo Nebula whole-run, Cash Dash whole-run, and Video Poker pre-draw strategy are policy/state dependent. Baccarat arbitrary main-plus-tie splits are parameter-dependent, so only documented split examples are listed.

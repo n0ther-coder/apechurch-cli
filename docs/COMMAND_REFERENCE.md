@@ -596,6 +596,7 @@ Notes:
                | "--split" <integer>
                | "--survive" <integer>
                | "--spin" <ape>
+               | "--bonus"
                | "--bet" <token>
                | "--cover" <cover>
                | "--range" <range>
@@ -623,6 +624,7 @@ Notes:
 | `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--spin <ape>` | Exact APE per independent attempt; derive the maximum valid count from the budget |
+| `--bonus` | Blizzard Blitz: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts and `--spin` |
 | `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET=CHIPS` counts |
 | `--shuffle` | Roulette: randomize selections while preserving types, chip counts, all joint win probabilities and exact payouts; bounded search fails before submission |
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
@@ -649,7 +651,7 @@ larger remainder. VRF, executor fees, and gas are additional to that wager.
 
 Amounts use exact integer wei arithmetic and accept up to 18 decimal places.
 Zero or negative amounts, malformed numbers, zero attempts, and out-of-range
-bet sizes fail with an error. Dojo Drop and Reel Pirates require at least
+bet sizes fail with an error. Blizzard Blitz, Dojo Drop and Reel Pirates require at least
 2.5 APE per attempt. `--spin` cannot be combined with `--split`, `--survive`, or
 explicit positional attempt counts; positional risk and number selections
 remain valid. Blocks uses independent rolls with `--spin`.
@@ -659,7 +661,7 @@ lower of that value and the supported registry limit, and requires successful
 contract gas estimation for the complete wager and fees. An unavailable limit
 or failed preflight stops the command without submitting a transaction.
 The registry limits are Blocks 5, Jungle Plinko 100, Cosmic Plinko 30,
-Primes and Speed Keno 20, and slots 15. The verified older split contracts
+Primes and Speed Keno 20, Blizzard Blitz 20, and other slots 15. The verified older split contracts
 expose no fixed upper wager-size getter; remaining live conditions are checked
 by preflight. Limits may change between simulation and inclusion.
 
@@ -685,6 +687,7 @@ For Blocks, `--split 1-5` divides the wager across independent rolls and sums th
                           | "--split" <integer>
                           | "--survive" <integer>
                           | "--spin" <ape>
+                          | "--bonus"
                           | "--bet" <token>
                           | "--cover" <cover>
                           | "--range" <range>
@@ -759,6 +762,7 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--spin <ape>` | Exact APE per independent attempt; derive the maximum valid count from the budget |
+| `--bonus` | Blizzard Blitz: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts and `--spin` |
 | `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET=CHIPS` counts |
 | `--shuffle` | Roulette: randomize selections while preserving types, chip counts, all joint win probabilities and exact payouts; bounded search fails before submission |
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
@@ -955,6 +959,7 @@ Reference columns stay hidden in terminal tables unless `--url` or `--ids` is pa
                        | "--split" <integer>
                        | "--survive" <integer>
                        | "--spin" <ape>
+                       | "--bonus"
                        | "--picks" <integer>
                        | "--bet" <token>
                        | "--cover" <integer>
@@ -991,6 +996,19 @@ JSON multipliers are decimal strings; repeating ratios use up to 18 fractional d
 
 Fixed `play` defaults are reused. If a required paytable parameter has no fixed default, the command fails and names the missing option. Roulette and Baccarat require `--bet` and `--amount`: the wager determines exact wei-level payouts, including Roulette allocations and Baccarat's Banker rounding. Roulette paytables accept the same optional `--chips`, `--shuffle`, and `BET=CHIPS` entries as play; see [all Roulette selectors and geometry](GAMES_REFERENCE.md#roulette-). Inside groups expand to merged native straight bets, with group shares rounded down to wei. Shuffle preserves all joint win probabilities and the exact payout distribution; preview and later play are independent samples. Chip value is total wager divided by purchased chips, defaulting to the sum in the bet list. Unallocated chips and division dust remain in the multiplier denominator; count mismatches follow the same warning/error rules as play. Video Poker requires `--amount` because the maximum bet enables its progressive jackpot. A split greater than one suppresses payout enumeration and reports only the overall bounds. Where wager rounding affects those bounds, `--amount` is required and included among the resolved parameters. A static single-attempt paytable is listed when the repository can enumerate it, including for stateful games with fixed payouts. The `400 APE` Video Poker jackpot is dynamic, so that configuration reports bounds only. Dynamic or insufficiently verified outcome spaces also report bounds only, and an unknowable public bound is represented by `null` rather than an invented value.
 
+Blizzard Blitz accepts `play blizzard <total-APE> [<split>]`, `--split`, or
+`--spin <APE>` for base play (1–20 paid spins, default 10, at least 2.5 APE
+per spin). `--bonus` buys one bonus round with five free spins for the full
+amount, at least 100 APE. It rejects `--split`, `--spin` and positional
+counts. The bonus reference stake is amount / 32; gross payout ratios and
+net PnL use the full purchase cost. `bet --game blizzard` accepts the same
+named options; `game blizzard --paytable [--bonus]` exposes component symbol
+awards separately from the unknown overall maximum and full distribution.
+All normal `play` loop/stop/bet-strategy, retry, timeout, JSON and expert
+controls apply. Live VRF/executor costs and receipt gas remain separate.
+See [contract evidence](verification/BLIZZARD_BLITZ_CONTRACT.md) and
+[analytics](analytics/BLIZZARD_BLITZ_ANALYTICS.md).
+
 Dojo Drop accepts `play dojo-drop <total-APE> [<split>]`, `--split`, and the
 `--spin <APE>` alternative, with 1–15 paid spins (default 15 for count
 mode). The total must cover at least 2.5 APE per paid spin; the default
@@ -1000,7 +1018,7 @@ before wallet access. Fees are additional. Its paytable reports a dated
 probabilities or theoretical RTP. Settled JSON includes `spin_payouts_wei`,
 `spin_details`, bonus indexes and chest/cap masks when the optional on-chain
 replay fetch succeeds. [Contract notes](verification/DOJO_DROP_CONTRACT.md)
-explain the getter layouts and limits.
+explain the getter layouts and limits. See also [Dojo Drop analytics](analytics/DOJO_DROP_ANALYTICS.md).
 
 The public source and coverage for every game's payout values are listed in [PAYTABLE_SOURCES.md](./PAYTABLE_SOURCES.md).
 

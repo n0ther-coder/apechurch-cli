@@ -46,6 +46,31 @@ Contains:
 
 ---
 
+## Required documentation for every new game
+
+Provide all appropriate options for the game category, strict validation before
+wallet access, exhaustive help and BNF, and examples for every supported mode.
+Check `play`, `bet`, `game --paytable`, exact-stake/count options, loops, stop
+conditions, retries, fees, settlement, pending recovery and wallet history.
+Make unsupported category/mode combinations explicit errors.
+
+Update these documents together, even when only a limitation can be established:
+
+- `docs/ABI_VERIFICATION.md`
+- `docs/analytics/<GAME>_ANALYTICS.md` and its folder index
+- `docs/GAMES_COMPARE.md`
+- `docs/GAMES_PAYOUTS_VS_ODDS.md`
+- `docs/GAMES_REFERENCE.md`
+- `docs/PAYTABLE_SOURCES.md`
+- `docs/verification/<GAME>_CONTRACT.md`
+
+Record public source links, snapshot blocks/dates, interface/fee evidence and
+unresolved questions. Distinguish component awards, total gross payout caps,
+exact probabilities, empirical running returns and net PnL after costs. Missing
+exact data must be documented as unknown rather than filled with an estimate.
+Use synthetic examples and relative repository links. Reconcile README,
+SKILL, command reference, features and catalog counts with the registry.
+
 ## Step-by-Step: Adding a New Game
 
 ### 1. Add to Registry (`registry.js`)

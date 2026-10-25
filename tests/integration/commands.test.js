@@ -1116,6 +1116,7 @@ describe('CLI Commands Integration Tests', () => {
         'Sushi Showdown ✔︎',
       ]);
       assertSectionOrder('Slot Machines With Sub-Game', [
+        'Blizzard Blitz',
         'Dojo Drop',
         'Reel Pirates',
       ]);
@@ -1201,6 +1202,7 @@ describe('CLI Commands Integration Tests', () => {
           'dino-dough',
           'geez-diggerz',
           'sushi-showdown',
+          'blizzard-blitz',
           'dojo-drop',
           'reel-pirates',
         ],
@@ -1230,7 +1232,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Survive Games: bear-dice | blocks'));
       assert.ok(stdout.includes('Split Bet Games: cosmic-plinko | jungle-plinko | primes | speed-keno'));
       assert.ok(stdout.includes('Classic Slot Machines: bubblegum-heist | dino-dough | geez-diggerz | sushi-showdown'));
-      assert.ok(stdout.includes('Slot Machines With Sub-Game: dojo-drop | reel-pirates'));
+      assert.ok(stdout.includes('Slot Machines With Sub-Game: blizzard-blitz | dojo-drop | reel-pirates'));
     });
 
     it('returns the full alphabetized available catalog in JSON when the name is invalid', () => {
@@ -1242,6 +1244,7 @@ describe('CLI Commands Integration Tests', () => {
         'baccarat',
         'bear-dice',
         'blackjack',
+        'blizzard-blitz',
         'blocks',
         'bubblegum-heist',
         'cash-dash',
