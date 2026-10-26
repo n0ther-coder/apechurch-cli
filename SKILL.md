@@ -216,6 +216,7 @@ Sync and cache behavior:
 | Bubblegum Heist ✔︎ | `play bubblegum-heist 10 10` | Slots | `--split 1-15` |
 | Geez Diggerz ✔︎ | `play geez-diggerz 10 10` | Slots | `--split 1-15` |
 | Sushi Showdown ✔︎ | `play sushi-showdown 10 10` | Slots | `--split 1-15` |
+| Gimboz of the Galaxy | `play galaxy 30 --split 10` or `play galaxy 100 --bonus` | Warp cascade slots with bonus buy | Base 1–10 spins, default 10, ≥ 3 APE per spin; bonus ≥ 100 APE |
 | Blizzard Blitz | `play blizzard 25 --split 10` or `play blizzard 100 --bonus` | Cascade slots with bonus buy | Base 1–20 spins, default 10, ≥ 2.5 APE per spin; bonus ≥ 100 APE |
 | Dojo Drop | `play dojo-drop 25 --split 10` | Block destruction slots | `--split 1-15`; minimum 2.5 APE per spin |
 | Reel Pirates | `play reel-pirates 20` | Cascade Slots | `--split 1-15` |
@@ -437,6 +438,8 @@ retains `--survive` steps inside each independent game. Dynamic bet
 strategies and stateful games are incompatible. Offline validation checks
 both modes; native paytables accept the option with an explicit budget.
 See the [command reference](docs/COMMAND_REFERENCE.md#bet).
+
+**Gimboz of the Galaxy:** `play gimboz-galaxy <total-APE> [--split <1-10> | --spin <APE> | --bet-split <APE> | --bonus]`; aliases `gimbozgalaxy`, `galaxy`. Base default: 10 spins, minimum 3 APE each. Exact-stake mode leaves unused budget unspent and conflicts with explicit counts. Bonus mode buys one round for the full amount (minimum 100 APE, reference stake amount ⁄ 17), starts with three free spins and can extend once to six. It rejects counts and exact-stake options. Fees use live `getVRFFee(550000 + 200000 × encoded count)` plus `EXECUTOR_FEE() × encoded count`; bonus encodes one purchase. Loop, stops and bet strategies apply to full purchase costs. Board Wipes continue the same spin; Warp thresholds are 100 base and 300 bonus. Settlement and optional offsets/free-spin counts are read from the contract. Component awards are separate from unverified whole-game maxima, probabilities and RTP. See [contract](docs/verification/GIMBOZ_GALAXY_CONTRACT.md) and [analytics](docs/analytics/GIMBOZ_GALAXY_ANALYTICS.md).
 
 **Blizzard Blitz:** `play blizzard <total-APE> [--split <1-20> | --spin <APE> | --bonus]`. Base default: 10 paid spins. Exact-stake mode leaves the unused budget unspent. Bonus mode buys one round with five free spins: amount is the full purchase cost (minimum 100 APE), reference stake amount / 32; explicit counts and `--spin` conflict with `--bonus`. Live fees: `getVRFFee(550000 + 200000 × encoded spins)` plus `EXECUTOR_FEE() × encoded spins`, with one encoded spin for bonus purchases and separate actual gas. Standard loop, stop and bet-strategy controls apply to purchase costs. Optional JSON enrichment returns contract reel offsets; no exact RTP, full distribution or overall maximum is asserted. The paytable separates symbol awards from whole-game bounds. See [contract](docs/verification/BLIZZARD_BLITZ_CONTRACT.md) and [analytics](docs/analytics/BLIZZARD_BLITZ_ANALYTICS.md).
 

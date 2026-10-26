@@ -4,7 +4,7 @@
 
 Compact syntax and comparison notes for all Ape Church CLI games.
 
-The CLI currently implements 24 playable games. Of those, 21 are ABI-verified and marked with `✔︎`; `Blizzard Blitz`, `Dojo Drop` and `Reel Pirates` are playable but not ABI-verified. Wallet history tracks 27 distinct Ape Church games by also including history-only coverage for `Gimboz of the Galaxy`, `Rico's Revenge`, and `Cult Quest`.
+The CLI currently implements 25 playable games. Of those, 21 are ABI-verified and marked with `✔︎`; `Blizzard Blitz`, `Dojo Drop`, `Gimboz of the Galaxy` and `Reel Pirates` are playable but not ABI-verified. Wallet history tracks 27 distinct Ape Church games by also including history-only coverage for `Rico's Revenge` and `Cult Quest`.
 
 Treat published running RTP values as observed snapshots, not guaranteed long-run returns. For ABI-backed tuple layouts, payout matrices, and maintainer-facing verification evidence, follow the per-game links in `docs/verification/`. For compact exact outcome distributions meant to help choose variants, see [docs/analytics/README.md](./analytics/README.md).
 
@@ -22,6 +22,7 @@ Ordering: alphabetical by game title.
 | Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` | - |
 | Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --survive Z` | `bear`, `dice` |
 | Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` | `bj` |
+| Gimboz of the Galaxy | `play gimboz-galaxy <amt> [<split>]` | `--game gimboz-galaxy --amount X [--split Y \| --spin Z \| --bet-split Z \| --bonus]` | `gimbozgalaxy`, `galaxy` |
 | Blizzard Blitz | `play blizzard-blitz <amt> [<split>]` | `--game blizzard-blitz --amount X [--split Y \| --spin Z \| --bonus]` | `blizzardblitz`, `blizzard` |
 | Blocks ✔︎ | `play blocks <amt> <risk> <survive>` | `--game blocks --amount X --risk Y --grid 2x2\|3x3\|4x4 [--split Z \| --survive Z]` | - |
 | Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <split>` | `--game bubblegum-heist --amount X --split Y` | `bubblegumheist`, `bubblegum`, `heist` |
@@ -365,6 +366,55 @@ Verified ordered `3`-reel slot with `6` live symbol indexes per reel and `1-15` 
 - Exact RTP: **`97.89751366817333%`** per spin.
 - Max payout: `333x`.
 - Operational note: much deeper ordered paytable than the public crop suggests; use the analytics note for the full ordered triple matrix.
+
+## Gimboz of the Galaxy
+
+**Type:** Slots / Count-anywhere Warp cascades and bonus rounds
+**Contract:** `0x1AC78E6a153DeEd1b8dB67b9813991651D53E3a6`
+**Aliases:** `gimbozgalaxy`, `galaxy`
+**ABI verified:** `false`
+**Evidence:** [contract and tutorial discrepancies](verification/GIMBOZ_GALAXY_CONTRACT.md),
+[component paytable, reel frequencies and analytics](analytics/GIMBOZ_GALAXY_ANALYTICS.md).
+
+The base board is 6 × 5; seven ordinary symbols anywhere can pay and
+cascade. Four remaining Black Holes wipe/refill within the same spin.
+Base Warp resets per purchased spin; reaching 100 triggers three free spins
+on 8 × 5. The bonus meter accumulates to 300 for one +3 extension, at most
+six free spins. The wipe charges only ordinary tiles, excluding Black Holes.
+
+```bnf
+<game> ::= "gimboz-galaxy" | "gimbozgalaxy" | "galaxy"
+<base> ::= "play" <game> <ape> [ <split> | "--split" <split> | "--spin" <ape> | "--bet-split" <ape> ] <galaxy-play-option>*
+<bonus> ::= "play" <game> <ape> "--bonus" <galaxy-play-option>*
+<galaxy-play-option> ::= <play-shared-option> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>
+<split> ::= <integer> ; 1 ≤ value ≤ 10; default 10
+<ape> ::= <positive-decimal> ; at most 18 decimal places
+; base wager ≥ 3 APE × split; duplicate named/positional counts must agree
+; exact stake ≥ 3 APE; maximizes count ≤ 10 within budget; remainder unspent
+; --spin and --bet-split conflict with each other and explicit counts
+; --bonus: full purchase ≥ 100 APE, encoded count 1, reference amount ⁄ 17
+; --bonus rejects counts and exact-stake options; fees and gas additional
+```
+
+`bet --game galaxy --amount <ape>` accepts the same named game options.
+`game galaxy --paytable [--amount <ape>]` accepts `--split`, `--spin`,
+`--bet-split` or `--bonus`, and optional `--json`. Standard loop, stop,
+bet-strategy, bankroll, retry, timeout and expert controls use the
+[shared command grammar](COMMAND_REFERENCE.md).
+
+```bash
+apechurch-cli play galaxy 30 --split 10 --validate-only --json
+apechurch-cli play gimbozgalaxy 25 --spin 4 --validate-only --json
+apechurch-cli play gimboz-galaxy 170 --bonus --validate-only --json
+apechurch-cli game galaxy --paytable --bonus --json
+```
+
+A synthetic 170 APE bonus purchase has a 10 APE reference stake; the full
+170 APE remains the wager for payout ratios and PnL. Fees use
+`getVRFFee(550000 + 200000 × encoded count)` plus
+`EXECUTOR_FEE() × encoded count`, with receipt gas separate. Optional replay
+returns exact offsets and actual bonus-spin counts. No numerical exact RTP,
+complete outcome distribution or overall maximum is claimed.
 
 ## Blizzard Blitz
 

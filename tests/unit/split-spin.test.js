@@ -15,7 +15,7 @@ describe('Exact wager per split attempt', () => {
   it('leaves the remainder unspent and caps at each supported count', () => {
     const expected = { blocks: 5, 'jungle-plinko': 100, 'cosmic-plinko': 30,
       primes: 20, 'speed-keno': 20, 'dino-dough': 15, 'bubblegum-heist': 15,
-      'geez-diggerz': 15, 'sushi-showdown': 15, 'dojo-drop': 15, 'reel-pirates': 15, 'blizzard-blitz': 20 };
+      'geez-diggerz': 15, 'sushi-showdown': 15, 'dojo-drop': 15, 'reel-pirates': 15, 'blizzard-blitz': 20, 'gimboz-galaxy': 10 };
     for (const [key, maximum] of Object.entries(expected)) {
       assert.deepEqual(resolveSpinWager(resolveGame(key), '23', '4'), {
         split: 5, spin: '4', amount: '20', unspent: '3',
@@ -130,7 +130,7 @@ describe('Exact wager per split attempt', () => {
     };
     try {
       for (const key of ['blocks', 'jungle-plinko', 'cosmic-plinko', 'primes', 'speed-keno',
-        'dino-dough', 'bubblegum-heist', 'geez-diggerz', 'sushi-showdown', 'dojo-drop', 'reel-pirates', 'blizzard-blitz']) {
+        'dino-dough', 'bubblegum-heist', 'geez-diggerz', 'sushi-showdown', 'dojo-drop', 'reel-pirates', 'blizzard-blitz', 'gimboz-galaxy']) {
         for (const flag of (['primes', 'speed-keno'].includes(key) ? ['--bet-split'] : ['--spin', '--bet-split'])) {
           for (const args of [['play', key, '23', flag, '4', '--json'],
             ['bet', '--game', key, '--amount', '23', flag, '4']]) {
@@ -141,6 +141,14 @@ describe('Exact wager per split attempt', () => {
             if (key === 'blocks') assert.equal(result.config.compounding, false);
           }
         }
+      }
+      // Resolved bonus count 1 must reach the router as a purchase, not an
+      // explicit CLI count conflicting with --bonus.
+      for (const args of [['play', 'galaxy', '100', '--bonus', '--json'],
+        ['bet', '--game', 'galaxy', '--amount', '100', '--bonus']]) {
+        const bonus = run(args, { balance: '200' });
+        assert.equal(bonus.wager, parseEther('100').toString());
+        assert.deepEqual(bonus.config, { split: 1, bonus: true });
       }
       // A loop budget capped to the available balance must be used for sizing.
       const loop = run(['play', 'dino-dough', '23', '--spin', '4', '--loop', '--max-games', '1', '--json'],

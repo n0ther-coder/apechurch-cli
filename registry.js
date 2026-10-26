@@ -703,6 +703,46 @@ export const GAME_REGISTRY = [
   },
 
   // ===========================================================================
+  // GIMBOZ OF THE GALAXY - Warp Drive cascades and bonus purchases
+  // ===========================================================================
+  {
+    key: 'gimboz-galaxy',
+    name: 'Gimboz of the Galaxy',
+    aliases: ['gimbozgalaxy', 'galaxy'],
+    slug: 'gimboz-of-the-galaxy',
+    type: 'slots',
+    description: '6x5 count-anywhere cascade slot: seven matching ordinary symbols pay. Four Black Holes wipe and refill the board within the same spin. Warp charge 100 triggers three free spins on an 8x5 grid; bonus charge 300 grants one +3 retrigger, at most six free spins. Supports a direct bonus buy. Contract settlement; exact RTP and overall maximum are unverified.',
+    contract: GIMBOZ_GALAXY_CONTRACT,
+    abiVerified: false,
+    config: {
+      spins: {
+        min: 1, max: 10, default: 10, cliName: 'split',
+        description: 'Purchased base spins sharing the total wager; minimum 3 APE per spin. Cascades, board refills and awarded bonus spins are included in settlement. --spin sets exact APE per purchased spin within the amount budget, leaving the remainder unspent.',
+        bnf: [
+          '<galaxy-game> ::= "gimboz-galaxy" | "gimbozgalaxy" | "galaxy"',
+          '<galaxy-play> ::= "play" <galaxy-game> <ape> [ <split> | "--split" <split> | "--spin" <ape> | "--bet-split" <ape> | "--bonus" ] <galaxy-play-option>*',
+          '<galaxy-bet> ::= "bet" "--game" <galaxy-game> "--amount" <ape> [ "--split" <split> | "--spin" <ape> | "--bet-split" <ape> | "--bonus" ] <bet-option>*',
+          '<galaxy-table> ::= "game" <galaxy-game> "--paytable" [ "--amount" <ape> ] [ "--split" <split> | "--spin" <ape> | "--bet-split" <ape> | "--bonus" ] [ "--json" ]',
+          '<galaxy-play-option> ::= <play-shared-option> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
+          '<split> ::= <integer> ; 1 <= split <= 10; default 10',
+          '<ape> ::= <positive-decimal> ; at most 18 decimal places',
+          '; base amount >= 3 APE × split; --spin and --bet-split require an amount budget',
+          '; exact stake >= 3 APE; count = min(floor(budget / stake), 10); unused budget is not wagered',
+          '; exact-stake options conflict with each other and explicit counts; duplicate positional/named counts must agree',
+          '; loop, stop limits, bet strategies, timeout, retry, JSON, validation, and entropy/referral controls use the shared command grammar; see play --help and bet --help',
+        ],
+      },
+      bonus: {
+        cliName: 'bonus', flag: true, default: false,
+        description: 'Buy one bonus round: amount is the full purchase cost, minimum 100 APE; reference spin stake is amount / 17. Starts with three free spins and can retrigger once for three more. Rejects explicit counts, --spin and --bet-split. Fees are additional; loop repeats full purchases.',
+        bnf: ['<bonus-option> ::= "--bonus"', '; one purchase, encoded count 1; amount >= 100 APE; 3 initial free spins, at most 6; default: base play'],
+      },
+      gameDataOrder: 'spins-first-uint8-bonus', minBetPerSpinApe: 3,
+    },
+    vrf: { type: 'slots-dynamic', baseGas: 550000, perUnitGas: 200000, executorFee: 'per-spin' },
+  },
+
+  // ===========================================================================
   // DOJO DROP - Blades, persistent bonus drops, and column chests
   // ===========================================================================
   {

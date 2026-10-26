@@ -371,6 +371,7 @@ Definitions:
 
 ## Omitted Or Policy-Dependent Rows
 
+- Gimboz of the Galaxy base sessions and bonus purchases have no verified exact RTP, loss/draw/profit frequencies or variance. Matching 100 historical payouts and all public reel strips does not establish complete probabilities or an attainable maximum. See [analytics](analytics/GIMBOZ_GALAXY_ANALYTICS.md).
 - Blizzard Blitz base sessions and bonus purchases have no verified exact RTP, profit frequency or variance. The public symbol table and reel frequencies do not establish joint cascade/bonus odds; the 4,096× chest factor is not a total-payout cap. See [analytics](analytics/BLIZZARD_BLITZ_ANALYTICS.md).
 - Dojo Drop has a dated 1,000× gross cap and readable block/bonus configuration, but no verified complete outcome distribution, exact RTP, profit frequency or variance. It cannot be ranked using its cap alone. See [analytics](analytics/DOJO_DROP_ANALYTICS.md).
 

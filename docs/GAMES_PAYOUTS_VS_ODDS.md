@@ -573,6 +573,7 @@ The following supported games are not included because the local repo does not c
 
 | Game | Reason |
 |------|--------|
+| Gimboz of the Galaxy | Component awards and replay agreement do not establish full base/bonus distributions, exact profit frequency, RTP or overall maximum; see [analytics](analytics/GIMBOZ_GALAXY_ANALYTICS.md). |
 | Blizzard Blitz | Base and bonus-buy distributions, exact profit frequency and RTP are unverified. Component awards and reel frequencies do not establish full outcomes or a maximum; see [analytics](analytics/BLIZZARD_BLITZ_ANALYTICS.md). |
 | Dojo Drop | The dated 1,000× cap is a bound, not a profit probability or exact RTP. The full stochastic model is unverified; see [analytics](analytics/DOJO_DROP_ANALYTICS.md). |
 | Blackjack ✔︎ | Main game is statistical/policy-dependent under the live H17 rule surface where the dealer hits soft 17, and side-bet win-rate surfaces are not represented as reusable exact mode rows. |

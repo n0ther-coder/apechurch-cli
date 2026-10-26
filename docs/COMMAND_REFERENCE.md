@@ -626,7 +626,7 @@ Notes:
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--bet-split <ape>` | Exact APE per independent attempt; native batching or a finite single-game `play --loop` |
 | `--spin <ape>` | Alias for `--bet-split` only in slots, Plinko, and Blocks; rejected for Primes and Speed Keno |
-| `--bonus` | Blizzard Blitz: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts, `--bet-split`, and `--spin` |
+| `--bonus` | Blizzard Blitz / Gimboz Galaxy: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts, `--bet-split`, and `--spin` |
 | `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET=CHIPS` counts |
 | `--shuffle` | Roulette: randomize selections while preserving types, chip counts, all joint win probabilities and exact payouts; bounded search fails before submission |
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
@@ -692,7 +692,7 @@ the next wager. Stateful games do not accept `--bet-split`.
 Amounts use integer wei arithmetic and accept up to 18 decimal places.
 Zero/negative amounts, malformed numbers, zero attempts, and out-of-range
 bet sizes fail before wallet access. Blizzard Blitz, Dojo Drop, and Reel
-Pirates require at least 2.5 APE per attempt. Native `--bet-split`/`--spin`
+Pirates require at least 2.5 APE per attempt. Gimboz Galaxy requires 3 APE. Native `--bet-split`/`--spin`
 cannot be combined with `--split`, `--survive`, `--bonus`, or positional
 attempt counts; risk and number selections remain valid. Blocks uses
 independent rolls in native batch mode. With explicit `--survive`, it uses
@@ -703,7 +703,7 @@ of that value and the supported registry limit. Every exact-stake game
 requires successful contract gas estimation before submission. An
 unavailable native limit or failed preflight stops submission. Registry
 limits are Blocks 5, Jungle Plinko 100, Cosmic Plinko 30, Primes and Speed
-Keno 20, Blizzard Blitz 20, and other slots 15. Live conditions may change
+Keno 20, Blizzard Blitz 20, Gimboz Galaxy 10, and other slots 15. Live conditions may change
 between simulation and inclusion.
 
 `play ... --validate-only` validates both modes without RPC or wallet
@@ -813,7 +813,7 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--bet-split <ape>` | Exact APE per independent attempt; native batching or a finite single-game `play --loop` |
 | `--spin <ape>` | Alias for `--bet-split` only in slots, Plinko, and Blocks; rejected for Primes and Speed Keno |
-| `--bonus` | Blizzard Blitz: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts, `--bet-split`, and `--spin` |
+| `--bonus` | Blizzard Blitz / Gimboz Galaxy: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts, `--bet-split`, and `--spin` |
 | `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET=CHIPS` counts |
 | `--shuffle` | Roulette: randomize selections while preserving types, chip counts, all joint win probabilities and exact payouts; bounded search fails before submission |
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
@@ -1048,6 +1048,20 @@ JSON multipliers are decimal strings; repeating ratios use up to 18 fractional d
 ```
 
 Fixed `play` defaults are reused. If a required paytable parameter has no fixed default, the command fails and names the missing option. Roulette and Baccarat require `--bet` and `--amount`: the wager determines exact wei-level payouts, including Roulette allocations and Baccarat's Banker rounding. Roulette paytables accept the same optional `--chips`, `--shuffle`, and `BET=CHIPS` entries as play; see [all Roulette selectors and geometry](GAMES_REFERENCE.md#roulette-). Inside groups expand to merged native straight bets, with group shares rounded down to wei. Shuffle preserves all joint win probabilities and the exact payout distribution; preview and later play are independent samples. Chip value is total wager divided by purchased chips, defaulting to the sum in the bet list. Unallocated chips and division dust remain in the multiplier denominator; count mismatches follow the same warning/error rules as play. Video Poker requires `--amount` because the maximum bet enables its progressive jackpot. A split greater than one suppresses payout enumeration and reports only the overall bounds. Where wager rounding affects those bounds, `--amount` is required and included among the resolved parameters. A static single-attempt paytable is listed when the repository can enumerate it, including for stateful games with fixed payouts. The `400 APE` Video Poker jackpot is dynamic, so that configuration reports bounds only. Dynamic or insufficiently verified outcome spaces also report bounds only, and an unknowable public bound is represented by `null` rather than an invented value.
+
+Gimboz of the Galaxy accepts `play gimboz-galaxy <total-APE> [<split>]`,
+`--split`, `--spin` or `--bet-split` for base play (1–10 spins, default 10,
+minimum 3 APE per spin); aliases `gimbozgalaxy`, `galaxy`. Exact-stake mode
+leaves unused budget unspent. `--bonus` buys one round for the full amount,
+minimum 100 APE, with three initial free spins and one possible +3 extension.
+The reference stake is amount ⁄ 17; gross ratios and net PnL use the full
+purchase cost. It rejects explicit counts, `--spin` and `--bet-split`.
+`bet --game galaxy` accepts the same named options; `game galaxy --paytable`
+accepts these options and exposes component awards, with the full-game
+maximum and complete distribution left unknown. All shared loop, stops,
+bet-strategy, bankroll, retry, timeout, JSON and expert controls apply.
+See [contract and complete game BNF](verification/GIMBOZ_GALAXY_CONTRACT.md)
+and [analytics](analytics/GIMBOZ_GALAXY_ANALYTICS.md).
 
 Blizzard Blitz accepts `play blizzard <total-APE> [<split>]`, `--split`, or
 `--spin <APE>` for base play (1–20 paid spins, default 10, at least 2.5 APE

@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [32.1.0]
+
+### Added
+- Gimboz of the Galaxy base spins and direct bonus purchases, with aliases,
+  exact-stake budgets, strict validation, live VRF/executor fees, contract
+  settlement and optional reel offsets with actual bonus-spin counts.
+- Full game BNF/help, component paytable, per-reel symbol frequencies and
+  public contract evidence, including historical replay reconciliation and
+  the differences between the tutorial and Warp/Board Wipe behavior.
+- Existing history variants now support getter recovery with the game's
+  complete tuple. Exact RTP, outcome odds and overall maximum remain unverified.
+
 ## [31.1.0]
 
 ### Added

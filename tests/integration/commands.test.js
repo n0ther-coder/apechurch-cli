@@ -643,7 +643,7 @@ describe('CLI Commands Integration Tests', () => {
 
     it('resolves exact stakes across every split game without wallet access', () => {
       for (const game of ['blocks', 'jungle-plinko', 'cosmic-plinko', 'primes', 'speed-keno',
-        'dino-dough', 'bubblegum-heist', 'geez-diggerz', 'sushi-showdown', 'dojo-drop', 'reel-pirates', 'blizzard-blitz']) {
+        'dino-dough', 'bubblegum-heist', 'geez-diggerz', 'sushi-showdown', 'dojo-drop', 'reel-pirates', 'blizzard-blitz', 'gimboz-galaxy']) {
         const flag = ['primes', 'speed-keno'].includes(game) ? '--bet-split' : '--spin';
         const result = cli(`play ${game} 23 ${flag} 4 --validate-only --json`);
         assert.strictEqual(result.code, 0, result.stdout);
@@ -1270,6 +1270,7 @@ describe('CLI Commands Integration Tests', () => {
           'sushi-showdown',
           'blizzard-blitz',
           'dojo-drop',
+          'gimboz-galaxy',
           'reel-pirates',
         ],
         'Games JSON should be ordered by catalog group and alphabetically inside each group'
@@ -1298,7 +1299,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Survive Games: bear-dice | blocks'));
       assert.ok(stdout.includes('Split Bet Games: cosmic-plinko | jungle-plinko | primes | speed-keno'));
       assert.ok(stdout.includes('Classic Slot Machines: bubblegum-heist | dino-dough | geez-diggerz | sushi-showdown'));
-      assert.ok(stdout.includes('Slot Machines With Sub-Game: blizzard-blitz | dojo-drop | reel-pirates'));
+      assert.ok(stdout.includes('Slot Machines With Sub-Game: blizzard-blitz | dojo-drop | gimboz-galaxy | reel-pirates'));
     });
 
     it('returns the full alphabetized available catalog in JSON when the name is invalid', () => {
@@ -1318,6 +1319,7 @@ describe('CLI Commands Integration Tests', () => {
         'dino-dough',
         'dojo-drop',
         'geez-diggerz',
+        'gimboz-galaxy',
         'gimboz-smash',
         'glyde-or-crash',
         'hi-lo-nebula',

@@ -104,7 +104,7 @@ Only after the checks above are complete:
 
 ## Current Backlog
 
-As of **2026-10-25**, `Blizzard Blitz`, `Dojo Drop` and `Reel Pirates` are supported as playable commands but remain in the ABI-verification backlog because their live contracts lack verified Solidity source.
+As of **2026-10-26**, `Blizzard Blitz`, `Dojo Drop`, `Gimboz of the Galaxy` and `Reel Pirates` are supported as playable commands but remain in the ABI-verification backlog because their live contracts lack verified Solidity source.
 
 Ordering: alphabetical by game title.
 
@@ -116,6 +116,7 @@ Supported but not promoted:
 |------|------|------------------|
 | Blizzard Blitz | [BLIZZARD_BLITZ_CONTRACT.md](verification/BLIZZARD_BLITZ_CONTRACT.md) | Verified Solidity source and complete RNG, cascade, scatter, chest, rounding and cap behavior; live getters and synthetic RPC simulation corroborate only the integration interface. |
 | Dojo Drop | `docs/verification/DOJO_DROP_CONTRACT.md` | Verified Solidity source and exact RNG, damage, bonus, rounding and payout model; frontend ABI is corroborated by read calls and RPC simulation only; [analytics limitations](analytics/DOJO_DROP_ANALYTICS.md) and config reread at block `52978021` |
+| Gimboz of the Galaxy | [GIMBOZ_GALAXY_CONTRACT.md](verification/GIMBOZ_GALAXY_CONTRACT.md) | Reproduced source/build and complete RNG/economic proof; getters, bytecode interpretation and 100 historical replays corroborate integration without establishing exact RTP. [Analytics](analytics/GIMBOZ_GALAXY_ANALYTICS.md). |
 | Reel Pirates | `docs/verification/REEL_PIRATES_CONTRACT.md` | Verified Solidity source or enough live getter/source evidence to prove the cascade outcome model and exact odds |
 
 Every promoted game now has a dedicated verification note under `docs/verification/`:

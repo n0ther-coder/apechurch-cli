@@ -94,7 +94,7 @@ describe('Finite exact-stake single-game loops', () => {
     };
     try {
       for (const [game, extra] of [['roulette', ['--bet', 'RED=3,BLACK=1']], ['baccarat', ['--bet', '3.8 BANKER 0.2 TIE']],
-        ['ape-strong', []], ['keno', []], ['monkey-match', []], ['gimboz-smash', []], ['glyde-or-crash', []],
+        ['ape-strong', []], ['keno', []], ['monkey-match', []], ['gimboz-smash', []], ['glyde-or-crash', ['--multiplier', '2x']],
         ['bear-dice', ['--survive', '3']]]) {
         const result = run(game, extra);
         assert.equal(result.completed_games, 5, JSON.stringify(result));
