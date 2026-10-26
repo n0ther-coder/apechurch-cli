@@ -949,18 +949,35 @@ export const GAME_REGISTRY = [
   },
 ];
 
-// Shared exact-stake option for independent split games.
+// Exact stakes use native batching where available, otherwise a finite play loop.
 for (const game of GAME_REGISTRY) {
   if (['blocks', 'plinko', 'primes', 'speedkeno', 'slots'].includes(game.type)) {
-    game.config.spin = {
-      cliName: 'spin',
+    game.config.betSplit = {
+      cliName: 'bet-split',
       description: 'Exact APE per independent attempt. Maximize count within the wager budget and contract limits; leave the remainder unspent. Cannot be combined with --split, --survive, or positional counts. Fees are additional.',
       bnf: [
-        '<spin> ::= <ape>',
+        '<bet-split> ::= <ape>',
         '; positive decimal APE with at most 18 decimals; subject to contract bet-size limits',
-        '; count = min(floor(budget / spin), supported contract attempt limit); count must be at least 1',
-        '; actual wager = count × spin; unused budget is not wagered',
+        '; count = min(floor(budget / bet-split), supported contract attempt limit); count must be at least 1',
+        '; actual wager = count × bet-split; unused budget is not wagered',
       ],
+    };
+    if (game.type === 'blocks') {
+      game.config.betSplit.description = 'Exact APE per independent attempt. Without --survive, batch independent rolls within the transaction budget and native count limit. With --survive, require play --loop and spend a finite total session budget on whole survival games, keeping their internal steps. Cannot be combined with --split or positional counts. Fees are additional.';
+      game.config.betSplit.bnf.push('; with --survive: requires play --loop; budget counts whole games, not internal survival steps');
+    }
+    if (['blocks', 'plinko', 'slots'].includes(game.type)) {
+      game.config.spin = { ...game.config.betSplit, cliName: 'spin',
+        description: 'Alias for --bet-split. Use only one of the two names.',
+        bnf: ['<spin> ::= <ape>', '; alias for --bet-split; slots, Plinko, and Blocks only'] };
+    }
+  } else {
+    game.config.betSplit = {
+      cliName: 'bet-split',
+      description: 'Exact APE per independent game. Requires play --loop and an explicit total wager budget; stops before the remainder is smaller than one wager. Safety controls may stop earlier. Survival steps stay inside each game. Payouts do not refill the wager budget; fees are additional. Dynamic bet strategies are incompatible.',
+      bnf: ['<bet-split> ::= <ape>', '; requires play --loop and an explicit total wager budget',
+        '; positive decimal APE with at most 18 decimals',
+        '; independent games = floor(budget / bet-split); safety controls can stop earlier'],
     };
   }
 }

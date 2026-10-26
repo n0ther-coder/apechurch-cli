@@ -491,6 +491,7 @@ apechurch-cli play ape-strong 10 --cover 50 --loop --max-balance 150
 | `--giveback-profit <ape|n%>` | Arm when net session P&L reaches `+<ape>` or better; stop when it returns to break-even/loss |
 | `--min-balance <ape>` | Stop when balance drops to limit; if used without `--bankroll`/`--max-loss`, the session bankroll is derived as `starting balance - min-balance` |
 | `--max-loss <ape|n%>`, `--bankroll <ape>` | Stop when net session PnL reaches the loss limit; no wallet threshold is derived |
+| `--bankroll-cap <ape>` | Cap allocated capital and stop after a settled result leaves net capital above it; see [shared bankroll cap](docs/BANKROLL_CAP.md) |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
 | `--gp-ape <points>` | Override the loop points conversion for this run |
@@ -532,7 +533,7 @@ apechurch-cli play roulette --bet RED --loop --bankroll 500 --bet-strategy bankr
 | `reverse-martingale` | Double on win, reset on loss |
 | `fibonacci` | Fibonacci sequence on losses |
 | `dalembert` | +1 unit on loss, -1 on win |
-| `bankroll-fraction=<n>` | Bet fraction `n` of remaining bankroll each game; requires `--bankroll`/`--max-loss` or `--min-balance`, and conflicts with an explicit wager amount |
+| `bankroll-fraction=<n>` | Bet fraction `n` of remaining bankroll each game; requires `--bankroll`/`--max-loss`, `--min-balance` or `--bankroll-cap`, and conflicts with an explicit wager amount |
 
 `bankroll-fraction=<n>` uses remaining bankroll as `--bankroll + session P&L`; when only `--min-balance` is supplied, the bankroll is derived from `starting balance - min-balance`. `--max-bet` caps the dynamic wager and `--min-bet` floors it.
 When using bankroll-fraction, omit the wager amount and use named game configuration flags such as `--bet RED` or `--cover 50`.
@@ -671,12 +672,24 @@ Stateful games treat a delayed VRF callback as an outstanding game to reconcile,
 Use `apechurch-cli games` or `apechurch-cli game <name>` to see the current alias set in the terminal.
 
 For split games (including slots), `--split <count>` sets the number of
-independent attempts. `--spin <APE>` instead sets exact APE per attempt and
-uses the maximum supported count that fits the wager budget. For example,
-`apechurch-cli play dino-dough 23 --spin 4` wagers 20 APE across five spins,
-leaving 3 APE unspent; fees are additional. Invalid sizes or zero attempts
-produce an error before submission. `--spin` conflicts with `--split`,
-`--survive`, and positional attempt counts. See the
+independent attempts. `--bet-split <APE>` sets exact APE per attempt and
+uses the maximum supported count that fits the transaction wager budget.
+For example, `apechurch-cli play dino-dough 23 --bet-split 4` wagers 20 APE
+across five spins, leaving 3 APE unspent; fees are additional. Slots,
+Plinko, and Blocks also accept the alias `--spin`. Primes and Speed Keno
+accept only `--bet-split`. Native exact-stake batching conflicts with
+`--split`, `--survive`, `--bonus`, and positional attempt counts.
+For Blocks with `--survive`, use `--loop`: the budget instead funds whole
+survival games at the exact stake, preserving their internal steps.
+
+For single-game stateless calls, `--bet-split` requires `--loop` and treats
+the amount as a total session wager budget. For example,
+`apechurch-cli play roulette 23 --bet-split 4 --bet RED --loop` plays at
+most five separate 4-APE games and leaves 3 APE unwagered. Safety controls
+can stop earlier; winnings do not refill the wager budget, and fees/gas
+require additional funds. Each Bear-A-Dice game retains its own internal
+`--survive` steps. Dynamic bet strategies conflict with this fixed stake;
+stateful games do not accept it. See the
 [command reference](./docs/COMMAND_REFERENCE.md#bet).
 
 `apechurch-cli game <name> --paytable` inspects payouts without starting a game. Terminal output is tabular; `--json` returns the same data for automation. Every result includes the resolved values of all parameters that can change that game's paytable and the overall `min_multiplier` and `max_multiplier`. The command reuses the same fixed defaults as `play`; when no fixed default exists, the error names the required option. For split games, `--split 1` enumerates the paytable when the underlying outcomes are static, while a split greater than one reports only the overall bounds. Games with dynamic or otherwise non-enumerable payout sets also report only their bounds. A bound is `null` when public contract data cannot determine it safely.

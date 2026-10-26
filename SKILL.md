@@ -419,15 +419,24 @@ apechurch-cli play sushi-showdown 10 10  # 10 APE, 10 spins
 **Verified runtime:** all four games decode `(gameId, numSpins, ref, userRandomWord)`, use a live `getVRFFee()` read, request `numSpins * 3` VRF words, and resolve ordered symbol triples through cumulative reel-stop tables.
 **Slot-family note:** Dino Dough and Geez Diggerz are currently exact-match verified on ApeScan; Bubblegum Heist and Sushi Showdown are currently linked `Similar Match` deployments in the same verified `Slots` family.
 **Exact RTP:** `97.90%` for Dino Dough, `97.80%` for Bubblegum Heist, `97.69%` for Geez Diggerz, and `97.87%` for Sushi Showdown from live reel/payout snapshots recorded in the repo.
-**Exact stake per split attempt:** `play <split-game> <budget-APE> --spin <APE>`
-maximizes independent attempts within the budget and supported contract limit.
-`play dino-dough 23 --spin 4` wagers 20 APE as five 4-APE spins; 3 APE remains
-unspent and fees are additional. This applies to Blocks, Plinko, Primes,
-Speed Keno, and slots. Conflicts with `--split`, `--survive`, and positional
-attempt counts are errors. Invalid sizes and zero attempts fail before play.
-Live limit reads and successful gas estimation are required before submission;
-offline validation uses registry limits. See the
-[command reference](docs/COMMAND_REFERENCE.md#bet).
+**Exact stake per independent attempt:** `play <split-game> <budget-APE> --bet-split <APE>`
+maximizes native independent attempts within the budget and contract limit.
+`play dino-dough 23 --bet-split 4` wagers 20 APE as five 4-APE spins; 3 APE
+remains unspent and fees are additional. Slots, Plinko, and Blocks retain
+`--spin` as an alias. Primes and Speed Keno accept only `--bet-split`.
+Native batching rejects `--split`, `--survive`, `--bonus`, and positional
+counts. Live limits and successful gas estimation are required. Blocks with
+`--survive` uses a finite `--loop` of whole games instead of native batching;
+both `--bet-split` and its `--spin` alias preserve the internal survival steps.
+
+Single-game stateless calls instead require `--loop` and consume a finite
+session wager budget: `play roulette 23 --bet-split 4 --bet RED --loop`
+allows five complete 4-APE games. Safety controls can stop earlier. Payouts
+do not refill the budget, and fees/gas need additional funds. Bear-A-Dice
+retains `--survive` steps inside each independent game. Dynamic bet
+strategies and stateful games are incompatible. Offline validation checks
+both modes; native paytables accept the option with an explicit budget.
+See the [command reference](docs/COMMAND_REFERENCE.md#bet).
 
 **Blizzard Blitz:** `play blizzard <total-APE> [--split <1-20> | --spin <APE> | --bonus]`. Base default: 10 paid spins. Exact-stake mode leaves the unused budget unspent. Bonus mode buys one round with five free spins: amount is the full purchase cost (minimum 100 APE), reference stake amount / 32; explicit counts and `--spin` conflict with `--bonus`. Live fees: `getVRFFee(550000 + 200000 × encoded spins)` plus `EXECUTOR_FEE() × encoded spins`, with one encoded spin for bonus purchases and separate actual gas. Standard loop, stop and bet-strategy controls apply to purchase costs. Optional JSON enrichment returns contract reel offsets; no exact RTP, full distribution or overall maximum is asserted. The paytable separates symbol awards from whole-game bounds. See [contract](docs/verification/BLIZZARD_BLITZ_CONTRACT.md) and [analytics](docs/analytics/BLIZZARD_BLITZ_ANALYTICS.md).
 
@@ -531,6 +540,7 @@ apechurch-cli play ape-strong 10 --cover 50 --loop --target 200 --min-balance 50
 | `--target <ape>` | Stop when balance reaches this amount |
 | `--min-balance <ape>` | Stop when balance drops to this amount; derives bankroll when no `--bankroll`/`--max-loss` is set |
 | `--bankroll <ape>`, `--max-loss <ape|n%>` | Stop when net session PnL reaches this loss; no wallet threshold is derived |
+| `--bankroll-cap <ape>` | Cap allocated capital and stop after a settled result leaves net capital above it; see [shared bankroll cap](docs/BANKROLL_CAP.md) |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
 
@@ -607,7 +617,7 @@ Lose → bet 10 → Lose → bet 10 → Lose → bet 20 → Lose → bet 30 → 
 
 **Recommended:** Always use `--max-bet` with progressive strategies.
 
-`bankroll-fraction=<n>` requires `--bankroll`/`--max-loss` or `--min-balance`, conflicts with an explicit starting wager, and sizes each new play from the remaining bankroll.
+`bankroll-fraction=<n>` requires `--bankroll`/`--max-loss`, `--min-balance` or `--bankroll-cap`, conflicts with an explicit starting wager, and sizes each new play from the remaining bankroll.
 
 ---
 

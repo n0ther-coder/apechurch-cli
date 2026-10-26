@@ -595,6 +595,7 @@ Notes:
                | "--grid" <grid>
                | "--split" <integer>
                | "--survive" <integer>
+               | "--bet-split" <ape>
                | "--spin" <ape>
                | "--bonus"
                | "--bet" <token>
@@ -623,8 +624,9 @@ Notes:
 | `--grid <grid>` | Blocks board dimensions: exactly `2x2`, `3x3`, or `4x4`; default `3x3` |
 | `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
-| `--spin <ape>` | Exact APE per independent attempt; derive the maximum valid count from the budget |
-| `--bonus` | Blizzard Blitz: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts and `--spin` |
+| `--bet-split <ape>` | Exact APE per independent attempt; native batching or a finite single-game `play --loop` |
+| `--spin <ape>` | Alias for `--bet-split` only in slots, Plinko, and Blocks; rejected for Primes and Speed Keno |
+| `--bonus` | Blizzard Blitz: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts, `--bet-split`, and `--spin` |
 | `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET=CHIPS` counts |
 | `--shuffle` | Roulette: randomize selections while preserving types, chip counts, all joint win probabilities and exact payouts; bounded search fails before submission |
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
@@ -641,35 +643,81 @@ Notes:
 | `--gp-ape <points>` | Override local GP estimation for this run |
 
 `--split <count>` divides the full wager across an explicit number of independent
-attempts. Alternatively, `--spin <APE>` fixes the exact wager per attempt for
-Blocks, Jungle/Cosmic Plinko, Primes, Speed Keno, and every supported slot.
-An explicit game is required. The amount becomes a budget: the CLI takes the
-integer part of `budget ⁄ spin`, caps it at the supported contract attempt
-limit, and wagers only `count × spin`. For example, `23 --spin 4` means five
+attempts. `--bet-split <APE>` fixes the exact wager per independent attempt.
+An explicit supported stateless game is required. `--spin` is an alias only
+for slots, Jungle/Cosmic Plinko, and Blocks. Primes and Speed Keno accept
+only `--bet-split`. Supplying both names is an error.
+
+For native split games (Blocks, Plinko, Primes, Speed Keno, and slots), the
+amount is a budget for one transaction. The CLI takes the integer part of
+`budget ⁄ bet-split`, caps it at the supported contract attempt limit, and
+wagers only `count × bet-split`. For example, `23 --bet-split 4` means five
 attempts, 20 APE wagered, and 3 APE left unspent. A contract cap can leave a
-larger remainder. VRF, executor fees, and gas are additional to that wager.
+larger remainder. In loop mode this native batch budget is recalculated
+for each iteration, including progressive sizing and caps.
 
-Amounts use exact integer wei arithmetic and accept up to 18 decimal places.
-Zero or negative amounts, malformed numbers, zero attempts, and out-of-range
-bet sizes fail with an error. Blizzard Blitz, Dojo Drop and Reel Pirates require at least
-2.5 APE per attempt. `--spin` cannot be combined with `--split`, `--survive`, or
-explicit positional attempt counts; positional risk and number selections
-remain valid. Blocks uses independent rolls with `--spin`.
+For Roulette, Baccarat, ApeStrong, Keno, Bear-A-Dice, Monkey Match, Gimboz
+Smash, and Glyde or Crash, `--bet-split` requires `play --loop` and an
+explicit **total session wager budget**. The CLI plays complete games one
+at a time at the exact amount and stops when the remaining budget cannot
+fund another whole wager. Payouts do not refill this budget. For example:
 
-Before sending, the CLI reads the live contract attempt limit, applies the
-lower of that value and the supported registry limit, and requires successful
-contract gas estimation for the complete wager and fees. An unavailable limit
-or failed preflight stops the command without submitting a transaction.
-The registry limits are Blocks 5, Jungle Plinko 100, Cosmic Plinko 30,
-Primes and Speed Keno 20, Blizzard Blitz 20, and other slots 15. The verified older split contracts
-expose no fixed upper wager-size getter; remaining live conditions are checked
-by preflight. Limits may change between simulation and inclusion.
+```bash
+apechurch-cli play roulette 23 --bet-split 4 --bet RED --loop
+apechurch-cli play bear-dice 23 --bet-split 4 --survive 3 --loop
+apechurch-cli play blocks 23 --bet-split 4 --survive 3 --loop
+```
 
-`play ... --validate-only` and `game ... --paytable` use local registry limits
-without RPC or wallet access. With an explicit budget they report the derived
-`split`, `spin`, actual `amount`, and `unspent` remainder. Paytable inspection
-with `--spin` requires `--amount`. Loop mode recalculates the count and actual
-wager from each iteration's budget, including progressive sizing and caps.
+These commands allow at most five independent 4-APE games, leaving 3 APE
+unwagered. In Bear-A-Dice and Blocks with explicit `--survive`, each game
+retains its three internal survival steps; those steps are not three
+independent 4-APE wagers. Blocks retains `--spin` as an equivalent alias
+in this mode too. Roulette chip values and explicit Baccarat component
+amounts are resolved against the per-game stake, not the session budget.
+Safety controls
+can stop the loop earlier and apply after each completed game. All existing
+session and single-game controls remain available, including `--max-games`,
+`--min-profit`/`--take-profit`, `--max-loss`/`--stop-loss`/`--bankroll`,
+`--min-balance`, `--max-balance`, `--target-x`, `--target-profit`, `--retrace`,
+`--recover-loss`, and `--giveback-profit`. They do not guarantee an exact
+PnL boundary because the last game can cross it. Fees and gas require
+additional funds beyond the wager budget. Wins do not extend the sequence.
+
+Single-game `--bet-split` fixes the stake, so dynamic `--bet-strategy` modes
+are incompatible. `flat` is accepted. `--min-bet` and `--max-bet` must contain
+the exact stake; an incompatible bound is rejected instead of rounding or
+changing that stake. Insufficient funds stop the sequence without reducing
+the next wager. Stateful games do not accept `--bet-split`.
+
+Amounts use integer wei arithmetic and accept up to 18 decimal places.
+Zero/negative amounts, malformed numbers, zero attempts, and out-of-range
+bet sizes fail before wallet access. Blizzard Blitz, Dojo Drop, and Reel
+Pirates require at least 2.5 APE per attempt. Native `--bet-split`/`--spin`
+cannot be combined with `--split`, `--survive`, `--bonus`, or positional
+attempt counts; risk and number selections remain valid. Blocks uses
+independent rolls in native batch mode. With explicit `--survive`, it uses
+the finite whole-game loop described above instead of native batching.
+
+Native batches read the live contract attempt limit and apply the lower
+of that value and the supported registry limit. Every exact-stake game
+requires successful contract gas estimation before submission. An
+unavailable native limit or failed preflight stops submission. Registry
+limits are Blocks 5, Jungle Plinko 100, Cosmic Plinko 30, Primes and Speed
+Keno 20, Blizzard Blitz 20, and other slots 15. Live conditions may change
+between simulation and inclusion.
+
+`play ... --validate-only` validates both modes without RPC or wallet
+access. Native batches report `split`, `betSplit` (or `spin` when the alias
+was used), actual `amount`, and `unspent`. Single-game loops report
+`betSplit`, `budget`, `independentGames`, the per-game `amount`, and `unspent`.
+`game ... --paytable --bet-split` is supported for native split games and
+requires `--amount`; inspect an individual single-game paytable using
+`--amount` equal to the per-game stake. For `--bet-split`, the `bet` command
+supports native batches only.
+Single-game loop JSON includes `bet_split` with the exact budget, per-game
+stake, committed wager, remaining budget, and whether another full game
+fits. Pending games consume a budget quota and stop further submissions;
+failed/partial runs retain their existing status and accounting fields.
 
 For Blocks, `--split 1-5` divides the wager across independent rolls and sums their payouts, while `--survive 1-5` compounds the full payout across rolls. The two options are mutually exclusive; omitting both uses `--survive 1`.
 
@@ -686,6 +734,7 @@ For Blocks, `--split 1-5` divides the wager across independent rolls and sums th
                           | "--grid" <grid>
                           | "--split" <integer>
                           | "--survive" <integer>
+                          | "--bet-split" <ape>
                           | "--spin" <ape>
                           | "--bonus"
                           | "--bet" <token>
@@ -727,6 +776,7 @@ For Blocks, `--split 1-5` divides the wager across independent rolls and sums th
                        | "--min-balance" <ape-nonnegative>
                        | "--max-loss" <pnl-threshold>
                        | "--bankroll" <ape>
+                       | "--bankroll-cap" <ape>
                        | "--bet-strategy" <bet-strategy>
                        | "--max-bet" <ape>
                        | "--min-bet" <ape>
@@ -761,8 +811,9 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--grid <grid>` | Blocks board dimensions: exactly `2x2`, `3x3`, or `4x4`; default `3x3` |
 | `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
-| `--spin <ape>` | Exact APE per independent attempt; derive the maximum valid count from the budget |
-| `--bonus` | Blizzard Blitz: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts and `--spin` |
+| `--bet-split <ape>` | Exact APE per independent attempt; native batching or a finite single-game `play --loop` |
+| `--spin <ape>` | Alias for `--bet-split` only in slots, Plinko, and Blocks; rejected for Primes and Speed Keno |
+| `--bonus` | Blizzard Blitz: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts, `--bet-split`, and `--spin` |
 | `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET=CHIPS` counts |
 | `--shuffle` | Roulette: randomize selections while preserving types, chip counts, all joint win probabilities and exact payouts; bounded search fails before submission |
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
@@ -819,6 +870,7 @@ These options are accepted by the `play` command for both stateless and stateful
 | `--giveback-profit <ape|n%>` | Stop loop when net session P&L returns to break-even/loss after a run-up of at least this size |
 | `--min-balance <ape>` | Stop before a play/loop iteration when wallet balance is at or below the threshold. It can define starting sizing capital as `starting balance - min-balance`, without creating a net loss guard |
 | `--max-loss <ape|n%>`, `--bankroll <ape>` | Stop loop when session P&L reaches the loss limit. No wallet threshold is derived from this net result limit |
+| `--bankroll-cap <ape>` | Cap allocated bankroll; stop when a completed result puts net capital strictly above the cap. See [shared bankroll cap](BANKROLL_CAP.md) |
 | `--bet-strategy <name>` | Loop bet progression, including `bankroll-fraction=<0..1>` |
 | `--max-bet <ape>` | Loop safety cap for progressive strategies |
 | `--min-bet <ape>` | Loop minimum bet floor for dynamic strategies |
@@ -829,7 +881,7 @@ These options are accepted by the `play` command for both stateless and stateful
 
 The resilient schedules are fixed, not configurable. Generic transient errors and reverted receipts use `30s`, `1m`, `2m`, `5m`, `10m × 6`, and `1h × 7` (17 retries over `8h08m30s`). Network/DNS outages, `PRICE TOO LOW, PvH GAMES PAUSED`, `All Games Paused`, `Paused`, propagated RNG/VRF errors, out-of-gas failures, and RPC-node errors use `3m`, `7m`, `10m × 5`, `30m × 10`, and `1h × 18` (35 retries over 24 hours). Retry notices include the next local attempt timestamp in `YYYY-MMM-DD HH:mm:ss±ZZZZ` form.
 
-`bankroll-fraction=<fraction>` requires `--bankroll`/`--max-loss` or `--min-balance`, and it conflicts with an explicit wager amount (`<amount>` or `--amount`). Each loop iteration bets `fraction * remaining bankroll`; `--max-bet` caps that dynamic wager and `--min-bet` floors it.
+`bankroll-fraction=<fraction>` requires `--bankroll`/`--max-loss`, `--min-balance` or `--bankroll-cap`, and it conflicts with an explicit wager amount (`<amount>` or `--amount`). Each loop iteration bets `fraction * remaining bankroll`; `--max-bet` caps that dynamic wager and `--min-bet` floors it.
 
 ### GP Rate Controls
 
@@ -854,7 +906,7 @@ The resilient schedules are fixed, not configurable. Generic transient errors an
 
 `bot` discovers personal local bot folders from `$APECHURCH_CLI_CONFIG_DIR/bots` by default, where `APECHURCH_CLI_CONFIG_DIR` defaults to `~/.apechurch-cli`. Set `APECHURCH_CLI_BOTS_DIR` when the bot root lives elsewhere, including a separate private or public Git repository; its value must be the actual local bot root that contains bot folders with `bot.json`, not a parent directory. Bot logs belong under `APECHURCH_CLI_LOG_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/log`. Each bot is defined by `bot.json` plus an entry module. Use `bot --list` to inspect discovery, `bot --help` for the shared loader help, then `bot <name> ...` to execute one bot. Use `bot <name> -h` or `bot <name> --help` for bot-specific help.
 
-The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. Local bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape|n%>`, `--fallback-bot <name>`, and standard loop controls. `--max-balance` and `--min-balance` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` use actual net PnL and do not derive wallet thresholds; an implementation may use `starting balance - min-balance` as initial sizing capital independently. `--max-routines` limits the main bot's own routines and is not forwarded; `--preflight` delays the main bot before balance reads and is not forwarded; `--max-games` remains a game loop option and is invalid when passed to a bot. Bot code is trusted local code, so only run bots from directories you control. See [BOTS.md](./BOTS.md) for the public bot development guide.
+The CLI is agnostic about bot strategy and implementation details: it discovers manifests, forwards tokens after the bot name, and exposes a narrow runtime helper surface. The shared `--bankroll-cap` control is described in [BANKROLL_CAP.md](./BANKROLL_CAP.md). Local bots should document their own flags and may follow the shared conventions for `-h, --help`, `--color`, `--json`, `--fallback-loss <ape|n%>`, `--fallback-bot <name>`, and standard loop controls. `--max-balance` and `--min-balance` are absolute wallet thresholds that bots may forward unchanged to child plays and nested bots; `--min-profit` and `--max-loss` use actual net PnL and do not derive wallet thresholds; an implementation may use `starting balance - min-balance` as initial sizing capital independently. `--max-routines` limits the main bot's own routines and is not forwarded; `--preflight` delays startup and is not forwarded. On an interactive terminal, Enter skips that wait and Ctrl+C aborts; without a TTY, the configured timer remains in effect. `--max-games` remains a game loop option and is invalid when passed to a bot. Bot code is trusted local code, so only run bots from directories you control. See [BOTS.md](./BOTS.md) for the public bot development guide.
 
 The runtime surface is intentionally narrow: bots receive positional args, command-registry helpers `resolveGame(command)` and `resolveBot(command)`, gameplay helpers `play(tokens)`, `playJson(tokens)`, `gamePaytable(name, tokens)`, `reconcilePendingPlay(payload, options)`, `validatePlayArgs(tokens)`, `botRun(name, tokens)`, `botJson(name, tokens)`, and `validateBotArgs(name, tokens)`, resume fields `resumeRequested` and `resumeSummary`, `session` helpers for output, command-line rendering, P&L accounting, fallback parsing, and colors, plus resolved `paths.configDir`, `paths.botsDir`, `paths.logDir`, and bot-specific `bot.logDir`. The resolvers use the same game catalog and bot registry as the CLI and return a descriptor or `null`; they do not execute or validate a wager. `gamePaytable` reads payout metadata without starting a game. Reconciliation reads only an already-submitted stateless game identified by `contract` and `gameId`; it never sends a replacement transaction. Bot summary logs are written under `paths.logDir/<bot-name>/` with a `.json` extension when the summary contains a full transaction hash, a positive recorded wager, or a resumable top-level `pending` status. Runs that fail, exit, or are interrupted before material gameplay still return or print their summary without creating empty local or mirrored log files.
 
@@ -958,6 +1010,7 @@ Reference columns stay hidden in terminal tables unless `--url` or `--ids` is pa
                        | "--grid" <grid>
                        | "--split" <integer>
                        | "--survive" <integer>
+                       | "--bet-split" <ape>
                        | "--spin" <ape>
                        | "--bonus"
                        | "--picks" <integer>
@@ -1110,6 +1163,7 @@ Alias: `bj`
                      | "--min-balance" <ape-nonnegative>
                      | "--max-loss" <pnl-threshold>
                      | "--bankroll" <ape>
+                     | "--bankroll-cap" <ape>
                      | "--bet-strategy" <bet-strategy>
                      | "--max-bet" <ape>
                      | "--min-bet" <ape>
@@ -1162,6 +1216,7 @@ Aliases: `cashdash`, `dash`
                      | "--min-balance" <ape-nonnegative>
                      | "--max-loss" <pnl-threshold>
                      | "--bankroll" <ape>
+                     | "--bankroll-cap" <ape>
                      | "--bet-strategy" <bet-strategy>
                      | "--max-bet" <ape>
                      | "--min-bet" <ape>
@@ -1215,6 +1270,7 @@ Aliases: `hilonebula`, `hilo`, `nebula`
                         | "--min-balance" <ape-nonnegative>
                         | "--max-loss" <pnl-threshold>
                         | "--bankroll" <ape>
+                        | "--bankroll-cap" <ape>
                         | "--bet-strategy" <bet-strategy>
                         | "--max-bet" <ape>
                         | "--min-bet" <ape>
@@ -1256,6 +1312,7 @@ Alias: `vp`
                        | "--min-balance" <ape-nonnegative>
                        | "--max-loss" <pnl-threshold>
                        | "--bankroll" <ape>
+                       | "--bankroll-cap" <ape>
                        | "--bet-strategy" <bet-strategy>
                        | "--max-bet" <ape>
                        | "--min-bet" <ape>

@@ -78,12 +78,23 @@ apechurch-cli play keno 10 --numbers 1 7 13 25 40
 
 For simple `play` games, the CLI accepts any positive APE amount that can be parsed and funded by the current wallet. There is no shared fixed-denomination whitelist for those games. In loop mode, the built-in strategy presets still default to a `1 APE` floor unless you override strategy settings. The main exceptions are `video-poker`, which is fixed-denomination, and `blackjack`, which separates the main bet from optional side exposure.
 
-For independent split games and slots, `--spin <APE>` fixes the exact stake per
-attempt and derives the maximum count within the amount budget and contract
-limits. For example, `play dino-dough 23 --spin 4` wagers 20 APE over five
-spins, leaving 3 APE unspent. Fees are additional. This is mutually exclusive
-with `--split`, `--survive`, and positional attempt counts. See the
-[command reference](./COMMAND_REFERENCE.md#bet) for sizing and validation rules.
+`--bet-split <APE>` fixes the exact wager per independent attempt. Native
+split games derive a count within the transaction budget and contract limit:
+`play dino-dough 23 --bet-split 4` wagers 20 APE over five spins and leaves
+3 APE unspent. Slots, Plinko, and Blocks retain `--spin` as an alias; Primes
+and Speed Keno accept only `--bet-split`. Native batching rejects `--split`,
+`--survive`, `--bonus`, and positional attempt counts. Blocks with explicit
+`--survive` instead requires `--loop` and funds independent whole survival
+games from a total session budget, retaining their internal steps.
+
+Single-game stateless calls require `--loop` and consume a total session
+wager budget: `play roulette 23 --bet-split 4 --bet RED --loop` allows at most
+five separate 4-APE games. Safety controls can stop earlier; payouts do not
+refill the budget. Bear-A-Dice retains its internal `--survive` steps inside
+each game. An exact single-game quota is not reduced by balance caps or
+changed by dynamic betting strategies. Fees/gas need additional funds;
+stateful games do not accept the option. See the
+[command reference](./COMMAND_REFERENCE.md#bet) for sizing and validation.
 
 Ordering: alphabetical by game title.
 
@@ -370,7 +381,7 @@ spin multiplier, advertised up to 4,096×; this is not a verified whole-game cap
 
 ```bnf
 <game> ::= "blizzard-blitz" | "blizzardblitz" | "blizzard"
-<base> ::= "play" <game> <ape> [ <split> | "--split" <split> | "--spin" <ape> ]
+<base> ::= "play" <game> <ape> [ <split> | "--split" <split> | "--bet-split" <ape> | "--spin" <ape> ]
 <bonus> ::= "play" <game> <ape> "--bonus"
 <split> ::= <integer> ; 1 ≤ value ≤ 20; default 10
 ; base total ≥ 2.5 APE × split
@@ -413,9 +424,9 @@ Results and replay masks are read from the contract.
 
 ```bnf
 <game> ::= "dojo-drop" | "dojodrop" | "dojo"
-<command> ::= "play" <game> <amount> [ <split> | "--split" <split> | "--spin" <ape> ]
-<bet> ::= "bet" "--game" <game> "--amount" <ape> [ "--split" <split> | "--spin" <ape> ]
-<table> ::= "game" <game> "--paytable" [ "--amount" <ape> ] [ "--split" <split> | "--spin" <ape> ] [ "--json" ]
+<command> ::= "play" <game> <amount> [ <split> | "--split" <split> | "--bet-split" <ape> | "--spin" <ape> ]
+<bet> ::= "bet" "--game" <game> "--amount" <ape> [ "--split" <split> | "--bet-split" <ape> | "--spin" <ape> ]
+<table> ::= "game" <game> "--paytable" [ "--amount" <ape> ] [ "--split" <split> | "--bet-split" <ape> | "--spin" <ape> ] [ "--json" ]
 <amount> ::= <ape>              ; total wager >= 2.5 APE × split
 <split> ::= <integer>           ; 1 <= value <= 15; default 15
 ; --split <split> is the named count form; --spin <ape> sets APE per spin

@@ -1,4 +1,6 @@
-# Dojo Drop: public interface and remaining verification
+# Dojo Drop: contract interface and verification
+
+## Verification status
 
 Dojo Drop is playable but **not ABI verified** under this repository's
 [promotion standard](../ABI_VERIFICATION.md). Its Solidity source was not
@@ -7,7 +9,7 @@ uses the official frontend's interface, corroborated by live read calls and
 read-only `eth_call` simulation. This is not a Solidity audit or a proof of
 its full probability model.
 
-## Public sources
+## Public sources and identity
 
 - [Official game](https://ape.church/games/dojo-drop).
 - [ApeScan contract](https://apescan.io/address/0x914d11f805586dF8Ed440Fe23dcdce929965FBb1).
@@ -24,7 +26,12 @@ The contract address is
 `0x914d11f805586dF8Ed440Fe23dcdce929965FBb1`. The official frontend catalog
 identifies it as Dojo Drop, game `40`.
 
-## Command and transaction
+All ten configuration fields matched a further read at block `53060536`
+(`2026-10-26 09:12:48.0 UTC`, block timestamp). An attempted Caldera
+metadata refresh on 2026-10-26 returned HTTP 403; that failure does not
+refresh the earlier source-verification observation.
+
+## Command semantics
 
 ```bash
 apechurch-cli play dojo-drop 25 --split 10 --validate-only --json
@@ -40,6 +47,8 @@ leaving the remainder unspent. The option conflicts with explicit counts.
 Default: 15 spins. At least 2.5 APE per spin is required; malformed or
 fractional counts, conflicting flags and smaller explicit totals fail before
 wallet access. Auto-play retains the existing slots strategy behavior.
+
+## Write path and fees
 
 The payable entrypoint is `play(address player, bytes gameData)`:
 
@@ -57,6 +66,8 @@ executor = EXECUTOR_FEE() × paid spins
 transaction value = total wager + VRF + executor
 ```
 
+## Live limits and read-only checks
+
 Both fees are read live. At the checked snapshot the executor getter returned
 0.03 APE per spin. RPC simulation accepted the 2.5 APE one-spin boundary,
 rejected one wei below it, accepted 15 spins with sufficient stake, and
@@ -65,10 +76,7 @@ transaction. House limits, paused state and fee values can change; the
 contract enforces the live conditions. No GP-spending transaction path is
 implemented; `--gp-ape` retains its existing reward-accounting meaning.
 
-For the compact cap, configuration and probability limitations, see
-[DOJO_DROP_ANALYTICS.md](../analytics/DOJO_DROP_ANALYTICS.md).
-
-## Live configuration snapshot
+## Mechanics and configuration
 
 Multipliers use integer units with denominator `10000`.
 
@@ -112,6 +120,14 @@ multiple paid spins, without enumerating outcomes or treating rounded cell
 odds as an exact model. It does not promise that the bound is attainable
 for every wager or that the live configuration is immutable. No theoretical
 or screenshot-derived running RTP is installed as an expected RTP.
+
+The [analytics note](../analytics/DOJO_DROP_ANALYTICS.md) derives nominal
+symbol probabilities
+from the empty-cell shares and normalized weights, explicitly conditional
+on a two-stage sampler. One common vector is exposed for all five columns;
+actual column equality and independence are not proved. It also separates
+the 1,000× configured cap from an attainable maximum and its unknown
+probability, and defines loss/draw/win using the complete paid-spin result.
 
 ## Settlement and replay
 

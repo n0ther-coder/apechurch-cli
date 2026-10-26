@@ -27,6 +27,14 @@ import {
 } from '../../lib/constants.js';
 
 describe('Command Script Helpers', () => {
+  it('preserves bet-split values and safety controls in command scripts', () => {
+    const args = ['play', 'roulette', '23', '--bet-split', '4', '--bet', 'RED', '--loop', '--max-games', '3'];
+    const normalized = normalizeScriptCommand(buildScriptPayloadFromArgs(args));
+    assert.ok(normalized.includes('--loop'));
+    assert.strictEqual(normalized[normalized.indexOf('--bet-split') + 1], '4');
+    assert.strictEqual(normalized[normalized.indexOf('--max-games') + 1], '3');
+    assert.ok(renderScriptCommand(normalized).includes('--bet-split 4'));
+  });
   it('parses default and explicit watch options', () => {
     const defaults = parseWatchOptions({});
 

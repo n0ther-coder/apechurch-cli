@@ -222,7 +222,7 @@ import {
   computeCooldownMs,
 } from '../lib/strategy.js';
 import { configGetters, playGame, resolveGame } from '../lib/games/index.js';
-import { SPLIT_GAME_TYPES, validateSpinUsage, resolveSpinWager, resolveLiveSpinWager, applySpinConfig } from '../lib/split-spin.js';
+import { SPLIT_GAME_TYPES, getBetSplitValue, getBetSplitOptionName, isLoopBetSplit, resolveLoopBetSplit, validateSpinUsage, resolveSpinWager, resolveLiveSpinWager, applySpinConfig } from '../lib/split-spin.js';
 import { formatGamePaytable, getGamePaytable } from '../lib/game-paytable.js';
 import { parseBaccaratBet } from '../lib/games/baccarat.js';
 import { resolveBearDiceConfig } from '../lib/games/beardice.js';
@@ -463,7 +463,8 @@ const PLAY_STATELESS_OPTION_LINES = Object.freeze([
   '--grid <grid>           Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)',
   '--split <count>         Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots',
   '--survive <count>       All-or-nothing survival attempts for Bear Dice and Blocks',
-  '--spin <ape>            Exact APE per attempt; maximize count within the wager budget',
+  '--bet-split <ape>       Exact APE per independent attempt; single-game sequences require --loop',
+  '--spin <ape>            Alias for slots, Plinko, and Blocks',
   '--bonus                 Blizzard Blitz: one bonus purchase, minimum 100 APE',
   '--bet <bet>             Roulette/Baccarat bet payload; optional BET=CHIPS entries',
   '--chips <integer>     Roulette chips purchased; defaults to the sum in --bet',
@@ -519,6 +520,7 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--min-balance <ape>       Stop when balance drops to the threshold',
   '--max-loss <ape-or-percent>        Stop when net session PnL reaches the loss limit',
   '--bankroll <ape>        Alias for --max-loss',
+  '--bankroll-cap <ape>    Cap allocated bankroll; exit when net capital exceeds it',
   '--bet-strategy <name>   Loop bet progression; supports bankroll-fraction=<0..1>',
   '--max-bet <ape>         Loop safety cap for progressive strategies',
   '--min-bet <ape>         Loop minimum bet floor',
@@ -572,6 +574,7 @@ const LOOP_HELP_OPTION_LINES = Object.freeze([
   '--min-balance <ape>       Stop when wallet balance drops to this absolute threshold',
   '--max-loss <ape-or-percent>        Stop when net session PnL reaches this loss',
   '--bankroll <ape>        Alias for --max-loss',
+  '--bankroll-cap <ape>    Cap allocated bankroll; exit when net capital exceeds it',
   '--bet-strategy <name>   Loop bet progression strategy',
   '--max-bet <ape>         Maximum loop wager cap',
   '--min-bet <ape>         Minimum loop wager floor',
@@ -592,7 +595,7 @@ const STATEFUL_SHARED_HELP_OPTION_LINES = Object.freeze([
 const STATEFUL_SHARED_BNF_LINES = Object.freeze([
   '<pnl-threshold> ::= <ape> | <integer> "%" ; positive whole percentage of controlled wager',
   '<stateful-common-option> ::= "--game" <game-id> | "--display" <display> | "--json" | "-v" | "--verbose" | "--gp-ape" <points> | "--resilient" | "--no-resilient"',
-  '<stateful-loop-option> ::= "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape>',
+  '<stateful-loop-option> ::= "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bankroll-cap" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape>',
 ]);
 
 function isPositiveApeToken(value) {
@@ -629,7 +632,10 @@ function resolveBetStrategyOrExit(rawName, { json = false } = {}) {
   return { betStrategyName, betStrategy };
 }
 
-function formatDerivedLoopLossNotice({ derivedMinBalance, derivedMaxLoss, minBalance, maxLoss }) {
+function formatDerivedLoopLossNotice({ derivedMinBalance, derivedMaxLoss, minBalance, maxLoss, bankrollCapState }) {
+  if (bankrollCapState) {
+    return `Allocated bankroll: ${bankrollCapState.initial_bankroll_ape} APE; cap: ${bankrollCapState.cap_ape} APE; effective min-balance: ${bankrollCapState.min_balance_ape} APE`;
+  }
   if (derivedMinBalance) {
     return `Derived min-balance: ${Number(minBalance).toFixed(6).replace(/\.?0+$/, '')} APE from bankroll ${maxLoss} APE`;
   }
@@ -1219,7 +1225,8 @@ function formatBetHelpAppendix() {
       '--grid <grid>          Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)',
       '--split <count>        Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots',
       '--survive <count>      All-or-nothing survival attempts for Bear Dice and Blocks',
-      '--spin <ape>           Exact APE per attempt; leave unused budget unspent',
+      '--bet-split <ape>      Exact APE per independent attempt; leave unused budget unspent',
+      '--spin <ape>           Alias for slots, Plinko, and Blocks',
       '--bonus                Blizzard Blitz: one bonus purchase, minimum 100 APE',
       '--bet <bet>            Roulette or baccarat bet payload',
       '--chips <integer>     Roulette chips purchased; defaults to the sum in --bet',
@@ -1240,7 +1247,7 @@ function formatBetHelpAppendix() {
     ],
     bnf: [
       '<bet-command> ::= "bet" "--game" <stateless-game> "--amount" <ape> <bet-option>*',
-      '<bet-option> ::= "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
+      '<bet-option> ::= "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
       ...SIMPLE_GAME_HELP_BNF_LINES,
     ],
     examples: [
@@ -1255,9 +1262,9 @@ function formatBetHelpAppendix() {
     notes: [
       'Use `play` for loop mode, stateful games, or random stateless selection.',
       'Blocks accepts either --split for independent rolls or --survive for compounding rolls, never both.',
-      '--spin sets exact APE per attempt: count = min(floor(budget / spin), supported contract limit); only count × spin is wagered. Fees are additional.',
-      '--spin rejects zero attempts, invalid bet sizes, --split, --survive, and explicit positional attempt counts.',
-      'Blizzard Blitz: base default 10 spins, range 1-20, minimum 2.5 APE per spin. --bonus buys one five-free-spin round for the amount (minimum 100 APE; reference stake amount / 32); rejects --split, --spin and positional counts. Fees are additional.',
+      '--bet-split sets exact APE per independent attempt. Native split games derive and cap the count; --spin is an alias only for slots, Plinko, and Blocks. Fees are additional.',
+      'Native --bet-split/--spin rejects zero attempts, invalid sizes, --split, --survive, and positional counts. Single-game --bet-split and Blocks with explicit --survive require play --loop and an explicit total budget; safety controls can stop it earlier. Survival steps belong to each whole game. Dynamic bet strategies conflict with fixed single-game stakes.',
+      'Blizzard Blitz: base default 10 spins, range 1-20, minimum 2.5 APE per spin. --bonus buys one five-free-spin round for the amount (minimum 100 APE; reference stake amount / 32); rejects --split, --bet-split, --spin and positional counts. Fees are additional.',
       `Run ${BINARY_NAME} game <name> for per-game parameter details.`,
     ],
   });
@@ -1294,9 +1301,9 @@ function formatPlayHelpAppendix() {
       '<play-positional> ::= <stateless-game> [ <ape> <token>* ] | <stateful-game> [ <stateful-head> ] [ <token> ]',
       '<stateful-head> ::= <ape> | "resume" | "status" | "clear" | "payouts" | "table" | <token>',
       '<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>',
-      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
+      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
       '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count> | "--resilient" | "--no-resilient"',
-      '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
+      '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bankroll-cap" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
       ...SIMPLE_GAME_HELP_BNF_LINES,
       ...COMMON_BNF_LINES.filter((line) => !line.startsWith('<ape') && !line.startsWith('<points>')),
     ],
@@ -1320,9 +1327,9 @@ function formatPlayHelpAppendix() {
       'Shared play / loop options apply across selected stateless and stateful play surfaces.',
       'Pass `--numbers` as a single CLI token, for example `--numbers 1,7,13,25,40`.',
       'Blocks accepts either --split for independent rolls or --survive for compounding rolls, never both.',
-      '--spin sets exact APE per attempt: count = min(floor(budget / spin), supported contract limit); only count × spin is wagered. Fees are additional.',
-      '--spin rejects zero attempts, invalid bet sizes, --split, --survive, and explicit positional attempt counts.',
-      'Blizzard Blitz: base default 10 spins, range 1-20, minimum 2.5 APE per spin. --bonus buys one five-free-spin round for the amount (minimum 100 APE; reference stake amount / 32); rejects --split, --spin and positional counts. Fees are additional.',
+      '--bet-split sets exact APE per independent attempt. Native split games derive and cap the count; --spin is an alias only for slots, Plinko, and Blocks. Fees are additional.',
+      'Native --bet-split/--spin rejects zero attempts, invalid sizes, --split, --survive, and positional counts. Single-game --bet-split and Blocks with explicit --survive require play --loop and an explicit total budget; safety controls can stop it earlier. Survival steps belong to each whole game. Dynamic bet strategies conflict with fixed single-game stakes.',
+      'Blizzard Blitz: base default 10 spins, range 1-20, minimum 2.5 APE per spin. --bonus buys one five-free-spin round for the amount (minimum 100 APE; reference stake amount / 32); rejects --split, --bet-split, --spin and positional counts. Fees are additional.',
       'Bare `play` does not auto-run a random game; use `play --auto` or pass a game.',
       'For stateful resume/action through `play`, prefer `--game-id <id>` because `--game <name>` selects the target game.',
       `Run ${BINARY_NAME} game <name> for per-game config grammar.`,
@@ -1604,7 +1611,8 @@ function formatGameHelpAppendix() {
       '--grid <grid>          Blocks grid used by play',
       '--split <count>        Independent split count used by play',
       '--survive <count>      Compounding survival count used by play',
-      '--spin <ape>           Exact APE per attempt; requires --amount for the budget',
+      '--bet-split <ape>      Native split games: exact APE per attempt; requires --amount',
+      '--spin <ape>           Alias for slots, Plinko, and Blocks',
       '--bonus                Blizzard Blitz: one bonus purchase, minimum 100 APE',
       '--picks <count>        Keno pick count used by play',
       '--bet <bet>            Roulette or Baccarat bet',
@@ -1619,7 +1627,7 @@ function formatGameHelpAppendix() {
     ],
     bnf: [
       '<game-command> ::= "game" <game-name> [ "--paytable" <paytable-option>* ] [ "--json" ]',
-      '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--spin" <ape> | "--bonus" | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--multiplier" <multiplier> | "--amount" <ape> | "--side" <ape>',
+      '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--bet-split" <ape> | "--spin" <ape> | "--bonus" | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--multiplier" <multiplier> | "--amount" <ape> | "--side" <ape>',
       '<game-name> ::= <stateless-game> | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
       '<stateless-game> ::= <game-key> | <game-alias>',
       ...ROULETTE_HELP_BNF_LINES,
@@ -3591,15 +3599,22 @@ function validateStatelessPlayTarget({
   });
   if (fixedGame) {
     validateSpinUsage(fixedGame, opts, positionalConfig);
-    if (opts.spin !== undefined && amountInput !== undefined) {
-      const plan = resolveSpinWager(fixedGame, amountInput, opts.spin);
-      applySpinConfig(gameConfig, plan);
-      Object.assign(gameConfig, { spin: plan.spin, amount: plan.amount, unspent: plan.unspent });
+    const exactBet = getBetSplitValue(opts);
+    const amountField = opts.betSplit !== undefined ? 'betSplit' : 'spin';
+    if (isLoopBetSplit(fixedGame, opts)) {
+      const plan = resolveLoopBetSplit(fixedGame, amountInput, opts);
+      Object.assign(gameConfig, { betSplit: plan.amount, budget: normalizeWagerAmount(amountInput),
+        independentGames: plan.count.toString(), amount: plan.amount, unspent: plan.unspent });
       amountInput = plan.amount;
-    } else if (opts.spin !== undefined) {
+    } else if (exactBet !== undefined && amountInput !== undefined) {
+      const plan = resolveSpinWager(fixedGame, amountInput, exactBet, { optionName: getBetSplitOptionName(opts) });
+      applySpinConfig(gameConfig, plan);
+      Object.assign(gameConfig, { [amountField]: plan.spin, amount: plan.amount, unspent: plan.unspent });
+      amountInput = plan.amount;
+    } else if (exactBet !== undefined) {
       delete gameConfig.split;
       delete gameConfig.survive;
-      gameConfig.spin = normalizeWagerAmount(opts.spin);
+      gameConfig[amountField] = normalizeWagerAmount(exactBet);
     }
     validateResolvedGameConfig(fixedGame, gameConfig, { amountInput });
   }
@@ -5708,7 +5723,8 @@ program
   .option('--grid <grid>', 'Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)')
   .option('--split <count>', 'Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots')
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
-  .option('--spin <ape>', 'Exact APE per independent attempt; maximize count within the wager budget')
+  .option('--bet-split <ape>', 'Exact APE per independent attempt; single-game sequences require --loop')
+  .option('--spin <ape>', 'Alias for --bet-split in slots, Plinko, and Blocks')
   .option('--bonus', 'Blizzard Blitz: buy one bonus round; amount is purchase cost, minimum 100 APE')
   .option('--bet <bet>', 'Roulette/Baccarat bet; Roulette supports BET=CHIPS entries')
   .option('--chips <integer>', 'Roulette chips purchased with the total wager (default: sum in --bet)')
@@ -5780,8 +5796,8 @@ program
     }
 
     try {
-      if (opts.spin !== undefined) resolveSpinWager(gameEntry, opts.amount, opts.spin);
-      if (['dojo-drop', 'blizzard-blitz'].includes(gameEntry?.key) && opts.spin === undefined) {
+      if (getBetSplitValue(opts) !== undefined) resolveSpinWager(gameEntry, opts.amount, getBetSplitValue(opts), { optionName: getBetSplitOptionName(opts) });
+      if (['dojo-drop', 'blizzard-blitz'].includes(gameEntry?.key) && getBetSplitValue(opts) === undefined) {
         const gameConfig = resolveValidationGameConfig({ fixedGame: gameEntry, opts, positionalConfig: {}, loopMode: false });
         validateResolvedGameConfig(gameEntry, gameConfig, { amountInput: opts.amount });
       }
@@ -5842,6 +5858,7 @@ program
         split: opts.split,
         survive: opts.survive,
         spin: opts.spin,
+        betSplit: opts.betSplit,
         bonus: opts.bonus,
         bet: opts.bet,
         chips: opts.chips,
@@ -5884,7 +5901,8 @@ program
   .option('--grid <grid>', 'Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)')
   .option('--split <count>', 'Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots')
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
-  .option('--spin <ape>', 'Exact APE per independent attempt; maximize count within the wager budget')
+  .option('--bet-split <ape>', 'Exact APE per independent attempt; single-game sequences require --loop')
+  .option('--spin <ape>', 'Alias for --bet-split in slots, Plinko, and Blocks')
   .option('--bonus', 'Blizzard Blitz: buy one bonus round; amount is purchase cost, minimum 100 APE')
   .option('--bet <bet>', 'Roulette/Baccarat bet; Roulette supports BET=CHIPS entries')
   .option('--chips <integer>', 'Roulette chips purchased with the total wager (default: sum in --bet)')
@@ -5930,6 +5948,7 @@ program
   .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape-or-percent>', 'Stop when net session PnL reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
+  .option('--bankroll-cap <ape>', 'Cap allocated bankroll; exit after a settled result exceeds it')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
@@ -5970,6 +5989,7 @@ program
       '--survive',
       '--balls',
       '--spin',
+      '--bet-split',
       '--bonus',
       '--bet',
       '--chips',
@@ -6012,6 +6032,7 @@ program
       '--min-balance',
       '--max-loss',
       '--bankroll',
+      '--bankroll-cap',
       '--bet-strategy',
       '--max-bet',
       '--min-bet',
@@ -6032,6 +6053,7 @@ program
 
     const statefulDispatch = resolveStatefulPlayDispatch({ gameArg, amountArg, configArgs, opts });
     if (statefulDispatch) {
+      if (opts.betSplit !== undefined) failPlayValidation(new Error('--bet-split is only for supported stateless games.'));
       if (opts.spin !== undefined) failPlayValidation(new Error('--spin is only for split games.'));
       if (opts.bonus !== undefined) failPlayValidation(new Error('--bonus is only for Blizzard Blitz.'));
       if (opts.chips !== undefined || opts.shuffle) failPlayValidation(new Error('--chips and --shuffle are only for Roulette.'));
@@ -6160,6 +6182,7 @@ program
     }
 
     const betStrategyUsageError = getBetStrategyUsageError(betStrategy, {
+      bankrollCap: opts.bankrollCap ?? null,
       loopMode,
       hasBaseBet: amountInput !== undefined,
       minBalance,
@@ -6295,7 +6318,7 @@ program
       }
     }
 
-    if (!opts.validateOnly && (opts.spin !== undefined || fixedGame?.type === 'roulette' || ['dojo-drop', 'blizzard-blitz'].includes(fixedGame?.key) || opts.chips !== undefined || opts.shuffle)) {
+    if (!opts.validateOnly && (getBetSplitValue(opts) !== undefined || fixedGame?.type === 'roulette' || ['dojo-drop', 'blizzard-blitz'].includes(fixedGame?.key) || opts.chips !== undefined || opts.shuffle)) {
       try {
         validateStatelessPlayTarget({ fixedGame, opts, positionalConfig, amountInput, loopMode });
       } catch (error) {
@@ -6317,6 +6340,9 @@ program
       }
       return;
     }
+
+    const loopBetSplitPlan = isLoopBetSplit(fixedGame, opts) ? resolveLoopBetSplit(fixedGame, amountInput, opts) : null;
+    let loopBetSplitSpentWei = 0n;
 
     const account = await getWalletWithPrompt({ json: opts.json, gameplay: true });
     const profile = loadProfile(account.address);
@@ -6347,6 +6373,7 @@ program
       const maxBetInfo = maxBet ? ` | Max bet: ${maxBet} APE` : '';
       const minBetInfo = minBet ? ` | Min bet: ${minBet} APE` : '';
       console.log(`\n🔄 Loop mode: ${gameInfo} (${delayLabel}${strategyInfo}${maxBetInfo}${minBetInfo})`);
+      if (loopBetSplitPlan) console.log(`   Wager budget: ${formatEther(loopBetSplitPlan.budgetWei)} APE; at most ${loopBetSplitPlan.count} games × ${loopBetSplitPlan.amount} APE; fees additional`);
       if (targetBalance) console.log(`   🎯 Maximum balance: ${targetBalance} APE`);
       if (minProfit) console.log(`   💰 Min-profit: ${minProfit} APE net session PnL`);
       if (targetX) console.log(`   🎯 Target multiplier: ${Number(targetX).toFixed(2)}×`);
@@ -6426,7 +6453,7 @@ program
         };
       }
 
-      if (availableApe <= 0 || availableApe < strategyConfig.minBetApe) {
+      if (availableApe <= 0 || (!loopBetSplitPlan && availableApe < strategyConfig.minBetApe)) {
         const response = {
           action: 'play',
           status: 'skipped',
@@ -6450,7 +6477,13 @@ program
 
       // Determine wager (betOverride from betting strategy takes precedence in loop mode)
       let wagerApe;
-      if (betOverride !== null) {
+      if (loopBetSplitPlan) {
+        wagerApe = Number(loopBetSplitPlan.amount);
+        // An exact wager is never shrunk to the wallet balance or the final remainder.
+        if (loopBetSplitPlan.wagerWei > balance - parseEther(String(GAS_RESERVE_APE))) {
+          return { shouldStop: true, reason: 'insufficient_balance', counted: false, completed: false };
+        }
+      } else if (betOverride !== null) {
         wagerApe = betOverride;
         // Cap at available balance
         if (wagerApe > availableApe) {
@@ -6472,7 +6505,7 @@ program
             completed: false,
           };
         }
-        if (opts.spin === undefined && wagerApe > availableApe) {
+        if (getBetSplitValue(opts) === undefined && wagerApe > availableApe) {
           console.error(JSON.stringify({ error: `Insufficient balance. Available: ${availableApe.toFixed(4)} APE` }));
           return {
             shouldStop: true,
@@ -6701,21 +6734,21 @@ program
             gameConfig.split = randomIntInclusive(min, max);
           }
         }
-        if (opts.spin !== undefined) {
+        if (!loopBetSplitPlan && getBetSplitValue(opts) !== undefined) {
           validateSpinUsage(gameEntry, opts, positionalConfig);
           const budget = amountInput && (betOverride === null
             || (betStrategyName === 'flat' && Number(betOverride) === Number(amountInput) && wagerApe === Number(amountInput)))
             ? normalizeWagerAmount(amountInput) : formatApeAmount(wagerApe);
-          spinPlan = await resolveLiveSpinWager(publicClient, gameEntry, budget, opts.spin);
+          spinPlan = await resolveLiveSpinWager(publicClient, gameEntry, budget, getBetSplitValue(opts), { optionName: getBetSplitOptionName(opts) });
           applySpinConfig(gameConfig, spinPlan);
           wagerApe = Number(spinPlan.amount);
           if (parseEther(spinPlan.amount) > balance - parseEther(String(GAS_RESERVE_APE))) {
-            throw new Error(`Insufficient balance for the actual --spin wager (${spinPlan.amount} APE).`);
+            throw new Error(`Insufficient balance for the actual ${getBetSplitOptionName(opts)} wager (${spinPlan.amount} APE).`);
           }
         }
-        if (gameEntry.type === 'roulette') {
-          const actualWager = amountInput && (betOverride === null || (betStrategyName === 'flat' && Number(betOverride) === Number(amountInput)))
-            ? normalizeWagerAmount(amountInput) : formatApeAmount(wagerApe);
+        if (gameEntry.type === 'roulette' || (loopBetSplitPlan && gameEntry.type === 'baccarat')) {
+          const actualWager = loopBetSplitPlan?.amount ?? (amountInput && (betOverride === null || (betStrategyName === 'flat' && Number(betOverride) === Number(amountInput)))
+            ? normalizeWagerAmount(amountInput) : formatApeAmount(wagerApe));
           validateResolvedGameConfig(gameEntry, gameConfig, { amountInput: actualWager });
         }
       } catch (error) {
@@ -6737,7 +6770,7 @@ program
         };
       }
 
-      const wagerApeString = spinPlan?.amount ?? (amountInput && (betOverride === null || (betStrategyName === 'flat' && Number(betOverride) === Number(amountInput)))
+      const wagerApeString = loopBetSplitPlan?.amount ?? spinPlan?.amount ?? (amountInput && (betOverride === null || (betStrategyName === 'flat' && Number(betOverride) === Number(amountInput)))
         ? normalizeWagerAmount(amountInput)
         : formatApeAmount(wagerApe));
 
@@ -6789,7 +6822,9 @@ program
           const estimateMinBalanceApe = minBalance !== null && sessionMinBalanceApe !== null
             ? Math.max(minBalance, sessionMinBalanceApe)
             : (minBalance ?? sessionMinBalanceApe);
-          const estimateLine = formatLoopRunoutEstimate(
+          const estimateLine = loopBetSplitPlan
+            ? `At most ${loopBetSplitPlan.count} games × ${loopBetSplitPlan.amount} APE within the ${formatEther(loopBetSplitPlan.budgetWei)} APE wager budget; safety controls can stop earlier; fees additional`
+            : formatLoopRunoutEstimate(
             estimateConfiguredGameLoopRunout({
               balanceApe,
               availableApe,
@@ -6852,7 +6887,7 @@ program
           survive: gameConfig.survive
             ?? (gameEntry.type === 'beardice' ? gameConfig.rolls : undefined)
             ?? (gameEntry.type === 'blocks' ? gameConfig.runs : undefined),
-          strictPreflight: opts.spin !== undefined,
+          strictPreflight: getBetSplitValue(opts) !== undefined,
           bet: gameConfig.bet,
           chips: gameConfig.chips,
           shuffle: gameConfig.shuffle === true,
@@ -7036,7 +7071,7 @@ program
     // Execute
     if (loopMode) {
       // Initialize betting strategy
-      const baseBet = amountInput ? parseFloat(amountInput) : 10; // Default base bet
+      const baseBet = loopBetSplitPlan ? Number(loopBetSplitPlan.amount) : amountInput ? parseFloat(amountInput) : 10;
       let betStrategyState = betStrategy.init(baseBet, { maxBet, minBet, fraction: betStrategy.fraction });
       
       // Track consecutive errors - stop loop after 3 in a row
@@ -7047,6 +7082,10 @@ program
       let loopError = null;
       try {
       while (true) {
+        if (loopBetSplitPlan && loopBetSplitSpentWei + loopBetSplitPlan.wagerWei > loopBetSplitPlan.budgetWei) {
+          if (!opts.json) console.log('\n🏁 --bet-split wager budget completed.\n');
+          break;
+        }
         // Check balance for target/min-balance
         const { publicClient } = createClients();
         const balance = await getBalanceWithRetry(publicClient, account.address);
@@ -7057,14 +7096,17 @@ program
         if (startingBalance === null) {
           startingBalance = balanceApe;
           const derivedLossControls = deriveLoopLossControls({
+            bankrollCap: opts.bankrollCap ?? null,
+            startingBalanceWei: balance,
             minBalance,
             maxLoss,
             startingBalanceApe: startingBalance,
           });
           minBalance = derivedLossControls.minBalance;
           maxLoss = derivedLossControls.maxLoss;
+          if (derivedLossControls.bankrollCapState) loopTerminalState.bankrollCap = derivedLossControls.bankrollCapState;
 
-          const bankrollFractionRuntimeError = getBankrollFractionRuntimeError(betStrategy, { maxLoss: getRemainingBankrollApe({ currentBalanceApe: startingBalance, startingBalanceApe: startingBalance, maxLoss, minBalance, sessionPnlApe: 0 }) });
+          const bankrollFractionRuntimeError = getBankrollFractionRuntimeError(betStrategy, { maxLoss: getRemainingBankrollApe({ bankrollCap: opts.bankrollCap ?? null, currentBalanceApe: startingBalance, startingBalanceApe: startingBalance, maxLoss, minBalance, sessionPnlApe: 0 }) });
           if (bankrollFractionRuntimeError) {
             console.error(JSON.stringify({ error: bankrollFractionRuntimeError }));
             process.exit(1);
@@ -7090,13 +7132,16 @@ program
           }
           
           // Warn if max-bet is very low compared to base bet
-          if (maxBet !== null && amountInput && maxBet < parseFloat(amountInput)) {
-            console.log(`\n⚠️  Warning: --max-bet (${maxBet}) is less than your base bet (${amountInput}).`);
+          const configuredBaseBet = loopBetSplitPlan?.amount ?? amountInput;
+          if (maxBet !== null && configuredBaseBet && maxBet < parseFloat(configuredBaseBet)) {
+            console.log(`\n⚠️  Warning: --max-bet (${maxBet}) is less than your base bet (${configuredBaseBet}).`);
             console.log(`   Bets will be capped to ${maxBet} APE.\n`);
           }
         }
         
         const preGameTerminalCondition = getBalanceLoopTerminalCondition({
+          bankrollCap: opts.bankrollCap ?? null,
+          economics: loopStats.economics,
           sessionPnlApe: loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe,
           totalWagerApe: loopStats.totalWageredApe,
           currentBalanceApe: balanceApe,
@@ -7124,6 +7169,7 @@ program
         
         // Calculate next bet using betting strategy
         const bankrollRemainingApe = getRemainingBankrollApe({
+          bankrollCap: opts.bankrollCap ?? null,
           minBalance,
           sessionPnlApe: loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe,
           totalWagerApe: loopStats.totalWageredApe,
@@ -7145,6 +7191,7 @@ program
         
         const result = await playOnce(nextBet);
         pendingLoopPlay = result.pendingPayload ?? null;
+        if (loopBetSplitPlan && (result.gameResult || pendingLoopPlay)) loopBetSplitSpentWei += loopBetSplitPlan.wagerWei;
         if (result.error || result.reason === 'invalid_config') {
           loopError = Object.assign(new Error(result.errorMessage || 'Game execution failed'), { accounting: result.failureAccounting });
         }
@@ -7205,6 +7252,8 @@ program
         const currentBal = await getBalanceWithRetry(pc, account.address);
         const currentApe = parseFloat(formatEther(currentBal));
         const sessionTerminalCondition = getBalanceLoopTerminalCondition({
+          bankrollCap: opts.bankrollCap ?? null,
+          economics: loopStats.economics,
           sessionPnlApe: loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe,
           totalWagerApe: loopStats.totalWageredApe,
           currentBalanceApe: currentApe,
@@ -7220,10 +7269,11 @@ program
           state: loopTerminalState,
         });
 
+        const betSplitBudgetExhausted = loopBetSplitPlan && loopBetSplitSpentWei + loopBetSplitPlan.wagerWei > loopBetSplitPlan.budgetWei;
         // Show balance and countdown before next game
         if (!opts.json) {
           const nextDelayMs = getLoopDelayMs({ delaySeconds: loopDelaySeconds, human: humanTiming });
-          const terminalConditionReached = singleGameTerminalCondition || sessionTerminalCondition;
+          const terminalConditionReached = singleGameTerminalCondition || sessionTerminalCondition || betSplitBudgetExhausted;
           console.log('');
           console.log(formatLoopProgress({
             currentBalanceApe: currentApe,
@@ -7250,11 +7300,15 @@ program
             console.log('');
             break;
           }
+          if (betSplitBudgetExhausted) {
+            console.log('\n🏁 --bet-split wager budget completed.\n');
+            break;
+          }
           if (terminalConditionReached) continue;
           await sleep(nextDelayMs);
           continue;
         }
-        if (singleGameTerminalCondition || sessionTerminalCondition) break;
+        if (singleGameTerminalCondition || sessionTerminalCondition || betSplitBudgetExhausted) break;
         await sleep(getLoopDelayMs({ delaySeconds: loopDelaySeconds, human: humanTiming }));
       }
 
@@ -7295,6 +7349,13 @@ program
           total_wager_ape: totalWagerApe,
           total_payout_ape: totalPayoutApe,
           ...economics,
+          ...(loopBetSplitPlan ? { bet_split: {
+            budget_ape: formatEther(loopBetSplitPlan.budgetWei),
+            per_game_ape: loopBetSplitPlan.amount,
+            wagered_ape: formatEther(loopBetSplitSpentWei),
+            remaining_ape: formatEther(loopBetSplitPlan.budgetWei - loopBetSplitSpentWei),
+            exhausted: loopBetSplitSpentWei + loopBetSplitPlan.wagerWei > loopBetSplitPlan.budgetWei,
+          } } : {}),
           games_detail: loopGamePayloads,
           failed_attempts: failureEntries,
           ...(loopError ? { error: loopError.message, partial: true } : {}),
@@ -8174,7 +8235,8 @@ program
   .option('--grid <grid>', 'Blocks grid used by play')
   .option('--split <count>', 'Independent split count used by play')
   .option('--survive <count>', 'Compounding survival count used by play')
-  .option('--spin <ape>', 'Exact APE per independent attempt; maximize count within the wager budget')
+  .option('--bet-split <ape>', 'Exact APE per independent attempt; single-game sequences require --loop')
+  .option('--spin <ape>', 'Alias for --bet-split in slots, Plinko, and Blocks')
   .option('--bonus', 'Blizzard Blitz: buy one bonus round; amount is purchase cost, minimum 100 APE')
   .option('--picks <count>', 'Keno pick count used by play')
   .option('--bet <bet>', 'Roulette or Baccarat bet')
@@ -8191,7 +8253,7 @@ program
     const matchedCatalogEntry = resolveCatalogGameEntry(name);
     const paytableOnlyOption = [
       ['risk', '--risk'], ['grid', '--grid'], ['split', '--split'],
-      ['survive', '--survive'], ['spin', '--spin'], ['bonus', '--bonus'], ['picks', '--picks'],
+      ['survive', '--survive'], ['betSplit', '--bet-split'], ['spin', '--spin'], ['bonus', '--bonus'], ['picks', '--picks'],
       ['bet', '--bet'], ['chips', '--chips'], ['shuffle', '--shuffle'], ['cover', '--cover'], ['range', '--range'],
       ['outRange', '--out-range'], ['multiplier', '--multiplier'],
       ['amount', '--amount'], ['side', '--side'],
@@ -8280,6 +8342,7 @@ ${'─'.repeat(60)}
   --min-balance <ape>  Stop when balance drops to this amount
   --max-loss <ape-or-percent>  Stop when net session PnL reaches this loss
   --bankroll <ape>  Alias for --max-loss
+  --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
 
 ${'─'.repeat(60)}
   GRAMMAR (BNF)
@@ -8381,6 +8444,7 @@ ${'─'.repeat(60)}
   --min-balance <ape> Stop when balance drops to this amount
   --max-loss <ape-or-percent> Stop when net session PnL reaches this loss
   --bankroll <ape> Alias for --max-loss
+  --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
   --retrace <ape-or-percent> Stop when a run loses at least this amount
   --recover-loss <ape-or-percent> Arm at -<ape> net P&L; stop at break-even/profit
   --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
@@ -8473,6 +8537,7 @@ ${'─'.repeat(60)}
   --min-balance <ape> Stop when balance drops to this amount
   --max-loss <ape-or-percent> Stop when net session PnL reaches this loss
   --bankroll <ape> Alias for --max-loss
+  --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
   --retrace <ape-or-percent> Stop when a run loses at least this amount
   --recover-loss <ape-or-percent> Arm at -<ape> net P&L; stop at break-even/profit
   --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
@@ -8578,6 +8643,7 @@ ${'─'.repeat(60)}
   --min-balance <ape>  Stop when balance drops to this amount
   --max-loss <ape-or-percent>  Stop when net session PnL reaches this loss
   --bankroll <ape>  Alias for --max-loss
+  --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
 
 ${'─'.repeat(60)}
   GRAMMAR (BNF)
@@ -8852,6 +8918,7 @@ LOOP OPTIONS
   --min-balance <ape>       Stop when balance drops to limit
   --max-loss <ape-or-percent>        Stop when net session PnL reaches the loss limit
   --bankroll <ape>        Alias for --max-loss
+  --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
   --max-games <count>     Stop after N games
   --bet-strategy <name>   Betting strategy (flat, martingale, bankroll-fraction=<0..1>, etc.)
   --max-bet <ape>         Maximum bet cap (for progressive strategies)
@@ -9179,7 +9246,7 @@ ${'─'.repeat(70)}
   Bets a fixed fraction of the remaining session bankroll.
   Use bankroll-fraction=<decimal> where the decimal is strictly between 0 and 1.
 
-  • Requires: --bankroll/--max-loss or --min-balance
+  • Requires: --bankroll/--max-loss, --min-balance or --bankroll-cap
   • Conflicts with: explicit <base-bet> or --amount
   • Remaining bankroll: --bankroll plus net session PnL, or current balance minus --min-balance
   • Supports: --max-bet cap and --min-bet floor
@@ -10586,6 +10653,7 @@ program
   .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape-or-percent>', 'Stop when net session PnL reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
+  .option('--bankroll-cap <ape>', 'Cap allocated bankroll; exit after a settled result exceeds it')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
@@ -10629,6 +10697,7 @@ program
   .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape-or-percent>', 'Stop when net session PnL reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
+  .option('--bankroll-cap <ape>', 'Cap allocated bankroll; exit after a settled result exceeds it')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
@@ -10671,6 +10740,7 @@ program
   .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape-or-percent>', 'Stop when net session PnL reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
+  .option('--bankroll-cap <ape>', 'Cap allocated bankroll; exit after a settled result exceeds it')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
@@ -10711,6 +10781,7 @@ program
   .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
   .option('--max-loss <ape-or-percent>', 'Stop when net session PnL reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
+  .option('--bankroll-cap <ape>', 'Cap allocated bankroll; exit after a settled result exceeds it')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')

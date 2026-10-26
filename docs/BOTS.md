@@ -235,16 +235,88 @@ Unless a bot has more specific implementation instructions, and documents those 
 - `--max-balance <ape>` and `--min-balance <ape>`: absolute wallet balance thresholds for the complete bot run. Bots should forward these exact absolute values to every CLI play and nested bot call so execution can stop inside a child ladder as soon as the wallet crosses either boundary.
 - `--min-profit <ape|n%>` / `--take-profit` and `--max-loss <ape|n%>` / `--stop-loss`: net PnL Profit guards for the complete run. Percentages use its actual cumulative wager. They do not derive wallet thresholds.
 - `--bankroll <ape>`: alias for `--max-loss`, used by bots or strategies that express their loss budget as bankroll instead of max loss.
+- `--bankroll-cap <ape>`: shared allocation cap and net-capital profit exit. It is available wherever `--bankroll` is supported. It may be used alone, with a wallet floor, or with an independent loss budget. See the runtime contract below.
 - `--recover-loss <ape|n%>` and `--giveback-profit <ape|n%>`: net result PnL controls for the complete bot run. `--recover-loss` arms after P&L reaches `-<ape>` or worse and stops at break-even/profit; `--giveback-profit` arms after P&L reaches `+<ape>` or better and stops at break-even/loss.
 - `--max-routines <count>`: limits routines of the main bot only. Do not forward this option to games, nested bots, or child games.
 - `--gp-ape <points>`: forwarded to each CLI play launched by the bot.
 - `--human [range]`: bots propagate this to every child CLI play and nested bot. Bare `--human` uses the weighted 3-9s profile; `weighted:3-9` is the explicit serialized form of that profile, while ranges such as `2-17` use a uniform random seconds window. Bots that manage child run loops may also apply it internally between child runs.
 - `--delay <seconds>`: fixed pacing between one bot routine and the next. It is added on top of `--human` at that routine boundary and is never forwarded to child CLI plays or nested bots.
-- `--preflight <seconds>`: delayed start before the bot begins its first routine. It is never forwarded to child CLI plays or nested bots.
+- `--preflight <seconds>`: delayed start before the bot begins its first routine. On an interactive terminal, Enter skips the current wait and Ctrl+C aborts. It is never forwarded to child CLI plays or nested bots.
 
 Other options are invalid unless the bot explicitly defines them.
 
 Use `ctx.session.parseStandardBotArgs(ctx.args)` first, then parse the returned `remainingArgs` for bot-specific arguments. Use the returned `loopControls` with the shared session helpers so standard guard behavior stays consistent.
+
+### Interactive preflight wait
+
+Implement the startup delay with the shared wait helper:
+
+```js
+await ctx.session.waitForStandardBotPreflight(loopControls, {
+  defaultSeconds: 0,
+  sleep: ctx.sleep,
+});
+```
+
+`waitForStandardBotPreflight` retains the duration parsing of
+`getStandardBotPreflightDelayMs` and returns `disabled`, `elapsed` or `skipped`.
+For a positive delay with interactive stdin and stderr, it prints a hint on
+stderr and accepts Enter to skip that wait. It preserves Ctrl+C interruption,
+restores terminal mode and removes keyboard listeners before returning.
+Other keys do not start the bot. JSON stdout remains unchanged.
+
+Without an interactive terminal, it performs the configured timed wait through
+the supplied `sleep` function or a normal timer. Zero delay does not attach
+listeners or print a hint. Closing stdin disables the shortcut and leaves the
+remaining timer running. Skipping changes neither configured controls nor
+validation, and does not skip future preflights or ordinary pacing delays.
+Do not call it during dry-run validation or pending resumption. No keystroke
+forwarding to nested processes is provided.
+
+### Capped allocation runtime contract
+
+`--bankroll-cap K` allocates at most K APE at each fresh start. Let C be the
+starting wallet balance, L the configured minimum balance (zero if omitted),
+and A any absolute `--bankroll` / `--max-loss` amount:
+
+```text
+H = max(0, min(K, C − L, A if specified))
+F = max(L, C − H)
+remaining capital = H + cumulative actual net PnL
+sizing capital = min(K, max(0, remaining capital))
+```
+
+The fixed effective wallet floor F applies to every child. A percentage loss
+guard stays a net-PnL percentage guard and does not define initial capital.
+Existing profit/loss, wallet, game-count and result controls remain independent.
+When a completed control unit leaves remaining capital **strictly greater**
+than K, return a normal `bankroll_cap` stop. Equality must allow play; a new
+invocation with H = K must not immediately exit. No `--min-profit` is required.
+The cap limits allocation and capital-based sizing, not cumulative wager,
+fixed wagers, split/double exposure or strategy-specific boosts.
+
+`prepareStandardBotLoopRuntime` resolves this allocation and keeps its exact
+APE values in `runtime.state.bankrollCap`. Custom runtimes must set
+`runtime.state.startingBalanceWei` and call
+`configureStandardBotBankrollCap(loopControls, runtime)` before forwarding or
+checking controls. `getStandardBotLoopCondition` uses matching net PnL, including
+actual additional costs, and checks the cap after explicit standard guards.
+For a control unit spanning multiple child calls, use
+`includeBankrollCap: false` between calls and enable it at the completed unit
+boundary; wallet and other safety controls remain active throughout.
+
+Both forwarding helpers pass F as `--min-balance`. They do **not** forward the
+parent cap or its profit objective, which would create a different child
+baseline. Keep the original configured options separate from the derived floor.
+Pending resume must preserve the original allocation, floor and loop state,
+and call `validateStandardBotBankrollCapResume` before restoring saved controls.
+A fresh invocation recalculates them; there is no persistent reserve, automatic
+relaunch or change to script-watch scheduling. Simulations must supply a known
+starting wallet balance; the opening wager cannot stand in for that balance.
+
+Regression coverage must include equality and one-wei surplus, costs offsetting
+gross profit, explicit budgets smaller than the cap, wallet-floor forwarding,
+completed versus unfinished control units, and pending resume without rebasing.
 
 ```js
 export default async function run(ctx) {

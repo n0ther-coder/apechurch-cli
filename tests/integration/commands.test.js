@@ -643,16 +643,82 @@ describe('CLI Commands Integration Tests', () => {
 
     it('resolves exact stakes across every split game without wallet access', () => {
       for (const game of ['blocks', 'jungle-plinko', 'cosmic-plinko', 'primes', 'speed-keno',
-        'dino-dough', 'bubblegum-heist', 'geez-diggerz', 'sushi-showdown', 'dojo-drop', 'reel-pirates']) {
-        const result = cli(`play ${game} 23 --spin 4 --validate-only --json`);
+        'dino-dough', 'bubblegum-heist', 'geez-diggerz', 'sushi-showdown', 'dojo-drop', 'reel-pirates', 'blizzard-blitz']) {
+        const flag = ['primes', 'speed-keno'].includes(game) ? '--bet-split' : '--spin';
+        const result = cli(`play ${game} 23 ${flag} 4 --validate-only --json`);
         assert.strictEqual(result.code, 0, result.stdout);
         const config = JSON.parse(result.stdout).config;
         assert.strictEqual(config.split, 5, game);
-        assert.strictEqual(config.spin, '4', game);
+        assert.strictEqual(config[flag === '--spin' ? 'spin' : 'betSplit'], '4', game);
         assert.strictEqual(config.amount, '20', game);
         assert.strictEqual(config.unspent, '3', game);
         assert.strictEqual(config.survive, undefined, game);
         if (game === 'blocks') assert.strictEqual(config.compounding, false);
+      }
+    });
+
+    it('validates finite single-game budgets and per-game allocations without a wallet', () => {
+      for (const command of [
+        'play roulette 23 --bet-split 4 --bet RED=3,BLACK=1 --chips 4 --loop --max-games 3 --stop-loss 8',
+        'play baccarat 23 --bet-split 4 --bet "3.8 BANKER 0.2 TIE" --loop --take-profit 8',
+        'play ape-strong 23 --bet-split 4 --loop',
+        'play keno 23 --bet-split 4 --loop --picks 3 --numbers 1,2,3',
+        'play bear-dice 23 --bet-split 4 --survive 3 --loop',
+        'play blocks 23 --bet-split 4 --survive 3 --loop',
+        'play blocks 23 --spin 4 --survive 3 --loop',
+      ]) {
+        const result = cli(`${command} --validate-only --json`);
+        assert.strictEqual(result.code, 0, result.stdout);
+        const config = JSON.parse(result.stdout).config;
+        assert.strictEqual(config.betSplit, '4');
+        assert.strictEqual(config.budget, '23');
+        assert.strictEqual(config.independentGames, '5');
+        assert.strictEqual(config.amount, '4');
+        assert.strictEqual(config.unspent, '3');
+        if (command.includes('roulette')) assert.strictEqual(config.chipValue, '1');
+        if (command.includes('--survive')) assert.strictEqual(config.survive, 3);
+      }
+    });
+
+    it('rejects invalid bet-split commands before wallet or RPC access', () => {
+      for (const command of [
+        'play roulette 23 --bet-split 4 --bet RED',
+        'play roulette --bet-split 4 --bet RED --loop',
+        'play roulette 3 --bet-split 4 --bet RED --loop',
+        'play roulette 23 --bet-split 0 --bet RED --loop',
+        'play roulette 23 --bet-split 1e0 --bet RED --loop',
+        'play roulette 23 --bet-split 4 --bet RED --loop --bet-strategy martingale',
+        'play roulette 23 --bet-split 4 --bet RED --loop --max-bet 3',
+        'play roulette 23 --bet-split 4 --bet RED --loop --min-bet 5',
+        'play dino-dough 23 --spin 4 --bet-split 4',
+        'play dino-dough 23 --bet-split 4 --split 5',
+        'play primes 23 0 5 --bet-split 4',
+        'play speed-keno 23 5 --bet-split 4',
+        'play blocks 23 --bet-split 4 --survive 3',
+        'play blizzard 100 --bonus --bet-split 4',
+        'play blackjack 23 --bet-split 4 --loop',
+        'play --auto --amount 23 --bet-split 4 --loop',
+      ]) {
+        const result = cli(`${command} --validate-only --json`);
+        assert.strictEqual(result.code, 1, command + result.stdout);
+        assert.match(JSON.parse(result.stdout).error, /--bet-split/, command);
+        assert.ok(!result.stdout.includes('No wallet found'), command);
+      }
+      for (const command of ['bet --game roulette --amount 23 --bet-split 4 --bet RED',
+        'bet --game primes --amount 23 --spin 4',
+        'bet --game speed-keno --amount 23 --spin 4']) {
+        const result = cli(command);
+        assert.strictEqual(result.code, 1, command);
+        assert.match(JSON.parse(result.stdout).error, /--bet-split/);
+        assert.ok(!result.stdout.includes('No wallet found'));
+      }
+      for (const game of ['primes', 'speed-keno']) {
+        const metadata = JSON.parse(cli(`game ${game} --json`).stdout);
+        assert.ok(metadata.config.betSplit);
+        assert.strictEqual(metadata.config.spin, undefined);
+        const removed = cli(`game ${game} --paytable --amount 23 --spin 4 --json`);
+        assert.strictEqual(removed.code, 1);
+        assert.match(JSON.parse(removed.stdout).error, /Use --bet-split/);
       }
     });
 
@@ -697,10 +763,10 @@ describe('CLI Commands Integration Tests', () => {
     });
 
     it('uses the actual exact-spin wager for paytable inspection', () => {
-      const result = cli('game speed-keno --paytable --amount 23 --spin 4 --json');
+      const result = cli('game speed-keno --paytable --amount 23 --bet-split 4 --json');
       assert.strictEqual(result.code, 0, result.stdout);
       assert.deepStrictEqual(JSON.parse(result.stdout).parameters,
-        { picks: 3, split: 5, amount: '20', spin: '4', unspent: '3' });
+        { picks: 3, split: 5, amount: '20', betSplit: '4', unspent: '3' });
       const missingBudget = cli('game dino-dough --paytable --spin 4 --json');
       assert.strictEqual(missingBudget.code, 1);
       assert.match(JSON.parse(missingBudget.stdout).error, /budget/);
@@ -1127,9 +1193,9 @@ describe('CLI Commands Integration Tests', () => {
       const lines = stdout.trim().split('\n');
 
       assert.ok(lines.every((line) => line.startsWith('[play] ')), 'Should only print play-list lines');
-      assert.ok(lines.includes('[play] blocks <ape> --grid <grid> --risk <risk> --split <split> --survive <survive> --spin <spin>'), 'Should show --split and --survive for Blocks');
-      assert.ok(lines.includes('[play] primes <ape> --risk <risk> --split <split> --spin <spin>'), 'Should use --split for Primes');
-      assert.ok(lines.includes('[play] reel-pirates <ape> --split <split> --spin <spin>'), 'Should use --split for Reel Pirates');
+      assert.ok(lines.includes('[play] blocks <ape> --grid <grid> --risk <risk> --split <split> --survive <survive> --bet-split <bet-split> --spin <spin>'), 'Should show --split and --survive for Blocks');
+      assert.ok(lines.includes('[play] primes <ape> --risk <risk> --split <split> --bet-split <bet-split>'), 'Should use --split for Primes');
+      assert.ok(lines.includes('[play] reel-pirates <ape> --split <split> --bet-split <bet-split> --spin <spin>'), 'Should use --split for Reel Pirates');
       assert.ok(!stdout.includes('--rolls'), 'Should not advertise old roll flags');
       assert.ok(!stdout.includes('--runs'), 'Should not advertise old run flags');
       assert.ok(!stdout.includes('--balls'), 'Should not advertise old ball flags');

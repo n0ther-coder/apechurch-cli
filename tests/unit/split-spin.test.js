@@ -15,7 +15,7 @@ describe('Exact wager per split attempt', () => {
   it('leaves the remainder unspent and caps at each supported count', () => {
     const expected = { blocks: 5, 'jungle-plinko': 100, 'cosmic-plinko': 30,
       primes: 20, 'speed-keno': 20, 'dino-dough': 15, 'bubblegum-heist': 15,
-      'geez-diggerz': 15, 'sushi-showdown': 15, 'dojo-drop': 15, 'reel-pirates': 15 };
+      'geez-diggerz': 15, 'sushi-showdown': 15, 'dojo-drop': 15, 'reel-pirates': 15, 'blizzard-blitz': 20 };
     for (const [key, maximum] of Object.entries(expected)) {
       assert.deepEqual(resolveSpinWager(resolveGame(key), '23', '4'), {
         split: 5, spin: '4', amount: '20', unspent: '3',
@@ -49,7 +49,7 @@ describe('Exact wager per split attempt', () => {
   });
 
   it('rejects explicit count conflicts while permitting risk and number selections', () => {
-    const game = resolveGame('speed-keno');
+    const game = resolveGame('dino-dough');
     for (const key of ['split', 'survive', 'games']) {
       assert.throws(() => validateSpinUsage(game, { spin: '4', [key]: 1 }), /cannot be combined/);
     }
@@ -79,7 +79,7 @@ describe('Exact wager per split attempt', () => {
 
   it('rejects invalid router requests without constructing clients', async () => {
     await assert.rejects(playGame({ game: 'dino-dough', amountApe: '3', spin: '4' }), /0 attempts/);
-    await assert.rejects(playGame({ game: 'blocks', amountApe: '23', spin: '4', survive: 2 }), /cannot be combined/);
+    await assert.rejects(playGame({ game: 'blocks', amountApe: '23', spin: '4', survive: 2 }), /requires --loop/);
   });
 
   it('does not submit after a failed exact-spin preflight', async () => {
@@ -90,7 +90,7 @@ describe('Exact wager per split attempt', () => {
       walletClient: { async writeContract() { sends++; } },
       contractAddress: resolveGame('dino-dough').contract,
       encodedData: '0x', wager: parseEther('20'), vrfFee: 1n, strictPreflight: true,
-    }), /--spin wager failed contract preflight/);
+    }), /Exact wager .* failed contract preflight/);
     assert.equal(sends, 0);
   });
 
@@ -130,14 +130,16 @@ describe('Exact wager per split attempt', () => {
     };
     try {
       for (const key of ['blocks', 'jungle-plinko', 'cosmic-plinko', 'primes', 'speed-keno',
-        'dino-dough', 'bubblegum-heist', 'geez-diggerz', 'sushi-showdown', 'dojo-drop', 'reel-pirates']) {
-        for (const args of [['play', key, '23', '--spin', '4', '--json'],
-          ['bet', '--game', key, '--amount', '23', '--spin', '4']]) {
-          const result = run(args);
-          assert.equal(result.wager, parseEther('12').toString(), key);
-          assert.equal(result.config.split, 3, key);
-          assert.equal(result.strictPreflight, true, key);
-          if (key === 'blocks') assert.equal(result.config.compounding, false);
+        'dino-dough', 'bubblegum-heist', 'geez-diggerz', 'sushi-showdown', 'dojo-drop', 'reel-pirates', 'blizzard-blitz']) {
+        for (const flag of (['primes', 'speed-keno'].includes(key) ? ['--bet-split'] : ['--spin', '--bet-split'])) {
+          for (const args of [['play', key, '23', flag, '4', '--json'],
+            ['bet', '--game', key, '--amount', '23', flag, '4']]) {
+            const result = run(args);
+            assert.equal(result.wager, parseEther('12').toString(), key);
+            assert.equal(result.config.split, 3, key);
+            assert.equal(result.strictPreflight, true, key);
+            if (key === 'blocks') assert.equal(result.config.compounding, false);
+          }
         }
       }
       // A loop budget capped to the available balance must be used for sizing.
