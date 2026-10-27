@@ -1,7 +1,7 @@
 # Personal Bot Development
 
 CLI 30 changes accounting and breaks compatibility with earlier scripts.
-See the [migration comparison](MIGRATION_30.md) before updating integrations.
+See the [migration comparison](migrations/v30.md) before updating integrations.
 
 > Summary: Public guide for building personal Ape Church CLI bots against the `apechurch-cli bot` loader and runtime helpers.
 
@@ -235,6 +235,7 @@ Unless a bot has more specific implementation instructions, and documents those 
 - `--max-balance <ape>` and `--min-balance <ape>`: absolute wallet balance thresholds for the complete bot run. Bots should forward these exact absolute values to every CLI play and nested bot call so execution can stop inside a child ladder as soon as the wallet crosses either boundary.
 - `--min-profit <ape|n%>` / `--take-profit` and `--max-loss <ape|n%>` / `--stop-loss`: net PnL Profit guards for the complete run. Percentages use its actual cumulative wager. They do not derive wallet thresholds.
 - `--bankroll <ape>`: alias for `--max-loss`, used by bots or strategies that express their loss budget as bankroll instead of max loss.
+- `--bankroll-stop <ape>`: shared residual-capital stop, available in every cap-capable context, with or without a cap. It accepts exact nonnegative APE, stops at equality, and does not reduce the sizing basis.
 - `--bankroll-cap <ape>`: shared allocation cap and net-capital profit exit. It is available wherever `--bankroll` is supported. It may be used alone, with a wallet floor, or with an independent loss budget. See the runtime contract below.
 - `--recover-loss <ape|n%>` and `--giveback-profit <ape|n%>`: net result PnL controls for the complete bot run. `--recover-loss` arms after P&L reaches `-<ape>` or worse and stops at break-even/profit; `--giveback-profit` arms after P&L reaches `+<ape>` or better and stops at break-even/loss.
 - `--max-routines <count>`: limits routines of the main bot only. Do not forward this option to games, nested bots, or child games.
@@ -281,10 +282,16 @@ and A any absolute `--bankroll` / `--max-loss` amount:
 
 ```text
 H = max(0, min(K, C − L, A if specified))
-F = max(L, C − H)
+F = max(L, C − H + S)  # S = --bankroll-stop, zero if absent
 remaining capital = H + cumulative actual net PnL
 sizing capital = min(K, max(0, remaining capital))
 ```
+
+With an explicit residual stop S, require 0 ≤ S < H and, if set, S < K.
+At every standard control checkpoint, H + actual cumulative net PnL ≤ S
+returns `bankroll_stop`, independently from raw wallet changes. The exact
+net economics include costs of failed attempts. The stop works without a cap;
+in that case omit K from the allocation and sizing minima.
 
 The fixed effective wallet floor F applies to every child. A percentage loss
 guard stays a net-PnL percentage guard and does not define initial capital.
@@ -306,7 +313,7 @@ For a control unit spanning multiple child calls, use
 boundary; wallet and other safety controls remain active throughout.
 
 Both forwarding helpers pass F as `--min-balance`. They do **not** forward the
-parent cap or its profit objective, which would create a different child
+parent cap, residual stop or its profit objective, which would create a different child
 baseline. Keep the original configured options separate from the derived floor.
 Pending resume must preserve the original allocation, floor and loop state,
 and call `validateStandardBotBankrollCapResume` before restoring saved controls.
@@ -444,3 +451,9 @@ failure may return `terminalOutputHandled: true` to avoid duplicate output;
 this affects display only and never suppresses error logging or exit status.
 Thrown errors may carry the same flag. Keep actual additional costs and
 unresolved exposure separate, and never turn a failed submission into a game.
+
+A new implementation must test residual-stop equality and one-wei boundaries,
+cost-inclusive net PnL, unchanged full-capital sizing, multiple starting wallet
+balances, fixed child-floor forwarding, and preservation/rejection of unchanged/
+changed controls during pending resume. See [CLI 33 migration](migrations/v33.md)
+and the [migration index](migrations/README.md).

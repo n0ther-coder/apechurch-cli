@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [33.0.0]
+
+### Added
+- Shared `--bankroll-stop` residual-capital thresholds across stateless loops,
+  stateful commands and standard bot controls, independently of the upper cap.
+- Exact net-capital stop reporting, relative wallet-floor forwarding and pending
+  resume validation, while fractional sizing retains the full allocation.
+- CLI 33 migration comparison and implementation requirements for capital stops.
+
+### Compatibility
+- The new option requires CLI 33; scripts without it retain their behavior.
+  See [the migration guide](docs/migrations/v33.md).
+
 ## [32.1.0]
 
 ### Added
@@ -52,7 +65,7 @@ All notable changes to this project will be documented in this file.
 ### Breaking
 - Gross wager/payout and payout multipliers are separate from net PnL Profit
   after all actual additional execution costs. Earlier scripts are incompatible
-  without migration; see [the two-column guide](docs/MIGRATION_30.md).
+  without migration; see [the two-column guide](docs/migrations/v30.md).
 - Wallet limits are `--min-balance` / `--max-balance`; profit/loss options now
   consistently control net results in APE or whole percentages.
 

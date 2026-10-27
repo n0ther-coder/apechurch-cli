@@ -2,7 +2,8 @@
 
 **CLI 30 breaks compatibility with scripts written for earlier versions.**
 Review and migrate wallet limits, profit/loss thresholds, JSON consumers and
-output assumptions using the [two-column migration guide](docs/MIGRATION_30.md).
+output assumptions using the [two-column migration guide](docs/migrations/v30.md).
+All version-specific guides are indexed in [docs/migrations](docs/migrations/README.md).
 
 > Summary: Ape Church CLI with encrypted local wallet handling, game automation, on-chain history reporting, and JSON interfaces for bots and AI agents.
 
@@ -500,6 +501,7 @@ apechurch-cli play ape-strong 10 --cover 50 --loop --max-balance 150
 | `--min-balance <ape>` | Stop when balance drops to limit; if used without `--bankroll`/`--max-loss`, the session bankroll is derived as `starting balance - min-balance` |
 | `--max-loss <ape|n%>`, `--bankroll <ape>` | Stop when net session PnL reaches the loss limit; no wallet threshold is derived |
 | `--bankroll-cap <ape>` | Cap allocated capital and stop after a settled result leaves net capital above it; see [shared bankroll cap](docs/BANKROLL_CAP.md) |
+| `--bankroll-stop <ape>` | Stop when initial allocated bankroll + cumulative net PnL is at or below this residual amount; sizing still uses the full bankroll |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
 | `--gp-ape <points>` | Override the loop points conversion for this run |

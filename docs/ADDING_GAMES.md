@@ -1,7 +1,7 @@
 # Adding Games to Ape Church CLI
 
 CLI 30 changes accounting and breaks compatibility with earlier scripts.
-See the [migration comparison](MIGRATION_30.md) before updating integrations.
+See the [migration comparison](migrations/v30.md) before updating integrations.
 
 > Summary: Maintainer guide for adding or changing supported games. Points to the registry, CLI wiring, encoding patterns, validation steps, and release checklist updates tied to new game support.
 

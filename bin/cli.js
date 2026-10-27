@@ -523,6 +523,7 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--max-loss <ape-or-percent>        Stop when net session PnL reaches the loss limit',
   '--bankroll <ape>        Alias for --max-loss',
   '--bankroll-cap <ape>    Cap allocated bankroll; exit when net capital exceeds it',
+  '--bankroll-stop <ape>   Stop when remaining net bankroll is at or below it',
   '--bet-strategy <name>   Loop bet progression; supports bankroll-fraction=<0..1>',
   '--max-bet <ape>         Loop safety cap for progressive strategies',
   '--min-bet <ape>         Loop minimum bet floor',
@@ -577,6 +578,7 @@ const LOOP_HELP_OPTION_LINES = Object.freeze([
   '--max-loss <ape-or-percent>        Stop when net session PnL reaches this loss',
   '--bankroll <ape>        Alias for --max-loss',
   '--bankroll-cap <ape>    Cap allocated bankroll; exit when net capital exceeds it',
+  '--bankroll-stop <ape>   Stop when remaining net bankroll is at or below it',
   '--bet-strategy <name>   Loop bet progression strategy',
   '--max-bet <ape>         Maximum loop wager cap',
   '--min-bet <ape>         Minimum loop wager floor',
@@ -597,7 +599,7 @@ const STATEFUL_SHARED_HELP_OPTION_LINES = Object.freeze([
 const STATEFUL_SHARED_BNF_LINES = Object.freeze([
   '<pnl-threshold> ::= <ape> | <integer> "%" ; positive whole percentage of controlled wager',
   '<stateful-common-option> ::= "--game" <game-id> | "--display" <display> | "--json" | "-v" | "--verbose" | "--gp-ape" <points> | "--resilient" | "--no-resilient"',
-  '<stateful-loop-option> ::= "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bankroll-cap" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape>',
+  '<stateful-loop-option> ::= "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bankroll-cap" <ape> | "--bankroll-stop" <ape-nonnegative> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape>',
 ]);
 
 function isPositiveApeToken(value) {
@@ -636,7 +638,9 @@ function resolveBetStrategyOrExit(rawName, { json = false } = {}) {
 
 function formatDerivedLoopLossNotice({ derivedMinBalance, derivedMaxLoss, minBalance, maxLoss, bankrollCapState }) {
   if (bankrollCapState) {
-    return `Allocated bankroll: ${bankrollCapState.initial_bankroll_ape} APE; cap: ${bankrollCapState.cap_ape} APE; effective min-balance: ${bankrollCapState.min_balance_ape} APE`;
+    const cap = bankrollCapState.cap_ape == null ? 'none' : `${bankrollCapState.cap_ape} APE`;
+    const stop = bankrollCapState.stop_ape == null ? '' : `; residual stop: ${bankrollCapState.stop_ape} APE`;
+    return `Allocated bankroll: ${bankrollCapState.initial_bankroll_ape} APE; cap: ${cap}${stop}; effective min-balance: ${bankrollCapState.min_balance_ape} APE`;
   }
   if (derivedMinBalance) {
     return `Derived min-balance: ${Number(minBalance).toFixed(6).replace(/\.?0+$/, '')} APE from bankroll ${maxLoss} APE`;
@@ -1306,7 +1310,7 @@ function formatPlayHelpAppendix() {
       '<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>',
       '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
       '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count> | "--resilient" | "--no-resilient"',
-      '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bankroll-cap" <ape> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
+      '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bankroll-cap" <ape> | "--bankroll-stop" <ape-nonnegative> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
       ...SIMPLE_GAME_HELP_BNF_LINES,
       ...COMMON_BNF_LINES.filter((line) => !line.startsWith('<ape') && !line.startsWith('<points>')),
     ],
@@ -5957,6 +5961,7 @@ program
   .option('--max-loss <ape-or-percent>', 'Stop when net session PnL reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
   .option('--bankroll-cap <ape>', 'Cap allocated bankroll; exit after a settled result exceeds it')
+  .option('--bankroll-stop <ape>', 'Stop when remaining net bankroll is at or below this amount')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
@@ -6041,6 +6046,7 @@ program
       '--max-loss',
       '--bankroll',
       '--bankroll-cap',
+      '--bankroll-stop',
       '--bet-strategy',
       '--max-bet',
       '--min-bet',
@@ -6191,6 +6197,7 @@ program
 
     const betStrategyUsageError = getBetStrategyUsageError(betStrategy, {
       bankrollCap: opts.bankrollCap ?? null,
+      bankrollStop: opts.bankrollStop ?? null,
       loopMode,
       hasBaseBet: amountInput !== undefined,
       minBalance,
@@ -7105,6 +7112,7 @@ program
           startingBalance = balanceApe;
           const derivedLossControls = deriveLoopLossControls({
             bankrollCap: opts.bankrollCap ?? null,
+            bankrollStop: opts.bankrollStop ?? null,
             startingBalanceWei: balance,
             minBalance,
             maxLoss,
@@ -7114,7 +7122,7 @@ program
           maxLoss = derivedLossControls.maxLoss;
           if (derivedLossControls.bankrollCapState) loopTerminalState.bankrollCap = derivedLossControls.bankrollCapState;
 
-          const bankrollFractionRuntimeError = getBankrollFractionRuntimeError(betStrategy, { maxLoss: getRemainingBankrollApe({ bankrollCap: opts.bankrollCap ?? null, currentBalanceApe: startingBalance, startingBalanceApe: startingBalance, maxLoss, minBalance, sessionPnlApe: 0 }) });
+          const bankrollFractionRuntimeError = getBankrollFractionRuntimeError(betStrategy, { maxLoss: getRemainingBankrollApe({ bankrollCapState: loopTerminalState.bankrollCap, bankrollCap: opts.bankrollCap ?? null, bankrollStop: opts.bankrollStop ?? null, currentBalanceApe: startingBalance, startingBalanceApe: startingBalance, maxLoss, minBalance, sessionPnlApe: 0 }) });
           if (bankrollFractionRuntimeError) {
             console.error(JSON.stringify({ error: bankrollFractionRuntimeError }));
             process.exit(1);
@@ -7149,6 +7157,7 @@ program
         
         const preGameTerminalCondition = getBalanceLoopTerminalCondition({
           bankrollCap: opts.bankrollCap ?? null,
+          bankrollStop: opts.bankrollStop ?? null,
           economics: loopStats.economics,
           sessionPnlApe: loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe,
           totalWagerApe: loopStats.totalWageredApe,
@@ -7176,8 +7185,9 @@ program
         }
         
         // Calculate next bet using betting strategy
-        const bankrollRemainingApe = getRemainingBankrollApe({
+        const bankrollRemainingApe = getRemainingBankrollApe({ bankrollCapState: loopTerminalState.bankrollCap,
           bankrollCap: opts.bankrollCap ?? null,
+          bankrollStop: opts.bankrollStop ?? null,
           minBalance,
           sessionPnlApe: loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe,
           totalWagerApe: loopStats.totalWageredApe,
@@ -7261,6 +7271,7 @@ program
         const currentApe = parseFloat(formatEther(currentBal));
         const sessionTerminalCondition = getBalanceLoopTerminalCondition({
           bankrollCap: opts.bankrollCap ?? null,
+          bankrollStop: opts.bankrollStop ?? null,
           economics: loopStats.economics,
           sessionPnlApe: loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe,
           totalWagerApe: loopStats.totalWageredApe,
@@ -8351,6 +8362,7 @@ ${'─'.repeat(60)}
   --max-loss <ape-or-percent>  Stop when net session PnL reaches this loss
   --bankroll <ape>  Alias for --max-loss
   --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
+  --bankroll-stop <ape> Stop when remaining net bankroll is at or below it
 
 ${'─'.repeat(60)}
   GRAMMAR (BNF)
@@ -8453,6 +8465,7 @@ ${'─'.repeat(60)}
   --max-loss <ape-or-percent> Stop when net session PnL reaches this loss
   --bankroll <ape> Alias for --max-loss
   --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
+  --bankroll-stop <ape> Stop when remaining net bankroll is at or below it
   --retrace <ape-or-percent> Stop when a run loses at least this amount
   --recover-loss <ape-or-percent> Arm at -<ape> net P&L; stop at break-even/profit
   --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
@@ -8546,6 +8559,7 @@ ${'─'.repeat(60)}
   --max-loss <ape-or-percent> Stop when net session PnL reaches this loss
   --bankroll <ape> Alias for --max-loss
   --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
+  --bankroll-stop <ape> Stop when remaining net bankroll is at or below it
   --retrace <ape-or-percent> Stop when a run loses at least this amount
   --recover-loss <ape-or-percent> Arm at -<ape> net P&L; stop at break-even/profit
   --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
@@ -8652,6 +8666,7 @@ ${'─'.repeat(60)}
   --max-loss <ape-or-percent>  Stop when net session PnL reaches this loss
   --bankroll <ape>  Alias for --max-loss
   --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
+  --bankroll-stop <ape> Stop when remaining net bankroll is at or below it
 
 ${'─'.repeat(60)}
   GRAMMAR (BNF)
@@ -8927,6 +8942,7 @@ LOOP OPTIONS
   --max-loss <ape-or-percent>        Stop when net session PnL reaches the loss limit
   --bankroll <ape>        Alias for --max-loss
   --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
+  --bankroll-stop <ape> Stop when remaining net bankroll is at or below it
   --max-games <count>     Stop after N games
   --bet-strategy <name>   Betting strategy (flat, martingale, bankroll-fraction=<0..1>, etc.)
   --max-bet <ape>         Maximum bet cap (for progressive strategies)
@@ -10662,6 +10678,7 @@ program
   .option('--max-loss <ape-or-percent>', 'Stop when net session PnL reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
   .option('--bankroll-cap <ape>', 'Cap allocated bankroll; exit after a settled result exceeds it')
+  .option('--bankroll-stop <ape>', 'Stop when remaining net bankroll is at or below this amount')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
@@ -10706,6 +10723,7 @@ program
   .option('--max-loss <ape-or-percent>', 'Stop when net session PnL reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
   .option('--bankroll-cap <ape>', 'Cap allocated bankroll; exit after a settled result exceeds it')
+  .option('--bankroll-stop <ape>', 'Stop when remaining net bankroll is at or below this amount')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
@@ -10749,6 +10767,7 @@ program
   .option('--max-loss <ape-or-percent>', 'Stop when net session PnL reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
   .option('--bankroll-cap <ape>', 'Cap allocated bankroll; exit after a settled result exceeds it')
+  .option('--bankroll-stop <ape>', 'Stop when remaining net bankroll is at or below this amount')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
@@ -10790,6 +10809,7 @@ program
   .option('--max-loss <ape-or-percent>', 'Stop when net session PnL reaches -this amount or worse (use with --loop)')
   .option('--bankroll <ape>', 'Alias for --max-loss')
   .option('--bankroll-cap <ape>', 'Cap allocated bankroll; exit after a settled result exceeds it')
+  .option('--bankroll-stop <ape>', 'Stop when remaining net bankroll is at or below this amount')
   .option('--bet-strategy <name>', 'Betting strategy: flat, martingale, reverse-martingale, fibonacci, dalembert, bankroll-fraction=<0..1>')
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
@@ -10813,6 +10833,17 @@ if (topLevelVersionArgs.isJson) {
 if (!topLevelVersionArgs.isVersionRequest) {
   printInvocationVersion();
 }
+// Capital controls are optional flags, never positional configuration. Reject
+// bare spellings before dispatch so extra stateful operands cannot be ignored.
+program.hook('preAction', (_program, command) => {
+  if (!command.options.some(option => option.long === '--bankroll-cap')) return;
+  const bare = command.args.flat().find(token => /^bankroll-(?:cap|stop)(?:=|$)/.test(String(token)));
+  if (bare !== undefined) {
+    const name = String(bare).split('=')[0];
+    throw new Error(`${name} is an optional control; use --${name} with the required -- prefix.`);
+  }
+});
+
 try {
   await program.parseAsync(process.argv);
 } catch (error) {

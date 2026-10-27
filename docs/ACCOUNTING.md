@@ -1,7 +1,7 @@
 # Game result accounting
 
 CLI 30 changes accounting and breaks compatibility with earlier scripts.
-See the [migration comparison](MIGRATION_30.md) before updating integrations.
+See the [migration comparison](migrations/v30.md) before updating integrations.
 
 Accounting version 2 separates gross game returns from the player's additional
 execution costs. Calculate money in integer wei; serialize APE as decimal strings.

@@ -777,6 +777,7 @@ For Blocks, `--split 1-5` divides the wager across independent rolls and sums th
                        | "--max-loss" <pnl-threshold>
                        | "--bankroll" <ape>
                        | "--bankroll-cap" <ape>
+                       | "--bankroll-stop" <ape-nonnegative>
                        | "--bet-strategy" <bet-strategy>
                        | "--max-bet" <ape>
                        | "--min-bet" <ape>
@@ -871,6 +872,7 @@ These options are accepted by the `play` command for both stateless and stateful
 | `--min-balance <ape>` | Stop before a play/loop iteration when wallet balance is at or below the threshold. It can define starting sizing capital as `starting balance - min-balance`, without creating a net loss guard |
 | `--max-loss <ape|n%>`, `--bankroll <ape>` | Stop loop when session P&L reaches the loss limit. No wallet threshold is derived from this net result limit |
 | `--bankroll-cap <ape>` | Cap allocated bankroll; stop when a completed result puts net capital strictly above the cap. See [shared bankroll cap](BANKROLL_CAP.md) |
+| `--bankroll-stop <ape>` | Stop at initial allocated bankroll + cumulative net PnL ≤ this amount. Does not subtract the stop from the sizing basis. Works with or without a cap. |
 | `--bet-strategy <name>` | Loop bet progression, including `bankroll-fraction=<0..1>` |
 | `--max-bet <ape>` | Loop safety cap for progressive strategies |
 | `--min-bet <ape>` | Loop minimum bet floor for dynamic strategies |
@@ -1178,6 +1180,7 @@ Alias: `bj`
                      | "--max-loss" <pnl-threshold>
                      | "--bankroll" <ape>
                      | "--bankroll-cap" <ape>
+                     | "--bankroll-stop" <ape-nonnegative>
                      | "--bet-strategy" <bet-strategy>
                      | "--max-bet" <ape>
                      | "--min-bet" <ape>
@@ -1231,6 +1234,7 @@ Aliases: `cashdash`, `dash`
                      | "--max-loss" <pnl-threshold>
                      | "--bankroll" <ape>
                      | "--bankroll-cap" <ape>
+                     | "--bankroll-stop" <ape-nonnegative>
                      | "--bet-strategy" <bet-strategy>
                      | "--max-bet" <ape>
                      | "--min-bet" <ape>
@@ -1285,6 +1289,7 @@ Aliases: `hilonebula`, `hilo`, `nebula`
                         | "--max-loss" <pnl-threshold>
                         | "--bankroll" <ape>
                         | "--bankroll-cap" <ape>
+                        | "--bankroll-stop" <ape-nonnegative>
                         | "--bet-strategy" <bet-strategy>
                         | "--max-bet" <ape>
                         | "--min-bet" <ape>
@@ -1327,6 +1332,7 @@ Alias: `vp`
                        | "--max-loss" <pnl-threshold>
                        | "--bankroll" <ape>
                        | "--bankroll-cap" <ape>
+                       | "--bankroll-stop" <ape-nonnegative>
                        | "--bet-strategy" <bet-strategy>
                        | "--max-bet" <ape>
                        | "--min-bet" <ape>

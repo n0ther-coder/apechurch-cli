@@ -544,6 +544,7 @@ apechurch-cli play ape-strong 10 --cover 50 --loop --target 200 --min-balance 50
 | `--min-balance <ape>` | Stop when balance drops to this amount; derives bankroll when no `--bankroll`/`--max-loss` is set |
 | `--bankroll <ape>`, `--max-loss <ape|n%>` | Stop when net session PnL reaches this loss; no wallet threshold is derived |
 | `--bankroll-cap <ape>` | Cap allocated capital and stop after a settled result leaves net capital above it; see [shared bankroll cap](docs/BANKROLL_CAP.md) |
+| `--bankroll-stop <ape>` | Stop when initial allocated bankroll + cumulative net PnL is at or below this residual amount; sizing still uses the full bankroll |
 | `--max-games <n>` | Stop after N games |
 | `--delay <sec>` | Seconds between games (default: 3) |
 
