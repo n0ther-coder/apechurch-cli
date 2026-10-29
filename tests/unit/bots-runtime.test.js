@@ -55,6 +55,26 @@ function createContext(rawArgs = [], runtimeOptions = {}) {
 }
 
 describe('Bot Runtime Context', () => {
+  it('inherits precision across bot calls while preserving explicit overrides and exact plays', async () => {
+    const ctx = createContext(['--strategy-precision', '4']);
+    assert.equal(ctx.session.parseStandardBotArgs([]).loopControls.strategyPrecision, '4');
+    assert.equal(ctx.session.parseStandardBotArgs([]).strategyPrecisionExplicit, null);
+    assert.equal(ctx.session.extractStrategyPrecisionArgs([]).precision, '4');
+    for (const [tokens, expected] of [[[], '4'], [['--strategy-precision=none'], 'none'], [['--strategy-precision', '0'], '0']]) {
+      const child = await ctx.botJson('example-bot', tokens);
+      assert.equal(ctx.session.extractStrategyPrecisionArgs(child.args).precision, expected);
+    }
+    const pendingChild = await ctx.botJson('example-bot', [], { resumeRequested: true });
+    assert.ok(!pendingChild.args.some(arg => arg.startsWith('--strategy-precision')));
+    const play = await ctx.playJson(['ape-strong', '1']);
+    assert.ok(!play.args.some(arg => arg.startsWith('--strategy-precision')));
+    const restored = createContext([], { resumeSummary: { resume_state: { strategy_precision: 'none' } } });
+    assert.equal(restored.session.parseStandardBotArgs([]).loopControls.strategyPrecision, 'none');
+    assert.throws(() => createContext(['--strategy-precision', '2'], {
+      resumeSummary: { resume_state: { strategy_precision: 'none' } },
+    }), /Cannot change/);
+  });
+
   it('does not report a failed summary as a successful bot exit', () => {
     for (const summary of [{ status: 'error' }, { status: 'indeterminate_error' }, { error: 'Interrupted' }]) {
       assert.equal(normalizeBotRuntimeResult({ exitCode: 0, summary }).exitCode, 1);

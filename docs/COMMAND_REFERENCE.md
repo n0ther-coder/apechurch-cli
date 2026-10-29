@@ -901,9 +901,16 @@ The resilient schedules are fixed, not configurable. Generic transient errors an
 
 ### `bot [name] [args...]`
 
+`--strategy-precision <0..18|none>` sets strategic monetary comparison precision
+(default `none`). Explicit child values override inherited settings; resume restores
+the saved value. See [the precise contract](BOTS.md#strategy-precision).
+
 ```bnf
-<bot-command> ::= "bot" [ <bot-name> ] [ <token>* ] [ "-h" | "--help" ] [ "--color" ] [ "--json" ] [ "--fallback-loss" <pnl-threshold> "--fallback-bot" <bot-name> ] [ "--list" ]
+<bot-command> ::= "bot" [ <bot-name> ] [ <token>* ] [ "-h" | "--help" ] [ "--color" ] [ "--json" ] [ "--fallback-loss" <pnl-threshold> "--fallback-bot" <bot-name> ] [ <strategy-precision-option> ] [ "--list" ]
 <bot-name> ::= <token>
+<strategy-precision-option> ::= "--strategy-precision" <strategy-precision> | "--strategy-precision=" <strategy-precision>
+<strategy-precision> ::= "none" | <integer-0-through-18>
+<integer-0-through-18> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18"
 ```
 
 `bot` discovers personal local bot folders from `$APECHURCH_CLI_CONFIG_DIR/bots` by default, where `APECHURCH_CLI_CONFIG_DIR` defaults to `~/.apechurch-cli`. Set `APECHURCH_CLI_BOTS_DIR` when the bot root lives elsewhere, including a separate private or public Git repository; its value must be the actual local bot root that contains bot folders with `bot.json`, not a parent directory. Bot logs belong under `APECHURCH_CLI_LOG_DIR`, which defaults to `$APECHURCH_CLI_CONFIG_DIR/log`. Each bot is defined by `bot.json` plus an entry module. Use `bot --list` to inspect discovery, `bot --help` for the shared loader help, then `bot <name> ...` to execute one bot. Use `bot <name> -h` or `bot <name> --help` for bot-specific help.

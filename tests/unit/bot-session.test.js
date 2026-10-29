@@ -77,6 +77,7 @@ describe('Bot Session Helpers', () => {
     ]);
 
     assert.deepStrictEqual(parsed.loopControls, {
+      strategyPrecision: 'none',
       maxBalance: '12',
       minProfit: '5',
       recoverLoss: '3',

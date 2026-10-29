@@ -198,7 +198,7 @@ The bot handler receives one context object:
 
 - `args`: tokens passed after the bot name.
 - `resumeRequested`: `true` only when `script watch` is relaunching a run whose previous summary remained `pending`.
-- `resumeSummary`: the newest local `pending` summary for the same bot and exact `args`, or `null`. Use it only to reconcile the already-submitted play; do not start a replacement wager.
+- `resumeSummary`: the newest local `pending` summary for the same bot and matching invocation arguments (precision is restored and validated separately), or `null`. Use it only to reconcile the already-submitted play; do not start a replacement wager.
 - `binaryName`: CLI binary name, normally `apechurch-cli`.
 - `bot`: manifest metadata and resolved filesystem paths. `bot.logDir` is the current bot subdirectory under `APECHURCH_CLI_LOG_DIR`.
 - `paths`: resolved shared paths: `configDir`, `botsDir`, and `logDir`.
@@ -217,9 +217,56 @@ The bot handler receives one context object:
 - `captureBalanceSnapshot(details)`: read the wallet balance and record a structured snapshot for the final bot JSON.
 - `updateRunSummary(summary)`: atomically rewrite the current run JSON log with a partial summary.
 - `estimatePlayCosts(name, {config, gasUnits, additionalReserveApe})`: current read-only fee and gas-price estimate for planning. Actual result costs always come from receipts.
+- `strategyPrecision`: effective decision precision, restored from saved state when resuming.
 - `session`: shared bot helpers for parsing, formatting, colors, P&L, and fallback behavior.
 
 Route gameplay through `play` or `playJson`. Bots should not depend on hidden contract APIs or on unrelated top-level CLI commands such as `wallet`, `send`, `house`, or `profile`.
+
+## Strategy precision
+
+`--strategy-precision <0..18|none>` defaults to `none`. It truncates the signed
+APE difference between observed and required amounts toward zero for strategy
+decisions. A shortfall strictly smaller than 0.01 APE is equivalent to zero at
+precision `2`; exactly 0.01 APE is not. Negative values are symmetric.
+Strict `<` and `>` comparisons treat the equivalence band as equality.
+
+Convert multiplier and percentage thresholds to exact currency amounts before
+comparison. Never quantize a payout ratio: the absolute tolerance must not grow
+with the wager. Integer arithmetic retains fractional-wei thresholds. `none`
+preserves existing comparisons; `18` may still tolerate fractional-wei deficits.
+
+Use the precision only for strategy gates, repeats, targets, recovery decisions
+and ladder progression. Keep affordability, wallet floors, capital/loss limits,
+contract minimums, stake sizing, integrity checks, accounting, and statistical
+classification exact. The option does not affect standalone game loops.
+
+`ctx.session.parseStandardBotArgs` returns `loopControls.strategyPrecision` and
+`strategyPrecisionExplicit`. For custom parsers, `extractStrategyPrecisionArgs`
+returns `remainingArgs`, `precision`, and `explicit`. Scoped session parsers use
+the effective inherited/restored value; an explicit child value wins, including
+`none`, and a default never replaces an inherited value.
+
+Use `createStrategyComparison(loopControls)` to obtain a comparator returning
+-1, 0, or 1. Call `compare(observedWei, requiredNumeratorWei, denominator)` for
+an exact rational threshold. Example: `compare(payoutWei, wagerWei * 103n, 100n)`
+compares against 1.03 times the wager with an absolute APE tolerance.
+
+The runtime inherits the effective option through `botRun`, `botJson`, and
+`validateBotArgs`. A child resumed with `resumeRequested: true` restores its own
+saved setting; an explicit override must match that setting. It does not forward the option to game transactions. For an
+in-process child, pass `inheritStrategyPrecisionArgs(childArgs, precision)` or
+an equivalent explicit inherited setting, respecting any child override.
+
+Logs record the effective setting in invocation arguments. Pending summaries and
+existing resume state are enriched with `strategy_precision`; implementations must also preserve
+the setting with their controls before replaying decisions. Resume restores the
+saved setting and rejects explicit changes before starting a new log or wager.
+Legacy pending summaries without the setting resume with `none`.
+
+Do not log each comparison. Where an evaluation already records `passed` or
+`missed`, `strategyShortfall` supplies a nonzero `shortfall_ape` at full precision;
+otherwise it returns no extra fields. Do not duplicate derivable exact/tolerated
+flags. All amounts and PnL fields retain their original precision.
 
 ## Standard Arguments
 
@@ -227,6 +274,7 @@ Every bot should support:
 
 - `-h, --help`: print the bot's own usage, options, purpose, and operating model. `apechurch-cli bot --help` is reserved for the shared loader.
 - `--json`: print one final parseable JSON payload on stdout.
+- `--strategy-precision <0..18|none>`: strategic currency comparisons; default `none`.
 - `--color`: force ANSI-colored plain output even when stdout is not detected as an interactive TTY. JSON stdout remains parseable; any plain progress emitted during JSON runs goes to stderr through the shared runtime.
 - `--fallback-loss <ape|n%>` and `--fallback-bot <name>`: specify both together. If the current bot finishes below break-even and `abs(P&L) >= <ape>`, call the fallback bot with `<ape>` as its first argument.
 

@@ -25,6 +25,10 @@ The package provides:
 
 ## Personal Bots For Humans And AI Agents
 
+Bot strategy comparisons support `--strategy-precision <0..18|none>` (default
+`none`): absolute APE tolerance with inherited settings and exact accounting.
+See the [runtime contract](docs/BOTS.md#strategy-precision).
+
 `apechurch-cli` treats personal bots as a first-class local extension point. This repository contains the bot loader, runtime helpers, and public contract; personal bot implementations live in a separate local directory or Git repository that you control. A bot is trusted code discovered by the CLI, run through the same encrypted local wallet, and constrained by the same command grammar, wallet guards, and JSON reporting surfaces as manual play.
 
 For human operators, this means private routines can be packaged as named commands instead of fragile shell scripts: recovery play, bankroll routing, game-specific experiments, scheduled loop variants, or multi-step strategies can live under a bot directory with its own `README.md`, `bot.json`, usage help, and run logs. Operators can list available bots, inspect their help, pass standard min-balance/max-balance controls, and review JSON summaries after each run:

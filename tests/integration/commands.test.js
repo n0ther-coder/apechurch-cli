@@ -2364,7 +2364,7 @@ export default function () { throw Error('Parent gameplay handler called'); }
 
       assert.strictEqual(code, 0);
       assert.strictEqual(payload.bot, 'child-bot');
-      assert.deepStrictEqual(payload.args, ['3', '--json']);
+      assert.deepStrictEqual(payload.args, ['3', '--strategy-precision', 'none', '--json']);
     });
 
     it('links nested bot json logs with parent run and call ids', () => {
@@ -2411,7 +2411,7 @@ export default function () { throw Error('Parent gameplay handler called'); }
       assert.strictEqual(payload.nested_bot_calls.length, 1);
       assert.strictEqual(payload.nested_bot_calls[0].child_run_id, payload.child.run_id);
       assert.strictEqual(payload.nested_bot_calls[0].call_id, payload.child.parent_call_id);
-      assert.deepStrictEqual(payload.nested_bot_calls[0].args, ['3', '--json']);
+      assert.deepStrictEqual(payload.nested_bot_calls[0].args, ['3', '--strategy-precision', 'none', '--json']);
 
       const childFiles = listBotLogFiles(logDir, 'lineage-child');
       assert.strictEqual(childFiles.length, 1);
@@ -2560,7 +2560,7 @@ export default function () { throw Error('Parent gameplay handler called'); }
       assert.ok(!stdout.includes('child command output\n\n'));
       assert.ok(!stdout.includes('# hidden child metric'));
       assert.strictEqual(payload.bot, 'noisy-child');
-      assert.deepStrictEqual(payload.args, ['3', '--json']);
+      assert.deepStrictEqual(payload.args, ['3', '--strategy-precision', 'none', '--json']);
     });
 
     it('forces ANSI colors in piped plain bot output with --color', () => {
@@ -2748,7 +2748,7 @@ export default async function ({ paths, bot }) {
       const payload = readBotLogFile(logDir, 'summary-bot', files[0]);
       assert.strictEqual(payload.bot, 'summary-bot');
       assert.strictEqual(payload.bot_name, 'summary-bot');
-      assert.deepStrictEqual(payload.args, ['7']);
+      assert.deepStrictEqual(payload.args, ['7', '--strategy-precision', 'none']);
       assert.strictEqual(payload.status, 'ok');
       assert.strictEqual(payload.tx, BOT_LOG_TX_A);
       assert.deepStrictEqual(payload.gp_rate, {
@@ -2790,7 +2790,7 @@ export default async function ({ paths, bot }) {
       const payload = JSON.parse(stdout.trim());
       assert.strictEqual(payload.bot, 'summary-bot-json');
       assert.strictEqual(payload.bot_name, 'summary-bot-json');
-      assert.deepStrictEqual(payload.args, ['7', '--json']);
+      assert.deepStrictEqual(payload.args, ['7', '--json', '--strategy-precision', 'none']);
       assert.strictEqual(payload.status, 'ok');
       assert.match(payload.run_id, /^[0-9a-f-]{36}$/);
       assert.strictEqual(payload.root_run_id, payload.run_id);
@@ -2861,7 +2861,7 @@ export default async function ({ paths, bot }) {
       const { stdout, code } = cli('bot gp-rate-override-bot 7 --gp-ape 8 --json', { env });
       assert.strictEqual(code, 0);
       const printed = JSON.parse(stdout.trim());
-      assert.deepStrictEqual(printed.args, ['7', '--gp-ape', '8', '--json']);
+      assert.deepStrictEqual(printed.args, ['7', '--gp-ape', '8', '--json', '--strategy-precision', 'none']);
       assert.deepStrictEqual(printed.gp_rate, {
         base_gp_per_ape: 5,
         current_gp_per_ape: 7.5,
@@ -2937,7 +2937,7 @@ export default async function ({ paths, bot }) {
         folderName: 'resume-bot',
         script: `const TX = '${BOT_LOG_TX_A}';
 
-export default async function ({ resumeRequested, resumeSummary }) {
+export default async function ({ resumeRequested, resumeSummary, session }) {
   if (!resumeRequested) {
     return {
       exitCode: 1,
@@ -2959,6 +2959,7 @@ export default async function ({ resumeRequested, resumeSummary }) {
       status: 'complete',
       tx: TX,
       resumed_from: resumeSummary?.pending_play?.gameId || null,
+      precision: session.parseStandardBotArgs([]).loopControls.strategyPrecision,
     },
   };
 }
@@ -2969,7 +2970,7 @@ export default async function ({ resumeRequested, resumeSummary }) {
         [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
         [LOG_DIR_ENV]: logDir,
       };
-      const first = cli('bot resume-bot 7 --json', { env });
+      const first = cli('bot resume-bot 7 --json --strategy-precision 4', { env });
       assert.strictEqual(first.code, 75);
       assert.strictEqual(JSON.parse(first.stdout.trim()).status, 'pending');
 
@@ -2980,12 +2981,24 @@ export default async function ({ resumeRequested, resumeSummary }) {
         '42',
       );
 
+      const saved = readBotLogFile(logDir, 'resume-bot', pendingFiles[0]);
+      assert.strictEqual(saved.resume_state.strategy_precision, '4');
+      assert.deepStrictEqual(saved.args, ['7', '--json', '--strategy-precision', '4']);
+      const conflict = cli('bot resume-bot 7 --json --strategy-precision none', {
+        env: { ...env, [WATCH_RESUME_ENV]: '1' },
+      });
+      assert.notStrictEqual(conflict.code, 0);
+      assert.match(conflict.stderr + conflict.stdout, /Cannot change --strategy-precision/);
+      assert.strictEqual(listBotLogFiles(logDir, 'resume-bot').length, 1);
+
       const resumed = cli('bot resume-bot 7 --json', {
         env: { ...env, [WATCH_RESUME_ENV]: '1' },
       });
       assert.strictEqual(resumed.code, 0);
       const resumedPayload = JSON.parse(resumed.stdout.trim());
       assert.strictEqual(resumedPayload.status, 'complete');
+      assert.strictEqual(resumedPayload.precision, '4');
+      assert.deepStrictEqual(resumedPayload.args, ['7', '--json', '--strategy-precision', '4']);
       assert.strictEqual(resumedPayload.resumed_from, '42');
       assert.strictEqual(listBotLogFiles(logDir, 'resume-bot').length, 2);
     });

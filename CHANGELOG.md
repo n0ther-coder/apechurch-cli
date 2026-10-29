@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [33.1.0]
+
+### Added
+- Shared strategy precision with absolute monetary comparisons, including exact
+  rational thresholds, configurable decimal resolution and legacy `none` mode.
+- Nested invocation inheritance, explicit overrides, saved precision on resume,
+  and sparse shortfall reporting without quantizing accounting or stakes.
+
+### Compatibility
+- Bot strategies default to `--strategy-precision none`, preserving their
+  existing decision behavior. Set a decimal precision to opt in.
+  Legacy pending runs retain their saved behavior. Capital protections and
+  standalone game execution retain their existing comparisons.
+
 ## [33.0.0]
 
 ### Added
