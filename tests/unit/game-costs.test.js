@@ -10,6 +10,7 @@ const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'game-cost-ledger-'));
 process.env.APECHURCH_CLI_CONFIG_DIR = directory;
 const { createGameCostObserver, getGameEconomicsFields, reconcileGameCosts } = await import('../../lib/game-costs.js');
 const { saveGameToHistory, loadHistory } = await import('../../lib/profile.js');
+const { GAS_CACHE_FILE, gasModeKey } = await import('../../lib/gas-estimates.js');
 const walletAddress = `0x${'1'.repeat(40)}`;
 const contract = `0x${'2'.repeat(40)}`;
 after(() => {
@@ -81,6 +82,18 @@ describe('persistent per-game transaction costs', () => {
     const entry = loadHistory(walletAddress).games.find((game) => game.game_id === 'failed-only');
     assert.equal(entry.cost_wei, '6');
     assert.equal(entry.wager_wei, undefined);
+  });
+
+  it('feeds successful receipt gas into planning without adding fields to the accounting ledger', () => {
+    const config = { range: 72 };
+    const hash = `0x${'7'.repeat(64)}`;
+    const observe = createGameCostObserver({ contract, gameId: 'calibration', walletAddress, config });
+    observe({ hash, receipt: { status: 'success', gasUsed: 250001n, effectiveGasPrice: 3n } });
+    const data = JSON.parse(fs.readFileSync(GAS_CACHE_FILE, 'utf8'));
+    assert.equal(data.modes[gasModeKey({ contract, config })][0].gas, '250001');
+    const game = loadHistory(walletAddress).games.find(game => game.game_id === 'calibration');
+    assert.equal(game.cost_transactions[0].gas_wei, '750003');
+    assert.equal(game.cost_transactions[0].gas_units, undefined);
   });
 
   it('does not invent zero fees for a game with no receipts', () => {

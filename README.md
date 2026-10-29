@@ -27,7 +27,8 @@ The package provides:
 
 Bot strategy comparisons support `--strategy-precision <0..18|none>` (default
 `none`): absolute APE tolerance with inherited settings and exact accounting.
-See the [runtime contract](docs/BOTS.md#strategy-precision).
+See the [runtime contract](docs/BOTS.md#strategy-precision). Cost planning also
+supports [exact fees and receipt-calibrated gas](docs/BOTS.md#cost-planning).
 
 `apechurch-cli` treats personal bots as a first-class local extension point. This repository contains the bot loader, runtime helpers, and public contract; personal bot implementations live in a separate local directory or Git repository that you control. A bot is trusted code discovered by the CLI, run through the same encrypted local wallet, and constrained by the same command grammar, wallet guards, and JSON reporting surfaces as manual play.
 

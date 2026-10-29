@@ -6,6 +6,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [34.0.0]
+
+### Added
+- Exact wei-based bot cost planning with read-only preparation through the
+  stateless game encoders and RPC gas estimation for a specified wager.
+- Bounded local gas calibration from successful receipts, with mode/chain
+  isolation, expiry, deduplication and conservative fallback/buffering.
+
+### Changed
+- Cost estimates retain contract fee precision, expose their gas basis and
+  treat explicit gas units as a planning floor. Accounting remains receipt-based.
+
+### Compatibility
+- Cost planning can reserve more or less gas than the former fixed baseline,
+  depending on RPC estimates and recent receipts. Explicit gas units now set a
+  minimum reserve. Review stake sizing integrations when upgrading to CLI 34.
+
 ## [33.1.0]
 
 ### Added

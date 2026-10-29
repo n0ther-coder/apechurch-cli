@@ -216,7 +216,7 @@ The bot handler receives one context object:
 - `balanceJson()`: read the local wallet balance through the CLI wallet runtime.
 - `captureBalanceSnapshot(details)`: read the wallet balance and record a structured snapshot for the final bot JSON.
 - `updateRunSummary(summary)`: atomically rewrite the current run JSON log with a partial summary.
-- `estimatePlayCosts(name, {config, gasUnits, additionalReserveApe})`: current read-only fee and gas-price estimate for planning. Actual result costs always come from receipts.
+- `estimatePlayCosts(name, {config, amountApe, gasUnits, additionalReserveApe})`: read-only planning estimate in wei, using current fees, RPC gas estimation and recent receipt calibration. See [cost planning](#cost-planning).
 - `strategyPrecision`: effective decision precision, restored from saved state when resuming.
 - `session`: shared bot helpers for parsing, formatting, colors, P&L, and fallback behavior.
 
@@ -267,6 +267,55 @@ Do not log each comparison. Where an evaluation already records `passed` or
 `missed`, `strategyShortfall` supplies a nonzero `shortfall_ape` at full precision;
 otherwise it returns no extra fields. Do not duplicate derivable exact/tolerated
 flags. All amounts and PnL fields retain their original precision.
+
+## Cost planning
+
+`ctx.estimatePlayCosts(name, options)` keeps contract fees, gas and the explicit
+additional reserve in integer wei. The returned `total_wei` is a planning
+estimate; actual receipt costs remain authoritative for accounting and PnL.
+
+Pass `config` and `amountApe` for the planned stateless game. The runtime reads
+the selected wallet's public address and reuses the game encoder to prepare the
+`play` request, then calls `estimateContractGas`. Preparation creates no signer,
+transaction, game history entry or pending game. Invalid configurations still
+raise errors; a failed RPC gas estimate falls back to calibrated/base gas.
+When the amount or wallet address is unavailable, the helper still reads the
+configured contract fee and current gas price without requesting a signature.
+
+```js
+const costs = await ctx.estimatePlayCosts('ape-strong', {
+  config: { range: 70 }, amountApe: '20', additionalReserveApe: '0.02',
+});
+const reservedWei = BigInt(costs.total_wei);
+```
+
+The gas baseline is the larger of the RPC estimate and recent successful
+receipt consumption for the same chain, contract and gas-relevant mode.
+Without RPC, at least five recent samples are required to lower the initial
+400,000-unit baseline. An expensive sample raises the baseline immediately.
+A 15% buffer is applied, rounded upward. Explicit `gasUnits` provides a minimum
+for the resulting reserve; `additionalReserveApe` is added afterward, once.
+`gas_units` and `gas_source` identify the estimate's basis without adding
+per-comparison or per-sample log events.
+
+Successful stateless-game receipts feed a local cache automatically, including
+receipts recovered during reconciliation. Pending/reverted attempts do not
+train successful-play gas; their actual costs remain in the accounting ledger.
+The cache at `$APECHURCH_CLI_CONFIG_DIR/cache/play-gas.json` retains at most 32
+unique transaction samples per mode, 128 modes, for seven days. It stores gas
+units and transaction identities for deduplication, without duplicating PnL,
+fees, derived statistics or full payloads. Atomic writes and a short-lived lock
+coordinate subprocesses; unavailable or malformed cache data falls back safely.
+A file-signature cache avoids repeated JSON parsing and observes child updates.
+Older history is not scanned or downloaded to seed the cache.
+
+Re-estimate after choosing the final configuration/stake and recompute the plan
+if costs rise. Configurations that generate random selections are representative
+simulations unless their payload overrides are pinned. Estimates cover one
+submission; future retries and later fee/gas-price changes remain uncertain.
+Stake affordability, contract preflight, capital limits and recorded monetary
+results retain their existing exact checks. A target shortfall allowance is
+independent of cost estimation and is not introduced by this API.
 
 ## Standard Arguments
 
