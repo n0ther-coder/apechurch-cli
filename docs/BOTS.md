@@ -230,10 +230,13 @@ decisions. A shortfall strictly smaller than 0.01 APE is equivalent to zero at
 precision `2`; exactly 0.01 APE is not. Negative values are symmetric.
 Strict `<` and `>` comparisons treat the equivalence band as equality.
 
-Convert multiplier and percentage thresholds to exact currency amounts before
-comparison. Never quantize a payout ratio: the absolute tolerance must not grow
-with the wager. Integer arithmetic retains fractional-wei thresholds. `none`
-preserves existing comparisons; `18` may still tolerate fractional-wei deficits.
+Convert multiplier and percentage thresholds to currency amounts, then truncate
+toward zero to whole wei before comparison. Never quantize a payout ratio: the
+absolute tolerance must not grow with the wager. Calculated monetary amounts,
+including analysis, coverage sizing and logged shortfalls, have at most 18 APE
+decimal places. `none` and `18` distinguish every whole wei in the shared comparator.
+Coverage sizing can fall short after truncation; minimum and affordability
+guards must still be enforced. Dimensionless ratios retain their own precision.
 
 Use the precision only for strategy gates, repeats, targets, recovery decisions
 and ladder progression. Keep affordability, wallet floors, capital/loss limits,
@@ -554,3 +557,18 @@ cost-inclusive net PnL, unchanged full-capital sizing, multiple starting wallet
 balances, fixed child-floor forwarding, and preservation/rejection of unchanged/
 changed controls during pending resume. See [CLI 33 migration](migrations/v33.md)
 and the [migration index](migrations/README.md).
+
+## Configuration errors
+
+A bot can identify invalid invocation/configuration errors by setting
+`error.code = 'BOT_USAGE_ERROR'` or `error.botUsageError = true` before throwing.
+The runtime maps these errors to `CONFIGURATION_ERROR_EXIT_CODE` (78).
+Startup validation failures also use exit code 78. Unhandled nested CLI errors
+retain this classification. When wrapping an error, preserve its configuration
+marker so parent handlers can stop instead of retrying. Runtime/transaction
+failures retain their existing behavior.
+
+`script watch` stops after a child exits with code 78, clears its process state,
+releases its lock, records `stop_reason: configuration_error`, and returns 78.
+Correct the configuration before restarting the watcher. Pending exit code 75
+continues to request reconciliation rather than a new wager.

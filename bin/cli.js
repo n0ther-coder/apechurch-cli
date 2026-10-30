@@ -120,6 +120,7 @@ import {
   PACKAGE_NAME,
   BINARY_NAME,
   CONFIG_DIR_ENV_VAR,
+  CONFIGURATION_ERROR_EXIT_CODE,
   FORCE_CHIME_ENV_VAR,
   FORCE_COLOR_ENV_VAR,
   NO_COLOR_ENV_VAR,
@@ -1125,6 +1126,7 @@ function formatScriptHelpAppendix() {
       'Values shaped as { "arg": "name", "value": ["line one", "line two"] } render as editable name=value payloads.',
       'script write/read/watch normalize known bare optional defaults into explicit values where supported: --auto simple, --solver best, and --human weighted:3-9.',
       'watch does not launch another copy while the previous script process group recorded for that script is still alive.',
+      'watch stops with exit code 78 on a child configuration error; correct the script before restarting.',
       'A bot run with a validated pending tx/contract/gameId checkpoint is relaunched with the same argv; fresh runs remain balance-gated.',
       'Watch state records the next scheduled attempt and wake delay; delays of at least five seconds are printed explicitly.',
       'watch prefixes each attempt/status line with a cyan local timestamp, including condition failures and launches.',
@@ -5547,7 +5549,7 @@ const scriptCommand = program
       }
 
       const watchOptions = parseWatchArgv(args);
-      await watchCommandScript(nomeScript, watchOptions, { cliPath });
+      process.exitCode = await watchCommandScript(nomeScript, watchOptions, { cliPath }) ?? 0;
     } catch (error) {
       process.exitCode = 1;
       console.error(`\n❌ ${sanitizeError(error)}\n`);
@@ -7450,7 +7452,7 @@ const botCommand = program
           });
           console.log(JSON.stringify(payload));
         } catch (error) {
-          process.exitCode = 1;
+          process.exitCode = CONFIGURATION_ERROR_EXIT_CODE;
           console.error(JSON.stringify({ error: sanitizeError(error) }));
         }
         return;
@@ -7466,7 +7468,7 @@ const botCommand = program
         process.exitCode = exitCode;
       }
     } catch (error) {
-      process.exitCode = 1;
+      process.exitCode = error.exitCode ?? 1;
       console.error(`\n❌ Bot "${bot.command}" failed: ${sanitizeError(error)}\n`);
     }
   });

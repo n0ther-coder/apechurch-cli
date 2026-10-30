@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [35.0.0]
+
+### Changed
+- Calculated monetary thresholds and shortfall diagnostics discard fractional
+  wei before applying the configured strategic difference precision.
+- Bot configuration errors use exit code 78, propagate through nested calls,
+  and terminate script watchers with process-state and lock cleanup.
+
 ## [34.0.0]
 
 ### Added

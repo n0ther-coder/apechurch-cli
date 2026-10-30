@@ -461,6 +461,9 @@ Latest-file requests always refresh the remote listing first. An unexpired cache
 
 ### `script <action> <nome_script>`
 
+A child configuration error (exit code 78) terminates the watcher and requires
+correction before restart. Pending exit code 75 retains resume behavior.
+
 ```bnf
 <script-command> ::= "script" ( <script-write> | <script-watch> | <script-read> )
 <script-write> ::= "write" <nome_script> <command-token>+

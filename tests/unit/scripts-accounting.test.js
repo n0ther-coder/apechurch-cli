@@ -106,3 +106,32 @@ await watchCommandScript('safe',{every:'1'},{cliPath:${JSON.stringify(fake)}});`
     }
   });
 });
+
+
+it('stops watch on configuration errors, returns 78 and releases the lock', { timeout: 8000 }, () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ape-config-watch-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'invalid.json'), JSON.stringify({ command: ['bot', 'example'] }));
+    const fake = path.join(dir, 'fake-cli.mjs');
+    const calls = path.join(dir, 'calls');
+    fs.writeFileSync(fake, `import fs from 'node:fs';
+fs.appendFileSync(${JSON.stringify(calls)}, 'attempt\\n');
+process.exit(78);`);
+    const runner = path.join(dir, 'watch.mjs');
+    fs.writeFileSync(runner, `import {watchCommandScript} from ${JSON.stringify(scriptModule)};
+process.exitCode = await watchCommandScript('invalid',{every:'1'},{cliPath:${JSON.stringify(fake)}});`);
+    const result = spawnSync(process.execPath, [runner], { timeout: 5000, encoding: 'utf8',
+      env: { ...process.env, APECHURCH_CLI_CONFIG_DIR: dir, APECHURCH_CLI_SCR_DIR: dir } });
+    assert.equal(result.status, 78, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /Configuration error: stopping watch/);
+    assert.equal(fs.readFileSync(calls, 'utf8'), 'attempt\n');
+    const stateDir = path.join(dir, 'watch');
+    const files = fs.readdirSync(stateDir);
+    assert.ok(files.every(name => !name.endsWith('.lock')));
+    const state = JSON.parse(fs.readFileSync(path.join(stateDir, files.find(name => name.endsWith('.json'))), 'utf8'));
+    assert.equal(state.stop_reason, 'configuration_error');
+    assert.equal(state.watcher_pid, null);
+    assert.equal(state.child_pid, null);
+    assert.equal(state.resume_pending, false);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

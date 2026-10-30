@@ -41,8 +41,8 @@ describe('Strategy comparison precision', () => {
       assert.equal(compare(required / 100n - wei('0.01'), required, '2', 100n), -1);
     }
     assert.equal(compare(3n, 36n, '18', 10n), 0);
-    assert.equal(compare(3n, 36n, 'none', 10n), -1);
-    assert.deepEqual(strategyShortfall(3n, 36n, 10n), { shortfall_ape: '0.0000000000000000006' });
+    assert.equal(compare(3n, 36n, 'none', 10n), 0);
+    assert.deepEqual(strategyShortfall(3n, 36n, 10n), {});
     assert.deepEqual(strategyShortfall(wei('4'), wei('3')), {});
     assert.deepEqual(strategyShortfall(wei('-0.004'), 0n), { shortfall_ape: '0.004' });
   });
@@ -67,3 +67,16 @@ describe('Strategy comparison precision', () => {
     assert.equal(getStandardBotLoopCondition({ loopControls: { maxLoss: '10', strategyPrecision: '0' }, totalPnlWei: wei('-10.001') }).kind, 'max_loss');
   });
 });
+
+for (const precision of ['none', '18', '2']) {
+  it(`discards fractional wei before the signed difference (${precision})`, () => {
+    assert.equal(compare(3n, 39n, precision, 10n), 0);
+    assert.equal(compare(-3n, -39n, precision, 10n), 0);
+    const required = wei('10') * 100n + 99n;
+    assert.equal(compare(wei('9.99'), required, '2', 100n), -1);
+    assert.equal(compare(wei('9.99') + 1n, required, '2', 100n), 0);
+    assert.deepEqual(strategyShortfall(2n, 39n, 10n), { shortfall_ape: '0.000000000000000001' });
+    assert.deepEqual(strategyShortfall(0n, 1n, 3n), {});
+    assert.deepEqual(strategyShortfall(-4n, -39n, 10n), { shortfall_ape: '0.000000000000000001' });
+  });
+}

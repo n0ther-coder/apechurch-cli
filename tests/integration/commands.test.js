@@ -2222,9 +2222,26 @@ describe('CLI Commands Integration Tests', () => {
       };
       const { code } = cli('bot usage-error-bot --bad', { env });
 
-      assert.notStrictEqual(code, 0);
+      assert.strictEqual(code, 78);
       const files = listBotLogFiles(logDir, 'usage-error-bot');
       assert.deepStrictEqual(files, []);
+    });
+
+    it('propagates nested configuration errors without turning them into runtime retries', () => {
+      resetBotFixtures();
+      const baseDir = path.join(NO_WALLET_HOME, '.apechurch-cli');
+      writeBotFixture({ baseDir, folderName: 'invalid-child', script: `
+export default function () {
+  const error = new Error('Invalid child configuration');
+  error.code = 'BOT_USAGE_ERROR';
+  throw error;
+}` });
+      writeBotFixture({ baseDir, folderName: 'invalid-parent', script: `
+export default async function (ctx) { await ctx.botJson('invalid-child', []); }
+` });
+      const result = cli('bot invalid-parent');
+      assert.strictEqual(result.code, 78);
+      assert.match(result.stdout, /Invalid child configuration/);
     });
 
     it('bot validate-only checks exported argument parsers without running the bot', () => {
@@ -2246,7 +2263,7 @@ export default async function () {
       const { stdout, code } = cli('bot validator-bot --bad --validate-only --json');
       const payload = JSON.parse(stdout);
 
-      assert.strictEqual(code, 1);
+      assert.strictEqual(code, 78);
       assert.strictEqual(payload.error, 'Bad startup option');
     });
 
@@ -2271,7 +2288,7 @@ export default function () { throw Error('Parent gameplay handler called'); }
       assert.strictEqual(valid.code, 0);
       assert.strictEqual(JSON.parse(valid.stdout).status, 'valid');
       const invalid = cli('bot parent-validator --invalid --validate-only --json');
-      assert.strictEqual(invalid.code, 1);
+      assert.strictEqual(invalid.code, 78);
       assert.match(JSON.parse(invalid.stdout).error, /Unknown leaf option/);
       assert.deepStrictEqual(listBotLogFiles(path.join(baseDir, 'log'), 'parent-validator'), []);
       assert.deepStrictEqual(listBotLogFiles(path.join(baseDir, 'log'), 'leaf-validator'), []);
