@@ -456,9 +456,16 @@ The CLI help now exposes formal argument grammar in `apechurch-cli play --help`,
 ; --shuffle preserves types, chip counts, all joint win probabilities and exact payout distribution.
 ; Shuffle uses bounded rejection sampling; failure stops before submitting a transaction.
 <baccarat-bet> ::= "PLAYER" | "BANKER" | "TIE" | <combo-baccarat-bet>
-<combo-baccarat-bet> ::= <ape> <baccarat-side> <ape> "TIE"
-<baccarat-side> ::= "PLAYER" | "BANKER"
+<combo-baccarat-bet> ::= <baccarat-leg> [ <baccarat-leg> ]
+<baccarat-leg> ::= <baccarat-parts> <baccarat-side>
+<baccarat-parts> ::= <number>
+<baccarat-side> ::= "PLAYER" | "BANKER" | "TIE"
 ```
+
+Numbered Baccarat bets use weights to split an explicit wager, or infer the
+amount in APE from their sum. Read the live per-hand minimum with
+`apechurch-cli game baccarat --limits --json`. See the
+[Baccarat examples](docs/GAMES_REFERENCE.md#baccarat-).
 
 Roulette supports all native outside/straight bets and composed grid SPLIT, STREET, SQUARE and LINE bets. See [complete syntax and shuffle rules](docs/GAMES_REFERENCE.md#roulette-) and [version 31 migration](docs/GAMES_REFERENCE.md#roulette-syntax-migration).
 

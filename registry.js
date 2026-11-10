@@ -19,6 +19,7 @@ import { ROULETTE_BNF } from './lib/roulette-layout.js';
 import {
   APESTRONG_CONTRACT,
   BACCARAT_CONTRACT,
+  BACCARAT_WAGER_LIMITS,
   BEAR_DICE_CONTRACT,
   BLACKJACK_CONTRACT,
   BLIZZARD_BLITZ_CONTRACT,
@@ -152,14 +153,17 @@ export const GAME_REGISTRY = [
     type: 'baccarat',
     description: 'Classic baccarat. Bet on Player (2x), Banker (1.95x), or Tie (9x).',
     contract: BACCARAT_CONTRACT,
+    wagerLimits: BACCARAT_WAGER_LIMITS,
     abiVerified: true,
     config: {
       bet: {
-        description: 'What to bet on: PLAYER, BANKER, TIE. For combined bets, specify amounts explicitly.',
+        description: 'What to bet on: PLAYER, BANKER, TIE. Numbered legs are proportional parts of the wager. Without an amount, their sum supplies the wager in APE.',
         bnf: [
           '<bet> ::= "PLAYER" | "BANKER" | "TIE" | <combo-bet>',
-          '<combo-bet> ::= <ape> <side-bet> <ape> "TIE"',
-          '<side-bet> ::= "PLAYER" | "BANKER"',
+          '<combo-bet> ::= <leg> [ <leg> ]',
+          '<leg> ::= <parts> <side-bet>',
+          '<parts> ::= positive decimal parts with at most 18 decimal places',
+          '<side-bet> ::= "PLAYER" | "BANKER" | "TIE"',
         ],
         examples: ['PLAYER', 'BANKER', 'TIE', '140 BANKER 10 TIE', '180 PLAYER 20 TIE'],
       },

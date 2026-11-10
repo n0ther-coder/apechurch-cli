@@ -225,7 +225,7 @@ import {
 import { configGetters, playGame, resolveGame } from '../lib/games/index.js';
 import { SPLIT_GAME_TYPES, getBetSplitValue, getBetSplitOptionName, isLoopBetSplit, resolveLoopBetSplit, validateSpinUsage, resolveSpinWager, resolveLiveSpinWager, applySpinConfig } from '../lib/split-spin.js';
 import { formatGamePaytable, getGamePaytable } from '../lib/game-paytable.js';
-import { parseBaccaratBet } from '../lib/games/baccarat.js';
+import { getBaccaratWagerLimits, inferBaccaratWager, parseBaccaratBet } from '../lib/games/baccarat.js';
 import { resolveBearDiceConfig } from '../lib/games/beardice.js';
 import { getBlocksGridLabel, parseBlocksGrid } from '../lib/games/blocks.js';
 import { parseGimbozSmashInput } from '../lib/games/gimbozsmash.js';
@@ -457,8 +457,10 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<speed-keno-number> ::= <integer>                  ; 1 <= value <= 20',
   ...ROULETTE_HELP_BNF_LINES,
   '<baccarat-bet> ::= "PLAYER" | "BANKER" | "TIE" | <combo-baccarat-bet>',
-  '<combo-baccarat-bet> ::= <ape> <baccarat-side> <ape> "TIE"',
-  '<baccarat-side> ::= "PLAYER" | "BANKER"',
+  '<combo-baccarat-bet> ::= <baccarat-leg> [ <baccarat-leg> ]',
+  '<baccarat-leg> ::= <baccarat-parts> <baccarat-side>',
+  '<baccarat-parts> ::= <number>                      ; positive decimal weights with at most 18 decimal places',
+  '<baccarat-side> ::= "PLAYER" | "BANKER" | "TIE"',
 ]);
 const PLAY_STATELESS_OPTION_LINES = Object.freeze([
   '--auto                  Random stateless game selection when no game is specified',
@@ -1228,7 +1230,7 @@ function formatBetHelpAppendix() {
     parameters: ['None. `bet` uses required named options instead of positional parameters.'],
     options: [
       '--game <type>          Required stateless game key or alias',
-      '--amount <ape>         Required wager amount',
+      '--amount <ape>         Wager amount. Optional with a numbered Baccarat bet.',
       '--risk <risk>          Bear Dice, Blocks, Plinko, Monkey Match, and Primes risk',
       '--grid <grid>          Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)',
       '--split <count>        Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots',
@@ -1254,12 +1256,13 @@ function formatBetHelpAppendix() {
       '--gp-ape <points>      Override local GP estimation for this run',
     ],
     bnf: [
-      '<bet-command> ::= "bet" "--game" <stateless-game> "--amount" <ape> <bet-option>*',
+      '<bet-command> ::= "bet" "--game" <stateless-game> [ "--amount" <ape> ] <bet-option>*',
       '<bet-option> ::= "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
       ...SIMPLE_GAME_HELP_BNF_LINES,
     ],
     examples: [
       `${BINARY_NAME} bet --game roulette --amount 10 --bet RED`,
+      `${BINARY_NAME} bet --game baccarat --amount 52 --bet "42 BANKER 10 TIE"`,
       `${BINARY_NAME} bet --game jungle-plinko --amount 10 --risk 0 --split 100`,
       `${BINARY_NAME} bet --game blocks --amount 10 --risk 0 --grid 4x4 --survive 1`,
       `${BINARY_NAME} bet --game blocks --amount 10 --risk 0 --grid 4x4 --split 5`,
@@ -1269,9 +1272,10 @@ function formatBetHelpAppendix() {
     ],
     notes: [
       'Use `play` for loop mode, stateful games, or random stateless selection.',
+      `Baccarat requires --bet and can infer --amount from numbered legs. Other games require --amount. See ${BINARY_NAME} game baccarat for bet syntax.`,
       'Blocks accepts either --split for independent rolls or --survive for compounding rolls, never both.',
       '--bet-split sets exact APE per independent attempt. Native split games derive and cap the count; --spin is an alias only for slots, Plinko, and Blocks. Fees are additional.',
-      'Native --bet-split/--spin rejects zero attempts, invalid sizes, --split, --survive, and positional counts. Single-game --bet-split and Blocks with explicit --survive require play --loop and an explicit total budget; safety controls can stop it earlier. Survival steps belong to each whole game. Dynamic bet strategies conflict with fixed single-game stakes.',
+      'Native --bet-split/--spin rejects zero attempts, invalid sizes, --split, --survive, and positional counts. Single-game --bet-split and Blocks with explicit --survive require play --loop and a total budget. Numbered Baccarat bets can infer that budget. Safety controls can stop the loop earlier. Survival steps belong to each whole game. Dynamic bet strategies conflict with fixed single-game stakes.',
       'Blizzard Blitz: base default 10 spins, range 1-20, minimum 2.5 APE per spin. --bonus buys one five-free-spin round for the amount (minimum 100 APE; reference stake amount / 32); rejects --split, --bet-split, --spin and positional counts. Fees are additional.',
       'Gimboz Galaxy: base default 10 spins, range 1-10, minimum 3 APE per spin. --bonus buys one round (minimum 100 APE; reference stake amount / 17), starting with 3 free spins and at most 6. Rejects explicit counts, --spin and --bet-split. Fees are additional.',
       `Run ${BINARY_NAME} game <name> for per-game parameter details.`,
@@ -1319,6 +1323,8 @@ function formatPlayHelpAppendix() {
     examples: [
       `${BINARY_NAME} play --auto`,
       `${BINARY_NAME} play roulette 10 RED`,
+      `${BINARY_NAME} play baccarat 40 "35 BANKER 5 TIE"`,
+      `${BINARY_NAME} play baccarat 52 --bet "42 BANKER 10 TIE"`,
       `${BINARY_NAME} play jungle-plinko 10 --risk 0 --split 100`,
       `${BINARY_NAME} play blocks 10 --risk 0 --grid 2x2 --survive 1`,
       `${BINARY_NAME} play blocks 10 --risk 0 --grid 2x2 --split 5`,
@@ -1337,12 +1343,12 @@ function formatPlayHelpAppendix() {
       'Pass `--numbers` as a single CLI token, for example `--numbers 1,7,13,25,40`.',
       'Blocks accepts either --split for independent rolls or --survive for compounding rolls, never both.',
       '--bet-split sets exact APE per independent attempt. Native split games derive and cap the count; --spin is an alias only for slots, Plinko, and Blocks. Fees are additional.',
-      'Native --bet-split/--spin rejects zero attempts, invalid sizes, --split, --survive, and positional counts. Single-game --bet-split and Blocks with explicit --survive require play --loop and an explicit total budget; safety controls can stop it earlier. Survival steps belong to each whole game. Dynamic bet strategies conflict with fixed single-game stakes.',
+      'Native --bet-split/--spin rejects zero attempts, invalid sizes, --split, --survive, and positional counts. Single-game --bet-split and Blocks with explicit --survive require play --loop and a total budget. Numbered Baccarat bets can infer that budget. Safety controls can stop the loop earlier. Survival steps belong to each whole game. Dynamic bet strategies conflict with fixed single-game stakes.',
       'Blizzard Blitz: base default 10 spins, range 1-20, minimum 2.5 APE per spin. --bonus buys one five-free-spin round for the amount (minimum 100 APE; reference stake amount / 32); rejects --split, --bet-split, --spin and positional counts. Fees are additional.',
       'Gimboz Galaxy: base default 10 spins, range 1-10, minimum 3 APE per spin. --bonus buys one round (minimum 100 APE; reference stake amount / 17), starting with 3 free spins and at most 6. Rejects explicit counts, --spin and --bet-split. Fees are additional.',
       'Bare `play` does not auto-run a random game; use `play --auto` or pass a game.',
       'For stateful resume/action through `play`, prefer `--game-id <id>` because `--game <name>` selects the target game.',
-      `Run ${BINARY_NAME} game <name> for per-game config grammar.`,
+      `Run ${BINARY_NAME} game <name> for per-game config grammar, e.g. ${BINARY_NAME} game baccarat.`,
     ],
   });
 }
@@ -1615,11 +1621,13 @@ function formatGameHelpAppendix() {
     actions: [
       'omitted                Print metadata and grammar for one selected game.',
       '--paytable             Resolve the game paytable without starting a game.',
+      '--limits               Read live Baccarat wager limits without starting a game.',
     ],
     parameters: ['<name>                 Supported canonical game key, alias, or display name'],
     options: [
       '--json                 Emit JSON output',
       '--paytable             Show the selected paytable instead of metadata',
+      '--limits               Read the current Baccarat minimum wager via RPC',
       '--risk <risk>          Risk or difficulty used by play',
       '--grid <grid>          Blocks grid used by play',
       '--split <count>        Independent split count used by play',
@@ -1639,7 +1647,7 @@ function formatGameHelpAppendix() {
       '--side <ape>           Blackjack player side bet',
     ],
     bnf: [
-      '<game-command> ::= "game" <game-name> [ "--paytable" <paytable-option>* ] [ "--json" ]',
+      '<game-command> ::= "game" <game-name> [ "--paytable" <paytable-option>* | "--limits" ] [ "--json" ]',
       '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--bet-split" <ape> | "--spin" <ape> | "--bonus" | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--multiplier" <multiplier> | "--amount" <ape> | "--side" <ape>',
       '<game-name> ::= <stateless-game> | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
       '<stateless-game> ::= <game-key> | <game-alias>',
@@ -1647,6 +1655,7 @@ function formatGameHelpAppendix() {
     ],
     examples: [
       `${BINARY_NAME} game roulette`,
+      `${BINARY_NAME} game baccarat`,
       `${BINARY_NAME} game blackjack`,
       `${BINARY_NAME} game video-poker --json`,
       `${BINARY_NAME} game keno --paytable`,
@@ -1662,6 +1671,134 @@ function formatGameHelpAppendix() {
       'Split games with --split greater than 1 and games without a statically enumerable paytable show only overall multiplier bounds.',
     ],
   });
+}
+
+function formatBaccaratPlayHelp() {
+  return [
+    formatInlineHelpSection('Usage', [
+      `${BINARY_NAME} play baccarat [<amount>] [<bet>] [options]`,
+      `${BINARY_NAME} play --game baccarat [--amount <ape>] [--bet <bet>] [options]`,
+      `${BINARY_NAME} bet --game baccarat [--amount <ape>] --bet <bet> [options]`,
+      `${BINARY_NAME} game baccarat [--paytable [--amount <ape>] --bet <bet> | --limits] [--json]`,
+    ]),
+    formatInlineHelpSection('Command behavior', [
+      'play selects defaults from the persona and supports repeated hands through --loop.',
+      'bet submits one explicitly configured wager and always emits JSON. It requires --game and --bet for Baccarat.',
+      'game displays metadata. With --paytable it calculates the payout multipliers for all three outcomes without submitting a wager.',
+      'play and bet are separate commands with different required inputs, defaults and options.',
+    ]),
+    formatInlineHelpSection('Play parameters', [
+      'Select baccarat to play this game. The shortest form is `play baccarat`.',
+      '<amount> is the total wager in positive decimal APE. For play, use a positional amount or --amount.',
+      '<bet> is optional with play and required with bet. Use --amount with a bare side in bet or game --paytable.',
+      'PLAYER, BANKER or TIE places the entire wager on that outcome.',
+      'For a combined bet, pair a PLAYER or BANKER leg with a TIE leg. Put each weight before its label.',
+      'Quote a numbered bet as one shell argument when omitting the positional amount or passing it to --bet.',
+    ]),
+    formatInlineHelpSection('Options', [
+      '--game baccarat        Select the game with play or bet. A positional play game takes precedence.',
+      '--amount <ape>         Total wager, or total budget with --bet-split. A positional play amount takes precedence.',
+      '--bet <bet>            Takes precedence over the positional bet.',
+      '--strategy <name>      Persona for play. Choose conservative, balanced, aggressive or degen.',
+      '--timeout <ms>         Result wait. Use 0 to submit without waiting for settlement.',
+      ...LOOP_HELP_OPTION_LINES,
+      '--take-profit <value>  Alias for --min-profit.',
+      '--stop-loss <value>    Alias for --max-loss.',
+      '--bet-split <ape>      Fixed wager per hand with --loop. Uses the explicit or inferred total amount as the budget.',
+      '--json                 Emit JSON output with play. The bet command always uses JSON.',
+      '--validate-only        Check play arguments without wagering.',
+      '--gp-ape <points>       Override estimated GP earned per APE for this run.',
+      '--resilient            Retry transient failures. --no-resilient disables inherited retry mode.',
+      '--x-gameId <uint256>    Override the generated gameData identifier.',
+      '--x-ref <address>      Override the referral address from the profile.',
+      '--x-userRandomWord <bytes32> Override the generated client randomness.',
+      '-v, --verbose          Technical progress output with play.',
+      '-h, --help             Show command help.',
+      '--paytable             game only. Requires --bet. A numbered bet can supply the amount. Add --json for structured output.',
+      '--limits               game only. Read the live per-hand minimum from the tracker via RPC.',
+      'For bet, use only --game, --amount, --bet, --timeout, --gp-ape, the expert overrides, retry flags and help.',
+      'Loop controls and --bet-split belong to play. For game, --amount and --bet require --paytable.',
+    ]),
+    formatInlineHelpSection('Grammar (EBNF)', [
+      'Square brackets mean optional, braces mean repetition, and | separates alternatives. Quoted words are literal CLI tokens.',
+      '<command> ::= "apechurch-cli" [ "--color" ] ( <play> | <bet-command> | <game-command> )',
+      '<play> ::= "play" ( "baccarat" [ <ape> [ <positional-bet> ] | <bet-token> ] | "--game" "baccarat" ) { <play-option> }',
+      '<play-option> ::= "--game" "baccarat" | "--amount" <ape> | "--bet" <bet-token> | "--strategy" <persona> | "--timeout" <ms> | "--bet-split" <ape> | "--json" | "--validate-only" | "-v" | "--verbose" | <common-option> | <loop-option>',
+      '<bet-command> ::= "bet" "--game" "baccarat" [ "--amount" <ape> ] "--bet" <bet-token> { <bet-option> }',
+      '<bet-option> ::= "--timeout" <ms> | <common-option>',
+      '<game-command> ::= "game" "baccarat" [ "--paytable" [ "--amount" <ape> ] "--bet" <bet-token> | "--limits" ] [ "--json" ] [ <help> ]',
+      '<common-option> ::= "--gp-ape" <points> | "--resilient" | "--no-resilient" | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | <help>',
+      STATEFUL_SHARED_BNF_LINES[2].replaceAll('<stateful-loop-option>', '<loop-option>'),
+      STATEFUL_SHARED_BNF_LINES[0],
+      ...BET_STRATEGY_HELP_LINES,
+      '<positional-bet> ::= <bet-token> | <leg> { <leg> }',
+      '<bet-token> ::= one shell argument containing <bet-payload>',
+      '<bet-payload> ::= <side> | <leg> { <separator> <leg> }',
+      '<leg> ::= <weight> <separator> <side>',
+      '<side> ::= "PLAYER" | "BANKER" | "TIE"',
+      '<separator> ::= one or more spaces or commas',
+      '<ape> ::= positive decimal APE amount with at most 18 decimal places',
+      '<weight> ::= positive decimal parts with at most 18 decimal places',
+      '<ape-nonnegative> ::= nonnegative decimal APE amount',
+      '<number> ::= decimal number',
+      '<integer> ::= unsigned decimal integer',
+      '<count> ::= positive integer',
+      '<ms> ::= nonnegative integer milliseconds',
+      '<seconds> ::= nonnegative decimal seconds',
+      '<points> ::= positive decimal GP per APE',
+      '<persona> ::= "conservative" | "balanced" | "aggressive" | "degen"',
+      '<human-range> ::= [ "weighted:" ] <count> "-" <count> | "true" | "false" | "1" | "0" | "yes" | "no" | "y" | "n"',
+      '<uint256> ::= decimal or 0x-prefixed hexadecimal integer in 0..2^256-1',
+      '<address> ::= "0x" followed by 40 hexadecimal characters',
+      '<bytes32> ::= "0x" followed by 64 hexadecimal characters',
+      '<help> ::= "-h" | "--help"',
+    ]),
+    formatInlineHelpSection('Constraints and split budgets', [
+      'Named options may be reordered. play requires baccarat either positionally or through --game.',
+      'The --human range endpoints are positive integer seconds, with the upper endpoint at least the lower endpoint.',
+      'Bet labels are case-insensitive. Each side can occur once. A combined bet uses at most one of PLAYER and BANKER, optionally with TIE in either order.',
+      'Without an amount, the sum of numbered legs supplies the amount in APE. With an amount, the numbers are proportional weights.',
+      'Each lane receives the per-hand wager multiplied by its weight and divided by the total weight. Whole-wei allocation uses the largest remainder, with ties favoring the main side.',
+      'Each selected lane must receive at least 1 wei after allocation. The total per hand must meet the live minimum enforced by the on-chain tracker. The VRF fee is additional.',
+      `Read the live minimum with ${BINARY_NAME} game baccarat --limits --json. Offline play --validate-only checks the allocation and reports the resolved lane amounts.`,
+      '--bet-split requires play --loop. The amount is the total budget and --bet-split is the stake scaled across the bet legs on each hand.',
+      'The maximum hand count is floor(budget / bet-split). Any smaller remainder stays unspent. Payouts do not replenish the budget. Fees are additional.',
+      'Balance checks and loop stop conditions may stop execution earlier. --min-bet and --max-bet must permit the exact split wager.',
+      '--bet-split supports the flat bet strategy. --spin, --split and --survive do not apply to Baccarat.',
+      'Percentage PnL thresholds use the controlled wager as their basis. Profit and loss thresholds use settled net PnL including costs.',
+    ]),
+    formatInlineHelpSection('Defaults', [
+      'Without --loop, play runs one hand. With a bare side or no bet and no amount, the active persona sizes the wager from available balance.',
+      'Loop mode starts from a base amount of 10 APE when no amount is supplied or inferred. The bankroll-fraction strategy sizes each hand from its bankroll.',
+      'Play uses the saved persona (balanced by default) unless --strategy is supplied.',
+      'If the bet is omitted, conservative selects BANKER. Balanced, aggressive and degen pick PLAYER or BANKER at random.',
+      'Result timeout is 30000 ms for play and 0 ms for bet.',
+      'Loop bet strategy defaults to flat. The fixed loop delay defaults to 3 s, or 0 s when --human is supplied alone.',
+      'Bare --human uses weighted:3-9. Stop thresholds and exact bet splitting are opt-in.',
+      'game defaults to metadata output. A paytable uses the explicit amount or the sum of the numbered legs.',
+      'play and game default to plain output. --json, --verbose and --validate-only are opt-in.',
+      'Game identifiers and client randomness are generated unless overridden. Referral and GP estimation use the profile defaults.',
+    ]),
+    formatInlineHelpSection('Examples', [
+      `${BINARY_NAME} play baccarat`,
+      `${BINARY_NAME} play baccarat 10 BANKER`,
+      `${BINARY_NAME} play baccarat "35 BANKER 5 TIE"`,
+      '  Infers 40 APE and wagers 35 APE on BANKER and 5 APE on TIE.',
+      `${BINARY_NAME} play baccarat 100 "35 BANKER 5 TIE"`,
+      '  Wagers 87.5 APE on BANKER and 12.5 APE on TIE.',
+      `${BINARY_NAME} play baccarat 52 --bet "42 BANKER 10 TIE"`,
+      `${BINARY_NAME} bet --game baccarat --amount 52 --bet "42 BANKER 10 TIE"`,
+      `${BINARY_NAME} game baccarat --paytable --amount 40 --bet "35 BANKER 5 TIE"`,
+      '  Calculates Player 0x, Banker 1.70625x and Tie 2x of 40 APE. The returned amounts are 0, 68.25 and 80 APE.',
+      `${BINARY_NAME} play baccarat 40 PLAYER --bet "35 BANKER 5 TIE" --validate-only`,
+      '  Resolves to 35 APE on BANKER plus 5 APE on TIE. The positional PLAYER is overridden.',
+      `${BINARY_NAME} play baccarat 200 --bet "35 BANKER 5 TIE" --bet-split 40 --loop`,
+      '  Budget 200 APE, wager 40 APE per hand, up to 5 hands.',
+      `${BINARY_NAME} play baccarat 150 "42 BANKER 10 TIE" --bet-split 50 --loop`,
+      '  Budget 150 APE, up to 3 hands of 50 APE. Each hand allocates 50 × 42 / 52 to BANKER and 50 × 10 / 52 to TIE before wei rounding.',
+      '  Append --validate-only to either split example to inspect the plan without wagering.',
+    ]),
+  ].join('\n\n');
 }
 
 function formatCommandsHelpAppendix() {
@@ -3458,7 +3595,7 @@ function validateNumberSelection(input, {
   }
 }
 
-function validateResolvedGameConfig(gameEntry, gameConfig = {}, { amountInput = '1' } = {}) {
+function validateResolvedGameConfig(gameEntry, gameConfig = {}, { amountInput } = {}) {
   const configEntries = gameEntry?.config && typeof gameEntry.config === 'object'
     ? Object.entries(gameEntry.config)
     : [];
@@ -3516,7 +3653,11 @@ function validateResolvedGameConfig(gameEntry, gameConfig = {}, { amountInput = 
       parseRouletteBets(gameConfig.bet, gameEntry);
     }
   } else if (gameEntry.type === 'baccarat') {
-    parseBaccaratBet(gameConfig.bet, parseEther(String(amountInput || '1')));
+    const amount = normalizeWagerAmount(amountInput ?? '1');
+    const { playerBankerBet, tieBet } = parseBaccaratBet(gameConfig.bet, parseEther(amount));
+    if (amountInput !== undefined) {
+      Object.assign(gameConfig, { amount, playerBankerBet: formatEther(playerBankerBet), tieBet: formatEther(tieBet) });
+    }
   } else if (gameEntry.type === 'gimbozsmash') {
     parseGimbozSmashInput({
       // Outside selections also expose their derived winning targets.
@@ -3633,7 +3774,8 @@ function validateStatelessPlayTarget({
       delete gameConfig.survive;
       gameConfig[amountField] = normalizeWagerAmount(exactBet);
     }
-    validateResolvedGameConfig(fixedGame, gameConfig, { amountInput });
+    const validationAmount = fixedGame.type === 'baccarat' ? amountInput : amountInput ?? '1';
+    validateResolvedGameConfig(fixedGame, gameConfig, { amountInput: validationAmount });
   }
 
   return formatPlayValidationPayload({
@@ -5735,7 +5877,7 @@ program
   .command('bet')
   .description('Place one manual stateless-game wager')
   .requiredOption('--game <type>', GAME_LIST)
-  .requiredOption('--amount <ape>', 'Wager amount')
+  .option('--amount <ape>', 'Wager amount (inferred from numbered Baccarat bets when omitted)')
   .option('--risk <risk>', 'Risk level for Bear Dice, Blocks, Plinko, Monkey Match, and Primes', '0')
   .option('--grid <grid>', 'Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)')
   .option('--split <count>', 'Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots')
@@ -5813,6 +5955,11 @@ program
     }
 
     try {
+      if (gameEntry?.type === 'baccarat') {
+        opts.amount ??= inferBaccaratWager(opts.bet);
+        if (opts.amount !== undefined) validateResolvedGameConfig(gameEntry, { bet: opts.bet }, { amountInput: opts.amount });
+      }
+      if (opts.amount === undefined) throw new Error("Required option '--amount <ape>' not specified.");
       if (getBetSplitValue(opts) !== undefined) resolveSpinWager(gameEntry, opts.amount, getBetSplitValue(opts), { optionName: getBetSplitOptionName(opts) });
       if (['dojo-drop', 'blizzard-blitz', 'gimboz-galaxy'].includes(gameEntry?.key) && getBetSplitValue(opts) === undefined) {
         const gameConfig = resolveValidationGameConfig({ fixedGame: gameEntry, opts, positionalConfig: {}, loopMode: false });
@@ -6190,6 +6337,14 @@ program
       normalizedConfigArgs = [amountArg, ...normalizedConfigArgs];
     }
 
+    if (fixedGame?.type === 'baccarat') {
+      // A quoted payload can occupy the optional positional amount slot.
+      if (amountArg !== undefined && !isPositiveApeToken(amountArg) && /[a-z]/i.test(amountArg)) {
+        amountInput = opts.amount;
+        normalizedConfigArgs = [amountArg, ...configArgs];
+      }
+    }
+
     const attemptOptionUsageError = getAttemptOptionUsageError({
       gameEntry: fixedGame,
       rawArgs: process.argv.slice(2),
@@ -6213,6 +6368,14 @@ program
       process.exit(1);
     }
     
+    if (fixedGame?.type === 'baccarat' && amountInput === undefined && !isBankrollFractionStrategy(betStrategy)) {
+      try {
+        amountInput = inferBaccaratWager(opts.bet || normalizedConfigArgs.join(','));
+      } catch (error) {
+        failPlayValidation(error);
+      }
+    }
+
     // Parse positional config args based on game type
     let positionalConfig = {};
     if (fixedGame && normalizedConfigArgs.length > 0) {
@@ -6338,7 +6501,7 @@ program
       }
     }
 
-    if (!opts.validateOnly && (getBetSplitValue(opts) !== undefined || fixedGame?.type === 'roulette' || ['dojo-drop', 'blizzard-blitz', 'gimboz-galaxy'].includes(fixedGame?.key) || opts.chips !== undefined || opts.shuffle)) {
+    if (!opts.validateOnly && (getBetSplitValue(opts) !== undefined || ['roulette', 'baccarat'].includes(fixedGame?.type) || ['dojo-drop', 'blizzard-blitz', 'gimboz-galaxy'].includes(fixedGame?.key) || opts.chips !== undefined || opts.shuffle)) {
       try {
         validateStatelessPlayTarget({ fixedGame, opts, positionalConfig, amountInput, loopMode });
       } catch (error) {
@@ -8252,9 +8415,10 @@ program
 // ============================================================================
 program
   .command('game <name>')
-  .description('Show metadata, grammar, or the paytable for one game')
+  .description('Show metadata, grammar, the paytable, or wager limits for one game')
   .option('--json', 'JSON output')
   .option('--paytable', 'Show the selected game paytable without playing')
+  .option('--limits', 'Read the current on-chain Baccarat wager minimum')
   .option('--risk <risk>', 'Risk or difficulty used by play')
   .option('--grid <grid>', 'Blocks grid used by play')
   .option('--split <count>', 'Independent split count used by play')
@@ -8273,7 +8437,7 @@ program
   .option('--amount <ape>', 'Wager when the paytable depends on it')
   .option('--side <ape>', 'Blackjack player side bet')
   .addHelpText('after', formatGameHelpAppendix())
-  .action((name, opts) => {
+  .action(async (name, opts) => {
     const matchedCatalogEntry = resolveCatalogGameEntry(name);
     const paytableOnlyOption = [
       ['risk', '--risk'], ['grid', '--grid'], ['split', '--split'],
@@ -8282,6 +8446,27 @@ program
       ['outRange', '--out-range'], ['multiplier', '--multiplier'],
       ['amount', '--amount'], ['side', '--side'],
     ].find(([key]) => opts[key] !== undefined)?.[1];
+
+    if (opts.limits) {
+      try {
+        const game = resolveGame(matchedCatalogEntry?.key || name);
+        if (game?.type !== 'baccarat') throw new Error('--limits is supported for Baccarat.');
+        if (opts.paytable || paytableOnlyOption) throw new Error('--limits is separate from --paytable and its options.');
+        const { publicClient } = createClients();
+        const limits = await getBaccaratWagerLimits(publicClient, game.contract);
+        if (opts.json) console.log(JSON.stringify(limits));
+        else {
+          console.log(`Baccarat minimum wager per hand  ${limits.minWagerApe} APE (${limits.minWagerWei} wei), plus VRF fee`);
+          console.log(`Minimum allocation per selected side  ${limits.minSelectedLegWei} wei`);
+        }
+      } catch (error) {
+        const message = sanitizeError(error);
+        process.exitCode = 1;
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(message);
+      }
+      return;
+    }
 
     if (!opts.paytable && paytableOnlyOption) {
       const error = `${paytableOnlyOption} requires --paytable for game ${name}.`;
@@ -8742,6 +8927,7 @@ ${'═'.repeat(60)}
       }
       console.log(`  ABI verified: ${Boolean(game.abiVerified)}`);
       console.log(`  Contract: ${game.contract}\n`);
+      if (game.key === 'baccarat') console.log(`${formatBaccaratPlayHelp()}\n`);
       
       if (game.config) {
         console.log(`${'─'.repeat(60)}`);

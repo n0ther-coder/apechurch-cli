@@ -680,6 +680,28 @@ describe('CLI Commands Integration Tests', () => {
       }
     });
 
+    it('infers Baccarat amounts and scales numbered legs to the actual per-hand wager', () => {
+      for (const [args, expected] of [
+        ['"35 BANKER 5 TIE"', { amount: '40', playerBankerBet: '35', tieBet: '5' }],
+        ['100 "35 BANKER 5 TIE"', { amount: '100', playerBankerBet: '87.5', tieBet: '12.5' }],
+        ['150 "42 BANKER 10 TIE" --bet-split 50 --loop', {
+          budget: '150', amount: '50', independentGames: '3',
+          playerBankerBet: '40.384615384615384615', tieBet: '9.615384615384615385',
+        }],
+        ['--bet "35 BANKER 5 TIE" --bet-split 20 --loop', {
+          budget: '40', amount: '20', independentGames: '2', playerBankerBet: '17.5', tieBet: '2.5',
+        }],
+      ]) {
+        const result = cli(`play baccarat ${args} --validate-only --json`);
+        assert.equal(result.code, 0, result.stderr);
+        const { config } = JSON.parse(result.stdout);
+        for (const [key, value] of Object.entries(expected)) assert.equal(config[key], value, args);
+      }
+      const preview = cli('game baccarat --paytable --bet "35 BANKER 5 TIE" --json');
+      assert.equal(preview.code, 0, preview.stderr);
+      assert.equal(JSON.parse(preview.stdout).parameters.amount, '40');
+    });
+
     it('rejects invalid bet-split commands before wallet or RPC access', () => {
       for (const command of [
         'play roulette 23 --bet-split 4 --bet RED',

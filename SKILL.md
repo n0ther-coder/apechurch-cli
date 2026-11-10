@@ -294,10 +294,11 @@ Inside groups use only 1–36 and expand into equal native straight-number share
 Classic baccarat. Bet on Player, Banker, or Tie.
 
 ```bash
-apechurch-cli play baccarat <amount> <bet>
+apechurch-cli play baccarat [<amount>] [<bet>]
 apechurch-cli play baccarat 50 BANKER           # Single bet
 apechurch-cli play baccarat 50 PLAYER           # Single bet
-apechurch-cli play baccarat 150 140 BANKER 10 TIE  # Combined: 140 on Banker, 10 on Tie
+apechurch-cli play baccarat "35 BANKER 5 TIE"  # Infer 40 APE
+apechurch-cli play baccarat 100 "35 BANKER 5 TIE"  # 87.5 BANKER and 12.5 TIE
 ```
 
 | Bet | Payout |
@@ -306,7 +307,7 @@ apechurch-cli play baccarat 150 140 BANKER 10 TIE  # Combined: 140 on Banker, 10
 | BANKER | 1.95x |
 | TIE | 9.0x |
 
-**Combined bets:** Specify explicit amounts (must sum to total wager).
+Numbered bets infer the amount from the sum when omitted. An explicit amount is split proportionally by the weights. With `--bet-split`, the amount is the budget and each hand scales to the split stake. Use `apechurch-cli game baccarat --limits --json` to read the live minimum per hand.
 
 **Alias:** `bacc`
 **ABI verified:** `true`

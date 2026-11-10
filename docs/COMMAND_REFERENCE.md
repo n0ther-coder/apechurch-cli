@@ -592,7 +592,7 @@ Notes:
 ```bnf
 <bet-command> ::= "bet"
                   "--game" <stateless-game>
-                  "--amount" <ape>
+                  [ "--amount" <ape> ]
                   <bet-option>*
 <bet-option> ::= "--risk" <token>
                | "--grid" <grid>
@@ -622,7 +622,7 @@ Notes:
 | Option | Meaning |
 |--------|---------|
 | `--game <type>` | Stateless game key |
-| `--amount <ape>` | Wager amount |
+| `--amount <ape>` | Wager amount. Required except when inferred from numbered Baccarat legs. |
 | `--risk <risk>` | Public risk level for Bear-A-Dice, Blocks, Plinko, Monkey Match, or Primes |
 | `--grid <grid>` | Blocks board dimensions: exactly `2x2`, `3x3`, or `4x4`; default `3x3` |
 | `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
@@ -675,8 +675,8 @@ These commands allow at most five independent 4-APE games, leaving 3 APE
 unwagered. In Bear-A-Dice and Blocks with explicit `--survive`, each game
 retains its three internal survival steps; those steps are not three
 independent 4-APE wagers. Blocks retains `--spin` as an equivalent alias
-in this mode too. Roulette chip values and explicit Baccarat component
-amounts are resolved against the per-game stake, not the session budget.
+in this mode too. Roulette chip values and Baccarat weights are resolved against the per-game
+stake. A numbered Baccarat bet can supply an implicit total budget.
 Safety controls
 can stop the loop earlier and apply after each completed game. All existing
 session and single-game controls remain available, including `--max-games`,
@@ -1020,7 +1020,7 @@ Reference columns stay hidden in terminal tables unless `--url` or `--ids` is pa
 ### `game <name>`
 
 ```bnf
-<game-command> ::= "game" <game-name> [ "--paytable" <game-paytable-option>* ] [ "--json" ]
+<game-command> ::= "game" <game-name> [ "--paytable" <game-paytable-option>* | "--limits" ] [ "--json" ]
 <game-paytable-option> ::= "--risk" <token>
                        | "--grid" <grid>
                        | "--split" <integer>
@@ -1062,7 +1062,7 @@ JSON multipliers are decimal strings; repeating ratios use up to 18 fractional d
 }
 ```
 
-Fixed `play` defaults are reused. If a required paytable parameter has no fixed default, the command fails and names the missing option. Roulette and Baccarat require `--bet` and `--amount`: the wager determines exact wei-level payouts, including Roulette allocations and Baccarat's Banker rounding. Roulette paytables accept the same optional `--chips`, `--shuffle`, and `BET=CHIPS` entries as play; see [all Roulette selectors and geometry](GAMES_REFERENCE.md#roulette-). Inside groups expand to merged native straight bets, with group shares rounded down to wei. Shuffle preserves all joint win probabilities and the exact payout distribution; preview and later play are independent samples. Chip value is total wager divided by purchased chips, defaulting to the sum in the bet list. Unallocated chips and division dust remain in the multiplier denominator; count mismatches follow the same warning/error rules as play. Video Poker requires `--amount` because the maximum bet enables its progressive jackpot. A split greater than one suppresses payout enumeration and reports only the overall bounds. Where wager rounding affects those bounds, `--amount` is required and included among the resolved parameters. A static single-attempt paytable is listed when the repository can enumerate it, including for stateful games with fixed payouts. The `400 APE` Video Poker jackpot is dynamic, so that configuration reports bounds only. Dynamic or insufficiently verified outcome spaces also report bounds only, and an unknowable public bound is represented by `null` rather than an invented value.
+Fixed `play` defaults are reused. If a required paytable parameter has no fixed default, the command fails and names the missing option. Roulette requires `--bet` and `--amount`. Baccarat requires `--bet` and can infer the wager from the sum of numbered legs. The wager determines exact wei-level payouts. Use `game baccarat --limits --json` to read the live minimum per hand. Roulette paytables accept the same optional `--chips`, `--shuffle`, and `BET=CHIPS` entries as play; see [all Roulette selectors and geometry](GAMES_REFERENCE.md#roulette-). Inside groups expand to merged native straight bets, with group shares rounded down to wei. Shuffle preserves all joint win probabilities and the exact payout distribution; preview and later play are independent samples. Chip value is total wager divided by purchased chips, defaulting to the sum in the bet list. Unallocated chips and division dust remain in the multiplier denominator; count mismatches follow the same warning/error rules as play. Video Poker requires `--amount` because the maximum bet enables its progressive jackpot. A split greater than one suppresses payout enumeration and reports only the overall bounds. Where wager rounding affects those bounds, `--amount` is required and included among the resolved parameters. A static single-attempt paytable is listed when the repository can enumerate it, including for stateful games with fixed payouts. The `400 APE` Video Poker jackpot is dynamic, so that configuration reports bounds only. Dynamic or insufficiently verified outcome spaces also report bounds only, and an unknowable public bound is represented by `null` rather than an invented value.
 
 Gimboz of the Galaxy accepts `play gimboz-galaxy <total-APE> [<split>]`,
 `--split`, `--spin` or `--bet-split` for base play (1–10 spins, default 10,

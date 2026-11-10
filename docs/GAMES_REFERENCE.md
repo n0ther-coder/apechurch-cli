@@ -102,7 +102,7 @@ Ordering: alphabetical by game title.
 | Game | Accepted Main Bet | Min / Floor | Max / Cap | Fee Model | Notes |
 |------|-------------------|-------------|-----------|------------|-------|
 | ApeStrong ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF + live `2.2%` platform fee | Single total wager |
-| Baccarat ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF; `BANKER` commission is baked into the `1.95x` payout | In combined bets, explicit sub-amounts must sum to the total wager |
+| Baccarat ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | Static VRF; `BANKER` commission is baked into the `1.95x` payout | Numbered legs supply weights or an implicit wager. Read the live minimum with `game baccarat --limits` |
 | Bear-A-Dice ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with rolls + `2%` platform fee | Single total wager; volatility comes from risk and rolls |
 | Blackjack ✔︎ | Any positive APE main bet | Main bet must be `> 0`; `--side` must be `>= 0` | No explicit CLI max besides wallet balance and `--max-bet` in loop mode | Action-based VRF; `double` / `split` / `insurance` are extra stakes, not fees | `double` and `split` each add another initial-bet-sized stake; `insurance` costs half the initial bet |
 | Blocks ✔︎ | Any positive APE amount | CLI accepts `> 0`; strategy auto-sizing usually floors at `1 APE` | No explicit CLI max besides wallet balance, `--max-bet`, and any contract-side limits | VRF scales with `runs × grid tiles` | `--split 1-5` divides the wager across independent rolls; `--survive 1-5` compounds the full payout and zeroes it on any dead roll |
@@ -162,14 +162,40 @@ Range-based one-word VRF game. You choose a win probability cover `5-95`; the co
 
 Classic baccarat with contract-backed combined bets. You can play `PLAYER`, `BANKER`, or `TIE`, or combine one main side with an explicit `TIE` leg; `PLAYER` and `BANKER` together are not valid on-chain.
 
-**Command:** `apechurch-cli play baccarat <amount> <bet>`
+**Command** `apechurch-cli play baccarat [<amount>] [<bet>]`
 
 ```bnf
-<amount> ::= <ape>
-<bet> ::= "PLAYER" | "BANKER" | "TIE" | <combo-bet>
-<combo-bet> ::= <ape> <side-bet> <ape> "TIE"
-<side-bet> ::= "PLAYER" | "BANKER"
+<bet> ::= "PLAYER" | "BANKER" | "TIE" | <numbered-bet>
+<numbered-bet> ::= <parts> <side> [ <parts> <side> ]
+<side> ::= "PLAYER" | "BANKER" | "TIE"
+<parts> ::= <positive-decimal>
 ```
+
+Numbered bets accept up to 18 decimal places per weight and at most one main
+side and one TIE leg. Quote the payload when omitting the positional amount
+or using `--bet`. The flag takes precedence over a positional bet.
+
+```bash
+apechurch-cli play baccarat "35 BANKER 5 TIE"
+apechurch-cli play baccarat 100 "35 BANKER 5 TIE"
+apechurch-cli play baccarat 150 "42 BANKER 10 TIE" --bet-split 50 --loop
+apechurch-cli bet --game baccarat --bet "35 BANKER 5 TIE"
+apechurch-cli game baccarat --paytable --bet "35 BANKER 5 TIE"
+apechurch-cli game baccarat --limits --json
+```
+
+The first example infers 40 APE and allocates 35 to BANKER and 5 to TIE.
+The second allocates 87.5 and 12.5 APE. With `--bet-split`, the explicit
+amount or inferred sum supplies the budget. The third example plans up to
+three 50-APE hands, with 50 × 42 / 52 on BANKER and 50 × 10 / 52 on TIE
+before wei rounding. The residual wei goes to the larger fractional
+remainder, with ties favoring the main side.
+
+The CLI rejects a selected leg that rounds to zero. Gameplay also checks the
+live per-hand total against the tracker minimum before submitting. The VRF
+fee is additional. Use `play --validate-only` for offline allocation and
+`game baccarat --limits --json` for the live minimum. A bare side with
+`bet` or `--paytable` requires `--amount`.
 
 **Compare:**
 - Exact RTP: **`98.94%`** on `BANKER`, **`98.77%`** on `PLAYER`, `85.88%` on `TIE`.

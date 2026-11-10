@@ -35,11 +35,22 @@ Verified behavior:
 - a pure `TIE` bet is represented by `playerBankerBet = 0`
 - combined bets are real contract behavior, not a CLI convenience layer
 
-The repo's combined-bet parser therefore enforces:
+The CLI accepts numbered weights and resolves the encoded legs in wei so their
+sum equals the post-fee wager. When the amount is omitted, the weights sum to
+the implicit amount in APE. The CLI rejects selected legs below 1 wei.
 
-- explicit sub-amounts
-- exact sum matching the total wager
-- mutual exclusion between `PLAYER` and `BANKER`
+Baccarat requires a positive post-fee total. Its `_registerBet` call also
+passes the total and `GAME_ID()` to the governance manager's
+`userInfoTracker()`. The tracker enforces
+`getMinBetAmountForGame(gameId)` on the total. At block 54,428,687, Baccarat
+game ID 6 had a tracker minimum of 0.5 APE. Read-only simulations at that
+block rejected 0.5 APE minus 1 wei and accepted 0.5 APE with either lane
+as small as 1 wei.
+
+Use `apechurch-cli game baccarat --limits --json` to query the current value.
+It returns `minWagerWei`, `minWagerApe`, the contract's positive-total
+floor `contractMinWagerWei`, and the CLI's `minSelectedLegWei` as strings.
+The play handler reads the live minimum before transaction submission.
 
 ## Verified Draw and Settlement Surface
 

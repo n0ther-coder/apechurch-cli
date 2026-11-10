@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [35.1.0]
+
+### Added
+- Read live Baccarat wager limits from the CLI and bot context.
+
+### Changed
+- Numbered Baccarat bets infer an omitted amount or split an explicit
+  wager proportionally in whole wei. Check the live minimum before play.
+- Baccarat help documents the shortest play command, required parameters
+  for manual bets, persona defaults, and combined wager examples.
+- The Baccarat reference includes command grammar, loop options, exact
+  split budgets, bet precedence and read-only paytable usage.
+
 ## [35.0.0]
 
 ### Changed
