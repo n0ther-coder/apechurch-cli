@@ -253,6 +253,48 @@ describe('bucket types and empty CLI', () => {
     assert.ok(f.requests().every((req) => !req.url.includes('log-only-prefix')));
   });
 
+  it('reports an immutable local script and removes the failed download', { skip: process.platform !== 'darwin' }, () => {
+    const f = fixture();
+    f.run(['bucket:script', 'install', 'example-scripts']);
+    const scriptDir = f.env.APECHURCH_CLI_SCR_DIR;
+    const name = 'locked.json';
+    const filePath = path.join(scriptDir, name);
+    const localBody = '{"command":["games"]}';
+    fs.mkdirSync(scriptDir, { recursive: true });
+    fs.writeFileSync(filePath, localBody);
+    const localTime = new Date('2025-12-31T23:00:00Z');
+    fs.utimesSync(filePath, localTime, localTime);
+    const locked = spawnSync('/usr/bin/chflags', ['uchg', filePath], { encoding: 'utf8' });
+    assert.equal(locked.status, 0, locked.stderr);
+    try {
+      const result = f.run(['bucket:script', 'sync', '-r'], { TEST_OBJECTS: JSON.stringify([{ key: name }]) });
+      assert.equal(result.status, 1, result.stderr);
+      assert.ok(result.payload.error.includes(JSON.stringify(filePath)));
+      assert.match(result.payload.error, /\(EPERM\).*destination file has the macOS immutable flag \(uchg\)/);
+      assert.doesNotMatch(result.payload.error, /\.tmp-/);
+      assert.equal(fs.readFileSync(filePath, 'utf8'), localBody);
+      assert.deepEqual(fs.readdirSync(scriptDir), [name]);
+    } finally {
+      const unlocked = spawnSync('/usr/bin/chflags', ['nouchg', filePath], { encoding: 'utf8' });
+      assert.equal(unlocked.status, 0, unlocked.stderr);
+    }
+  });
+
+  it('reports a script directory without write access', { skip: process.platform === 'win32' || process.getuid?.() === 0 }, () => {
+    const f = fixture();
+    f.run(['bucket:script', 'install', 'example-scripts']);
+    const scriptDir = f.env.APECHURCH_CLI_SCR_DIR;
+    fs.mkdirSync(scriptDir, { recursive: true, mode: 0o500 });
+    try {
+      const result = f.run(['bucket:script', 'sync'], { TEST_OBJECTS: JSON.stringify([{ key: 'routine.json' }]) });
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.payload.error, /routine\.json.*\(EACCES\).*denied write or search access to the destination directory/);
+      assert.deepEqual(fs.readdirSync(scriptDir), []);
+    } finally {
+      fs.chmodSync(scriptDir, 0o700);
+    }
+  });
+
   it('presigns an explicitly named script without listing and reuses its cache', () => {
     const f = fixture(); f.run(['bucket:script', 'install', 'example-scripts']);
     const first = f.run(['bucket:script', 'presign', 'routine-v2', '-t', '60']);

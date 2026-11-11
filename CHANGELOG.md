@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [35.1.1]
+
+### Fixed
+- Script bucket sync identifies macOS immutable and append-only flags and
+  reports local permission and filesystem errors against the destination.
+
 ## [35.1.0]
 
 ### Added
