@@ -476,7 +476,7 @@ const PLAY_STATELESS_OPTION_LINES = Object.freeze([
   '--shuffle             Roulette: sample a structurally equivalent bet allocation',
   '--cover <cover>         ApeStrong cover or Gimboz Smash random cover',
   '--range <range>         Gimboz Smash inside range',
-  '--multiplier <x>        Glyde or Crash target multiplier',
+  '--cutoff <x>            Glyde or Crash target multiplier',
   '--out-range <range>     Gimboz Smash outside range to exclude',
   '--picks <picks>         Keno / Speed Keno pick count',
   '--numbers <numbers>     Keno / Speed Keno numbers as one token; e.g. --numbers 1,7,13,25,40',
@@ -517,9 +517,9 @@ const PLAY_SHARED_OPTION_LINES = Object.freeze([
   '--max-balance <ape>     Stop when balance reaches the target',
   '--min-profit <ape-or-percent>  Net session profit guard; --take-profit alias',
   '--stop-loss <ape-or-percent>   Alias for net --max-loss',
-  '--target-x <x>          Stop when one game pays at least this multiplier',
-  '--target-profit <ape-or-percent>   Stop when one game reaches this net PnL',
-  '--retrace <ape-or-percent>         Stop when one game loses at least this amount',
+  '--target-x <x>          Latest-game gross P/W target, e.g. 2x (max 2 decimals)',
+  '--target-profit <ape-or-percent>   Net profit: APE on latest game; whole % on cumulative session',
+  '--retrace <ape-or-percent>         Net loss: APE on latest game; whole % on cumulative session',
   '--recover-loss <ape-or-percent>    Arm at -<ape> net P&L; stop at break-even/profit',
   '--giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss',
   '--min-balance <ape>       Stop when balance drops to the threshold',
@@ -551,6 +551,7 @@ const FEES_HELP_BNF_LINES = Object.freeze([
 ]);
 const INLINE_HELP_OPTION_LINE = '-h, --help             Show this inline help for the command';
 const COMMON_BNF_LINES = Object.freeze([
+  '<multiplier-x> ::= <integer> [ "." <digit> [ <digit> ] ] "x"',
   '<address> ::= "0x" <40-hex-chars>',
   '<ape> ::= <number>                              ; decimal APE amount; value > 0',
   '<ape-nonnegative> ::= <number>                  ; decimal APE amount; value >= 0',
@@ -572,9 +573,9 @@ const LOOP_HELP_OPTION_LINES = Object.freeze([
   '--max-games <count>     Stop after N completed loop games',
   '--max-balance <ape>     Stop when wallet balance reaches this absolute target',
   '--min-profit <ape-or-percent>      Stop when net session PnL reaches this profit',
-  '--target-x <x>          Stop when one game pays at least this multiplier',
-  '--target-profit <ape-or-percent>   Stop when one game reaches this net PnL',
-  '--retrace <ape-or-percent>         Stop when one game loses at least this amount',
+  '--target-x <x>          Latest-game gross P/W target, e.g. 2x (max 2 decimals)',
+  '--target-profit <ape-or-percent>   Net profit: APE on latest game; whole % on cumulative session',
+  '--retrace <ape-or-percent>         Net loss: APE on latest game; whole % on cumulative session',
   '--recover-loss <ape-or-percent>    Arm at -<ape> net P&L; stop at break-even/profit',
   '--giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss',
   '--min-balance <ape>       Stop when wallet balance drops to this absolute threshold',
@@ -600,9 +601,9 @@ const STATEFUL_SHARED_HELP_OPTION_LINES = Object.freeze([
   '--no-resilient          Disable inherited resilient retry mode',
 ]);
 const STATEFUL_SHARED_BNF_LINES = Object.freeze([
-  '<pnl-threshold> ::= <ape> | <integer> "%" ; positive whole percentage of controlled wager',
+  '<pnl-threshold> ::= <ape> | <integer> "%" ; positive whole percentage of cumulative actual wager',
   '<stateful-common-option> ::= "--game" <game-id> | "--display" <display> | "--json" | "-v" | "--verbose" | "--gp-ape" <points> | "--resilient" | "--no-resilient"',
-  '<stateful-loop-option> ::= "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bankroll-cap" <ape> | "--bankroll-stop" <ape-nonnegative> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape>',
+  '<stateful-loop-option> ::= "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <multiplier-x> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bankroll-cap" <ape> | "--bankroll-stop" <ape-nonnegative> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape>',
 ]);
 
 function isPositiveApeToken(value) {
@@ -1243,7 +1244,7 @@ function formatBetHelpAppendix() {
       '--shuffle             Roulette: sample a structurally equivalent bet allocation',
       '--cover <cover>        ApeStrong cover or Gimboz Smash random cover',
       '--range <range>        Gimboz Smash inside range',
-      '--multiplier <x>       Glyde or Crash target multiplier',
+      '--cutoff <x>           Glyde or Crash target multiplier',
       '--out-range <range>    Gimboz Smash outside range to exclude',
       '--picks <picks>        Keno or Speed Keno pick count',
       '--numbers <numbers>    Keno or Speed Keno numbers as one token, or random',
@@ -1257,7 +1258,7 @@ function formatBetHelpAppendix() {
     ],
     bnf: [
       '<bet-command> ::= "bet" "--game" <stateless-game> [ "--amount" <ape> ] <bet-option>*',
-      '<bet-option> ::= "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
+      '<bet-option> ::= "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--cutoff" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
       ...SIMPLE_GAME_HELP_BNF_LINES,
     ],
     examples: [
@@ -1268,7 +1269,7 @@ function formatBetHelpAppendix() {
       `${BINARY_NAME} bet --game blocks --amount 10 --risk 0 --grid 4x4 --split 5`,
       `${BINARY_NAME} bet --game keno --amount 5 --picks 5 --numbers 1,7,13,25,40`,
       `${BINARY_NAME} bet --game gimboz-smash --amount 10 --range 45-55`,
-      `${BINARY_NAME} bet --game glyde-or-crash --amount 10 --multiplier 2x --timeout 0`,
+      `${BINARY_NAME} bet --game glyde-or-crash --amount 10 --cutoff 2x --timeout 0`,
     ],
     notes: [
       'Use `play` for loop mode, stateful games, or random stateless selection.',
@@ -1314,9 +1315,9 @@ function formatPlayHelpAppendix() {
       '<play-positional> ::= <stateless-game> [ <ape> <token>* ] | <stateful-game> [ <stateful-head> ] [ <token> ]',
       '<stateful-head> ::= <ape> | "resume" | "status" | "clear" | "payouts" | "table" | <token>',
       '<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>',
-      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--multiplier" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
+      '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--cutoff" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
       '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count> | "--resilient" | "--no-resilient"',
-      '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <number> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bankroll-cap" <ape> | "--bankroll-stop" <ape-nonnegative> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
+      '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <multiplier-x> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bankroll-cap" <ape> | "--bankroll-stop" <ape-nonnegative> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
       ...SIMPLE_GAME_HELP_BNF_LINES,
       ...COMMON_BNF_LINES.filter((line) => !line.startsWith('<ape') && !line.startsWith('<points>')),
     ],
@@ -1642,13 +1643,13 @@ function formatGameHelpAppendix() {
       '--cover <count>        ApeStrong or Gimboz Smash cover',
       '--range <range>        Gimboz Smash target range',
       '--out-range <range>    Gimboz Smash excluded range',
-      '--multiplier <x>       Glyde or Crash target',
+      '--cutoff <x>           Glyde or Crash target',
       '--amount <ape>         Wager when the paytable depends on it',
       '--side <ape>           Blackjack player side bet',
     ],
     bnf: [
       '<game-command> ::= "game" <game-name> [ "--paytable" <paytable-option>* | "--limits" ] [ "--json" ]',
-      '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--bet-split" <ape> | "--spin" <ape> | "--bonus" | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--multiplier" <multiplier> | "--amount" <ape> | "--side" <ape>',
+      '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--bet-split" <ape> | "--spin" <ape> | "--bonus" | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--cutoff" <multiplier> | "--amount" <ape> | "--side" <ape>',
       '<game-name> ::= <stateless-game> | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
       '<stateless-game> ::= <game-key> | <game-alias>',
       ...ROULETTE_HELP_BNF_LINES,
@@ -5890,7 +5891,7 @@ program
   .option('--shuffle', 'Roulette: random equivalent with identical types, chip counts and joint win probabilities')
   .option('--cover <cover>', 'ApeStrong cover or Gimboz Smash random cover')
   .option('--range <range>', 'Gimboz Smash inside range')
-  .option('--multiplier <x>', 'Glyde or Crash target multiplier')
+  .option('--cutoff <x>', 'Glyde or Crash target multiplier')
   .option('--out-range <range>', 'Gimboz Smash outside range to exclude from the winning set (for example 45-50)')
   .option('--picks <picks>', 'Keno pick count', '5')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
@@ -5944,10 +5945,10 @@ program
       }
     }
 
-    if (gameEntry?.type === 'speedcrash' && opts.multiplier !== undefined) {
+    if (gameEntry?.type === 'speedcrash' && opts.cutoff !== undefined) {
       try {
-        const multiplierBasisPoints = parseGlydeOrCrashTargetMultiplierInput(opts.multiplier);
-        opts.multiplier = serializeGlydeOrCrashTargetMultiplier(multiplierBasisPoints);
+        const multiplierBasisPoints = parseGlydeOrCrashTargetMultiplierInput(opts.cutoff);
+        opts.cutoff = serializeGlydeOrCrashTargetMultiplier(multiplierBasisPoints);
       } catch (error) {
         console.error(JSON.stringify({ error: sanitizeError(error) }));
         process.exit(1);
@@ -6030,7 +6031,7 @@ program
         rouletteShuffle: opts.rouletteShuffle,
         range: gameEntry?.type === 'apestrong' ? opts.cover : (gameEntry?.type === 'gimbozsmash' ? explicitGimbozRange : undefined),
         cover: gameEntry?.type === 'gimbozsmash' ? explicitGimbozCover : undefined,
-        multiplier: opts.multiplier,
+        multiplier: opts.cutoff,
         outRange: opts.outRange,
         picks: opts.picks,
         numbers: opts.numbers,
@@ -6073,7 +6074,7 @@ program
   .option('--shuffle', 'Roulette: random equivalent with identical types, chip counts and joint win probabilities')
   .option('--cover <cover>', 'ApeStrong cover or Gimboz Smash random cover')
   .option('--range <range>', 'Gimboz Smash inside range')
-  .option('--multiplier <x>', 'Glyde or Crash target multiplier')
+  .option('--cutoff <x>', 'Glyde or Crash target multiplier')
   .option('--out-range <range>', 'Gimboz Smash outside range to exclude from the winning set (for example 45-50)')
   .option('--picks <picks>', 'Keno pick count')
   .option('--numbers <numbers>', 'Keno numbers (comma-separated single token, or "random")')
@@ -6104,9 +6105,9 @@ program
   .option('--take-profit <ape-or-percent>', 'Stop at this net PnL (alias for --min-profit)')
   .option('--stop-loss <ape-or-percent>', 'Stop at this net PnL loss (alias for --max-loss)')
   .option('--min-profit <ape-or-percent>', 'Stop when net session PnL reaches +this amount or better (use with --loop)')
-  .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
-  .option('--target-profit <ape-or-percent>', 'Stop when a single game reaches this net PnL (use with --loop)')
-  .option('--retrace <ape-or-percent>', 'Stop when a single game loses at least this much APE (use with --loop)')
+  .option('--target-x <x>', 'Latest-game gross P/W target, e.g. 2x (max 2 decimals)')
+  .option('--target-profit <ape-or-percent>', 'Net profit: APE on latest game; whole % on cumulative session')
+  .option('--retrace <ape-or-percent>', 'Net loss: APE on latest game; whole % on cumulative session')
   .option('--recover-loss <ape-or-percent>', 'Arm when net session PnL reaches -<ape>; stop at break-even/profit (use with --loop)')
   .option('--giveback-profit <ape-or-percent>', 'Arm when net session PnL reaches +<ape>; stop at break-even/loss (use with --loop)')
   .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
@@ -6160,7 +6161,7 @@ program
       '--chips',
       '--cover',
       '--range',
-      '--multiplier',
+      '--cutoff',
       '--out-range',
       '--picks',
       '--numbers',
@@ -6467,7 +6468,7 @@ program
     }
 
     if (fixedGame?.type === 'speedcrash') {
-      const explicitMultiplier = opts.multiplier ?? positionalConfig.multiplier;
+      const explicitMultiplier = opts.cutoff ?? positionalConfig.multiplier;
       if (explicitMultiplier !== undefined) {
         try {
           const multiplierBasisPoints = parseGlydeOrCrashTargetMultiplierInput(explicitMultiplier);
@@ -6561,7 +6562,7 @@ program
       if (minProfit) console.log(`   💰 Min-profit: ${minProfit} APE net session PnL`);
       if (targetX) console.log(`   🎯 Target multiplier: ${Number(targetX).toFixed(2)}×`);
       if (targetProfitApe) console.log(`   💰 Target net PnL: ${targetProfitApe} APE`);
-      if (retrace) console.log(`   📉 Retrace: ${retrace} APE single-game loss`);
+      if (retrace) console.log(`   📉 Retrace: ${retrace} (APE: latest game; %: cumulative net loss)`);
       if (recoverLoss) console.log(`   🛟 Recover-loss: ${recoverLoss} APE drawdown`);
       if (givebackProfit) console.log(`   📉 Giveback-profit: ${givebackProfit} APE run-up`);
       if (minBalance) console.log(`   🛑 Minimum balance: ${minBalance} APE`);
@@ -7429,6 +7430,8 @@ program
         }
 
         const singleGameTerminalCondition = getSingleGameLoopTerminalCondition({
+          sessionPnlApe: loopStats.totalPayoutApe - loopStats.totalWageredApe - loopStats.totalFeesPaidApe,
+          totalWagerApe: loopStats.totalWageredApe,
           gameResult: lastGameResult,
           targetX,
           targetProfit: targetProfitApe,
@@ -8433,7 +8436,7 @@ program
   .option('--cover <cover>', 'ApeStrong or Gimboz Smash cover')
   .option('--range <range>', 'Gimboz Smash inside range')
   .option('--out-range <range>', 'Gimboz Smash outside range')
-  .option('--multiplier <x>', 'Glyde or Crash target multiplier')
+  .option('--cutoff <x>', 'Glyde or Crash target multiplier')
   .option('--amount <ape>', 'Wager when the paytable depends on it')
   .option('--side <ape>', 'Blackjack player side bet')
   .addHelpText('after', formatGameHelpAppendix())
@@ -8443,7 +8446,7 @@ program
       ['risk', '--risk'], ['grid', '--grid'], ['split', '--split'],
       ['survive', '--survive'], ['betSplit', '--bet-split'], ['spin', '--spin'], ['bonus', '--bonus'], ['picks', '--picks'],
       ['bet', '--bet'], ['chips', '--chips'], ['shuffle', '--shuffle'], ['cover', '--cover'], ['range', '--range'],
-      ['outRange', '--out-range'], ['multiplier', '--multiplier'],
+      ['outRange', '--out-range'], ['cutoff', '--cutoff'],
       ['amount', '--amount'], ['side', '--side'],
     ].find(([key]) => opts[key] !== undefined)?.[1];
 
@@ -8543,9 +8546,9 @@ ${'─'.repeat(60)}
   --loop          Keep playing until balance runs out
   --max-balance <ape>  Stop when balance reaches this amount
   --min-profit <ape-or-percent>  Stop when net session PnL reaches this profit
-  --target-x <x>  Stop when a hand pays at least this multiplier
-  --target-profit <ape-or-percent>  Stop when a hand reaches this net PnL
-  --retrace <ape-or-percent>  Stop when a hand loses at least this amount
+  --target-x <x>  Latest-game gross P/W target, e.g. 2x (max 2 decimals)
+  --target-profit <ape-or-percent>  Net profit: APE on latest game; whole % on cumulative session
+  --retrace <ape-or-percent>  Net loss: APE on latest game; whole % on cumulative session
   --recover-loss <ape-or-percent>  Arm at -<ape> net P&L; stop at break-even/profit
   --giveback-profit <ape-or-percent>  Arm at +<ape> net P&L; stop at break-even/loss
   --min-balance <ape>  Stop when balance drops to this amount
@@ -8593,7 +8596,7 @@ ${'─'.repeat(60)}
   ${BINARY_NAME} blackjack 25 --auto --loop     Bot grinds until broke
   ${BINARY_NAME} blackjack 10 --auto --loop --max-balance 500
                                            Bot plays until 500 APE balance
-  ${BINARY_NAME} blackjack 10 --auto --loop --target-x 2.5
+  ${BINARY_NAME} blackjack 10 --auto --loop --target-x 2.5x
                                            Stop after any 2.5x-or-better hand
   ${BINARY_NAME} blackjack 10 --auto --loop --recover-loss 25
                                            Stop once a 25 APE drawdown returns to break-even/profit
@@ -8649,14 +8652,14 @@ ${'─'.repeat(60)}
   --max-games <count> Stop after N runs in loop mode
   --max-balance <ape> Stop when balance reaches this amount
   --min-profit <ape-or-percent> Stop when net session PnL reaches this profit
-  --target-x <x> Stop when a run pays at least this multiplier
-  --target-profit <ape-or-percent> Stop when a run reaches this net PnL
+  --target-x <x> Latest-game gross P/W target, e.g. 2x (max 2 decimals)
+  --target-profit <ape-or-percent> Net profit: APE on latest game; whole % on cumulative session
   --min-balance <ape> Stop when balance drops to this amount
   --max-loss <ape-or-percent> Stop when net session PnL reaches this loss
   --bankroll <ape> Alias for --max-loss
   --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
   --bankroll-stop <ape> Stop when remaining net bankroll is at or below it
-  --retrace <ape-or-percent> Stop when a run loses at least this amount
+  --retrace <ape-or-percent> Net loss: APE on latest game; whole % on cumulative session
   --recover-loss <ape-or-percent> Arm at -<ape> net P&L; stop at break-even/profit
   --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
   --bet-strategy <name> Betting strategy for loop mode; supports bankroll-fraction=<0..1>
@@ -8743,14 +8746,14 @@ ${'─'.repeat(60)}
   --max-games <count> Stop after N runs in loop mode
   --max-balance <ape>  Stop when balance reaches this amount
   --min-profit <ape-or-percent> Stop when net session PnL reaches this profit
-  --target-x <x> Stop when a run pays at least this multiplier
-  --target-profit <ape-or-percent> Stop when a run reaches this net PnL
+  --target-x <x> Latest-game gross P/W target, e.g. 2x (max 2 decimals)
+  --target-profit <ape-or-percent> Net profit: APE on latest game; whole % on cumulative session
   --min-balance <ape> Stop when balance drops to this amount
   --max-loss <ape-or-percent> Stop when net session PnL reaches this loss
   --bankroll <ape> Alias for --max-loss
   --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
   --bankroll-stop <ape> Stop when remaining net bankroll is at or below it
-  --retrace <ape-or-percent> Stop when a run loses at least this amount
+  --retrace <ape-or-percent> Net loss: APE on latest game; whole % on cumulative session
   --recover-loss <ape-or-percent> Arm at -<ape> net P&L; stop at break-even/profit
   --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
   --bet-strategy <name> Betting strategy for loop mode; supports bankroll-fraction=<0..1>
@@ -8847,9 +8850,9 @@ ${'─'.repeat(60)}
   --loop          Keep playing until balance runs out
   --max-balance <ape>  Stop when balance reaches this amount
   --min-profit <ape-or-percent>  Stop when net session PnL reaches this profit
-  --target-x <x>  Stop when a hand pays at least this multiplier
-  --target-profit <ape-or-percent>  Stop when a hand reaches this net PnL
-  --retrace <ape-or-percent>  Stop when a hand loses at least this amount
+  --target-x <x>  Latest-game gross P/W target, e.g. 2x (max 2 decimals)
+  --target-profit <ape-or-percent>  Net profit: APE on latest game; whole % on cumulative session
+  --retrace <ape-or-percent>  Net loss: APE on latest game; whole % on cumulative session
   --recover-loss <ape-or-percent>  Arm at -<ape> net P&L; stop at break-even/profit
   --giveback-profit <ape-or-percent>  Arm at +<ape> net P&L; stop at break-even/loss
   --min-balance <ape>  Stop when balance drops to this amount
@@ -9124,9 +9127,9 @@ LOOP OPTIONS
   --loop                  Play continuously
   --max-balance <ape>     Stop when balance reaches target
   --min-profit <ape-or-percent>      Stop when net session PnL reaches the target profit
-  --target-x <x>          Stop when one game pays at least Xx
-  --target-profit <ape-or-percent>   Stop when one game reaches this net PnL
-  --retrace <ape-or-percent>         Stop when one game loses at least this amount
+  --target-x <x>          Latest-game gross P/W target, e.g. 2x (max 2 decimals)
+  --target-profit <ape-or-percent>   Net profit: APE on latest game; whole % on cumulative session
+  --retrace <ape-or-percent>         Net loss: APE on latest game; whole % on cumulative session
   --recover-loss <ape-or-percent>    Arm at -<ape> net P&L; stop at break-even/profit
   --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
   --min-balance <ape>       Stop when balance drops to limit
@@ -9251,13 +9254,13 @@ ${'─'.repeat(70)}
   --min-profit <ape-or-percent>   Stop when net session PnL reaches +<ape> or better
                        Example: --min-profit 25 (stop at +25 APE net session PnL)
 
-  --target-x <x>       Stop when a single game pays at least this multiplier
-                       Example: --target-x 10 (stop on any 10x+ hit)
+  --target-x <x>       Latest-game gross P/W target, e.g. 2x (max 2 decimals)
+                       Example: --target-x 10x (stop on any 10x+ hit)
 
-  --target-profit <ape-or-percent>  Stop when a single game reaches this net PnL
+  --target-profit <ape-or-percent>  Net profit: APE on latest game; whole % on cumulative session
                          Example: --target-profit 250 (stop on a game with at least 250 APE net PnL)
 
-  --retrace <ape-or-percent>        Stop when a single game loses at least this amount
+  --retrace <ape-or-percent>        Net loss: APE on latest game; whole % on cumulative session
                          Example: --retrace 25 (stop on any 25+ APE loss)
 
   --recover-loss <ape-or-percent>   Arm once net session PnL reaches -<ape> or worse;
@@ -9341,8 +9344,8 @@ ${'─'.repeat(70)}
     • Reaching --max-balance balance
     • Reaching --min-profit net session PnL
     • Hitting --target-x on a single game
-    • Hitting --target-profit on a single game
-    • Hitting --retrace on a single game loss
+    • Hitting --target-profit (APE: latest game; %: cumulative net profit)
+    • Hitting --retrace (APE: latest game; %: cumulative net loss)
     • Returning to break-even/profit after --recover-loss is armed
     • Returning to break-even/loss after --giveback-profit is armed
     • Hitting --min-balance floor
@@ -10860,9 +10863,9 @@ program
   .option('--take-profit <ape-or-percent>', 'Stop at this net PnL (alias for --min-profit)')
   .option('--stop-loss <ape-or-percent>', 'Stop at this net PnL loss (alias for --max-loss)')
   .option('--min-profit <ape-or-percent>', 'Stop when net session PnL reaches +this amount or better (use with --loop)')
-  .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
-  .option('--target-profit <ape-or-percent>', 'Stop when a single game reaches this net PnL (use with --loop)')
-  .option('--retrace <ape-or-percent>', 'Stop when a single game loses at least this much APE (use with --loop)')
+  .option('--target-x <x>', 'Latest-game gross P/W target, e.g. 2x (max 2 decimals)')
+  .option('--target-profit <ape-or-percent>', 'Net profit: APE on latest game; whole % on cumulative session')
+  .option('--retrace <ape-or-percent>', 'Net loss: APE on latest game; whole % on cumulative session')
   .option('--recover-loss <ape-or-percent>', 'Arm when net session PnL reaches -<ape>; stop at break-even/profit (use with --loop)')
   .option('--giveback-profit <ape-or-percent>', 'Arm when net session PnL reaches +<ape>; stop at break-even/loss (use with --loop)')
   .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
@@ -10905,9 +10908,9 @@ program
   .option('--take-profit <ape-or-percent>', 'Stop at this net PnL (alias for --min-profit)')
   .option('--stop-loss <ape-or-percent>', 'Stop at this net PnL loss (alias for --max-loss)')
   .option('--min-profit <ape-or-percent>', 'Stop when net session PnL reaches +this amount or better (use with --loop)')
-  .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
-  .option('--target-profit <ape-or-percent>', 'Stop when a single game reaches this net PnL (use with --loop)')
-  .option('--retrace <ape-or-percent>', 'Stop when a single game loses at least this much APE (use with --loop)')
+  .option('--target-x <x>', 'Latest-game gross P/W target, e.g. 2x (max 2 decimals)')
+  .option('--target-profit <ape-or-percent>', 'Net profit: APE on latest game; whole % on cumulative session')
+  .option('--retrace <ape-or-percent>', 'Net loss: APE on latest game; whole % on cumulative session')
   .option('--recover-loss <ape-or-percent>', 'Arm when net session PnL reaches -<ape>; stop at break-even/profit (use with --loop)')
   .option('--giveback-profit <ape-or-percent>', 'Arm when net session PnL reaches +<ape>; stop at break-even/loss (use with --loop)')
   .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
@@ -10949,9 +10952,9 @@ program
   .option('--take-profit <ape-or-percent>', 'Stop at this net PnL (alias for --min-profit)')
   .option('--stop-loss <ape-or-percent>', 'Stop at this net PnL loss (alias for --max-loss)')
   .option('--min-profit <ape-or-percent>', 'Stop when net session PnL reaches +this amount or better (use with --loop)')
-  .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
-  .option('--target-profit <ape-or-percent>', 'Stop when a single game reaches this net PnL (use with --loop)')
-  .option('--retrace <ape-or-percent>', 'Stop when a single game loses at least this much APE (use with --loop)')
+  .option('--target-x <x>', 'Latest-game gross P/W target, e.g. 2x (max 2 decimals)')
+  .option('--target-profit <ape-or-percent>', 'Net profit: APE on latest game; whole % on cumulative session')
+  .option('--retrace <ape-or-percent>', 'Net loss: APE on latest game; whole % on cumulative session')
   .option('--recover-loss <ape-or-percent>', 'Arm when net session PnL reaches -<ape>; stop at break-even/profit (use with --loop)')
   .option('--giveback-profit <ape-or-percent>', 'Arm when net session PnL reaches +<ape>; stop at break-even/loss (use with --loop)')
   .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')
@@ -10991,9 +10994,9 @@ program
   .option('--take-profit <ape-or-percent>', 'Stop at this net PnL (alias for --min-profit)')
   .option('--stop-loss <ape-or-percent>', 'Stop at this net PnL loss (alias for --max-loss)')
   .option('--min-profit <ape-or-percent>', 'Stop when net session PnL reaches +this amount or better (use with --loop)')
-  .option('--target-x <x>', 'Stop when a single game pays at least this multiplier (use with --loop)')
-  .option('--target-profit <ape-or-percent>', 'Stop when a single game reaches this net PnL (use with --loop)')
-  .option('--retrace <ape-or-percent>', 'Stop when a single game loses at least this much APE (use with --loop)')
+  .option('--target-x <x>', 'Latest-game gross P/W target, e.g. 2x (max 2 decimals)')
+  .option('--target-profit <ape-or-percent>', 'Net profit: APE on latest game; whole % on cumulative session')
+  .option('--retrace <ape-or-percent>', 'Net loss: APE on latest game; whole % on cumulative session')
   .option('--recover-loss <ape-or-percent>', 'Arm when net session PnL reaches -<ape>; stop at break-even/profit (use with --loop)')
   .option('--giveback-profit <ape-or-percent>', 'Arm when net session PnL reaches +<ape>; stop at break-even/loss (use with --loop)')
   .option('--min-balance <ape>', 'Stop when balance drops to this amount (use with --loop)')

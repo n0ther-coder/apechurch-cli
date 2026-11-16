@@ -527,15 +527,19 @@ Before considering a bot ready:
 Follow [ACCOUNTING.md](ACCOUNTING.md). `getSettledPlayEconomics` and
 `getNestedBotEconomics` return gross wager/payout and net `pnlWei`; never
 reconstruct payout from net PnL. Supply actual `totalWagerWei` and
-`routineWagerWei` to standard guards so result percentages use matching scopes.
+`routineWagerWei` to standard guards. Percentages use cumulative run net PnL
+and `totalWagerWei`; bare APE retrace uses the latest routine.
 `getBotEconomicsFields` exports aggregate costs and deduplicates child receipt
 hashes. Include fallback children as well as direct games.
 
 Test positive payout ratios with negative net PnL, repeated calls with matching
 cumulative W/P, changing cost estimates, and failed/resumed transactions.
-Options called payout must represent payout multipliers; options called profit
-or loss represent net results. Document any fixed opening-bet percentage budget
-explicitly. Estimates must never be exported as actual transaction costs.
+Result thresholds ending in `x` must use the latest settled game gross P/W
+and at most two decimals. Whole-number `%` means cumulative net PnL divided
+by cumulative wager in the documented scope. `100%` requires P ≥ 2 × W + C.
+Use a distinct syntax for fixed opening-bet budgets. The runtime exposes
+`ctx.getLatestPlay()` and exports `latest_play` in summaries so parents can
+separate the last transaction batch or concluded hand from aggregate results. Estimates must never be exported as actual transaction costs.
 
 ## Terminal failures and partial results
 

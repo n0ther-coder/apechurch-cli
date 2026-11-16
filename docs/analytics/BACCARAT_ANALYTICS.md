@@ -66,6 +66,10 @@ RTP(main + tie) = m * RTP(main) + t * RTP(TIE)
 | Tie 25% | `1.5x` | `1.462x` | `3x` | `95.55%` | `95.67%` |
 | Tie 50% | `1x` | `0.975x` | `5x` | `92.33%` | `92.41%` |
 
+The [BANKER + TIE payout table](./BACCARAT_BANKER_TIE_PAYOUTS.md) lists 776
+bets in descending RTP order, including the single-lane BANKER bet and the
+ratio with equal BANKER and TIE payouts.
+
 ## Variance
 
 Variance is computed over `X = payout / stake`. For simple lanes, the exact outcome probabilities are the same six-rank draw-tree counts used above. For combined bets, let `t` be the tie share and `m = 1 - t` be the main-lane share:

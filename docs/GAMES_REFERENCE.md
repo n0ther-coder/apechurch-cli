@@ -32,7 +32,7 @@ Ordering: alphabetical by game title.
 | Dojo Drop | `play dojo-drop <amt> [<split>]` | `--game dojo-drop --amount X --split Y` | `dojodrop`, `dojo` |
 | Geez Diggerz ✔︎ | `play geez-diggerz <amt> <split>` | `--game geez-diggerz --amount X --split Y` | `geezdiggerz`, `geez`, `diggerz` |
 | Gimboz Smash ✔︎ | `play gimboz-smash <amt> <range>` | `--game gimboz-smash --amount X --range Y` or `--cover N` | `gimbozsmash`, `smash` |
-| Glyde or Crash ✔︎ | `play glyde-or-crash <amt> <multiplier>` | `--game glyde-or-crash --amount X --multiplier Y` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` |
+| Glyde or Crash ✔︎ | `play glyde-or-crash <amt> <multiplier>` | `--game glyde-or-crash --amount X --cutoff Y` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` |
 | Hi-Lo Nebula ✔︎ | `hi-lo-nebula <amt>` | `hi-lo-nebula <amt> --auto best --loop` | `hilonebula`, `hilo`, `nebula` |
 | Jungle Plinko ✔︎ | `play jungle-plinko <amt> <risk> <split>` | `--game jungle-plinko --amount X --risk Y --split Z` | `jungleplinko`, `jungle` |
 | Keno ✔︎ | `play keno <amt>` | `--game keno --amount X --picks Y --numbers Z` | - |
@@ -589,7 +589,7 @@ Verified one-or-two-interval target game on a public `1-100` board. The CLI acce
 
 Verified fixed-target crash game. The player chooses a target multiplier, the contract reveals a final crash multiplier, and the wager wins only if `crashMultiplier >= targetMultiplier`. The public presets start at `1.5x`, but the verified contract and current numeric input surface allow `1.01x .. 10000x`.
 
-**Command:** `apechurch-cli play glyde-or-crash <amount> <multiplier>` or `apechurch-cli bet --game glyde-or-crash --amount <amount> --multiplier <multiplier>`
+**Command:** `apechurch-cli play glyde-or-crash <amount> <multiplier>` or `apechurch-cli bet --game glyde-or-crash --amount <amount> --cutoff <multiplier>`
 
 ```bnf
 <amount> ::= <ape>
@@ -904,8 +904,8 @@ Note: `play` defaults to `--delay 3`, while `blackjack`, `cash-dash`, `hi-lo-neb
 --max-balance <ape>       # Stop at target balance
 --min-profit <ape>        # Stop at target session profit
 --target-x <x>            # Stop after any single-game payout multiplier at or above X
---target-profit <ape|n%>  # Stop after a single-game net PnL Profit reaches the threshold
---retrace <ape>           # Stop after any single-game loss at or above this APE
+--target-profit <ape|n%>  # Net profit: APE on latest game; whole % on cumulative session
+--retrace <ape|n%>        # Net loss: APE on latest game; whole % on cumulative session
 --recover-loss <ape>      # Stop once net P&L reaches -<ape>, then gets back to break-even/profit
 --giveback-profit <ape>   # Stop once net P&L reaches +<ape>, then falls back to break-even/loss
 --min-balance <ape>         # Stop at loss limit

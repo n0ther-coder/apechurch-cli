@@ -1,5 +1,7 @@
 # @n0ther/apechurch-cli
 
+CLI 36 changes result-threshold syntax and scope. See the [migration guide](docs/migrations/v36.md).
+
 **CLI 30 breaks compatibility with scripts written for earlier versions.**
 Review and migrate wallet limits, profit/loss thresholds, JSON consumers and
 output assumptions using the [two-column migration guide](docs/migrations/v30.md).
@@ -489,7 +491,7 @@ apechurch-cli play roulette 10 RED --loop --min-profit 25
 apechurch-cli play roulette 10 RED --loop --max-loss 20
 
 # Stop after any big hit
-apechurch-cli play ape-strong 10 --cover 50 --loop --target-x 3.9
+apechurch-cli play ape-strong 10 --cover 50 --loop --target-x 3.9x
 apechurch-cli play ape-strong 10 --cover 50 --loop --target-profit 39
 apechurch-cli play roulette 10 RED --loop --retrace 10
 
@@ -506,8 +508,8 @@ apechurch-cli play ape-strong 10 --cover 50 --loop --max-balance 150
 | `--max-balance <ape>` | Stop when balance reaches target |
 | `--min-profit <ape|n%>` | Stop when session P&L reaches the target profit |
 | `--target-x <x>` | Stop when one game pays at least this multiplier |
-| `--target-profit <ape|n%>` | Stop when one game reaches this net PnL Profit |
-| `--retrace <ape|n%>` | Stop when one game loses at least this amount |
+| `--target-profit <ape|n%>` | Net profit: APE on latest game; whole % on cumulative session |
+| `--retrace <ape|n%>` | Net loss: APE on latest game; whole % on cumulative session |
 | `--recover-loss <ape|n%>` | Arm when net session P&L reaches `-<ape>` or worse; stop when it returns to break-even/profit |
 | `--giveback-profit <ape|n%>` | Arm when net session P&L reaches `+<ape>` or better; stop when it returns to break-even/loss |
 | `--min-balance <ape>` | Stop when balance drops to limit; if used without `--bankroll`/`--max-loss`, the session bankroll is derived as `starting balance - min-balance` |
@@ -519,7 +521,9 @@ apechurch-cli play ape-strong 10 --cover 50 --loop --max-balance 150
 | `--gp-ape <points>` | Override the loop points conversion for this run |
 
 Profit/loss thresholds accept APE amounts or whole percentages of the actual
-wager in the controlled result. `--take-profit` aliases `--min-profit` and
+cumulative wager in the controlled scope. Multiplier thresholds require `x`
+and at most two decimals. A transaction batch is one game; Blackjack uses the
+whole concluded hand. `--take-profit` aliases `--min-profit` and
 `--stop-loss` aliases `--max-loss`; wallet limits remain `--max-balance` and
 `--min-balance`. See [Accounting](docs/ACCOUNTING.md).
 

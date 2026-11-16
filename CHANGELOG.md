@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [36.0.0]
+
+Require suffixed latest-game multiplier thresholds and cumulative net PnL percentages.
+Rename Glyde/Crash cashout configuration to --cutoff and preserve latest settled
+play metadata across bot calls and resumption. See [migration](docs/migrations/v36.md).
+
 ## [35.1.1]
 
 ### Fixed

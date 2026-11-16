@@ -19,7 +19,7 @@ describe('Loop Terminal Conditions', () => {
       minBalance: '50',
       maxLoss: '15',
       maxGames: '25',
-      targetX: '3.5',
+      targetX: '3.5x',
       targetProfit: '150',
       retrace: '30',
       recoverLoss: '20',
@@ -417,4 +417,27 @@ describe('Loop Terminal Conditions', () => {
     assert.ok(message.includes('Max-loss hit! net PnL: -21.00 APE (limit: -20.00 APE)'));
     assert.ok(message.includes('Games played: 5'));
   });
+});
+
+it('requires a two-decimal x suffix on the last-game target', () => {
+  for (const value of ['2', '2.001x', '2e0x', '100%']) {
+    assert.throws(() => parseLoopTerminalOptions({ targetX: value }));
+  }
+  assert.equal(parseLoopTerminalOptions({ targetX: '2.00x' }).targetX, 2);
+});
+
+it('uses cumulative wager and net profit for percentage target-profit and retrace', () => {
+  const gameResult = { bet: 10, payout: 20, pnl_ape: '9.9' };
+  assert.equal(getSingleGameLoopTerminalCondition({ gameResult, targetProfit: '100%',
+    sessionPnlApe: 10, totalWagerApe: 20 }), null);
+  assert.equal(getSingleGameLoopTerminalCondition({ gameResult, targetProfit: '100%',
+    sessionPnlApe: 20, totalWagerApe: 20 }).kind, 'target_profit');
+  assert.equal(getSingleGameLoopTerminalCondition({ gameResult, retrace: '50%',
+    sessionPnlApe: -10, totalWagerApe: 20 }).kind, 'retrace');
+});
+
+it('does not satisfy cumulative percentage conditions without a known positive wager basis', () => {
+  for (const totals of [{}, { totalWagerApe: 0, sessionPnlApe: 0 }]) {
+    assert.equal(getSingleGameLoopTerminalCondition({ gameResult: { bet: 10, payout: 20 }, targetProfit: '0%', ...totals }), null);
+  }
 });

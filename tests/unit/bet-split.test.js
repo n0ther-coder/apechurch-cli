@@ -94,7 +94,7 @@ describe('Finite exact-stake single-game loops', () => {
     };
     try {
       for (const [game, extra] of [['roulette', ['--bet', 'RED=3,BLACK=1']], ['baccarat', ['--bet', '3.8 BANKER 0.2 TIE']],
-        ['ape-strong', []], ['keno', []], ['monkey-match', []], ['gimboz-smash', []], ['glyde-or-crash', ['--multiplier', '2x']],
+        ['ape-strong', []], ['keno', []], ['monkey-match', []], ['gimboz-smash', []], ['glyde-or-crash', ['--cutoff', '2x']],
         ['bear-dice', ['--survive', '3']]]) {
         const result = run(game, extra);
         assert.equal(result.completed_games, 5, JSON.stringify(result));
@@ -117,7 +117,7 @@ describe('Finite exact-stake single-game loops', () => {
         [['--max-games', '2'], '0', 2], [['--max-loss', '6'], '0', 2],
         [['--stop-loss', '6'], '0', 2], [['--min-balance', '95'], '0', 2],
         [['--min-profit', '3'], '2', 1], [['--take-profit', '3'], '2', 1],
-        [['--max-balance', '103'], '2', 1], [['--target-x', '2'], '2', 1],
+        [['--max-balance', '103'], '2', 1], [['--target-x', '2x'], '2', 1],
         [['--target-profit', '3'], '2', 1], [['--retrace', '4'], '0', 1],
         [['--recover-loss', '4'], '0,3', 2], [['--giveback-profit', '3'], '2,0', 2],
       ]) {

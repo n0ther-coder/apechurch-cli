@@ -604,7 +604,7 @@ Notes:
                | "--bet" <token>
                | "--cover" <cover>
                | "--range" <range>
-               | "--multiplier" <multiplier>
+               | "--cutoff" <multiplier>
                | "--out-range" <out-range>
                | "--picks" <integer>
                | "--numbers" <token>
@@ -635,7 +635,7 @@ Notes:
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
 | `--cover <cover>` | ApeStrong cover, or a randomized Gimboz Smash cover |
 | `--range <range>` | Gimboz Smash one-or-two target intervals |
-| `--multiplier <x>` | Glyde or Crash target multiplier |
+| `--cutoff <x>` | Glyde or Crash target multiplier |
 | `--out-range <range>` | Gimboz Smash outside bet expressed as one excluded range |
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token, for example `1,7,13,25,40` or `random` |
@@ -743,7 +743,7 @@ For Blocks, `--split 1-5` divides the wager across independent rolls and sums th
                           | "--bet" <token>
                           | "--cover" <cover>
                           | "--range" <range>
-                          | "--multiplier" <multiplier>
+                          | "--cutoff" <multiplier>
                           | "--out-range" <out-range>
                           | "--picks" <integer>
                           | "--numbers" <token>
@@ -771,7 +771,7 @@ For Blocks, `--split 1-5` divides the wager across independent rolls and sums th
                        | "--max-games" <count>
                        | "--max-balance" <ape>
                        | "--min-profit" <pnl-threshold>
-                       | "--target-x" <number>
+                       | "--target-x" <multiplier-x>
                        | "--target-profit" <pnl-threshold>
                        | "--retrace" <pnl-threshold>
                        | "--recover-loss" <pnl-threshold>
@@ -792,9 +792,12 @@ For Blocks, `--split 1-5` divides the wager across independent rolls and sums th
 ```
 
 `--take-profit` aliases `--min-profit`; `--stop-loss` aliases `--max-loss`.
-Profit/loss percentages use the actual wager of the controlled result: one
-settled game for `--target-profit` / `--retrace`, the complete session for session
-guards. They do not create wallet balance thresholds. See [ACCOUNTING.md](ACCOUNTING.md).
+Profit/loss percentages use cumulative net PnL and cumulative actual wager
+of the session, including `--target-profit` / `--retrace`. Bare APE values on
+those two options retain their latest-game scope. `--target-x` requires a
+number with at most two decimals followed by `x`, for example `2x`.
+`<multiplier-x> ::= <integer> [ "." <digit> [ <digit> ] ] "x"`.
+These thresholds do not create wallet balance limits. See [ACCOUNTING.md](ACCOUNTING.md).
 
 The positional tail after `<ape>` is game-specific. See [GAMES_REFERENCE.md](./GAMES_REFERENCE.md) or `apechurch-cli game <name>` for the exact grammar per stateless game.
 
@@ -823,7 +826,7 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
 | `--cover <cover>` | ApeStrong cover, or a randomized Gimboz Smash cover |
 | `--range <range>` | Gimboz Smash one-or-two target intervals |
-| `--multiplier <x>` | Glyde or Crash target multiplier |
+| `--cutoff <x>` | Glyde or Crash target multiplier |
 | `--out-range <range>` | Gimboz Smash outside bet expressed as one excluded range |
 | `--picks <picks>` | Keno pick count |
 | `--numbers <numbers>` | Keno numbers as one token |
@@ -868,8 +871,8 @@ These options are accepted by the `play` command for both stateless and stateful
 | `--max-balance <ape>` | Stop loop when balance reaches the target |
 | `--min-profit <ape|n%>` | Stop loop when session P&L reaches the target profit |
 | `--target-x <x>` | Stop loop when one game pays at least the target multiplier |
-| `--target-profit <ape|n%>` | Stop loop when one game reaches the target net PnL Profit |
-| `--retrace <ape|n%>` | Stop loop when one game loses at least this amount |
+| `--target-profit <ape|n%>` | Stop loop at net profit: APE on latest game; n% on cumulative session |
+| `--retrace <ape|n%>` | Stop loop at net loss: APE on latest game; n% on cumulative session |
 | `--recover-loss <ape|n%>` | Stop loop when net session P&L returns to break-even/profit after a drawdown of at least this size |
 | `--giveback-profit <ape|n%>` | Stop loop when net session P&L returns to break-even/loss after a run-up of at least this size |
 | `--min-balance <ape>` | Stop before a play/loop iteration when wallet balance is at or below the threshold. It can define starting sizing capital as `starting balance - min-balance`, without creating a net loss guard |
@@ -1033,7 +1036,7 @@ Reference columns stay hidden in terminal tables unless `--url` or `--ids` is pa
                        | "--cover" <integer>
                        | "--range" <range>
                        | "--out-range" <range>
-                       | "--multiplier" <multiplier>
+                       | "--cutoff" <multiplier>
                        | "--amount" <ape>
                        | "--side" <ape>
 ```
@@ -1184,7 +1187,7 @@ Alias: `bj`
                      | "--max-games" <count>
                      | "--max-balance" <ape>
                      | "--min-profit" <pnl-threshold>
-                     | "--target-x" <number>
+                     | "--target-x" <multiplier-x>
                      | "--target-profit" <pnl-threshold>
                      | "--retrace" <pnl-threshold>
                      | "--recover-loss" <pnl-threshold>
@@ -1238,7 +1241,7 @@ Aliases: `cashdash`, `dash`
                      | "--max-games" <count>
                      | "--max-balance" <ape>
                      | "--min-profit" <pnl-threshold>
-                     | "--target-x" <number>
+                     | "--target-x" <multiplier-x>
                      | "--target-profit" <pnl-threshold>
                      | "--retrace" <pnl-threshold>
                      | "--recover-loss" <pnl-threshold>
@@ -1293,7 +1296,7 @@ Aliases: `hilonebula`, `hilo`, `nebula`
                         | "--max-games" <count>
                         | "--max-balance" <ape>
                         | "--min-profit" <pnl-threshold>
-                        | "--target-x" <number>
+                        | "--target-x" <multiplier-x>
                         | "--target-profit" <pnl-threshold>
                         | "--retrace" <pnl-threshold>
                         | "--recover-loss" <pnl-threshold>
@@ -1336,7 +1339,7 @@ Alias: `vp`
                        | "--max-games" <count>
                        | "--max-balance" <ape>
                        | "--min-profit" <pnl-threshold>
-                       | "--target-x" <number>
+                       | "--target-x" <multiplier-x>
                        | "--target-profit" <pnl-threshold>
                        | "--retrace" <pnl-threshold>
                        | "--recover-loss" <pnl-threshold>

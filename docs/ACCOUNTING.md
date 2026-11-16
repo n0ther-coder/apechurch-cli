@@ -1,7 +1,8 @@
 # Game result accounting
 
-CLI 30 changes accounting and breaks compatibility with earlier scripts.
-See the [migration comparison](migrations/v30.md) before updating integrations.
+CLI 36 standardizes threshold suffixes and scopes. See the
+[current migration guide](migrations/v36.md). Accounting version 2 was
+introduced in [CLI 30](migrations/v30.md).
 
 Accounting version 2 separates gross game returns from the player's additional
 execution costs. Calculate money in integer wei; serialize APE as decimal strings.
@@ -97,12 +98,14 @@ Such placeholders do not turn legacy cost totals into receipt evidence.
 `--min-balance` and `--max-balance` are absolute wallet thresholds. Profit and
 loss options use net PnL Profit; `--take-profit` aliases `--min-profit` and
 `--stop-loss` aliases `--max-loss`. Absolute thresholds are APE amounts; whole
-percentages use the actual wager of the controlled result. `--target-profit`
-uses one settled game's net profit, while session guards use session totals.
+percentages use cumulative net PnL divided by cumulative actual wager in the
+controlled scope. `100%` means P ≥ 2 × W + C. This also applies to
+`--target-profit` and `--retrace`; their bare APE forms retain latest-game scope.
 A net PnL limit does not become an implicit wallet limit.
 
 Prospective repetition may use a fixed percentage of an explicitly documented
-opening bet as a risk budget. Keep that budget separate from PnL percentages.
+opening bet as a risk budget, using a dedicated syntax rather than bare `n%`.
+Keep that budget separate from PnL percentages.
 Historical estimates and current fee quotes can guide ladder planning, but only
 actual observed economics determine completion and target qualification.
 

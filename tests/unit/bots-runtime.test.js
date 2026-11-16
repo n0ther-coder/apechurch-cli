@@ -10,6 +10,22 @@ process.env.APECHURCH_CLI_LOG_DIR = path.join(tmpRoot, 'logs');
 const fakeCliPath = path.join(tmpRoot, 'fake-cli.js');
 fs.writeFileSync(fakeCliPath, `
 const [, , command, ...args] = process.argv;
+if (args.includes('--settled-loop')) {
+  console.log(JSON.stringify({ loop: true, games_detail: [
+    { accounting_version: 2, wager_wei: '10', payout_wei: '0', pnl_wei: '-10' },
+    { accounting_version: 2, wager_wei: '20', payout_wei: '40', pnl_wei: '19' },
+    { status: 'pending', accounting_version: 2, wager_wei: '999', payout_wei: '0' },
+  ] }));
+  process.exit(0);
+}
+if (args.includes('--pending-game')) {
+  console.log(JSON.stringify({ status: 'pending', wager_wei: '999' }));
+  process.exit(0);
+}
+if (args.includes('--nested-latest')) {
+  console.log(JSON.stringify({ latest_play: { status: 'complete', wager_wei: '30', payout_wei: '90' } }));
+  process.exit(0);
+}
 if (args.includes('--emit-cost-error')) {
   console.error(JSON.stringify({ error: 'Retries exhausted', accounting_version: 2,
     wager_wei: '0', payout_wei: '0', cost_wei: '5', pnl_wei: '-5', multiplier: null,
@@ -55,6 +71,18 @@ function createContext(rawArgs = [], runtimeOptions = {}) {
 }
 
 describe('Bot Runtime Context', () => {
+  it('preserves the latest settled transaction through native loops, pending calls and nested bots', async () => {
+    const ctx = createContext();
+    await ctx.playJson(['blackjack', '10', '--settled-loop']);
+    assert.equal(ctx.getLatestPlay().payout_wei, '40');
+    await ctx.playJson(['blackjack', '10', '--pending-game']);
+    assert.equal(ctx.getLatestPlay().payout_wei, '40');
+    await ctx.botJson('example', ['--nested-latest']);
+    assert.equal(ctx.getLatestPlay().payout_wei, '90');
+    const restored = createContext([], { resumeSummary: { latest_play: ctx.getLatestPlay() } });
+    assert.deepEqual(restored.getLatestPlay(), ctx.getLatestPlay());
+  });
+
   it('inherits precision across bot calls while preserving explicit overrides and exact plays', async () => {
     const ctx = createContext(['--strategy-precision', '4']);
     assert.equal(ctx.session.parseStandardBotArgs([]).loopControls.strategyPrecision, '4');
