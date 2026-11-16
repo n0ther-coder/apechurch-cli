@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [36.1.0]
+
+### Added
+- Check transaction value and maximum gas cost against a retained balance before
+  signing, pinning the checked gas and fee limits on the submitted transaction.
+- Preserve the stronger retained balance across nested runtime calls and expose
+  signing-check support to integrations.
+
+### Fixed
+- Stop unaffordable transaction attempts without retrying or requesting a signature.
+
 ## [36.0.0]
 
 Require suffixed latest-game multiplier thresholds and cumulative net PnL percentages.

@@ -371,3 +371,13 @@ describe('Transaction resilience helpers', () => {
     assert.strictEqual(sends, RESILIENT_GENERIC_RETRY_DELAYS_MS.length + 1);
   });
 });
+
+it('never retries an unaffordable transaction in either retry mode', async () => {
+  for (const resilient of [false, true]) {
+    let calls = 0;
+    await assert.rejects(retryBroadcast({ resilient, sleepFn: async () => {},
+      send: async () => { calls++; throw Object.assign(new Error('INSUFFICIENT_CAPITAL'), { code: 'INSUFFICIENT_CAPITAL' }); },
+    }), /INSUFFICIENT_CAPITAL/);
+    assert.equal(calls, 1);
+  }
+});

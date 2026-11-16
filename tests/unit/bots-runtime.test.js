@@ -41,6 +41,7 @@ console.log(JSON.stringify({
   command,
   args,
   watchResume: process.env.APECHURCH_CLI_WATCH_RESUME || null,
+  retainedBalance: process.env.APECHURCH_RETAINED_BALANCE_WEI ?? null,
 }));
 `);
 
@@ -326,4 +327,18 @@ describe('Bot Runtime Context', () => {
     assert.match(output, /⚠️ Contract returns error message "Paused", Rechecking in 3m/);
     assert.doesNotMatch(output, /not a retry notice/);
   });
+});
+
+it('preserves the stronger signing boundary across nested calls', async () => {
+  const key = 'APECHURCH_RETAINED_BALANCE_WEI';
+  const saved = process.env[key];
+  try {
+    process.env[key] = '100';
+    const ctx = createContext();
+    assert.equal(ctx.signingCapitalCheck, true);
+    assert.equal((await ctx.playJson(['ape-strong', '1'], { env: { [key]: '50' } })).retainedBalance, '100');
+    assert.equal((await ctx.botJson('example', ['1'], { env: { [key]: '150' } })).retainedBalance, '150');
+  } finally {
+    if (saved === undefined) delete process.env[key]; else process.env[key] = saved;
+  }
 });
