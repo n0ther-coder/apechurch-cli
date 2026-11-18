@@ -12,6 +12,7 @@ fs.writeFileSync(fakeCliPath, `
 const [, , command, ...args] = process.argv;
 if (args.includes('--settled-loop')) {
   console.log(JSON.stringify({ loop: true, games_detail: [
+    { status: 'complete', counts_as_game: false, wager_wei: '500', payout_wei: '0' },
     { accounting_version: 2, wager_wei: '10', payout_wei: '0', pnl_wei: '-10' },
     { accounting_version: 2, wager_wei: '20', payout_wei: '40', pnl_wei: '19' },
     { status: 'pending', accounting_version: 2, wager_wei: '999', payout_wei: '0' },
@@ -23,7 +24,7 @@ if (args.includes('--pending-game')) {
   process.exit(0);
 }
 if (args.includes('--nested-latest')) {
-  console.log(JSON.stringify({ latest_play: { status: 'complete', wager_wei: '30', payout_wei: '90' } }));
+  console.log(JSON.stringify({ first_wager_wei: '15', latest_play: { status: 'complete', wager_wei: '30', payout_wei: '90' } }));
   process.exit(0);
 }
 if (args.includes('--emit-cost-error')) {
@@ -82,6 +83,27 @@ describe('Bot Runtime Context', () => {
     assert.equal(ctx.getLatestPlay().payout_wei, '90');
     const restored = createContext([], { resumeSummary: { latest_play: ctx.getLatestPlay() } });
     assert.deepEqual(restored.getLatestPlay(), ctx.getLatestPlay());
+  });
+
+  it('tracks and restores the first settled wager through game loops and nested summaries', async () => {
+    const ctx = createContext();
+    await ctx.playJson(['blackjack', '10', '--pending-game']);
+    assert.equal(ctx.getFirstSettledWagerWei(), null);
+    await ctx.playJson(['blackjack', '10', '--settled-loop']);
+    await ctx.botJson('example', ['--nested-latest']);
+    assert.equal(ctx.getFirstSettledWagerWei(), 10n);
+    assert.equal(ctx.getLatestPlay().wager_wei, '30');
+
+    const nested = createContext();
+    await nested.botJson('example', ['--nested-latest']);
+    assert.equal(nested.getFirstSettledWagerWei(), 15n);
+    const restored = createContext([], { resumeSummary: { first_wager_wei: '15' } });
+    await restored.playJson(['blackjack', '10', '--settled-loop']);
+    assert.equal(restored.getFirstSettledWagerWei(), 15n);
+
+    const legacy = createContext([], { resumeSummary: { total_wager_ape: '1' } });
+    await legacy.playJson(['blackjack', '10', '--settled-loop']);
+    assert.equal(legacy.getFirstSettledWagerWei(), null);
   });
 
   it('inherits precision across bot calls while preserving explicit overrides and exact plays', async () => {

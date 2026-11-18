@@ -539,7 +539,13 @@ and at most two decimals. Whole-number `%` means cumulative net PnL divided
 by cumulative wager in the documented scope. `100%` requires P ≥ 2 × W + C.
 Use a distinct syntax for fixed opening-bet budgets. The runtime exposes
 `ctx.getLatestPlay()` and exports `latest_play` in summaries so parents can
-separate the last transaction batch or concluded hand from aggregate results. Estimates must never be exported as actual transaction costs.
+separate the last transaction batch or concluded hand from aggregate results.
+For JSON child calls, `ctx.getFirstSettledWagerWei()` tracks the first settled
+wager in wei, including the first completed game in a loop or the opening
+wager reported by a nested bot. The runtime exports it as `first_wager_wei`
+when the amount is known. `session.getFirstSettledWagerWei(payload)` reads
+that field or resolves it from a direct play result or ordered game details.
+Estimates must never be exported as actual transaction costs.
 
 ## Terminal failures and partial results
 

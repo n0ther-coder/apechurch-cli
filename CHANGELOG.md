@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [37.0.0]
+
+### Added
+- Track the first settled wager through direct plays, game loops, nested bot
+  calls, and resumption. Expose it in wei through the bot session and in run
+  summaries when known.
+
 ## [36.1.0]
 
 ### Added
