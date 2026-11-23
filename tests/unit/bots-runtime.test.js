@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'apechurch-bot-runtime-'));
+process.env.APECHURCH_CLI_CONFIG_DIR = tmpRoot;
 process.env.APECHURCH_CLI_LOG_DIR = path.join(tmpRoot, 'logs');
 
 const fakeCliPath = path.join(tmpRoot, 'fake-cli.js');
@@ -56,6 +57,7 @@ const {
   RESUMABLE_PENDING_EXIT_CODE,
   WATCH_RESUME_ENV_VAR,
 } = await import('../../lib/constants.js');
+const { createEncryptedWalletFromPrivateKey } = await import('../../lib/wallet.js');
 
 function createContext(rawArgs = [], runtimeOptions = {}) {
   return createBotRuntimeContext({
@@ -73,6 +75,44 @@ function createContext(rawArgs = [], runtimeOptions = {}) {
 }
 
 describe('Bot Runtime Context', () => {
+  it('keeps the same runtime alive across exhausted short balance retries', async (t) => {
+    createEncryptedWalletFromPrivateKey(`0x${'01'.repeat(32)}`, 'test-wallet');
+    const previousRpcUrl = process.env.APECHAIN_RPC_URL;
+    delete process.env.APECHAIN_RPC_URL;
+    t.after(() => {
+      if (previousRpcUrl !== undefined) process.env.APECHAIN_RPC_URL = previousRpcUrl;
+    });
+
+    const backoffs = [];
+    const setTimeout = globalThis.setTimeout;
+    t.mock.method(globalThis, 'setTimeout', (callback, delay, ...args) => {
+      if (delay === 180_000) backoffs.push(delay);
+      return setTimeout(callback, delay === 20_000 ? delay : 0, ...args);
+    });
+
+    const readBalance = t.mock.method(globalThis, 'fetch', async (_url, request) => {
+      const { id, method } = JSON.parse(request.body);
+      assert.equal(method, 'eth_getBalance');
+      if (backoffs.length === 0) return new Response('Service unavailable', { status: 503 });
+      return Response.json({ jsonrpc: '2.0', id, result: '0x7b' });
+    });
+
+    const ctx = createContext(['--resilient', '--json']);
+    await assert.rejects(ctx.captureBalanceSnapshot({ label: 'optional', resilient: false }), { status: 503 });
+    const shortAttempts = readBalance.mock.callCount();
+    assert.ok(shortAttempts > 1);
+    assert.deepEqual(backoffs, []);
+
+    const balance = await ctx.balanceJson();
+    assert.equal(balance.balance_wei, '123');
+    assert.deepEqual(backoffs, [180_000]);
+    assert.equal(readBalance.mock.callCount(), 2 * shortAttempts + 1);
+
+    const next = await ctx.captureBalanceSnapshot({ label: 'post-recovery' });
+    assert.equal(next.snapshot.sequence, 1);
+    assert.equal(next.snapshot.balance_wei, '123');
+  });
+
   it('preserves the latest settled transaction through native loops, pending calls and nested bots', async () => {
     const ctx = createContext();
     await ctx.playJson(['blackjack', '10', '--settled-loop']);

@@ -2,8 +2,41 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
 import { getBalanceWithRetry, withRetainedBalanceCheck } from '../../lib/wallet.js';
+import { RESILIENT_INFRASTRUCTURE_RETRY_DELAYS_MS, retryInfrastructureRead } from '../../lib/tx-resilience.js';
 
 describe('Wallet RPC helpers', () => {
+  it('retries temporary HTTP server errors and rejects permanent responses', async () => {
+    for (const [status, retryable] of [
+      [401, false], [429, true], [500, true], [501, false], [502, true],
+      [503, true], [504, true], [505, false], [508, false], [511, false], [524, true], [529, true],
+    ]) {
+      const error = Object.assign(new Error('HTTP request failed.'), { status });
+      let calls = 0;
+      const read = getBalanceWithRetry({
+        async getBalance() {
+          if (++calls === 1) throw error;
+          return 123n;
+        },
+      }, '0x123', { attempts: 2, delayMs: 0 });
+
+      if (retryable) assert.equal(await read, 123n, `HTTP ${status}`);
+      else await assert.rejects(read, actual => actual === error, `HTTP ${status}`);
+      assert.equal(calls, retryable ? 2 : 1, `HTTP ${status}`);
+    }
+  });
+
+  it('uses the entire infrastructure schedule and surfaces the last read error', async () => {
+    const error = new Error('HTTP response status: 529');
+    const delays = [];
+    let calls = 0;
+    await assert.rejects(retryInfrastructureRead(async () => {
+      calls += 1;
+      throw error;
+    }, { sleepFn: async delay => delays.push(delay) }), actual => actual === error);
+    assert.deepEqual(delays, RESILIENT_INFRASTRUCTURE_RETRY_DELAYS_MS);
+    assert.equal(calls, delays.length + 1);
+  });
+
   it('retries transient balance errors before succeeding', async () => {
     let calls = 0;
     const publicClient = {

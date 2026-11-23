@@ -214,8 +214,9 @@ The bot handler receives one context object:
 - `botJson(name, tokens, options)`: run another bot with `--json` and return the parsed payload. Resume markers are not inherited by fresh child commands; pass `{ resumeRequested: true }` only for the specific nested bot whose own pending summary must be continued.
 - `validateBotArgs(name, tokens)`: validate another bot's startup arguments without running that bot.
 - `statusJson()`: run `apechurch-cli status --json`.
-- `balanceJson()`: read the local wallet balance through the CLI wallet runtime.
+- `balanceJson(options)`: read the local wallet balance through the CLI wallet runtime.
 - `captureBalanceSnapshot(details)`: read the wallet balance and record a structured snapshot for the final bot JSON.
+  Both reads inherit the bot's `--resilient` setting and use the infrastructure retry schedule for transient HTTP/RPC failures. Set `resilient: false` on an optional read that only needs the standard short retries.
 - `updateRunSummary(summary)`: atomically rewrite the current run JSON log with a partial summary.
 - `estimatePlayCosts(name, {config, amountApe, gasUnits, additionalReserveApe})`: read-only planning estimate in wei, using current fees, RPC gas estimation and recent receipt calibration. See [cost planning](#cost-planning).
 - `strategyPrecision`: effective decision precision, restored from saved state when resuming.

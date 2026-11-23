@@ -693,6 +693,8 @@ The saved `$APECHURCH_CLI_CONFIG_DIR/scripts/custom_script.json` is JSON:
 
 Each retry prints the error category, the sanitized contract/node message, the wait period, and the next local timestamp in `YYYY-MMM-DD HH:mm:ss±ZZZZ` form. JSON bot logs retain ISO UTC timestamps. Once a transaction hash exists, a confirmation timeout is returned as pending rather than broadcasting the action again.
 
+With `--resilient`, wallet balance checks in bots, `play`, and `bet` keep the current run open and use the infrastructure schedule after the short read retries are exhausted. Temporary HTTP failures include 408, 429, and server errors such as 500, 502, 503, and 504. Responses requiring a configuration, capability, or access change, such as 401, 501, and 505, exit the read without a resilience wait.
+
 Stateful games treat a delayed VRF callback as an outstanding game to reconcile, not as a failed action. After the initial two-minute polling window, `--resilient` checks the same game ID with the infrastructure backoff schedule and repeats the final one-hour interval for as long as the confirmed game remains pending. It never replaces the wager or action. Each notice reports the total wait, transaction, game contract, VRF coordinator/consumer, and request ID when those identifiers are available from the receipt. When the on-chain state becomes actionable, play resumes at the interrupted decision point. Without `--resilient`, the command exits with the same diagnostic and an explicit resume command.
 
 Use `apechurch-cli games` or `apechurch-cli game <name>` to see the current alias set in the terminal.

@@ -5983,7 +5983,7 @@ program
     
     let balance;
     try {
-      balance = await getBalanceWithRetry(publicClient, account.address);
+      balance = await getBalanceWithRetry(publicClient, account.address, { resilient: opts.resilient });
     } catch (error) {
       console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
       process.exit(1);
@@ -6597,7 +6597,7 @@ program
       const { publicClient } = createClients();
       let balance;
       try {
-        balance = await getBalanceWithRetry(publicClient, account.address);
+        balance = await getBalanceWithRetry(publicClient, account.address, { resilient: opts.resilient });
       } catch (error) {
         console.error(JSON.stringify({ error: `Failed to fetch balance: ${sanitizeError(error)}` }));
         return {
@@ -7272,7 +7272,7 @@ program
         }
         // Check balance for target/min-balance
         const { publicClient } = createClients();
-        const balance = await getBalanceWithRetry(publicClient, account.address);
+        const balance = await getBalanceWithRetry(publicClient, account.address, { resilient: opts.resilient });
         const balanceApe = parseFloat(formatEther(balance));
         const availableApe = Math.max(balanceApe - GAS_RESERVE_APE, 0);
         
@@ -7438,7 +7438,7 @@ program
           retrace,
         });
         const { publicClient: pc } = createClients();
-        const currentBal = await getBalanceWithRetry(pc, account.address);
+        const currentBal = await getBalanceWithRetry(pc, account.address, { resilient: opts.resilient });
         const currentApe = parseFloat(formatEther(currentBal));
         const sessionTerminalCondition = getBalanceLoopTerminalCondition({
           bankrollCap: opts.bankrollCap ?? null,

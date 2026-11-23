@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [37.0.1]
+
+### Fixed
+- Keep resilient runs open through temporary HTTP and RPC failures during wallet
+  balance checks. Reuse infrastructure backoff after short retries and surface
+  permanent errors immediately.
+
 ## [37.0.0]
 
 ### Added
