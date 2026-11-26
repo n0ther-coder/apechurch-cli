@@ -237,7 +237,8 @@ import { validateDojoDropWager } from '../lib/games/dojo-drop.js';
 import { validateBlizzardBlitzWager } from '../lib/games/blizzard-blitz.js';
 import { validateGimbozGalaxyWager } from '../lib/games/gimboz-galaxy.js';
 import {
-  getScrapForgeLimits, inspectScrapForgeSubmission, SCRAP_FORGE_BNF, SCRAP_FORGE_GAME, validateScrapForgeTransactionHash,
+  getScrapForgeLimits, getScrapForgeSelection, inspectScrapForgeSubmission, parseScrapForgeRoundId,
+  quoteScrapForge, readScrapForgeRound, SCRAP_FORGE_BNF, SCRAP_FORGE_GAME, validateScrapForgeTransactionHash,
 } from '../lib/games/scrap-forge.js';
 import { validateSlotBonusOptions } from '../lib/games/cascade-slots.js';
 import {
@@ -1627,6 +1628,8 @@ function formatGameHelpAppendix() {
       '--paytable             Resolve the game paytable without starting a game.',
       '--limits               Read live Baccarat or published Scrap Forge wager limits.',
       '--transaction          Inspect a historical Scrap Forge submission via ApeChain RPC.',
+      '--quote                Read a Scrap Forge wager and randomness fee for an exact configuration.',
+      '--round                Read a Scrap Forge round and its linked Vault pull records.',
     ],
     parameters: ['<name>                 Supported canonical game key, alias, or display name'],
     options: [
@@ -1636,6 +1639,8 @@ function formatGameHelpAppendix() {
       '--transaction <hash>   Inspect a Scrap Forge submission and print its replay URL',
       '--reveal <hash>        Match the submission to an ApeVRF reveal receipt',
       '--trace                Read native APE transfers in the matching reveal; requires a tracing RPC',
+      '--quote                Read the exact Scrap Forge transaction value before sender gas',
+      '--round <id>           Read Scrap Forge outcomes and Vault draw data by decimal round ID',
       '--risk <risk>          Risk or difficulty used by play',
       '--grid <grid>          Blocks grid used by play',
       '--split <count>        Independent split count used by play',
@@ -1674,6 +1679,8 @@ function formatGameHelpAppendix() {
       `${BINARY_NAME} game forge --limits`,
       `${BINARY_NAME} game scrap-forge --paytable --spin 500 --split 8 --json`,
       `${BINARY_NAME} game forge --transaction <submission-hash> --reveal <reveal-hash> --trace --json`,
+      `${BINARY_NAME} game forge --quote --spin 10 --split 10 --json`,
+      `${BINARY_NAME} game forge --round <id> --json`,
     ],
     notes: [
       'Without --paytable, the output includes game parameters, grammar, aliases, ABI status, and contract address.',
@@ -8444,6 +8451,8 @@ program
   .option('--transaction <hash>', 'Inspect a historical Scrap Forge submission via ApeChain RPC')
   .option('--reveal <hash>', 'Match a Scrap Forge submission to an ApeVRF reveal receipt')
   .option('--trace', 'Read native APE transfers in a matching Scrap Forge reveal via a tracing RPC')
+  .option('--quote', 'Read the live Scrap Forge wager and VRF quote before gas')
+  .option('--round <id>', 'Read a Scrap Forge round and linked Vault draw using its decimal ID')
   .option('--risk <risk>', 'Risk or difficulty used by play')
   .option('--grid <grid>', 'Blocks grid used by play')
   .option('--split <count>', 'Independent split count used by play')
@@ -8473,13 +8482,28 @@ program
     ].find(([key]) => opts[key] !== undefined)?.[1];
 
     const forgeInspection = opts.transaction !== undefined || opts.reveal !== undefined || opts.trace;
-    if (forgeInspection || (matchedCatalogEntry?.readOnly && !opts.paytable)) {
+    const forgeRound = opts.round !== undefined;
+    if (forgeInspection || forgeRound || opts.quote || (matchedCatalogEntry?.readOnly && !opts.paytable)) {
       try {
-        if (!matchedCatalogEntry?.readOnly) throw new Error('--transaction, --reveal, and --trace are supported for Scrap Forge.');
-        if (paytableOnlyOption || opts.paytable || (opts.limits && forgeInspection)) {
-          throw new Error('Scrap Forge accepts one of --limits, --transaction, or --paytable per command. Wager options require --paytable.');
+        if (!matchedCatalogEntry?.readOnly) throw new Error('--transaction, --reveal, --trace, --quote, and --round are supported for Scrap Forge.');
+        if ([opts.limits, opts.paytable, forgeInspection, forgeRound, opts.quote].filter(Boolean).length > 1) {
+          throw new Error('Scrap Forge accepts one of --limits, --transaction, --paytable, --round, or --quote per command.');
         }
-        if (forgeInspection) {
+        if (paytableOnlyOption && !opts.quote) throw new Error('Scrap Forge wager options require --paytable or --quote.');
+        if (opts.quote) {
+          const unrelated = Object.keys(opts).find((key) => opts[key] !== undefined && !['json', 'quote', 'spin', 'betSplit', 'amount', 'split'].includes(key));
+          if (unrelated) throw new Error(`Invalid quote option: --${unrelated.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}.`);
+          const selection = getScrapForgeSelection(opts);
+          if (!selection) throw new Error('--quote requires --spin or --bet-split, or both --amount and --split.');
+          const { publicClient } = createClients();
+          const quote = await quoteScrapForge(publicClient, selection);
+          console.log(opts.json ? JSON.stringify(quote)
+            : `Scrap Forge quote at block ${quote.block_number}: ${quote.wager.ape} APE wager + ${quote.vrf_fee.ape} APE VRF = ${quote.transaction_value.ape} APE before sender gas.`);
+        } else if (forgeRound) {
+          const id = parseScrapForgeRoundId(opts.round);
+          const { publicClient } = createClients();
+          console.log(JSON.stringify(await readScrapForgeRound(publicClient, id), null, opts.json ? 0 : 2));
+        } else if (forgeInspection) {
           if (opts.transaction === undefined) throw new Error('--reveal and --trace require --transaction.');
           if (opts.trace && opts.reveal === undefined) throw new Error('--trace requires --reveal.');
           validateScrapForgeTransactionHash(opts.transaction);
@@ -8516,6 +8540,8 @@ program
             `  ${BINARY_NAME} game scrapforge --paytable --amount 150 --split 15 --json`,
             `  ${BINARY_NAME} game forge --transaction <hash> --json`,
             `  ${BINARY_NAME} game forge --transaction <submission-hash> --reveal <reveal-hash> --trace --json`,
+            `  ${BINARY_NAME} game forge --quote --spin 10 --split 10 --json`,
+            `  ${BINARY_NAME} game forge --round <id> --json`,
           ].join('\n'));
         }
       } catch (error) {

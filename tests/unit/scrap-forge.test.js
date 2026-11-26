@@ -3,7 +3,10 @@ import { test } from 'node:test';
 import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, parseAbi, parseEther, zeroAddress } from 'viem';
 import { GAME_CONTRACT_ABI, SCRAP_FORGE_CONTRACT } from '../../lib/constants.js';
 import { getGamePaytable } from '../../lib/game-paytable.js';
-import { getScrapForgeLimits, inspectScrapForgeSubmission, SCRAP_FORGE_GAME } from '../../lib/games/scrap-forge.js';
+import {
+  getScrapForgeLimits, getScrapForgeSelection, inspectScrapForgeSubmission, parseScrapForgeRoundId,
+  quoteScrapForge, readScrapForgeRound, SCRAP_FORGE_GAME, SCRAP_FORGE_LENS,
+} from '../../lib/games/scrap-forge.js';
 import { resolveGame, resolveGameDisplayName } from '../../registry.js';
 
 test('exposes all UI tier limits and only prices exact configurations', () => {
@@ -25,6 +28,8 @@ test('exposes all UI tier limits and only prices exact configurations', () => {
   const table = getGamePaytable(SCRAP_FORGE_GAME, { betSplit: '10', amount: '150' });
   assert.equal(table.parameters.forges, 15);
   assert.equal(table.material_paytable[0].payout_ape, '2');
+  assert.equal(table.material_paytable.reduce((sum, { weight }) => sum + weight, table.amp_weight), table.probability_weight_denominator);
+  assert.equal(table.probability_source, 'official_frontend_model');
   assert.match(table.notes[0], /Copper/);
   assert.throws(() => getGamePaytable(SCRAP_FORGE_GAME, { spin: '10', amount: '11' }), /exact count/);
   assert.throws(() => getGamePaytable(SCRAP_FORGE_GAME, { amount: '4000' }), /Specify/);
@@ -44,6 +49,7 @@ const REVEAL_HASH = `0x${'cd'.repeat(32)}`;
 const PLAYER = '0x1111111111111111111111111111111111111111';
 const NFT = '0x2222222222222222222222222222222222222222';
 const VRF = '0xe892d2576bcf131e1d4a6a31e1921bb27f8f91f2';
+const VAULT = '0xc7C9276ED86ce559029C5a6b25760b3DDf3273d7';
 const CLAIM_MANAGER = '0xd2a5c5f58bdbed24ef919d9dfb312ca84e7b31dd';
 const WRAPPER = '0xa35500b5c420066d6315da0bec29246efe3660ad';
 const ENTROPY = `0x${'02'.repeat(32)}`;
@@ -216,4 +222,83 @@ test('keeps correlated receipts when tracing is unsupported or the callback is m
   assert.equal(unsupported.reveal_status, 'confirmed');
   assert.equal(unsupported.trace_status, 'unavailable');
   assert.equal(unsupported.reveal_nft_transfers_to_player.length, 4);
+});
+
+test('reads an exact quote at one block and checks live limits and wei reconciliation', async () => {
+  const selection = getScrapForgeSelection({ spin: '500', split: '5' });
+  let max = 8;
+  let paused = false;
+  let value = parseEther('2500.125');
+  const calls = [];
+  const chain = {
+    getBlockNumber: async () => 444n,
+    readContract: async (request) => {
+      assert.equal(request.blockNumber, 444n);
+      calls.push(request.functionName);
+      if (request.functionName === 'paused') return paused;
+      assert.equal(request.address, SCRAP_FORGE_LENS);
+      if (request.functionName === 'maxForgesAllowed') {
+        assert.deepEqual(request.args, [3]);
+        return max;
+      }
+      assert.equal(request.functionName, 'getPlayValue');
+      assert.deepEqual(request.args, [3, 5]);
+      return [parseEther('2500'), parseEther('0.125'), value];
+    },
+  };
+  const quote = await quoteScrapForge(chain, selection);
+  assert.deepEqual(calls, ['maxForgesAllowed', 'paused', 'getPlayValue']);
+  assert.equal(quote.transaction_value.wei, value.toString());
+  assert.equal(quote.gas_fee, null);
+  value += 1n;
+  await assert.rejects(quoteScrapForge(chain, selection), /did not reconcile/);
+  max = 4;
+  await assert.rejects(quoteScrapForge(chain, selection), /live limit.*4/);
+  paused = true;
+  await assert.rejects(quoteScrapForge(chain, selection), /paused/);
+});
+
+test('reads Forge outcomes and linked Vault pulls without equating reported payout with cash', async () => {
+  const info = {
+    player: PLAYER, tier: 0, forges: 3, betAmount: parseEther('10'),
+    bucketIndexes: [0, 9, 2], totalPayout: parseEther('112'), metalPayout: parseEther('12'),
+    capsuleSpend: parseEther('100'), vault: VAULT, vaultRequestId: 123n, hasEnded: true, owed: false,
+  };
+  let vaultId = 123n;
+  let readCount = 0;
+  const chain = {
+    getBlockNumber: async () => 555n,
+    readContract: async (request) => {
+      assert.equal(request.blockNumber, 555n);
+      assert.deepEqual(request.args, [ID]);
+      readCount++;
+      if (request.functionName === 'getGameInfo') {
+        assert.equal(request.address, SCRAP_FORGE_CONTRACT);
+        return info;
+      }
+      assert.equal(request.address, SCRAP_FORGE_LENS);
+      assert.equal(request.functionName, 'getVaultPulls');
+      return [VAULT, vaultId, 4, 1, 1, [
+        { forgeIndex: 1, kind: 1, delivery: 0, capsule: 0, listingId: 789n, amountOrValue: parseEther('80') },
+      ]];
+    },
+  };
+  const round = await readScrapForgeRound(chain, parseScrapForgeRoundId(ID.toString()));
+  assert.equal(round.wager.ape, '30');
+  assert.equal(round.metal_payout.ape, '12');
+  assert.equal(round.reported_total_payout.ape, '112');
+  assert.equal(round.net_pnl, undefined);
+  assert.deepEqual(round.outcomes.map(({ outcome }) => outcome), ['Cast Iron', 'AMP', 'Zinc']);
+  assert.equal(round.vault_draw.pulls[0].listing_id, '789');
+  assert.equal(round.vault_draw.pulls[0].amount_or_value.ape, '80');
+  vaultId = 124n;
+  await assert.rejects(readScrapForgeRound(chain, ID), /linked to this round/);
+  info.hasEnded = false;
+  readCount = 0;
+  assert.equal((await readScrapForgeRound(chain, ID)).vault_draw, null);
+  assert.equal(readCount, 1);
+  info.player = zeroAddress;
+  await assert.rejects(readScrapForgeRound(chain, ID), /not found/);
+  assert.throws(() => parseScrapForgeRoundId((2n ** 256n).toString()), /uint256/);
+  assert.throws(() => parseScrapForgeRoundId('-1'), /uint256/);
 });

@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [37.3.0]
+
+### Added
+- Read live Scrap Forge wager and randomness quotes from the official Lens.
+- Inspect round outcomes, the reported and metal payouts, capsule spend,
+  and linked Vault pull records by round ID.
+- Show the official frontend model weights in the Scrap Forge paytable.
+
 ## [37.2.0]
 
 ### Added

@@ -454,6 +454,9 @@ See the [command reference](docs/COMMAND_REFERENCE.md#bet).
 an acceptance signal. Add `--reveal <hash>` to correlate the ApeVRF
 receipt, and `--trace` to inspect Forge and ClaimManager APE payments.
 Keep receipt transfer evidence separate from complete settlement and PnL.
+Use `game forge --quote --spin 10 --split 10` for a live Lens quote
+before sender gas, and `game forge --round <id>` for ordered outcomes,
+metal payout, capsule spend, and linked Vault draw data.
 See [grammar](docs/COMMAND_REFERENCE.md#scrap-forge-read-only) and
 [analytics](docs/analytics/SCRAP_FORGE_ANALYTICS.md).
 **Current max payout:** `333x` for Dino Dough, `100x` for Bubblegum Heist, `50x` for Geez Diggerz, and `500x` for Sushi Showdown.

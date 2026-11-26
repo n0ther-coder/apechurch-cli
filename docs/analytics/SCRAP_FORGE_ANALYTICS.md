@@ -15,17 +15,18 @@ base wagers in native APE before randomness and network gas.
 | 500 | 1–8 | 4,000 | 5 Premium |
 | 1,000 | 1–4 | 4,000 | 10 Premium |
 
-| Material | Rarity | Gross multiple of the per-forge wager |
-|---|---|---:|
-| Cast Iron | Common | 0.2× |
-| Steel | Common | 0.5× |
-| Zinc | Common | 1× |
-| Lead | Uncommon | 1.5× |
-| Aluminum | Uncommon | 2× |
-| Stainless Steel | Rare | 4× |
-| Brass | Rare | 10× |
-| Copper | Epic | 25× in the output table |
-| Tungsten Carbide | Premium | 50× |
+| Material | Rarity | Gross multiple of the per-forge wager | Frontend weight per million |
+|---|---|---:|---:|
+| Cast Iron | Common | 0.2× | 370,835 |
+| Steel | Common | 0.5× | 289,164 |
+| Zinc | Common | 1× | 142,001 |
+| Lead | Uncommon | 1.5× | 93,400 |
+| Aluminum | Uncommon | 2× | 59,000 |
+| Stainless Steel | Rare | 4× | 25,600 |
+| Brass | Rare | 10× | 7,500 |
+| Copper | Epic | 25× in the output table | 1,930 |
+| Tungsten Carbide | Premium | 50× | 570 |
+| AMP | Special | Vault pull | 10,000 |
 
 The Copper rule example instead implies 10×. Use 25× when reproducing the
 displayed table and carry the discrepancy until settlement evidence resolves
@@ -67,10 +68,13 @@ or `0.0001 × μ_premium` for the published tiers. Equality requires
 `μ_premium = 10 × μ_standard`. The two prize supports and probabilities
 differ, and the published value ratio does not prove that equality.
 
-Ape Church advertises approximately **96.3%** return. It does not specify the
-denomination, Vault valuation, snapshot, or costs included in this number.
-Material probabilities, complete capsule odds, exact RTP, overall payout
-bounds, variance, and profit odds remain unverified.
+The official frontend's model weights sum to 1,000,000. Its weighted
+material return is **87.3%** of wager. Its default Vault valuation
+parameter of 0.9 adds 9.0 percentage points for **96.3%** modeled return,
+before randomness and gas. This reproduces the advertised number.
+Contract RNG and the actual complete Vault odds and valuation are still
+unverified, so the model cannot establish exact all-in RTP, complete
+round bounds, variance, or profit odds.
 
 ## Accounting
 
@@ -91,3 +95,6 @@ The CLI can read observed payments to the player through documented Forge
 and ClaimManager paths in a matching reveal. It also lists NFT-shaped
 receipt transfers to the player. These are partial observations and do not
 establish AMP payout attribution, complete gross return, or realized PnL.
+Use `game forge --round <id>` to read the separate metal payout,
+reported total payout, capsule spend, and linked Vault draw. An NFT's
+Vault value and actual sale proceeds are distinct cash flows.

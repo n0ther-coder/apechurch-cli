@@ -22,12 +22,13 @@ left the following transfer and receipt evidence:
 | 1,500 APE | 1,500.123 APE | 0.123 APE | 37.5 APE | 0.0704905565424 APE |
 
 The top-level selector is `0xc811ad71` for `play(address,bytes)`. The
-observed submission payload carried five nested 32-byte words. The second
-word matched the forge count. The third matched the decimal replay
-ID and game submission logs. The fifth matched the provider's
-`RandomnessRequested` user contribution. The first is exposed as raw data
-until its domain and type are proven. The fourth fits an address word. Its
-semantics are unverified. These observations do not specify a write ABI.
+[official Forge page bundle](https://www.ape.church/_next/static/chunks/app/games/hv-mtl-scrapyard/forge/page-85e67b1c0bbc7199.js)
+uses five nested ABI words `(uint8 tier, uint8 forges, uint256 gameId,
+address ref, bytes32 userRandomWord)`. Tier indices 0 through 4 correspond
+to 10, 50, 100, 500, and 1,000 APE per forge. The recorded calldata and
+provider event corroborate the observed count, round ID and entropy.
+Public frontend evidence establishes the site's wire format. The target
+deployment remains unverified on ApeScan.
 
 The event `RandomnessRequested(uint64,address,bytes32,uint64,uint64,uint32)`
 indexes sequence number and requester. The inspector correlates the
@@ -37,6 +38,35 @@ inferred wager and the transaction value above it. This difference is
 labelled as additional value because a receipt does not include internal
 native transfers. Gas uses receipt gas consumed times effective gas price.
 [cVOL token](https://apescan.io/token/0xb90636359a683fcd9bc2f54623b5c52e48604f08).
+
+## Official fee and round reads
+
+The official page uses the [Forge Lens](https://apescan.io/address/0x93dbEEE1E93dA2f1BEf8FFeF00F7bc8410e0656d).
+Its `getPlayValue(uint8,uint8)` quote returns `(totalBet, vrfFee, value)`.
+Observed RPC responses on 2026-11-26 returned these example quotes:
+
+| APE per forge | Forges | Base wager | VRF | Transaction value before sender gas |
+|---:|---:|---:|---:|---:|
+| 10 | 1 | 10 | 0.121 | 10.121 |
+| 10 | 5 | 50 | 0.125 | 50.125 |
+| 500 | 5 | 2,500 | 0.125 | 2,500.125 |
+
+`maxForgesAllowed(uint8)` returned 15, 15, 15, 8 and 4 for tiers 0–4.
+The captured calls used the `latest` tag. The CLI pins the two Lens
+reads and the Forge `paused()` check to one block and checks
+`value == totalBet + vrfFee` and the selected wager. It reads the quote
+for every request.
+
+`getGameInfo(uint256)` on Forge exposes the ordered bucket indices,
+stake per forge, total payout, metal payout, capsule spend, Vault address,
+Vault request ID, and ended and owed flags. `getVaultPulls(uint256)` on
+the Lens returns the linked request status, count and pull records.
+`--round` checks the Lens address and request ID against the game record.
+Listing ID and `amountOrValue` are carried through independently from any
+ERC-721 or ERC-1155 receipt transfers. The game can end before a pending
+Vault draw or delivery. `getEssentialGameInfo(uint256[])` returns a
+reported game payout and an ended flag. Use the detailed round and Vault
+records for the actual composition of the award.
 
 ## Settlement boundary
 
@@ -70,10 +100,9 @@ At release, the trace and receipt paths were exercised with synthetic RPC
 fixtures. Public explorer traces corroborate the historical transfer route.
 The configured live RPC was unreachable during validation.
 
-Before enabling writes, reproduce tuple fields and validation boundaries
-from an official ABI or corroborating calldata and read-only simulation.
-Identify the fee getter and callback gas schedule, then verify the game
-result event or getter against metal-only and AMP settlements, including
-ordered outcomes, cash transfers, NFT attribution, and retry/pending
-semantics. No wallet access is required for this evidence.
+Before enabling writes, reproduce the quoted write with a read-only RPC
+simulation and verify the detailed game and Vault records for completed
+metal-only and AMP rounds. Verify how delayed Vault draws, refunds and
+delivery reconcile with the actual APE and NFT transfers. No wallet access
+is required for this evidence.
 See [wagers, payout table and probability limits](../analytics/SCRAP_FORGE_ANALYTICS.md).

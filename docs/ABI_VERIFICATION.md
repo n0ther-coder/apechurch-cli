@@ -119,10 +119,11 @@ Supported but not promoted:
 | Gimboz of the Galaxy | [GIMBOZ_GALAXY_CONTRACT.md](verification/GIMBOZ_GALAXY_CONTRACT.md) | Reproduced source/build and complete RNG/economic proof; getters, bytecode interpretation and 100 historical replays corroborate integration without establishing exact RTP. [Analytics](analytics/GIMBOZ_GALAXY_ANALYTICS.md). |
 | Reel Pirates | `docs/verification/REEL_PIRATES_CONTRACT.md` | Verified Solidity source or enough live getter/source evidence to prove the cascade outcome model and exact odds |
 
-Scrap Forge is available for read-only inspection of historical submissions
-and correlated ApeVRF reveals. Receipt logs and optional call traces expose
-transfer evidence. The complete write ABI, fee quote, and canonical
-settlement remain open. See [SCRAP_FORGE_CONTRACT.md](verification/SCRAP_FORGE_CONTRACT.md).
+Scrap Forge supports historical receipt and trace inspection and the
+official frontend's live Lens quote and detailed round reads. The
+frontend wire format is documented. Write simulation, full Vault
+settlement corroboration and protocol RNG verification remain open.
+See [SCRAP_FORGE_CONTRACT.md](verification/SCRAP_FORGE_CONTRACT.md).
 
 Every promoted game now has a dedicated verification note under `docs/verification/`:
 

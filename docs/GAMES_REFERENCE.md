@@ -728,15 +728,17 @@ Batched prime-or-zero number game. Risk controls the numeric range and fixed mul
 ## Scrap Forge
 
 Read-only slot catalog entry. Aliases are `scrapforge` and `forge`. View
-game help, UI wager limits, material awards, historical submissions and
-correlated reveal transfer evidence with `game scrap-forge` and the
+game help, UI wager limits, material awards, live Lens quotes, ordered
+round outcomes, Vault pull records and historical reveal evidence with
+`game scrap-forge` and the
 [Scrap Forge command grammar](COMMAND_REFERENCE.md#scrap-forge-read-only).
 
 The official site accepts 10, 50, 100, 500 or 1,000 APE per forge. The
 corresponding count maxima are 15, 15, 15, 8 and 4, with a round minimum of
 10 APE and a maximum of 4,000 APE before randomness and gas. At each tier
 the advertised AMP marginal is 1%. A hit opens Standard or Premium Vault
-capsules. The official 96.3% approximate return has an unspecified basis.
+capsules. The official frontend's 96.3% model includes an assumed Vault
+contribution of 9.0 percentage points.
 
 - ABI verified: false. [Contract and fee evidence](verification/SCRAP_FORGE_CONTRACT.md).
 - [Material paytable, count limits and conditional statistics](analytics/SCRAP_FORGE_ANALYTICS.md).

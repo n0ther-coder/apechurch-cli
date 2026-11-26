@@ -94,6 +94,9 @@ for wager tiers, `game forge --paytable` for component awards, and
 `--reveal <hash>` to match their ApeVRF receipts and optionally `--trace`
 to inspect native APE transfers through a tracing RPC. See the
 [Scrap Forge reference](docs/GAMES_REFERENCE.md#scrap-forge).
+Use `game forge --quote --spin 10 --split 10` for the live wager and
+randomness fee, and `game forge --round <id>` for Forge outcomes and
+linked Vault pull records.
 
 - **Encrypted-only local signer:** private keys stay encrypted on disk, plaintext wallet export is disabled, and signing happens locally without transmitting the key to Ape Church services
 - **AI-agent-first operator UX:** fully AI agents playable command surface with structured outputs, local history caches, and no browser dependency
