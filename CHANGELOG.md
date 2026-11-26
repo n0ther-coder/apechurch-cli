@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [37.4.0]
+
+### Added
+- Correlate separate Scrap Forge Vault reveal receipts to the round's Vault
+  request and show matching pulls and NFT delivery evidence.
+- Simulate a quoted Scrap Forge play with a public sender address using
+  a read-only RPC call.
+
 ## [37.3.0]
 
 ### Added

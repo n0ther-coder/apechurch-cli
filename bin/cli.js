@@ -237,8 +237,8 @@ import { validateDojoDropWager } from '../lib/games/dojo-drop.js';
 import { validateBlizzardBlitzWager } from '../lib/games/blizzard-blitz.js';
 import { validateGimbozGalaxyWager } from '../lib/games/gimboz-galaxy.js';
 import {
-  getScrapForgeLimits, getScrapForgeSelection, inspectScrapForgeSubmission, parseScrapForgeRoundId,
-  quoteScrapForge, readScrapForgeRound, SCRAP_FORGE_BNF, SCRAP_FORGE_GAME, validateScrapForgeTransactionHash,
+  getScrapForgeLimits, getScrapForgeSelection, inspectScrapForgeSubmission, parseScrapForgeRoundId, parseScrapForgeSimulationSender,
+  quoteScrapForge, readScrapForgeRound, SCRAP_FORGE_BNF, SCRAP_FORGE_GAME, simulateScrapForge, validateScrapForgeTransactionHash,
 } from '../lib/games/scrap-forge.js';
 import { validateSlotBonusOptions } from '../lib/games/cascade-slots.js';
 import {
@@ -1638,8 +1638,10 @@ function formatGameHelpAppendix() {
       '--limits               Live Baccarat or published Scrap Forge wager limits',
       '--transaction <hash>   Inspect a Scrap Forge submission and print its replay URL',
       '--reveal <hash>        Match the submission to an ApeVRF reveal receipt',
+      '--vault-reveal <hash>  Match a separate reveal to the round’s Vault request and inspect the NFT transfers',
       '--trace                Read native APE transfers in the matching reveal; requires a tracing RPC',
       '--quote                Read the exact Scrap Forge transaction value before sender gas',
+      '--simulate-from <address>  With --quote, simulate play using a public sender address',
       '--round <id>           Read Scrap Forge outcomes and Vault draw data by decimal round ID',
       '--risk <risk>          Risk or difficulty used by play',
       '--grid <grid>          Blocks grid used by play',
@@ -1679,7 +1681,9 @@ function formatGameHelpAppendix() {
       `${BINARY_NAME} game forge --limits`,
       `${BINARY_NAME} game scrap-forge --paytable --spin 500 --split 8 --json`,
       `${BINARY_NAME} game forge --transaction <submission-hash> --reveal <reveal-hash> --trace --json`,
+      `${BINARY_NAME} game forge --transaction <submission-hash> --vault-reveal <vault-reveal-hash> --json`,
       `${BINARY_NAME} game forge --quote --spin 10 --split 10 --json`,
+      `${BINARY_NAME} game forge --quote --spin 10 --split 1 --simulate-from <address> --json`,
       `${BINARY_NAME} game forge --round <id> --json`,
     ],
     notes: [
@@ -8450,8 +8454,10 @@ program
   .option('--limits', 'Show live Baccarat or published Scrap Forge wager limits')
   .option('--transaction <hash>', 'Inspect a historical Scrap Forge submission via ApeChain RPC')
   .option('--reveal <hash>', 'Match a Scrap Forge submission to an ApeVRF reveal receipt')
+  .option('--vault-reveal <hash>', 'Match a separate reveal receipt to the round’s Vault request')
   .option('--trace', 'Read native APE transfers in a matching Scrap Forge reveal via a tracing RPC')
   .option('--quote', 'Read the live Scrap Forge wager and VRF quote before gas')
+  .option('--simulate-from <address>', 'With --quote, simulate the Scrap Forge play using a public sender address')
   .option('--round <id>', 'Read a Scrap Forge round and linked Vault draw using its decimal ID')
   .option('--risk <risk>', 'Risk or difficulty used by play')
   .option('--grid <grid>', 'Blocks grid used by play')
@@ -8481,39 +8487,46 @@ program
       ['amount', '--amount'], ['side', '--side'],
     ].find(([key]) => opts[key] !== undefined)?.[1];
 
-    const forgeInspection = opts.transaction !== undefined || opts.reveal !== undefined || opts.trace;
+    const forgeInspection = opts.transaction !== undefined || opts.reveal !== undefined || opts.vaultReveal !== undefined || opts.trace;
     const forgeRound = opts.round !== undefined;
-    if (forgeInspection || forgeRound || opts.quote || (matchedCatalogEntry?.readOnly && !opts.paytable)) {
+    const simulation = opts.simulateFrom !== undefined;
+    if (forgeInspection || forgeRound || opts.quote || simulation || (matchedCatalogEntry?.readOnly && !opts.paytable)) {
       try {
-        if (!matchedCatalogEntry?.readOnly) throw new Error('--transaction, --reveal, --trace, --quote, and --round are supported for Scrap Forge.');
+        if (!matchedCatalogEntry?.readOnly) throw new Error('These inspection options are supported for Scrap Forge.');
+        if (simulation && !opts.quote) throw new Error('--simulate-from requires --quote.');
         if ([opts.limits, opts.paytable, forgeInspection, forgeRound, opts.quote].filter(Boolean).length > 1) {
           throw new Error('Scrap Forge accepts one of --limits, --transaction, --paytable, --round, or --quote per command.');
         }
         if (paytableOnlyOption && !opts.quote) throw new Error('Scrap Forge wager options require --paytable or --quote.');
         if (opts.quote) {
-          const unrelated = Object.keys(opts).find((key) => opts[key] !== undefined && !['json', 'quote', 'spin', 'betSplit', 'amount', 'split'].includes(key));
+          const unrelated = Object.keys(opts).find((key) => opts[key] !== undefined && !['json', 'quote', 'simulateFrom', 'spin', 'betSplit', 'amount', 'split'].includes(key));
           if (unrelated) throw new Error(`Invalid quote option: --${unrelated.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}.`);
           const selection = getScrapForgeSelection(opts);
           if (!selection) throw new Error('--quote requires --spin or --bet-split, or both --amount and --split.');
+          const sender = simulation ? parseScrapForgeSimulationSender(opts.simulateFrom) : null;
           const { publicClient } = createClients();
-          const quote = await quoteScrapForge(publicClient, selection);
-          console.log(opts.json ? JSON.stringify(quote)
-            : `Scrap Forge quote at block ${quote.block_number}: ${quote.wager.ape} APE wager + ${quote.vrf_fee.ape} APE VRF = ${quote.transaction_value.ape} APE before sender gas.`);
+          const quote = sender ? await simulateScrapForge(publicClient, selection, sender) : await quoteScrapForge(publicClient, selection);
+          if (opts.json) console.log(JSON.stringify(quote));
+          else {
+            console.log(`Scrap Forge quote at block ${quote.block_number}: ${quote.wager.ape} APE wager + ${quote.vrf_fee.ape} APE VRF = ${quote.transaction_value.ape} APE before sender gas.`);
+            if (quote.simulation) console.log(`Read-only play simulation succeeded from ${quote.simulation.from}.`);
+          }
         } else if (forgeRound) {
           const id = parseScrapForgeRoundId(opts.round);
           const { publicClient } = createClients();
           console.log(JSON.stringify(await readScrapForgeRound(publicClient, id), null, opts.json ? 0 : 2));
         } else if (forgeInspection) {
-          if (opts.transaction === undefined) throw new Error('--reveal and --trace require --transaction.');
+          if (opts.transaction === undefined) throw new Error('--reveal, --vault-reveal, and --trace require --transaction.');
           if (opts.trace && opts.reveal === undefined) throw new Error('--trace requires --reveal.');
           validateScrapForgeTransactionHash(opts.transaction);
           if (opts.reveal !== undefined) validateScrapForgeTransactionHash(opts.reveal, '--reveal');
+          if (opts.vaultReveal !== undefined) validateScrapForgeTransactionHash(opts.vaultReveal, '--vault-reveal');
           const { publicClient } = createClients();
           const submission = await inspectScrapForgeSubmission(publicClient, opts.transaction, {
-            revealHash: opts.reveal, trace: opts.trace,
+            revealHash: opts.reveal, vaultRevealHash: opts.vaultReveal, trace: opts.trace,
           });
           console.log(opts.json ? JSON.stringify(submission) : Object.entries(submission)
-            .map(([key, value]) => `${key}: ${Array.isArray(value) ? JSON.stringify(value) : value}`).join('\n'));
+            .map(([key, value]) => `${key}: ${typeof value === 'object' && value !== null ? JSON.stringify(value) : value}`).join('\n'));
         } else if (opts.limits) {
           const limits = getScrapForgeLimits();
           if (opts.json) console.log(JSON.stringify(limits));
@@ -8540,7 +8553,9 @@ program
             `  ${BINARY_NAME} game scrapforge --paytable --amount 150 --split 15 --json`,
             `  ${BINARY_NAME} game forge --transaction <hash> --json`,
             `  ${BINARY_NAME} game forge --transaction <submission-hash> --reveal <reveal-hash> --trace --json`,
+            `  ${BINARY_NAME} game forge --transaction <submission-hash> --vault-reveal <vault-reveal-hash> --json`,
             `  ${BINARY_NAME} game forge --quote --spin 10 --split 10 --json`,
+            `  ${BINARY_NAME} game forge --quote --spin 10 --split 1 --simulate-from <address> --json`,
             `  ${BINARY_NAME} game forge --round <id> --json`,
           ].join('\n'));
         }

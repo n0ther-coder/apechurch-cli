@@ -728,8 +728,8 @@ Batched prime-or-zero number game. Risk controls the numeric range and fixed mul
 ## Scrap Forge
 
 Read-only slot catalog entry. Aliases are `scrapforge` and `forge`. View
-game help, UI wager limits, material awards, live Lens quotes, ordered
-round outcomes, Vault pull records and historical reveal evidence with
+game help, UI wager limits, material awards, live Lens quotes and simulations,
+ordered round outcomes, Vault pull records and correlated reveal evidence with
 `game scrap-forge` and the
 [Scrap Forge command grammar](COMMAND_REFERENCE.md#scrap-forge-read-only).
 

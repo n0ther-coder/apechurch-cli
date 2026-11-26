@@ -120,9 +120,9 @@ Supported but not promoted:
 | Reel Pirates | `docs/verification/REEL_PIRATES_CONTRACT.md` | Verified Solidity source or enough live getter/source evidence to prove the cascade outcome model and exact odds |
 
 Scrap Forge supports historical receipt and trace inspection and the
-official frontend's live Lens quote and detailed round reads. The
-frontend wire format is documented. Write simulation, full Vault
-settlement corroboration and protocol RNG verification remain open.
+official frontend's live Lens quote and detailed round reads. The CLI
+correlates separate Vault reveal receipts and can simulate the quoted
+frontend write path. Live simulation and protocol RNG verification remain open.
 See [SCRAP_FORGE_CONTRACT.md](verification/SCRAP_FORGE_CONTRACT.md).
 
 Every promoted game now has a dedicated verification note under `docs/verification/`:

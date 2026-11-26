@@ -1102,7 +1102,7 @@ See [contract evidence](verification/BLIZZARD_BLITZ_CONTRACT.md) and
 ```bnf
 <forge-game> ::= "scrap-forge" | "scrapforge" | "forge"
 <forge-command> ::= "game" <forge-game> [ <forge-action> ] [ "--json" ]
-<forge-action> ::= "--limits" | "--quote" <forge-selection> | "--round" <uint256> | "--transaction" <hash> [ "--reveal" <hash> [ "--trace" ] ] | "--paytable" [ <forge-selection> ]
+<forge-action> ::= "--limits" | "--quote" <forge-selection> [ "--simulate-from" <address> ] | "--round" <uint256> | "--transaction" <hash> [ "--reveal" <hash> [ "--trace" ] ] [ "--vault-reveal" <hash> ] | "--paytable" [ <forge-selection> ]
 <forge-selection> ::= <forge-stake> [ "--split" <count> ] [ "--amount" <wager> ] | "--amount" <wager> "--split" <count>
 <forge-stake> ::= ( "--spin" | "--bet-split" ) <ape-per-forge>
 <ape-per-forge> ::= "10" | "50" | "100" | "500" | "1000"
@@ -1110,6 +1110,7 @@ See [contract evidence](verification/BLIZZARD_BLITZ_CONTRACT.md) and
 <wager> ::= <integer>
 <hash> ::= "0x" <hex-digit>{64}
 <uint256> ::= <integer>
+<address> ::= "0x" <hex-digit>{40}
 ```
 
 `--limits` uses the dated official UI snapshot. Choose 1–15 forges at
@@ -1139,10 +1140,23 @@ is unavailable, the command still returns the correlated receipt evidence.
 Settlement completeness, total payout, and net PnL remain unknown. The
 command works without a wallet.
 
+Use `--vault-reveal` for the separate ApeVRF transaction that draws an
+AMP prize. It identifies the original round's Vault and request at
+the reveal block, matches both the provider fulfillment and the Vault
+receipt event, and reports the matching pull events and NFT transfers from
+the Vault to the original recipient. The original Forge reveal hash is
+optional. `--trace` still applies to `--reveal` and its Forge payment paths.
+
 `--quote` uses the same exact wager selection as `--paytable`. It reads the
 live Forge count limit, pause flag, and quote at a single ApeChain block.
 The quoted transaction value includes the base wager and VRF, with sender
 gas left unspecified.
+
+Add `--simulate-from <address>` to execute a read-only RPC simulation of
+`play(address,bytes)` with that public address and the quoted value at the
+same block. It uses a fresh ID and client entropy, and the CLI's default
+referral except for self-referral. A successful simulation applies to the
+chosen sender and block. It requires no wallet unlock or broadcast.
 
 `--round` accepts a decimal uint256 ID, available from `--transaction` or
 the official replay URL. It reads ordered buckets, the reported game
@@ -1159,7 +1173,9 @@ apechurch-cli game scrap-forge --paytable --spin 500 --split 8
 apechurch-cli game scrapforge --paytable --amount 150 --split 15 --json
 apechurch-cli game forge --transaction <hash> --json
 apechurch-cli game forge --transaction <submission-hash> --reveal <reveal-hash> --trace --json
+apechurch-cli game forge --transaction <submission-hash> --vault-reveal <vault-reveal-hash> --json
 apechurch-cli game forge --quote --spin 10 --split 10 --json
+apechurch-cli game forge --quote --spin 10 --split 1 --simulate-from <address> --json
 apechurch-cli game forge --round <id> --json
 ```
 

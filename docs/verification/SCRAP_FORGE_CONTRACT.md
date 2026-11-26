@@ -100,9 +100,38 @@ At release, the trace and receipt paths were exercised with synthetic RPC
 fixtures. Public explorer traces corroborate the historical transfer route.
 The configured live RPC was unreachable during validation.
 
-Before enabling writes, reproduce the quoted write with a read-only RPC
-simulation and verify the detailed game and Vault records for completed
-metal-only and AMP rounds. Verify how delayed Vault draws, refunds and
-delivery reconcile with the actual APE and NFT transfers. No wallet access
-is required for this evidence.
+### Separate Vault reveal
+
+Forge outcomes and a Vault draw can settle in separate ApeVRF reveals. The
+play's `RandomnessRequested` identifies the Forge reveal. For a Vault reveal,
+the Forge state supplies the Vault address and request ID. The
+[official Vault ABI bundle](https://www.ape.church/_next/static/chunks/96963-41b2c922476e6a14.js)
+defines the Vault events used to match and read its receipt:
+
+| Emitter | Event | Use |
+|---|---|---|
+| ApeVRF | `RandomnessFulfilled(uint64,bytes32,uint32)` | Matches the reveal input sequence |
+| Linked Vault | `RandomnessReceived(uint256,uint64)` | Links the Vault request ID with that reveal sequence |
+| Linked Vault | `Pulled(uint256,uint16,uint16,uint8,uint256,uint256)` | Records a pull for the linked request |
+| Linked Vault | `RequestDone(uint256)` | Marks completion of that request in the receipt |
+
+`--vault-reveal` uses events from the expected emitters and checks the
+recorded player against the play recipient. It reads Vault transfer logs
+separately from pull rows. A listing ID and a token ID have different
+meanings. The value in a pull event represents the reported prize amount or
+value, with actual NFT delivery visible through the token's transfer log.
+The relationship is checked without assuming consecutive VRF sequence
+numbers. A historical block read is needed for the Forge state.
+
+### Simulation
+
+`--quote --simulate-from <address>` encodes the documented five-word
+payload and runs [viem `simulateContract`](https://viem.sh/docs/contract/simulateContract)
+against Forge using the reconciled quote at the same block. It uses a
+public sender address and sends only a read-only RPC call. Results are
+specific to the tested configuration, account and block. The encoder
+and receipt parsing were exercised offline. A successful live simulation
+and verification of delayed Vault draws, refunds and delivery are
+still required for enabling writes.
+
 See [wagers, payout table and probability limits](../analytics/SCRAP_FORGE_ANALYTICS.md).

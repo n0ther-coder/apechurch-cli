@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, parseAbi, parseEther, zeroAddress } from 'viem';
+import { decodeAbiParameters, encodeAbiParameters, encodeEventTopics, encodeFunctionData, parseAbi, parseEther, zeroAddress } from 'viem';
 import { GAME_CONTRACT_ABI, SCRAP_FORGE_CONTRACT } from '../../lib/constants.js';
 import { getGamePaytable } from '../../lib/game-paytable.js';
 import {
   getScrapForgeLimits, getScrapForgeSelection, inspectScrapForgeSubmission, parseScrapForgeRoundId,
-  quoteScrapForge, readScrapForgeRound, SCRAP_FORGE_GAME, SCRAP_FORGE_LENS,
+  quoteScrapForge, readScrapForgeRound, SCRAP_FORGE_GAME, SCRAP_FORGE_LENS, simulateScrapForge,
 } from '../../lib/games/scrap-forge.js';
 import { resolveGame, resolveGameDisplayName } from '../../registry.js';
 
@@ -301,4 +301,90 @@ test('reads Forge outcomes and linked Vault pulls without equating reported payo
   await assert.rejects(readScrapForgeRound(chain, ID), /not found/);
   assert.throws(() => parseScrapForgeRoundId((2n ** 256n).toString()), /uint256/);
   assert.throws(() => parseScrapForgeRoundId('-1'), /uint256/);
+});
+
+test('links a separate Vault reveal by its round request and fulfillment events', async () => {
+  const abi = parseAbi([
+    'event RandomnessFulfilled(uint64 indexed sequenceNumber, bytes32 randomness, uint32 gasUsed)',
+    'event RandomnessReceived(uint256 indexed requestId, uint64 vrfId)',
+    'event Pulled(uint256 indexed requestId, uint16 group, uint16 index, uint8 prizeKind, uint256 listingIdOrAmount, uint256 value)',
+    'event RequestDone(uint256 indexed requestId)',
+  ]);
+  const event = (address, eventName, args, data) => ({
+    address, topics: encodeEventTopics({ abi, eventName, args }), data,
+  });
+  const requestId = 24n;
+  const sequence = 803n;
+  const logs = [
+    event(VAULT, 'RandomnessReceived', { requestId }, encodeAbiParameters([{ type: 'uint64' }], [sequence])),
+    event(VAULT, 'Pulled', { requestId }, encodeAbiParameters(
+      [{ type: 'uint16' }, { type: 'uint16' }, { type: 'uint8' }, { type: 'uint256' }, { type: 'uint256' }],
+      [0, 0, 1, 25n, parseEther('41')],
+    )),
+    event(VAULT, 'RequestDone', { requestId }, '0x'),
+    event(VRF, 'RandomnessFulfilled', { sequenceNumber: sequence }, encodeAbiParameters(
+      [{ type: 'bytes32' }, { type: 'uint32' }], [ENTROPY, 500000],
+    )),
+    ...nftReceiptLogs.map((log) => log !== nftReceiptLogs[0] ? log : {
+      ...log, topics: encodeEventTopics({
+        abi: REWARD_ABI, eventName: 'Transfer', args: { from: VAULT, to: PLAYER, tokenId: ID },
+      }),
+    }),
+  ];
+  const chain = chainWithReveal({ logs, sequence, contribution: `0x${'f5'.repeat(32)}` });
+  let linked = requestId;
+  chain.readContract = async (request) => {
+    assert.equal(request.address, SCRAP_FORGE_CONTRACT);
+    assert.equal(request.functionName, 'getGameInfo');
+    assert.equal(request.blockNumber, 1001n);
+    assert.deepEqual(request.args, [ID]);
+    return { player: PLAYER, hasEnded: true, vault: VAULT, vaultRequestId: linked };
+  };
+  const inspection = await inspectScrapForgeSubmission(chain, HASH, { vaultRevealHash: REVEAL_HASH });
+  assert.equal(inspection.vrf_sequence_number, '777');
+  assert.equal(inspection.reveal_status, undefined);
+  assert.equal(inspection.vault_reveal.vrf_sequence_number, '803');
+  assert.equal(inspection.vault_reveal.request_id, '24');
+  assert.equal(inspection.vault_reveal.request_done_in_receipt, true);
+  assert.deepEqual(inspection.vault_reveal.pulls.map(({ listing_id_or_amount }) => listing_id_or_amount), ['25']);
+  assert.deepEqual(inspection.vault_reveal.nft_transfers_to_player.map(({ token_id }) => token_id), [ID.toString()]);
+  await assert.rejects(inspectScrapForgeSubmission(chain, HASH, { revealHash: REVEAL_HASH }), /does not match/);
+  linked = 31n;
+  await assert.rejects(inspectScrapForgeSubmission(chain, HASH, { vaultRevealHash: REVEAL_HASH }), /does not prove/);
+  linked = requestId;
+  logs[0] = { ...logs[0], address: NFT };
+  await assert.rejects(inspectScrapForgeSubmission(chain, HASH, { vaultRevealHash: REVEAL_HASH }), /does not prove/);
+});
+
+test('simulates quoted play at the quote block with the official nested fields', async () => {
+  const calls = [];
+  const chain = {
+    getBlockNumber: async () => 111n,
+    readContract: async ({ functionName }) => {
+      if (functionName === 'paused') return false;
+      if (functionName === 'maxForgesAllowed') return 15;
+      return [parseEther('50'), parseEther('0.125'), parseEther('50.125')];
+    },
+    simulateContract: async (req) => { calls.push(req); },
+  };
+  const selection = getScrapForgeSelection({ spin: '10', split: '5' });
+  await assert.rejects(simulateScrapForge(chain, selection, zeroAddress), /nonzero public/);
+  const result = await simulateScrapForge(chain, selection, PLAYER);
+  assert.equal(calls.length, 1);
+  const [request] = calls;
+  assert.equal(request.blockNumber, 111n);
+  assert.equal(request.address, SCRAP_FORGE_CONTRACT);
+  assert.equal(request.account, PLAYER);
+  assert.equal(request.functionName, 'play');
+  assert.equal(request.value, parseEther('50.125'));
+  const [recipient, data] = request.args;
+  assert.equal(recipient, PLAYER);
+  const [tier, forges, gameId, referral, entropy] = decodeAbiParameters(
+    [{ type: 'uint8' }, { type: 'uint8' }, { type: 'uint256' }, { type: 'address' }, { type: 'bytes32' }], data,
+  );
+  assert.deepEqual([tier, forges], [0, 5]);
+  assert.equal(typeof gameId, 'bigint');
+  assert.match(referral, /^0x[0-9a-f]{40}$/i);
+  assert.match(entropy, /^0x[0-9a-f]{64}$/i);
+  assert.deepEqual(result.simulation, { status: 'success', from: PLAYER, rpc_method: 'eth_call' });
 });

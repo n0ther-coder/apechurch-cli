@@ -97,6 +97,8 @@ to inspect native APE transfers through a tracing RPC. See the
 Use `game forge --quote --spin 10 --split 10` for the live wager and
 randomness fee, and `game forge --round <id>` for Forge outcomes and
 linked Vault pull records.
+Add `--simulate-from <address>` to a quote for a read-only play simulation.
+Use `--vault-reveal <hash>` with `--transaction` to match a separate Vault draw.
 
 - **Encrypted-only local signer:** private keys stay encrypted on disk, plaintext wallet export is disabled, and signing happens locally without transmitting the key to Ape Church services
 - **AI-agent-first operator UX:** fully AI agents playable command surface with structured outputs, local history caches, and no browser dependency

@@ -1315,6 +1315,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.equal(JSON.parse(metadata).readOnly, true);
       assert.match(JSON.parse(metadata).grammar.join('\n'), /--transaction/);
       assert.match(JSON.parse(metadata).grammar.join('\n'), /--reveal/);
+      assert.match(JSON.parse(metadata).grammar.join('\n'), /--vault-reveal/);
+      assert.match(JSON.parse(metadata).grammar.join('\n'), /--simulate-from/);
       assert.match(JSON.parse(metadata).grammar.join('\n'), /--quote/);
       assert.match(JSON.parse(metadata).grammar.join('\n'), /--round/);
       const { stdout: limits } = cli('game scrapforge --limits --json');
@@ -1334,6 +1336,10 @@ describe('CLI Commands Integration Tests', () => {
         [`game forge --transaction ${hash} --reveal 0x12 --json`, /--reveal requires a 32-byte/],
         [`game forge --transaction ${hash} --reveal ${hash} --limits --json`, /accepts one of/],
         [`game baccarat --reveal ${hash} --json`, /supported for Scrap Forge/],
+        [`game forge --vault-reveal ${hash} --json`, /require --transaction/],
+        [`game forge --transaction ${hash} --vault-reveal 0x12 --json`, /--vault-reveal requires a 32-byte/],
+        ['game forge --simulate-from 0x1234 --json', /requires --quote/],
+        ['game forge --quote --spin 10 --simulate-from 0x1234 --json', /requires a nonzero public/],
         ['game forge --quote --json', /--quote requires/],
         ['game forge --quote --risk 0 --spin 10 --json', /Invalid quote option/],
         ['game forge --round 0x1234 --json', /decimal uint256/],

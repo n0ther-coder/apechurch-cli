@@ -98,3 +98,5 @@ establish AMP payout attribution, complete gross return, or realized PnL.
 Use `game forge --round <id>` to read the separate metal payout,
 reported total payout, capsule spend, and linked Vault draw. An NFT's
 Vault value and actual sale proceeds are distinct cash flows.
+Use `--vault-reveal` with the submission and separate Vault reveal hashes
+to correlate the pull events and confirm NFT transfers to the recipient.
