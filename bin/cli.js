@@ -1634,6 +1634,8 @@ function formatGameHelpAppendix() {
       '--paytable             Show the selected paytable instead of metadata',
       '--limits               Live Baccarat or published Scrap Forge wager limits',
       '--transaction <hash>   Inspect a Scrap Forge submission and print its replay URL',
+      '--reveal <hash>        Match the submission to an ApeVRF reveal receipt',
+      '--trace                Read native APE transfers in the matching reveal; requires a tracing RPC',
       '--risk <risk>          Risk or difficulty used by play',
       '--grid <grid>          Blocks grid used by play',
       '--split <count>        Independent split count used by play',
@@ -1671,6 +1673,7 @@ function formatGameHelpAppendix() {
       `${BINARY_NAME} game video-poker --paytable --amount 25 --json`,
       `${BINARY_NAME} game forge --limits`,
       `${BINARY_NAME} game scrap-forge --paytable --spin 500 --split 8 --json`,
+      `${BINARY_NAME} game forge --transaction <submission-hash> --reveal <reveal-hash> --trace --json`,
     ],
     notes: [
       'Without --paytable, the output includes game parameters, grammar, aliases, ABI status, and contract address.',
@@ -8439,6 +8442,8 @@ program
   .option('--paytable', 'Show the selected game paytable without playing')
   .option('--limits', 'Show live Baccarat or published Scrap Forge wager limits')
   .option('--transaction <hash>', 'Inspect a historical Scrap Forge submission via ApeChain RPC')
+  .option('--reveal <hash>', 'Match a Scrap Forge submission to an ApeVRF reveal receipt')
+  .option('--trace', 'Read native APE transfers in a matching Scrap Forge reveal via a tracing RPC')
   .option('--risk <risk>', 'Risk or difficulty used by play')
   .option('--grid <grid>', 'Blocks grid used by play')
   .option('--split <count>', 'Independent split count used by play')
@@ -8467,17 +8472,24 @@ program
       ['amount', '--amount'], ['side', '--side'],
     ].find(([key]) => opts[key] !== undefined)?.[1];
 
-    if (opts.transaction !== undefined || (matchedCatalogEntry?.readOnly && !opts.paytable)) {
+    const forgeInspection = opts.transaction !== undefined || opts.reveal !== undefined || opts.trace;
+    if (forgeInspection || (matchedCatalogEntry?.readOnly && !opts.paytable)) {
       try {
-        if (!matchedCatalogEntry?.readOnly) throw new Error('--transaction is supported for Scrap Forge.');
-        if (paytableOnlyOption || opts.paytable || (opts.limits && opts.transaction !== undefined)) {
+        if (!matchedCatalogEntry?.readOnly) throw new Error('--transaction, --reveal, and --trace are supported for Scrap Forge.');
+        if (paytableOnlyOption || opts.paytable || (opts.limits && forgeInspection)) {
           throw new Error('Scrap Forge accepts one of --limits, --transaction, or --paytable per command. Wager options require --paytable.');
         }
-        if (opts.transaction !== undefined) {
+        if (forgeInspection) {
+          if (opts.transaction === undefined) throw new Error('--reveal and --trace require --transaction.');
+          if (opts.trace && opts.reveal === undefined) throw new Error('--trace requires --reveal.');
           validateScrapForgeTransactionHash(opts.transaction);
+          if (opts.reveal !== undefined) validateScrapForgeTransactionHash(opts.reveal, '--reveal');
           const { publicClient } = createClients();
-          const submission = await inspectScrapForgeSubmission(publicClient, opts.transaction);
-          console.log(opts.json ? JSON.stringify(submission) : Object.entries(submission).map(([key, value]) => `${key}: ${value}`).join('\n'));
+          const submission = await inspectScrapForgeSubmission(publicClient, opts.transaction, {
+            revealHash: opts.reveal, trace: opts.trace,
+          });
+          console.log(opts.json ? JSON.stringify(submission) : Object.entries(submission)
+            .map(([key, value]) => `${key}: ${Array.isArray(value) ? JSON.stringify(value) : value}`).join('\n'));
         } else if (opts.limits) {
           const limits = getScrapForgeLimits();
           if (opts.json) console.log(JSON.stringify(limits));
@@ -8503,6 +8515,7 @@ program
             `  ${BINARY_NAME} game scrap-forge --paytable --spin 500 --split 8`,
             `  ${BINARY_NAME} game scrapforge --paytable --amount 150 --split 15 --json`,
             `  ${BINARY_NAME} game forge --transaction <hash> --json`,
+            `  ${BINARY_NAME} game forge --transaction <submission-hash> --reveal <reveal-hash> --trace --json`,
           ].join('\n'));
         }
       } catch (error) {

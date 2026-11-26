@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [37.2.0]
+
+### Added
+- Match historical Scrap Forge submissions to ApeVRF reveal receipts by
+  request sequence and user contribution. Inspect NFT-shaped receipt
+  transfers and optionally trace APE payments through Forge and ClaimManager.
+
 ## [37.1.0]
 
 ### Added

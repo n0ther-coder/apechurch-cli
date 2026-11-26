@@ -451,7 +451,9 @@ See the [command reference](docs/COMMAND_REFERENCE.md#bet).
 **Scrap Forge:** read-only catalog entry. Use `game forge --limits`,
 `game scrap-forge --paytable --spin 500 --split 8`, or
 `game scrapforge --transaction <hash> --json`. A successful submission is
-an acceptance signal. The inspector leaves its settlement status unknown.
+an acceptance signal. Add `--reveal <hash>` to correlate the ApeVRF
+receipt, and `--trace` to inspect Forge and ClaimManager APE payments.
+Keep receipt transfer evidence separate from complete settlement and PnL.
 See [grammar](docs/COMMAND_REFERENCE.md#scrap-forge-read-only) and
 [analytics](docs/analytics/SCRAP_FORGE_ANALYTICS.md).
 **Current max payout:** `333x` for Dino Dough, `100x` for Bubblegum Heist, `50x` for Geez Diggerz, and `500x` for Sushi Showdown.

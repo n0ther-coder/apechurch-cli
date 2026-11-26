@@ -1314,6 +1314,7 @@ describe('CLI Commands Integration Tests', () => {
       const { stdout: metadata } = cli('game forge --json');
       assert.equal(JSON.parse(metadata).readOnly, true);
       assert.match(JSON.parse(metadata).grammar.join('\n'), /--transaction/);
+      assert.match(JSON.parse(metadata).grammar.join('\n'), /--reveal/);
       const { stdout: limits } = cli('game scrapforge --limits --json');
       assert.equal(JSON.parse(limits).maximum_round_wager_ape, 4000);
       const { stdout: paytable } = cli('game scrap-forge --paytable --amount 4000 --split 4 --json');
@@ -1321,6 +1322,20 @@ describe('CLI Commands Integration Tests', () => {
       for (const command of ['play forge 10', 'bet --game scrapforge --amount 10']) {
         const { stdout, stderr } = cli(command);
         assert.match(`${stdout}\n${stderr}`, /Scrap Forge is read-only/);
+      }
+    });
+    it('validates Scrap Forge reveal and trace combinations before RPC access', () => {
+      const hash = `0x${'ab'.repeat(32)}`;
+      for (const [command, expected] of [
+        [`game forge --reveal ${hash} --json`, /require --transaction/],
+        [`game forge --transaction ${hash} --trace --json`, /requires --reveal/],
+        [`game forge --transaction ${hash} --reveal 0x12 --json`, /--reveal requires a 32-byte/],
+        [`game forge --transaction ${hash} --reveal ${hash} --limits --json`, /accepts one of/],
+        [`game baccarat --reveal ${hash} --json`, /supported for Scrap Forge/],
+      ]) {
+        const { stdout, code } = cli(command);
+        assert.notEqual(code, 0);
+        assert.match(JSON.parse(stdout).error, expected);
       }
     });
     it('shows details for valid game', () => {

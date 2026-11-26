@@ -86,3 +86,8 @@ within the wager and never added to the submitted value a second time.
 Network gas is additional. Given a fixed extra cost `F` and a compatible
 valuation of cash and any NFT payout, all-in RTP would be
 `n × E[X] / (n × b + F)`. An unknown NFT mark leaves marked PnL unknown.
+
+The CLI can read observed payments to the player through documented Forge
+and ClaimManager paths in a matching reveal. It also lists NFT-shaped
+receipt transfers to the player. These are partial observations and do not
+establish AMP payout attribution, complete gross return, or realized PnL.

@@ -90,7 +90,9 @@ This design keeps bot strategy private while still giving both humans and AI age
 
 Scrap Forge is also listed for read-only inspection. Use `game forge --limits`
 for wager tiers, `game forge --paytable` for component awards, and
-`game forge --transaction <hash>` for historical submissions. See the
+`game forge --transaction <hash>` for historical submissions. Add
+`--reveal <hash>` to match their ApeVRF receipts and optionally `--trace`
+to inspect native APE transfers through a tracing RPC. See the
 [Scrap Forge reference](docs/GAMES_REFERENCE.md#scrap-forge).
 
 - **Encrypted-only local signer:** private keys stay encrypted on disk, plaintext wallet export is disabled, and signing happens locally without transmitting the key to Ape Church services

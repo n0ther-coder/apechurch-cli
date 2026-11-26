@@ -1102,7 +1102,7 @@ See [contract evidence](verification/BLIZZARD_BLITZ_CONTRACT.md) and
 ```bnf
 <forge-game> ::= "scrap-forge" | "scrapforge" | "forge"
 <forge-command> ::= "game" <forge-game> [ <forge-action> ] [ "--json" ]
-<forge-action> ::= "--limits" | "--transaction" <hash> | "--paytable" [ <forge-selection> ]
+<forge-action> ::= "--limits" | "--transaction" <hash> [ "--reveal" <hash> [ "--trace" ] ] | "--paytable" [ <forge-selection> ]
 <forge-selection> ::= <forge-stake> [ "--split" <count> ] [ "--amount" <wager> ] | "--amount" <wager> "--split" <count>
 <forge-stake> ::= ( "--spin" | "--bet-split" ) <ape-per-forge>
 <ape-per-forge> ::= "10" | "50" | "100" | "500" | "1000"
@@ -1124,8 +1124,19 @@ aliases, and mixed inspection actions produce errors.
 `--transaction` uses the configured ApeChain RPC to read the submitted
 transaction and its receipt. It reports the round ID and replay link,
 receipt gas, and wager/VRF-request evidence when present. Its
-`submission_status` can be pending, accepted or reverted. Settlement is
-unknown in this view. The command works without a wallet.
+`submission_status` can be pending, accepted or reverted. With `--reveal`,
+the command also verifies the provider address, request sequence and user
+contribution against the supplied ApeVRF transaction. A successful reveal
+reports matching ERC-721- and ERC-1155-shaped transfers to the play recipient.
+The receipt alone cannot establish that the AMP Vault awarded those transfers.
+
+`--trace` requires `--reveal` and an ApeChain RPC supporting
+`debug_traceTransaction` with `callTracer`. It counts observed native APE
+payments to the play recipient along the Forge and ClaimManager call paths.
+Transfers elsewhere in the trace and reverted calls are excluded. If tracing
+is unavailable, the command still returns the correlated receipt evidence.
+Settlement completeness, total payout, and net PnL remain unknown. The
+command works without a wallet.
 
 ```bash
 apechurch-cli game forge
@@ -1134,6 +1145,7 @@ apechurch-cli game scrap-forge --paytable
 apechurch-cli game scrap-forge --paytable --spin 500 --split 8
 apechurch-cli game scrapforge --paytable --amount 150 --split 15 --json
 apechurch-cli game forge --transaction <hash> --json
+apechurch-cli game forge --transaction <submission-hash> --reveal <reveal-hash> --trace --json
 ```
 
 See [contract evidence](verification/SCRAP_FORGE_CONTRACT.md) and

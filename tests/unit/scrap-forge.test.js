@@ -40,7 +40,11 @@ test('registry resolves the display title without enabling execution', () => {
 });
 
 const HASH = `0x${'ab'.repeat(32)}`;
+const REVEAL_HASH = `0x${'cd'.repeat(32)}`;
 const PLAYER = '0x1111111111111111111111111111111111111111';
+const NFT = '0x2222222222222222222222222222222222222222';
+const VRF = '0xe892d2576bcf131e1d4a6a31e1921bb27f8f91f2';
+const CLAIM_MANAGER = '0xd2a5c5f58bdbed24ef919d9dfb312ca84e7b31dd';
 const WRAPPER = '0xa35500b5c420066d6315da0bec29246efe3660ad';
 const ENTROPY = `0x${'02'.repeat(32)}`;
 const ID = 2n ** 255n + 1n;
@@ -105,4 +109,111 @@ test('inspect preserves unknown values for incomplete or ambiguous evidence', as
   assert.equal((await inspectScrapForgeSubmission(mockChain({ blockNumber: null }), HASH)).submission_status, 'pending');
   await assert.rejects(inspectScrapForgeSubmission(mockChain({ to: PLAYER }), HASH), /does not target/);
   await assert.rejects(inspectScrapForgeSubmission({}, '0x12'), /32-byte/);
+});
+
+const REVEAL_ABI = parseAbi(['function reveal(uint64 sequenceNumber, bytes32 userContribution, bytes32 revelation)']);
+const REWARD_ABI = parseAbi([
+  'event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)',
+  'event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)',
+  'event TransferBatch(address indexed operator, address indexed from, address indexed to, uint256[] ids, uint256[] values)',
+]);
+const nftReceiptLogs = [
+  {
+    address: NFT,
+    topics: encodeEventTopics({ abi: REWARD_ABI, eventName: 'Transfer', args: { from: zeroAddress, to: PLAYER, tokenId: ID } }),
+    data: '0x',
+    logIndex: 1,
+  },
+  {
+    address: NFT,
+    topics: encodeEventTopics({ abi: REWARD_ABI, eventName: 'TransferSingle', args: { operator: WRAPPER, from: WRAPPER, to: PLAYER } }),
+    data: encodeAbiParameters([{ type: 'uint256' }, { type: 'uint256' }], [2n, 6n]),
+    logIndex: 2,
+  },
+  {
+    address: NFT,
+    topics: encodeEventTopics({ abi: REWARD_ABI, eventName: 'TransferBatch', args: { operator: WRAPPER, from: WRAPPER, to: PLAYER } }),
+    data: encodeAbiParameters([{ type: 'uint256[]' }, { type: 'uint256[]' }], [[3n, 4n], [5n, 9n]]),
+    logIndex: 3,
+  },
+  mintLog,
+];
+
+function chainWithReveal({ sequence = 777n, contribution = ENTROPY, status = 'success', logs = nftReceiptLogs, request, blockNumber = 1001n } = {}) {
+  const submission = mockChain();
+  const reveal = {
+    to: VRF, blockNumber,
+    input: encodeFunctionData({ abi: REVEAL_ABI, functionName: 'reveal', args: [
+      sequence, contribution, `0x${'03'.repeat(32)}`,
+    ] }),
+  };
+  return {
+    getTransaction: async ({ hash }) => hash === REVEAL_HASH ? reveal : submission.getTransaction(),
+    getTransactionReceipt: async ({ hash }) => hash === REVEAL_HASH ? { status, blockNumber, logs } : submission.getTransactionReceipt(),
+    request: async (rpc) => request(rpc, reveal),
+  };
+}
+
+test('matches the reveal without inferring settlement or valuing NFT transfers', async () => {
+  const result = await inspectScrapForgeSubmission(chainWithReveal(), HASH, { revealHash: REVEAL_HASH });
+  assert.equal(result.reveal_status, 'confirmed');
+  assert.equal(result.settlement_status, 'unknown');
+  assert.deepEqual(result.reveal_nft_transfers_to_player.map(({ standard, token_id, quantity }) => [standard, token_id, quantity]), [
+    ['ERC721', ID.toString(), '1'], ['ERC1155', '2', '6'], ['ERC1155', '3', '5'], ['ERC1155', '4', '9'],
+  ]);
+  assert.equal(result.trace_status, undefined);
+  const reverted = await inspectScrapForgeSubmission(chainWithReveal({ status: 'reverted' }), HASH, { revealHash: REVEAL_HASH, trace: true });
+  assert.equal(reverted.reveal_status, 'reverted');
+  assert.equal(reverted.reveal_nft_transfers_to_player, undefined);
+  const pending = await inspectScrapForgeSubmission(chainWithReveal({ blockNumber: null }), HASH, { revealHash: REVEAL_HASH });
+  assert.equal(pending.reveal_status, 'pending');
+});
+
+test('rejects unrelated or out-of-order reveals', async () => {
+  for (const mismatch of [{ sequence: 778n }, { contribution: `0x${'04'.repeat(32)}` }]) {
+    await assert.rejects(inspectScrapForgeSubmission(chainWithReveal(mismatch), HASH, { revealHash: REVEAL_HASH }), /does not match/);
+  }
+  await assert.rejects(inspectScrapForgeSubmission(chainWithReveal({ blockNumber: 999n }), HASH, { revealHash: REVEAL_HASH }), /must follow/);
+  await assert.rejects(inspectScrapForgeSubmission(mockChain({ logs: [mintLog, vrfLog, vrfLog] }), HASH, { revealHash: REVEAL_HASH }), /no unique/);
+});
+
+const payment = (from, to, amount, extras = {}) => ({ type: 'CALL', from, to, value: `0x${parseEther(amount).toString(16)}`, ...extras });
+
+test('counts successful direct and ClaimManager outputs once, within the Forge path', async () => {
+  const chain = chainWithReveal({
+    request: (rpc, tx) => {
+      assert.deepEqual(rpc, { method: 'debug_traceTransaction', params: [REVEAL_HASH, { tracer: 'callTracer' }] });
+      return {
+        type: 'CALL', to: VRF, input: tx.input,
+        calls: [
+          payment(VRF, SCRAP_FORGE_CONTRACT, '0', { calls: [
+            payment(SCRAP_FORGE_CONTRACT, CLAIM_MANAGER, '49', { calls: [payment(CLAIM_MANAGER, PLAYER, '49')] }),
+            payment(SCRAP_FORGE_CONTRACT, PLAYER, '3'),
+            payment(SCRAP_FORGE_CONTRACT, PLAYER, '10', { error: 'execution reverted' }),
+            payment(SCRAP_FORGE_CONTRACT, NFT, '0', { error: 'execution reverted', calls: [payment(SCRAP_FORGE_CONTRACT, PLAYER, '12')] }),
+          ] }),
+          payment(CLAIM_MANAGER, PLAYER, '110'),
+          payment(NFT, PLAYER, '5'),
+        ],
+      };
+    },
+  });
+  const result = await inspectScrapForgeSubmission(chain, HASH, { revealHash: REVEAL_HASH, trace: true });
+  assert.equal(result.trace_status, 'observed');
+  assert.equal(result.ape_received_via_forge_paths, '52');
+  assert.equal(result.ape_received_via_forge_paths_wei, parseEther('52').toString());
+});
+
+test('keeps correlated receipts when tracing is unsupported or the callback is missing', async () => {
+  const missing = await inspectScrapForgeSubmission(chainWithReveal({
+    request: (_rpc, tx) => ({ type: 'CALL', to: VRF, input: tx.input }),
+  }), HASH, { revealHash: REVEAL_HASH, trace: true });
+  assert.equal(missing.trace_status, 'no_successful_forge_call');
+  assert.equal(missing.ape_received_via_forge_paths, undefined);
+  const unsupported = await inspectScrapForgeSubmission(chainWithReveal({
+    request: () => { throw new Error('RPC method unavailable'); },
+  }), HASH, { revealHash: REVEAL_HASH, trace: true });
+  assert.equal(unsupported.reveal_status, 'confirmed');
+  assert.equal(unsupported.trace_status, 'unavailable');
+  assert.equal(unsupported.reveal_nft_transfers_to_player.length, 4);
 });

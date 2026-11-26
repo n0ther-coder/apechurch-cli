@@ -43,13 +43,37 @@ native transfers. Gas uses receipt gas consumed times effective gas price.
 A successful submission receipt confirms acceptance only. A
 [historical provider reveal](https://apescan.io/tx/0x3960ba7a5bd77dc49c7e159ee70f769fc7b01796d304af0867ed55310d3dba0c)
 shows the game transferring 49 APE through ClaimManager to a recipient
-and 9.5 APE to the house. It illustrates the asynchronous path without
-establishing the full result event, a payout getter, or AMP accounting.
-The inspector links the official replay and leaves settlement unknown.
+and 9.5 APE to the house. A [second reveal at block 55,476,658](https://apescan.io/tx/0xd2846f4e76274a97756c5e1f985184ef596194a3bea0679a6a0e8d070fa6aa54)
+shows the same path for 102 APE to the recipient and 44.25 APE to the house.
+Both reveal inputs expose the provider's verified
+`reveal(uint64,bytes32,bytes32)` ABI.
+
+`game forge --transaction <submission-hash> --reveal <reveal-hash>`
+compares the reveal sequence and contribution with one uniquely matched
+request log, checks chain ordering and reads the reveal receipt. A success
+status applies to the reveal transaction. It does not prove that the game
+settled. In the successful receipt, the tool lists ERC-721- and
+ERC-1155-shaped transfers to the original play recipient. It keeps IDs and
+quantities as strings and makes no Vault attribution or valuation.
+[ERC-721](https://eips.ethereum.org/EIPS/eip-721) and
+[ERC-1155](https://eips.ethereum.org/EIPS/eip-1155) define the transfer layouts.
+
+With `--trace`, the inspector asks the configured ApeChain RPC for
+[`debug_traceTransaction` with `callTracer`](https://geth.ethereum.org/docs/developers/evm-tracing/built-in-tracers#calltracer).
+It counts successful payments from Forge to the recipient and the final
+payments from [ClaimManager](https://apescan.io/address/0xd2a5c5f58bdbed24ef919d9dfb312ca84e7b31dd)
+to that recipient inside a Forge-to-ClaimManager call. The intermediate
+funding transfer is never counted a second time. A trace without a successful
+Forge call does not produce an amount. The sum covers these paths only.
+Neither it nor the NFT list establishes complete payout or net PnL.
+At release, the trace and receipt paths were exercised with synthetic RPC
+fixtures. Public explorer traces corroborate the historical transfer route.
+The configured live RPC was unreachable during validation.
 
 Before enabling writes, reproduce tuple fields and validation boundaries
 from an official ABI or corroborating calldata and read-only simulation.
-Identify the fee getter and callback gas schedule, then correlate both
-metal-only and AMP settlements including ordered outcomes, cash transfers,
-NFT transfers, and retry/pending semantics. No wallet access is required
-for this evidence. See [wagers, payout table and probability limits](../analytics/SCRAP_FORGE_ANALYTICS.md).
+Identify the fee getter and callback gas schedule, then verify the game
+result event or getter against metal-only and AMP settlements, including
+ordered outcomes, cash transfers, NFT attribution, and retry/pending
+semantics. No wallet access is required for this evidence.
+See [wagers, payout table and probability limits](../analytics/SCRAP_FORGE_ANALYTICS.md).
