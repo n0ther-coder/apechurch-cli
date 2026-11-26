@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [37.1.0]
+
+### Added
+- Inspect Scrap Forge wager tiers, material awards, and AMP capsule allocations
+  from the CLI. Read historical submissions by transaction hash, with receipt
+  gas, wager evidence, and a link to the official replay.
+- Document historical fees and public evidence for Scrap Forge, including the
+  limits of the payout model and the available AMP Vault statistics.
+
 ## [37.0.1]
 
 ### Fixed

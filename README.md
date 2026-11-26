@@ -88,6 +88,11 @@ This design keeps bot strategy private while still giving both humans and AI age
 
 ### CLI Capabilities
 
+Scrap Forge is also listed for read-only inspection. Use `game forge --limits`
+for wager tiers, `game forge --paytable` for component awards, and
+`game forge --transaction <hash>` for historical submissions. See the
+[Scrap Forge reference](docs/GAMES_REFERENCE.md#scrap-forge).
+
 - **Encrypted-only local signer:** private keys stay encrypted on disk, plaintext wallet export is disabled, and signing happens locally without transmitting the key to Ape Church services
 - **AI-agent-first operator UX:** fully AI agents playable command surface with structured outputs, local history caches, and no browser dependency
 - **Stateful automation:** blackjack, cash-dash, hi-lo-nebula, and video-poker auto gameplay, side-bet support, unfinished-game recovery, and EV / Monte Carlo helpers for loop planning

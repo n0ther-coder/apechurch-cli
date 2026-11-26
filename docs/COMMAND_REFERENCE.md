@@ -1017,8 +1017,11 @@ Reference columns stay hidden in terminal tables unless `--url` or `--ids` is pa
 
 ```bnf
 <games-command> ::= "games" <games-option>*
-<games-option> ::= "--stats" | "--json"
+<games-option> ::= "-l" | "--list" | "--stats" | "--json"
 ```
+
+The catalog includes Scrap Forge inspection. `--list` lists executable
+play forms.
 
 ### `game <name>`
 
@@ -1093,6 +1096,48 @@ All normal `play` loop/stop/bet-strategy, retry, timeout, JSON and expert
 controls apply. Live VRF/executor costs and receipt gas remain separate.
 See [contract evidence](verification/BLIZZARD_BLITZ_CONTRACT.md) and
 [analytics](analytics/BLIZZARD_BLITZ_ANALYTICS.md).
+
+#### Scrap Forge read-only
+
+```bnf
+<forge-game> ::= "scrap-forge" | "scrapforge" | "forge"
+<forge-command> ::= "game" <forge-game> [ <forge-action> ] [ "--json" ]
+<forge-action> ::= "--limits" | "--transaction" <hash> | "--paytable" [ <forge-selection> ]
+<forge-selection> ::= <forge-stake> [ "--split" <count> ] [ "--amount" <wager> ] | "--amount" <wager> "--split" <count>
+<forge-stake> ::= ( "--spin" | "--bet-split" ) <ape-per-forge>
+<ape-per-forge> ::= "10" | "50" | "100" | "500" | "1000"
+<count> ::= <integer>
+<wager> ::= <integer>
+<hash> ::= "0x" <hex-digit>{64}
+```
+
+`--limits` uses the dated official UI snapshot. Choose 1–15 forges at
+10/50/100 APE, 1–8 at 500, or 1–4 at 1,000. Base wager is stake × count.
+The plain paytable shows the material multipliers. With an exact stake it
+also prices each material award in APE and reports the capsule allocation
+per AMP. An exact stake alone selects one forge. Amount plus stake can
+derive a count when the quotient is an exact supported integer. Amount
+plus count can derive one of the five allowed stakes. There is no
+rounding or budget remainder. Unrelated game options, duplicate stake
+aliases, and mixed inspection actions produce errors.
+
+`--transaction` uses the configured ApeChain RPC to read the submitted
+transaction and its receipt. It reports the round ID and replay link,
+receipt gas, and wager/VRF-request evidence when present. Its
+`submission_status` can be pending, accepted or reverted. Settlement is
+unknown in this view. The command works without a wallet.
+
+```bash
+apechurch-cli game forge
+apechurch-cli game forge --limits
+apechurch-cli game scrap-forge --paytable
+apechurch-cli game scrap-forge --paytable --spin 500 --split 8
+apechurch-cli game scrapforge --paytable --amount 150 --split 15 --json
+apechurch-cli game forge --transaction <hash> --json
+```
+
+See [contract evidence](verification/SCRAP_FORGE_CONTRACT.md) and
+[analytics](analytics/SCRAP_FORGE_ANALYTICS.md).
 
 Dojo Drop accepts `play dojo-drop <total-APE> [<split>]`, `--split`, and the
 `--spin <APE>` alternative, with 1–15 paid spins (default 15 for count

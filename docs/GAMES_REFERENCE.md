@@ -725,6 +725,23 @@ Batched prime-or-zero number game. Risk controls the numeric range and fixed mul
 - Max fixed top payout: `500x` on Extreme via zero.
 - Operational note: the transparency running RTP can sit above **`100%`**, but the contract-backed long-run surface is still the fixed risk table in the verification note.
 
+## Scrap Forge
+
+Read-only slot catalog entry. Aliases are `scrapforge` and `forge`. View
+game help, UI wager limits, historical submission details and material
+awards with `game scrap-forge` and the
+[Scrap Forge command grammar](COMMAND_REFERENCE.md#scrap-forge-read-only).
+
+The official site accepts 10, 50, 100, 500 or 1,000 APE per forge. The
+corresponding count maxima are 15, 15, 15, 8 and 4, with a round minimum of
+10 APE and a maximum of 4,000 APE before randomness and gas. At each tier
+the advertised AMP marginal is 1%. A hit opens Standard or Premium Vault
+capsules. The official 96.3% approximate return has an unspecified basis.
+
+- ABI verified: false. [Contract and fee evidence](verification/SCRAP_FORGE_CONTRACT.md).
+- [Material paytable, count limits and conditional statistics](analytics/SCRAP_FORGE_ANALYTICS.md).
+- [Shared AMP Prize Vault](analytics/HV-MTL_SCRAPYARD_ANALYTICS.md).
+
 ## Reel Pirates
 
 **Type:** Slots / Cascade

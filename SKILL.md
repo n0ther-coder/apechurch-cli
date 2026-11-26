@@ -447,6 +447,13 @@ See the [command reference](docs/COMMAND_REFERENCE.md#bet).
 **Dojo Drop:** `play dojo-drop <total-APE> [--split <1-15>]` also accepts a positional count. Default: 15 paid spins, requiring at least 37.5 APE total. Invalid or conflicting counts and totals below 2.5 APE per spin fail before wallet access. Fees are additional: `getVRFFee(500000 + 150000 × split)` plus `EXECUTOR_FEE() × split`, with actual gas accounted separately. `game dojo-drop --paytable` reports the dated 1,000x gross cap without enumerating outcomes. Settled JSON includes on-chain spin details; no theoretical RTP is asserted. See [contract notes](docs/verification/DOJO_DROP_CONTRACT.md) and [analytics](docs/analytics/DOJO_DROP_ANALYTICS.md).
 
 **Reel Pirates note:** playable but not ABI verified; the observed gameplay tx uses `(numSpins, gameId, ref, userRandomWord)` and the exact cascade odds are not public in this repo.
+
+**Scrap Forge:** read-only catalog entry. Use `game forge --limits`,
+`game scrap-forge --paytable --spin 500 --split 8`, or
+`game scrapforge --transaction <hash> --json`. A successful submission is
+an acceptance signal. The inspector leaves its settlement status unknown.
+See [grammar](docs/COMMAND_REFERENCE.md#scrap-forge-read-only) and
+[analytics](docs/analytics/SCRAP_FORGE_ANALYTICS.md).
 **Current max payout:** `333x` for Dino Dough, `100x` for Bubblegum Heist, `50x` for Geez Diggerz, and `500x` for Sushi Showdown.
 **Aliases:** `dinodough`, `dino`, `bubblegumheist`, `bubblegum`, `heist`, `geezdiggerz`, `geez`, `diggerz`, `sushishowdown`, `sushi`
 

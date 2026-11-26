@@ -33,6 +33,7 @@ These notes belong under `docs/analytics/` when the repo has a defensible exact 
 | Blizzard Blitz | [BLIZZARD_BLITZ_ANALYTICS.md](./BLIZZARD_BLITZ_ANALYTICS.md) | Complete visible component awards and live strip counts; full cascade/bonus odds, RTP and maximum remain unverified. |
 | Dojo Drop | [DOJO_DROP_ANALYTICS.md](./DOJO_DROP_ANALYTICS.md) | Dated live configuration, block factors and gross cap; complete outcome probabilities remain unverified. |
 | Reel Pirates | [REEL_PIRATES_ANALYTICS.md](./REEL_PIRATES_ANALYTICS.md) | Public mechanics and observed running statistics are useful, but exact odds are intentionally not claimed. |
+| Scrap Forge | [SCRAP_FORGE_ANALYTICS.md](./SCRAP_FORGE_ANALYTICS.md) | Dated wager limits, material awards and conditional AMP statistics. Complete odds are unknown. See the [shared AMP Vault](./HV-MTL_SCRAPYARD_ANALYTICS.md). |
 
 ## Selection Rule
 

@@ -1294,6 +1294,7 @@ describe('CLI Commands Integration Tests', () => {
           'dojo-drop',
           'gimboz-galaxy',
           'reel-pirates',
+          'scrap-forge',
         ],
         'Games JSON should be ordered by catalog group and alphabetically inside each group'
       );
@@ -1309,6 +1310,19 @@ describe('CLI Commands Integration Tests', () => {
   });
 
   describe('game <name> command', () => {
+    it('inspects Scrap Forge via aliases and rejects write commands before wallet access', () => {
+      const { stdout: metadata } = cli('game forge --json');
+      assert.equal(JSON.parse(metadata).readOnly, true);
+      assert.match(JSON.parse(metadata).grammar.join('\n'), /--transaction/);
+      const { stdout: limits } = cli('game scrapforge --limits --json');
+      assert.equal(JSON.parse(limits).maximum_round_wager_ape, 4000);
+      const { stdout: paytable } = cli('game scrap-forge --paytable --amount 4000 --split 4 --json');
+      assert.equal(JSON.parse(paytable).parameters.wager_per_forge_ape, 1000);
+      for (const command of ['play forge 10', 'bet --game scrapforge --amount 10']) {
+        const { stdout, stderr } = cli(command);
+        assert.match(`${stdout}\n${stderr}`, /Scrap Forge is read-only/);
+      }
+    });
     it('shows details for valid game', () => {
       const { stdout } = cli('game ape-strong');
       assert.ok(stdout.includes('ApeStrong') || stdout.includes('ape-strong'), 'Should show game name');
@@ -1321,7 +1335,7 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('Survive Games: bear-dice | blocks'));
       assert.ok(stdout.includes('Split Bet Games: cosmic-plinko | jungle-plinko | primes | speed-keno'));
       assert.ok(stdout.includes('Classic Slot Machines: bubblegum-heist | dino-dough | geez-diggerz | sushi-showdown'));
-      assert.ok(stdout.includes('Slot Machines With Sub-Game: blizzard-blitz | dojo-drop | gimboz-galaxy | reel-pirates'));
+      assert.ok(stdout.includes('Slot Machines With Sub-Game: blizzard-blitz | dojo-drop | gimboz-galaxy | reel-pirates | scrap-forge'));
     });
 
     it('returns the full alphabetized available catalog in JSON when the name is invalid', () => {
@@ -1351,6 +1365,7 @@ describe('CLI Commands Integration Tests', () => {
         'primes',
         'reel-pirates',
         'roulette',
+        'scrap-forge',
         'speed-keno',
         'sushi-showdown',
         'video-poker',

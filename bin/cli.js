@@ -236,6 +236,9 @@ import { resolveSlotsConfig } from '../lib/games/slots.js';
 import { validateDojoDropWager } from '../lib/games/dojo-drop.js';
 import { validateBlizzardBlitzWager } from '../lib/games/blizzard-blitz.js';
 import { validateGimbozGalaxyWager } from '../lib/games/gimboz-galaxy.js';
+import {
+  getScrapForgeLimits, inspectScrapForgeSubmission, SCRAP_FORGE_BNF, SCRAP_FORGE_GAME, validateScrapForgeTransactionHash,
+} from '../lib/games/scrap-forge.js';
 import { validateSlotBonusOptions } from '../lib/games/cascade-slots.js';
 import {
   getGameConfigCliName,
@@ -1622,13 +1625,15 @@ function formatGameHelpAppendix() {
     actions: [
       'omitted                Print metadata and grammar for one selected game.',
       '--paytable             Resolve the game paytable without starting a game.',
-      '--limits               Read live Baccarat wager limits without starting a game.',
+      '--limits               Read live Baccarat or published Scrap Forge wager limits.',
+      '--transaction          Inspect a historical Scrap Forge submission via ApeChain RPC.',
     ],
     parameters: ['<name>                 Supported canonical game key, alias, or display name'],
     options: [
       '--json                 Emit JSON output',
       '--paytable             Show the selected paytable instead of metadata',
-      '--limits               Read the current Baccarat minimum wager via RPC',
+      '--limits               Live Baccarat or published Scrap Forge wager limits',
+      '--transaction <hash>   Inspect a Scrap Forge submission and print its replay URL',
       '--risk <risk>          Risk or difficulty used by play',
       '--grid <grid>          Blocks grid used by play',
       '--split <count>        Independent split count used by play',
@@ -1648,10 +1653,11 @@ function formatGameHelpAppendix() {
       '--side <ape>           Blackjack player side bet',
     ],
     bnf: [
-      '<game-command> ::= "game" <game-name> [ "--paytable" <paytable-option>* | "--limits" ] [ "--json" ]',
+      '<game-command> ::= "game" <game-name> [ "--paytable" <paytable-option>* | "--limits" ] [ "--json" ] | <forge-command>',
       '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--bet-split" <ape> | "--spin" <ape> | "--bonus" | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--cutoff" <multiplier> | "--amount" <ape> | "--side" <ape>',
       '<game-name> ::= <stateless-game> | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
       '<stateless-game> ::= <game-key> | <game-alias>',
+      ...SCRAP_FORGE_BNF,
       ...ROULETTE_HELP_BNF_LINES,
     ],
     examples: [
@@ -1663,6 +1669,8 @@ function formatGameHelpAppendix() {
       `${BINARY_NAME} game speed-keno --paytable --picks 3 --split 1`,
       `${BINARY_NAME} game jungle-plinko --paytable --risk 4 --split 1 --json`,
       `${BINARY_NAME} game video-poker --paytable --amount 25 --json`,
+      `${BINARY_NAME} game forge --limits`,
+      `${BINARY_NAME} game scrap-forge --paytable --spin 500 --split 8 --json`,
     ],
     notes: [
       'Without --paytable, the output includes game parameters, grammar, aliases, ABI status, and contract address.',
@@ -3012,6 +3020,7 @@ function getVideoPokerCatalogEntry() {
 function listSupportedGameCatalogEntries() {
   return [
     ...GAME_REGISTRY.map((game) => createGameCatalogEntry(game)),
+    { ...SCRAP_FORGE_GAME, displayName: getGameDisplayName(SCRAP_FORGE_GAME) },
     getBlackjackCatalogEntry(),
     getCashDashCatalogEntry(),
     getHiLoNebulaCatalogEntry(),
@@ -3817,7 +3826,7 @@ const CLASSIC_SLOT_KEYS = Object.freeze([
   'geez-diggerz',
   'sushi-showdown',
 ]);
-const SUBGAME_SLOT_KEYS = Object.freeze(['blizzard-blitz', 'gimboz-galaxy', 'dojo-drop', 'reel-pirates']);
+const SUBGAME_SLOT_KEYS = Object.freeze(['blizzard-blitz', 'gimboz-galaxy', 'dojo-drop', 'reel-pirates', SCRAP_FORGE_GAME.key]);
 
 function getGameCatalogGroupId(game) {
   if (game?.type === 'stateful') return 'stateful';
@@ -5909,6 +5918,10 @@ program
   .addHelpText('after', formatBetHelpAppendix())
   .action(async (opts) => {
     const gameEntry = resolveGame(opts.game);
+    if (!gameEntry && resolveCatalogGameEntry(opts.game)?.readOnly) {
+      failPlayValidation(new Error('Scrap Forge is read-only. Use game scrap-forge to inspect it.'));
+      return;
+    }
     const rawCliArgs = process.argv.slice(2);
     if (rejectResilientValueOption(rawCliArgs, { json: true })) {
       return;
@@ -6309,7 +6322,10 @@ program
     if (gameInput) {
       fixedGame = resolveGame(gameInput);
       if (!fixedGame) {
-        console.error(JSON.stringify({ error: `Unknown game: ${gameInput}. Available: ${GAME_LIST}` }));
+        const error = resolveCatalogGameEntry(gameInput)?.readOnly
+          ? 'Scrap Forge is read-only. Use game scrap-forge to inspect it.'
+          : `Unknown game: ${gameInput}. Available: ${GAME_LIST}`;
+        console.error(JSON.stringify({ error }));
         process.exit(1);
       }
     }
@@ -8390,7 +8406,7 @@ program
     const orderedGames = groupedGames.flatMap((group) => group.games);
 
     if (opts.list) {
-      console.log(orderedGames.map((game) => formatGameListLine(game)).join('\n'));
+      console.log(orderedGames.filter((game) => !game.readOnly).map((game) => formatGameListLine(game)).join('\n'));
       return;
     }
 
@@ -8421,7 +8437,8 @@ program
   .description('Show metadata, grammar, the paytable, or wager limits for one game')
   .option('--json', 'JSON output')
   .option('--paytable', 'Show the selected game paytable without playing')
-  .option('--limits', 'Read the current on-chain Baccarat wager minimum')
+  .option('--limits', 'Show live Baccarat or published Scrap Forge wager limits')
+  .option('--transaction <hash>', 'Inspect a historical Scrap Forge submission via ApeChain RPC')
   .option('--risk <risk>', 'Risk or difficulty used by play')
   .option('--grid <grid>', 'Blocks grid used by play')
   .option('--split <count>', 'Independent split count used by play')
@@ -8450,11 +8467,58 @@ program
       ['amount', '--amount'], ['side', '--side'],
     ].find(([key]) => opts[key] !== undefined)?.[1];
 
+    if (opts.transaction !== undefined || (matchedCatalogEntry?.readOnly && !opts.paytable)) {
+      try {
+        if (!matchedCatalogEntry?.readOnly) throw new Error('--transaction is supported for Scrap Forge.');
+        if (paytableOnlyOption || opts.paytable || (opts.limits && opts.transaction !== undefined)) {
+          throw new Error('Scrap Forge accepts one of --limits, --transaction, or --paytable per command. Wager options require --paytable.');
+        }
+        if (opts.transaction !== undefined) {
+          validateScrapForgeTransactionHash(opts.transaction);
+          const { publicClient } = createClients();
+          const submission = await inspectScrapForgeSubmission(publicClient, opts.transaction);
+          console.log(opts.json ? JSON.stringify(submission) : Object.entries(submission).map(([key, value]) => `${key}: ${value}`).join('\n'));
+        } else if (opts.limits) {
+          const limits = getScrapForgeLimits();
+          if (opts.json) console.log(JSON.stringify(limits));
+          else {
+            console.log(`Scrap Forge official UI limits (${limits.observed_date}), before VRF and gas.`);
+            for (const tier of limits.tiers) {
+              console.log(`  ${tier.wager_per_forge_ape} APE/forge | 1–${tier.max_forges} forges | up to ${tier.max_round_wager_ape} APE | ${tier.capsules_per_amp} ${tier.capsule_class} capsule(s)/AMP`);
+            }
+          }
+        } else if (opts.json) {
+          console.log(JSON.stringify({ ...matchedCatalogEntry, grammar: SCRAP_FORGE_BNF }));
+        } else {
+          console.log([
+            'SCRAP FORGE', matchedCatalogEntry.description,
+            `Aliases: ${matchedCatalogEntry.aliases.join(', ')}`,
+            `Contract: ${matchedCatalogEntry.contract}`,
+            'ABI verified: false',
+            '', ...SCRAP_FORGE_BNF,
+            '', 'Omit paytable options for all material multipliers. A stake alone selects one forge.',
+            'Payouts are gross. An AMP opens the selected tier’s Vault capsules. Complete round odds are unknown.',
+            '', 'Examples',
+            `  ${BINARY_NAME} game forge --limits`,
+            `  ${BINARY_NAME} game scrap-forge --paytable --spin 500 --split 8`,
+            `  ${BINARY_NAME} game scrapforge --paytable --amount 150 --split 15 --json`,
+            `  ${BINARY_NAME} game forge --transaction <hash> --json`,
+          ].join('\n'));
+        }
+      } catch (error) {
+        const message = sanitizeError(error);
+        process.exitCode = 1;
+        if (opts.json) console.log(JSON.stringify({ error: message }));
+        else console.error(message);
+      }
+      return;
+    }
+
     if (opts.limits) {
       try {
         const game = resolveGame(matchedCatalogEntry?.key || name);
-        if (game?.type !== 'baccarat') throw new Error('--limits is supported for Baccarat.');
         if (opts.paytable || paytableOnlyOption) throw new Error('--limits is separate from --paytable and its options.');
+        if (game?.type !== 'baccarat') throw new Error('--limits is supported for Baccarat and Scrap Forge.');
         const { publicClient } = createClients();
         const limits = await getBaccaratWagerLimits(publicClient, game.contract);
         if (opts.json) console.log(JSON.stringify(limits));

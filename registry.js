@@ -16,6 +16,7 @@
  * @module registry
  */
 import { ROULETTE_BNF } from './lib/roulette-layout.js';
+import { SCRAP_FORGE_GAME } from './lib/games/scrap-forge.js';
 import {
   APESTRONG_CONTRACT,
   BACCARAT_CONTRACT,
@@ -1033,6 +1034,7 @@ for (const game of GAME_REGISTRY) {
 export const ABI_VERIFIED_SYMBOL = '✔︎';
 
 const SUPPLEMENTAL_DISPLAY_GAMES = Object.freeze([
+  SCRAP_FORGE_GAME,
   Object.freeze({
     key: 'blackjack',
     name: 'Blackjack',
