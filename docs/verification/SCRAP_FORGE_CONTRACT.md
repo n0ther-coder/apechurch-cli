@@ -7,7 +7,7 @@
   on ApeChain mainnet (33139). No verified source was visible on 2026-11-26.
 - [ApeVRF provider](https://apescan.io/address/0xe892d2576bcf131e1d4a6a31e1921bb27f8f91f2)
   and [ApeVRFV2PythWrapper](https://apescan.io/address/0xa35500b5c420066d6315da0bec29246efe3660ad)
-  appear in historical submissions. The game has a read-only CLI entry and
+  appear in historical submissions. The game supports CLI play and
   remains outside the [ABI promotion standard](../ABI_VERIFICATION.md).
 
 ## Public submission evidence
@@ -129,9 +129,26 @@ numbers. A historical block read is needed for the Forge state.
 payload and runs [viem `simulateContract`](https://viem.sh/docs/contract/simulateContract)
 against Forge using the reconciled quote at the same block. It uses a
 public sender address and sends only a read-only RPC call. Results are
-specific to the tested configuration, account and block. The encoder
-and receipt parsing were exercised offline. A successful live simulation
-and verification of delayed Vault draws, refunds and delivery are
-still required for enabling writes.
+specific to the tested configuration, account and block. A live read-only
+simulation accepted the one-forge 10 APE configuration at block 55,949,865.
+The quote was 10 APE plus 0.121 APE VRF before sender gas.
+
+### CLI play and cash settlement
+
+`play` and `bet` share the quote and encoder with the simulation. The
+signed path requires successful [gas estimation](https://viem.sh/docs/contract/estimateContractGas)
+for the exact request and attempts submission once. A failed or ambiguous
+submission returns the round ID for inspection. Live signed CLI submission
+and settlement were exercised with synthetic fixtures only.
+
+The CLI uses `metalPayout` for the metal cash component. For AMP it waits
+for a linked Vault draw with completed status, matching pull counts per AMP
+index and delivered pulls. Its interpretation of delivery codes follows
+the frontend and lens. Pushed and claimed APE prizes add their
+`amountOrValue` to cash. NFT pulls expose their listing ID and Vault mark
+separately. The wallet history downloader uses these same settlement rules
+for the wallet-indexed play logs and refreshes saved pending Forge rounds.
+Refunds, missing draw links, and claimable or owed prizes keep the round
+pending until there is evidence of completed cash or item delivery.
 
 See [wagers, payout table and probability limits](../analytics/SCRAP_FORGE_ANALYTICS.md).

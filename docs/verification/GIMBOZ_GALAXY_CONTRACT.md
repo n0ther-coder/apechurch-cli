@@ -31,20 +31,20 @@ footer nor a missing lookup constitutes verified Solidity source.
 
 ```bnf
 <game> ::= "gimboz-galaxy" | "gimbozgalaxy" | "galaxy"
-<base> ::= "play" <game> <ape> [ <split> | "--split" <split> | "--spin" <ape> | "--bet-split" <ape> ] <galaxy-play-option>*
+<base> ::= "play" <game> <ape> [ <split> | "--split" <split> | "--bet-split" <ape> ] <galaxy-play-option>*
 <bonus> ::= "play" <game> <ape> "--bonus" <galaxy-play-option>*
-<bet> ::= "bet" "--game" <game> "--amount" <ape> [ "--split" <split> | "--spin" <ape> | "--bet-split" <ape> | "--bonus" ] <bet-option>*
-<table> ::= "game" <game> "--paytable" [ "--amount" <ape> ] [ "--split" <split> | "--spin" <ape> | "--bet-split" <ape> | "--bonus" ] [ "--json" ]
+<bet> ::= "bet" "--game" <game> "--amount" <ape> [ "--split" <split> | "--bet-split" <ape> | "--bonus" ] <bet-option>*
+<table> ::= "game" <game> "--paytable" [ "--amount" <ape> ] [ "--split" <split> | "--bet-split" <ape> | "--bonus" ] [ "--json" ]
 <galaxy-play-option> ::= <play-shared-option> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>
 <split> ::= <integer> ; 1 ≤ value ≤ 10; default 10
 <ape> ::= <positive-decimal> ; at most 18 decimal places
 ; base: total wager ≥ 3 APE × split
 ; exact stake: stake ≥ 3 APE; count = min(floor(budget ⁄ stake), 10)
 ; only count × stake is wagered; unused budget remains unspent
-; --spin and --bet-split conflict with each other and explicit counts
+; --bet-split conflicts with explicit counts
 ; duplicate named/positional counts must agree; malformed counts fail
 ; --bonus: one purchase, full cost ≥ 100 APE; encoded count 1
-; --bonus rejects --split, --spin, --bet-split and positional counts
+; --bonus rejects --split, exact-stake flags and positional counts
 ```
 
 Shared `play`/`bet` options include loop, bet strategy, bankroll allocation,
@@ -59,7 +59,7 @@ Synthetic examples:
 
 ```bash
 apechurch-cli play galaxy 30 --split 10 --validate-only --json
-apechurch-cli play gimbozgalaxy 25 --spin 4 --validate-only --json
+apechurch-cli play gimbozgalaxy 25 --bet-split 4 --validate-only --json
 apechurch-cli play gimboz-galaxy 170 --bonus --validate-only --json
 apechurch-cli game galaxy --paytable --bonus --json
 ```
@@ -114,7 +114,7 @@ These calls did not sign or submit transactions.
 The website's 80,000 APE bet label and changing house payout allowance are
 not treated as immutable contract constants. The contract and gas preflight
 remain responsible for live liquidity, pause and other acceptance conditions.
-`--spin` / `--bet-split` also read `MAX_SPINS()` and fail closed if limits or
+`--bet-split` also reads `MAX_SPINS()` and fail closed if limits or
 contract gas estimation cannot be verified.
 
 ## Rules and discrepancies resolved

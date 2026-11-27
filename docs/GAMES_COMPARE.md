@@ -372,6 +372,7 @@ Definitions:
 ## Omitted Or Policy-Dependent Rows
 
 - Scrap Forge's official frontend model yields 87.3% in expected material return and reaches 96.3% with its default Vault valuation assumption. The complete contract RNG and Vault distribution are unverified, so no exact RTP, variance, loss/draw/profit frequencies or overall maximum enter the ranking. See [analytics](analytics/SCRAP_FORGE_ANALYTICS.md).
+- Scrap Forge accepts 10–4,000 APE per round at five discrete stakes. Live VRF and sender gas are additional. Observed NFT awards are reported separately from cash PnL. See [wager limits and settlement](GAMES_REFERENCE.md#scrap-forge).
 
 - Gimboz of the Galaxy base sessions and bonus purchases have no verified exact RTP, loss/draw/profit frequencies or variance. Matching 100 historical payouts and all public reel strips does not establish complete probabilities or an attainable maximum. See [analytics](analytics/GIMBOZ_GALAXY_ANALYTICS.md).
 - Blizzard Blitz base sessions and bonus purchases have no verified exact RTP, profit frequency or variance. The public symbol table and reel frequencies do not establish joint cascade/bonus odds; the 4,096× chest factor is not a total-payout cap. See [analytics](analytics/BLIZZARD_BLITZ_ANALYTICS.md).

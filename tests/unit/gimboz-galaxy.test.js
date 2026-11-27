@@ -194,7 +194,7 @@ describe('Gimboz of the Galaxy', () => {
       const out = execFileSync(process.execPath, [cli, 'play', ...args, '--validate-only', '--json'], { encoding: 'utf8' });
       assert.equal(JSON.parse(out).status, 'valid');
     }
-    const help = execFileSync(process.execPath, [cli, 'game', 'galaxy'], { encoding: 'utf8' });
+    const help = execFileSync(process.execPath, [cli, 'game', 'galaxy', '--help', '--verbose'], { encoding: 'utf8' });
     for (const text of ['--bonus', '--spin', '--split', 'BNF', '100 APE', '1 <= split <= 10']) assert.ok(help.includes(text), text);
   });
 

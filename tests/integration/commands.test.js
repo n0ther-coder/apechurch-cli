@@ -330,8 +330,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes(LOG_DIR_ENV), 'Should document bot log dir override');
     });
 
-    it('play --help includes BNF grammar for structured arguments', () => {
-      const { stdout } = cli('play --help');
+    it('play --help --verbose includes BNF grammar for structured arguments', () => {
+      const { stdout } = cli('play --help --verbose');
       assert.ok(stdout.includes('Grammar (BNF)'), 'Should show a BNF appendix');
       assert.ok(stdout.includes('Stateless game options'), 'Should group stateless play options');
       assert.ok(stdout.includes('Stateful game options'), 'Should group stateful play options');
@@ -348,8 +348,8 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('--numbers 1,7,13,25,40'), 'Should document the single-token numbers form');
     });
 
-    it('fees --help documents actions and BNF grammar', () => {
-      const { stdout } = cli('fees --help');
+    it('fees -h -v documents actions and BNF grammar', () => {
+      const { stdout } = cli('fees -h -v');
       assert.ok(stdout.includes('Actions:'), 'Should document fees actions');
       assert.ok(stdout.includes('scan    Read observed GameEnded logs'), 'Should document scan action');
       assert.ok(stdout.includes('report  Read the local compact fee log'), 'Should document report action');
@@ -360,6 +360,24 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('<game> ::= <game-key> | <game-alias> | <game-display-name>'), 'Should document alias-safe game grammar');
       assert.ok(stdout.includes('fees scan primes'), 'Should include scan example');
       assert.ok(stdout.includes('fees report primes'), 'Should include report example');
+    });
+
+    it('shows grammar only when requested and keeps --bnf introspection-only', () => {
+      for (const command of [
+        '', 'install', 'uninstall', 'wallet', 'bucket:log', 'bucket:script', 'bucket', 'status',
+        'script', 'pause', 'continue', 'register', 'profile', 'bet', 'play', 'bot', 'contest',
+        'history', 'scoreboard', 'fees', 'games', 'game', 'commands', 'help', 'send', 'house',
+        'bj', 'cashdash', 'nebula', 'vp',
+      ]) {
+        const { stdout, code } = cli(`${command} --bnf`);
+        assert.equal(code, 0, command);
+        assert.match(stdout, /::=/, command);
+        assert.doesNotMatch(stdout, /^(?:Usage|Actions|Options|Examples|Grammar|Notes)[: ]/m, command);
+      }
+      for (const command of ['', 'play', 'wallet', 'script', 'bot', 'game scrap']) {
+        assert.doesNotMatch(cli(`${command} --help`).stdout, /::=/, command);
+      }
+      assert.match(cli('wallet -v -h').stdout, /Grammar \(BNF\)/);
     });
 
     it('bare play now shows help instead of auto-running', () => {
@@ -495,7 +513,7 @@ describe('CLI Commands Integration Tests', () => {
     });
 
     it('documents Roulette chip grammar and mismatch rules in command help', () => {
-      for (const command of ['play --help', 'bet --help', 'game --help']) {
+      for (const command of ['play --help --verbose', 'bet --help --verbose', 'game --help --verbose']) {
         const result = cli(command);
         assert.strictEqual(result.code, 0);
         assert.ok(result.stdout.includes('<roulette-entry> ::= <roulette-bet> [ "=" <roulette-chip-count> ]'), command);
@@ -505,7 +523,7 @@ describe('CLI Commands Integration Tests', () => {
         assert.ok(result.stdout.includes('warns and continues'), command);
         for (const token of ['SPLIT:', 'STREET:', 'SQUARE:', 'LINE:', 'DOZEN:', 'COLUMN:', '"--shuffle"']) assert.ok(result.stdout.includes(token), `${command}: ${token}`);
       }
-      const metadata = cli('game roulette');
+      const metadata = cli('game roulette --help --verbose');
       assert.ok(metadata.stdout.includes('<chips> ::= <integer>'));
       assert.ok(metadata.stdout.includes('chip value = floor(total wager in wei / purchased chips)'));
     });
@@ -644,7 +662,8 @@ describe('CLI Commands Integration Tests', () => {
     it('resolves exact stakes across every split game without wallet access', () => {
       for (const game of ['blocks', 'jungle-plinko', 'cosmic-plinko', 'primes', 'speed-keno',
         'dino-dough', 'bubblegum-heist', 'geez-diggerz', 'sushi-showdown', 'dojo-drop', 'reel-pirates', 'blizzard-blitz', 'gimboz-galaxy']) {
-        const flag = ['primes', 'speed-keno'].includes(game) ? '--bet-split' : '--spin';
+        const flag = ['blocks', 'jungle-plinko', 'cosmic-plinko', 'primes', 'speed-keno'].includes(game)
+          ? '--bet-split' : '--spin';
         const result = cli(`play ${game} 23 ${flag} 4 --validate-only --json`);
         assert.strictEqual(result.code, 0, result.stdout);
         const config = JSON.parse(result.stdout).config;
@@ -665,7 +684,6 @@ describe('CLI Commands Integration Tests', () => {
         'play keno 23 --bet-split 4 --loop --picks 3 --numbers 1,2,3',
         'play bear-dice 23 --bet-split 4 --survive 3 --loop',
         'play blocks 23 --bet-split 4 --survive 3 --loop',
-        'play blocks 23 --spin 4 --survive 3 --loop',
       ]) {
         const result = cli(`${command} --validate-only --json`);
         assert.strictEqual(result.code, 0, result.stdout);
@@ -726,22 +744,33 @@ describe('CLI Commands Integration Tests', () => {
         assert.match(JSON.parse(result.stdout).error, /--bet-split/, command);
         assert.ok(!result.stdout.includes('No wallet found'), command);
       }
-      for (const command of ['bet --game roulette --amount 23 --bet-split 4 --bet RED',
-        'bet --game primes --amount 23 --spin 4',
-        'bet --game speed-keno --amount 23 --spin 4']) {
-        const result = cli(command);
-        assert.strictEqual(result.code, 1, command);
-        assert.match(JSON.parse(result.stdout).error, /--bet-split/);
-        assert.ok(!result.stdout.includes('No wallet found'));
-      }
-      for (const game of ['primes', 'speed-keno']) {
+      const bet = cli('bet --game roulette --amount 23 --bet-split 4 --bet RED');
+      assert.strictEqual(bet.code, 1);
+      assert.match(JSON.parse(bet.stdout).error, /--bet-split/);
+      assert.ok(!bet.stdout.includes('No wallet found'));
+    });
+
+    it('restricts the deprecated spin alias to slots across play, bet, and paytables', () => {
+      for (const game of ['blocks', 'jungle-plinko', 'cosmic-plinko', 'primes', 'speed-keno']) {
         const metadata = JSON.parse(cli(`game ${game} --json`).stdout);
         assert.ok(metadata.config.betSplit);
         assert.strictEqual(metadata.config.spin, undefined);
-        const removed = cli(`game ${game} --paytable --amount 23 --spin 4 --json`);
-        assert.strictEqual(removed.code, 1);
-        assert.match(JSON.parse(removed.stdout).error, /Use --bet-split/);
+        for (const command of [
+          `play ${game} 23 --spin 4 --validate-only --json`,
+          `bet --game ${game} --amount 23 --spin 4`,
+          `game ${game} --paytable --amount 23 --spin 4 --json`,
+        ]) {
+          const result = cli(command);
+          assert.strictEqual(result.code, 1, command);
+          assert.match(JSON.parse(result.stdout).error, /slot machines only.*Use --bet-split/, command);
+        }
       }
+      const survivalAlias = cli('play blocks 23 --spin 4 --survive 3 --loop --validate-only --json');
+      assert.strictEqual(survivalAlias.code, 1);
+      assert.match(JSON.parse(survivalAlias.stdout).error, /slot machines only/);
+      assert.match(cli('game forge --help').stdout, /--spin <ape>\s+Deprecated alias/);
+      assert.match(cli('play --help').stdout, /--spin <ape>\s+Deprecated alias.*slot machines only/);
+      assert.doesNotMatch(cli('game blocks --bnf').stdout, /--spin\b/);
     });
 
     it('rejects invalid exact stakes and conflicting counts before wallet access', () => {
@@ -1069,7 +1098,7 @@ describe('CLI Commands Integration Tests', () => {
 
   describe('script command', () => {
     it('documents script actions and BNF inline', () => {
-      const { stdout } = cli('script --help');
+      const { stdout } = cli('script --help --verbose');
 
       assert.ok(stdout.includes('write <nome_script>'), 'Should document the write action');
       assert.ok(stdout.includes('watch <nome_script>'), 'Should document the watch action');
@@ -1215,7 +1244,7 @@ describe('CLI Commands Integration Tests', () => {
       const lines = stdout.trim().split('\n');
 
       assert.ok(lines.every((line) => line.startsWith('[play] ')), 'Should only print play-list lines');
-      assert.ok(lines.includes('[play] blocks <ape> --grid <grid> --risk <risk> --split <split> --survive <survive> --bet-split <bet-split> --spin <spin>'), 'Should show --split and --survive for Blocks');
+      assert.ok(lines.includes('[play] blocks <ape> --grid <grid> --risk <risk> --split <split> --survive <survive> --bet-split <bet-split>'), 'Should show --split and --survive for Blocks');
       assert.ok(lines.includes('[play] primes <ape> --risk <risk> --split <split> --bet-split <bet-split>'), 'Should use --split for Primes');
       assert.ok(lines.includes('[play] reel-pirates <ape> --split <split> --bet-split <bet-split> --spin <spin>'), 'Should use --split for Reel Pirates');
       assert.ok(!stdout.includes('--rolls'), 'Should not advertise old roll flags');
@@ -1310,22 +1339,60 @@ describe('CLI Commands Integration Tests', () => {
   });
 
   describe('game <name> command', () => {
-    it('inspects Scrap Forge via aliases and rejects write commands before wallet access', () => {
+    it('inspects Scrap Forge via aliases and validates exact wagers before wallet access', () => {
       const { stdout: metadata } = cli('game forge --json');
-      assert.equal(JSON.parse(metadata).readOnly, true);
-      assert.match(JSON.parse(metadata).grammar.join('\n'), /--transaction/);
-      assert.match(JSON.parse(metadata).grammar.join('\n'), /--reveal/);
-      assert.match(JSON.parse(metadata).grammar.join('\n'), /--vault-reveal/);
-      assert.match(JSON.parse(metadata).grammar.join('\n'), /--simulate-from/);
-      assert.match(JSON.parse(metadata).grammar.join('\n'), /--quote/);
-      assert.match(JSON.parse(metadata).grammar.join('\n'), /--round/);
+      assert.equal(JSON.parse(metadata).abiVerified, false);
+      assert.equal(JSON.parse(metadata).grammar, undefined);
+      const { stdout: grammar } = cli('game forge --bnf');
+      for (const token of ['<forge-play>', '--bet', '--forges', '--transaction', '--reveal', '--vault-reveal', '--simulate-from', '--quote', '--round']) {
+        assert.ok(grammar.includes(token), token);
+      }
       const { stdout: limits } = cli('game scrapforge --limits --json');
       assert.equal(JSON.parse(limits).maximum_round_wager_ape, 4000);
       const { stdout: paytable } = cli('game scrap-forge --paytable --amount 4000 --split 4 --json');
       assert.equal(JSON.parse(paytable).parameters.wager_per_forge_ape, 1000);
-      for (const command of ['play forge 10', 'bet --game scrapforge --amount 10']) {
-        const { stdout, stderr } = cli(command);
-        assert.match(`${stdout}\n${stderr}`, /Scrap Forge is read-only/);
+      const aliasedTable = cli('game forge --paytable --bet 1000 --forges 4 --json');
+      assert.equal(aliasedTable.code, 0);
+      assert.deepEqual(JSON.parse(aliasedTable.stdout).parameters, JSON.parse(paytable).parameters);
+      for (const [command, split, amount, stake] of [
+        ['play forge 100', 1, '100', 100],
+        ['play forge --bet-split 10 --split 1', 1, '10', 10],
+        ['play forge --bet=10 --forges=10', 10, '100', 10],
+        ['play forge --bet 10 --split 10', 10, '100', 10],
+        ['play forge 100 --forges 10', 10, '100', 10],
+        ['play forge 100 --split 10', 10, '100', 10],
+        ['play forge 100 10 --spin 10', 10, '100', 10],
+        ['play scrapforge --bet-split 500 --split 8', 8, '4000', 500],
+        ['play --game scrap-forge --amount 4000 --split 4 --loop --bet-strategy flat', 4, '4000', 1000],
+      ]) {
+        const { stdout, code } = cli(`${command} --validate-only --json`);
+        assert.equal(code, 0);
+        assert.deepEqual(JSON.parse(stdout).config, { split, amount, stake_per_forge_ape: stake });
+      }
+      for (const [command, expected] of [
+        ['play forge 11 --validate-only', /stake per forge/],
+        ['play forge 4000 --split 5 --validate-only', /stake per forge/],
+        ['play forge --spin 500 --split 9 --validate-only', /exact count/],
+        ['play forge --bet 10 --forges 20 --validate-only', /exact count from 1 to 15/],
+        ['play forge --bet 10 --forges 1 --split 1 --validate-only', /either --forges or --split/],
+        ['play forge --bet 10 --bet-split 10 --forges 1 --validate-only', /only one of --bet, --bet-split/],
+        ['play forge 100 10 --split 2 --validate-only', /Conflicting/],
+        ['play forge 100 10 --forges 2 --validate-only', /Conflicting/],
+        ['play forge 10 --amount 50 --validate-only', /Conflicting/],
+        ['play forge 10 --bonus --validate-only', /--bonus is unavailable/],
+        ['play forge 10 --loop --bet-strategy martingale --validate-only', /flat betting strategy/],
+        ['play forge 10 --loop --x-gameId 7 --validate-only', /only for a single/],
+        ['bet --game scrapforge --amount 100 --split 3', /stake per forge/],
+        ['bet --game scrapforge --spin 10 --bet-split 10', /either --spin or --bet-split/],
+        ['bet --game scrapforge --bet 10 --spin 10 --forges 1', /only one of --bet, --bet-split/],
+        ['play blocks 23 --forges 2 --validate-only', /--forges is only for Scrap Forge/],
+        ['play --auto --amount 23 --forges 2 --validate-only', /--forges is only for Scrap Forge/],
+        ['bet --game roulette --amount 10 --bet RED --forges 1', /--forges is only for Scrap Forge/],
+        ['game blocks --paytable --forges 2 --json', /--forges is only for Scrap Forge/],
+      ]) {
+        const { stdout, stderr, code } = cli(command);
+        assert.notEqual(code, 0);
+        assert.match(`${stdout}\n${stderr}`, expected);
       }
     });
     it('validates Scrap Forge reveal and trace combinations before RPC access', () => {
@@ -1340,6 +1407,8 @@ describe('CLI Commands Integration Tests', () => {
         [`game forge --transaction ${hash} --vault-reveal 0x12 --json`, /--vault-reveal requires a 32-byte/],
         ['game forge --simulate-from 0x1234 --json', /requires --quote/],
         ['game forge --quote --spin 10 --simulate-from 0x1234 --json', /requires a nonzero public/],
+        ['game forge --quote --bet 10 --forges 20 --json', /exact count from 1 to 15/],
+        ['game forge --quote --bet 10 --forges 1 --split 1 --json', /either --forges or --split/],
         ['game forge --quote --json', /--quote requires/],
         ['game forge --quote --risk 0 --spin 10 --json', /Invalid quote option/],
         ['game forge --round 0x1234 --json', /decimal uint256/],
@@ -1406,18 +1475,48 @@ describe('CLI Commands Integration Tests', () => {
       assert.ok(stdout.includes('zeroes the payout'), 'Should explain that the first losing sum zeroes the payout');
     });
 
-    it('accepts the current simple-game aliases in the game helper', () => {
-      const jungle = cli('game jungle --json');
-      const cosmic = cli('game cosmic --json');
-      const glyde = cli('game glyde --json');
-      const diggerz = cli('game diggerz --json');
-      const speed = cli('game speed --json');
+    it('resolves every catalog key and declared alias in game metadata', () => {
+      const { games } = JSON.parse(cli('games --json').stdout);
+      for (const { key, aliases } of games) {
+        for (const name of [key, ...aliases]) {
+          const result = cli(`game ${name} --json`);
+          assert.equal(result.code, 0, name);
+          assert.equal(JSON.parse(result.stdout).key, key, name);
+        }
+      }
+    });
 
-      assert.strictEqual(JSON.parse(jungle.stdout).key, 'jungle-plinko');
-      assert.strictEqual(JSON.parse(cosmic.stdout).key, 'cosmic-plinko');
-      assert.strictEqual(JSON.parse(glyde.stdout).key, 'glyde-or-crash');
-      assert.strictEqual(JSON.parse(diggerz.stdout).key, 'geez-diggerz');
-      assert.strictEqual(JSON.parse(speed.stdout).key, 'speed-keno');
+    it('resolves unique prefixes and alternate spellings across game actions', () => {
+      for (const [name, key] of [
+        ['scrapf', 'scrap-forge'],
+        ['roul', 'roulette'],
+        ['speed', 'speed-keno'],
+        ['Speed_Cr', 'glyde-or-crash'],
+        ['BeAr_DiCe', 'bear-dice'],
+        ['"Gimboz Poker"', 'video-poker'],
+        ['"Cash Dash ✔︎"', 'cash-dash'],
+        ['blackj', 'blackjack'],
+      ]) {
+        const { stdout, code } = cli(`game ${name} --json`);
+        assert.equal(code, 0, name);
+        assert.equal(JSON.parse(stdout).key, key, name);
+      }
+      assert.equal(JSON.parse(cli('game forge --limits --json').stdout).game, 'scrap-forge');
+      assert.equal(JSON.parse(cli('game forge --paytable --json').stdout).game, 'scrap-forge');
+    });
+
+    it('rejects the ambiguous scrap prefix', () => {
+      const result = cli('game scrap --json');
+      assert.equal(result.code, 1);
+      assert.match(JSON.parse(result.stdout).error, /Unknown game/);
+    });
+
+    it('lists ambiguous prefixes before dispatching game-specific actions', () => {
+      const result = cli('game gimboz --quote --spin 10 --json');
+      assert.equal(result.code, 1);
+      const data = JSON.parse(result.stdout);
+      assert.match(data.error, /Ambiguous game name/);
+      assert.deepEqual(data.candidates, ['gimboz-galaxy', 'gimboz-smash', 'video-poker']);
     });
 
     it('accepts the current simple-game aliases in play mode', () => {
@@ -1842,10 +1941,58 @@ describe('CLI Commands Integration Tests', () => {
       assert.deepStrictEqual(data.aliases, ['bear', 'dice']);
     });
 
-    it('shows per-parameter BNF in game helpers', () => {
-      const { stdout } = cli('game keno');
-      assert.ok(stdout.includes('BNF:'), 'Should show BNF in the parameter section');
+    it('shows per-parameter BNF in verbose game help', () => {
+      const { stdout } = cli('game keno --help --verbose');
+      assert.ok(stdout.includes('Grammar (BNF)'), 'Should show BNF in the help');
       assert.ok(stdout.includes('<numbers> ::= "random" | <keno-number> ( "," <keno-number> )*'), 'Should show numbers grammar');
+    });
+
+    it('shows relevant named-game options and examples that run without wallet access', () => {
+      const { games } = JSON.parse(cli('games --json').stdout);
+      for (const game of games) {
+        const { stdout, code } = cli(`game ${game.key} --help`);
+        assert.equal(code, 0, game.key);
+        const group = game.type === 'stateful' ? 'Stateful game options:' : 'Stateless game options:';
+        assert.ok(stdout.includes(group), game.key);
+        assert.doesNotMatch(stdout, /Shared play \/ loop options|::=/, game.key);
+        assert.ok(stdout.indexOf(group) < stdout.indexOf('Examples:'), game.key);
+        assert.ok(stdout.includes('--validate-only'), game.key);
+        assert.ok(!JSON.stringify(game.config ?? {}).includes('::='), game.key);
+        for (const prefix of [`play ${game.key} `, `game ${game.key} --paytable`]) {
+          const example = stdout.split('\n').map((line) => line.trim())
+            .find((line) => line.startsWith(`apechurch-cli ${prefix}`));
+          assert.ok(example, `${game.key} ${prefix}`);
+          const result = cli(`${example.slice('apechurch-cli '.length)} --json`);
+          assert.equal(result.code, 0, `${example}\n${result.stdout}`);
+          const data = JSON.parse(result.stdout);
+          assert.equal(data.game, game.key, example);
+          if (prefix.startsWith('play')) assert.equal(data.status, 'valid', example);
+        }
+      }
+      assert.match(cli('game glyde').stdout, /--cutoff <x>/);
+      assert.match(cli('game roulette').stdout, /--shuffle/);
+      assert.match(cli('game forge').stdout, /--simulate-from <address>/);
+      assert.doesNotMatch(cli('game vp').stdout, /--solver-max-states/);
+    });
+
+    it('checks ignored and malformed gameplay options during offline validation', () => {
+      for (const [command, error] of [
+        ['play keno 10 --x-ref 0x1234', /--x-ref/],
+        ['play blocks 10 --x-gameId -1', /--x-gameId/],
+        ['play pirates 10 --x-userRandomWord 0x12', /--x-userRandomWord/],
+        ['play dice 10 --x-gameId 1 --loop', /fresh IDs/],
+        ['play dice 10 --timeout 1.5', /non-negative integer/],
+        ['play keno 10 --risk 0', /--risk is unavailable/],
+        ['play video-poker 25 --solver-max-states 50', /--solver-max-states is unavailable/],
+        ['play cash-dash guess 8', /--tile/],
+      ]) {
+        const result = cli(`${command} --validate-only --json`);
+        assert.equal(result.code, 1, command);
+        assert.match(JSON.parse(result.stdout).error, error, command);
+      }
+      const continuation = cli('play hilo higher --game-id 10 --validate-only --json');
+      assert.equal(continuation.code, 0);
+      assert.equal(JSON.parse(continuation.stdout).action, 'higher');
     });
 
     it('hides internal registry metadata from game helpers', () => {

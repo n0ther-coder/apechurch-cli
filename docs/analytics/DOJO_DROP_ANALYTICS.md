@@ -22,7 +22,7 @@ and transaction gas are excluded from this ratio; net PnL subtracts them.
 Compare settled integer wei directly (`G < b`, `G = b`, `G > b`), rather
 than rounding a displayed multiplier. A multi-spin session instead uses
 `R_session = ΣG_i ⁄ Σb_i`; its loss/draw/win probabilities need not equal
-those of one paid spin. The budget remainder left by `--spin` is not wagered.
+those of one paid spin. The budget remainder left by `--bet-split` is not wagered.
 
 ## Mechanics
 
@@ -133,7 +133,7 @@ probabilities would be invariant under changing `b` at a **fixed paid-spin
 count and game mode**. The available evidence does not establish that full
 model: exact integer rounding, payout clipping and stake-dependent limits
 must also be checked. Consequently no exact bet-invariant percentages are
-claimed. With a fixed budget, changing `--spin` can change the paid-spin
+claimed. With a fixed budget, changing `--bet-split` can change the paid-spin
 count as well as the stake, changing the session distribution even in a
 linear model.
 
@@ -178,7 +178,7 @@ simulation-derived odds replace the missing source model.
 
 `--split` or a positional count selects 1–15 paid spins, default 15.
 Total amount must be at least `2.5 APE × split` (37.5 APE at the default).
-`--spin <APE>` selects an exact paid-spin stake and wagers only
+`--bet-split <APE>` selects an exact paid-spin stake and wagers only
 `min(floor(budget ⁄ spin), 15) × spin`, subject to live limits, leaving the
 remainder unspent. It conflicts with explicit counts. Bonus drops are
 automatic within a paid result; there is no bonus-buy option. Normal loop,

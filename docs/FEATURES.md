@@ -11,7 +11,7 @@
 - Send APE (native currency) to any address
 - Send GP (Gimbo Points / cashback rewards; every 10,000 GP equals 1 level)
 - Real-time balance checking (APE + GP)
-- Per-wallet history download with cached recent games, history stats, and per-game breakdowns across 27 tracked Ape Church games
+- Per-wallet history download with cached recent games, history stats, and per-game breakdowns across 28 tracked Ape Church games
 - Wallet reset with safety warnings
 
 ## The House
@@ -48,7 +48,7 @@
 - Single plays or continuous loop mode
 - Strategy presets: Conservative → Degen
 
-- **Blizzard Blitz:** paid base spins with `--split` / exact-stake `--spin`,
+- **Blizzard Blitz:** paid base spins with `--split` / exact-stake `--bet-split`,
   or one `--bonus` purchase; live VRF/executor costs, shared settlement and
   history, full component paytable, BNF and documented probability limits.
 - **Dojo Drop analytics:** live configuration and cap notes are documented

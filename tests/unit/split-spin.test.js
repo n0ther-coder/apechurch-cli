@@ -41,7 +41,7 @@ describe('Exact wager per split attempt', () => {
   it('rejects zero counts, invalid decimals, and the per-spin slot floor', () => {
     const game = resolveGame('dino-dough');
     for (const spin of ['0', '-1', 'NaN', 'Infinity', '1e0', '1junk', '0.0000000000000000001']) {
-      assert.throws(() => resolveSpinWager(game, '23', spin), /--spin/);
+      assert.throws(() => resolveSpinWager(game, '23', spin), /--bet-split/);
     }
     assert.throws(() => resolveSpinWager(game, '3', '4'), /0 attempts/);
     assert.throws(() => resolveSpinWager(resolveGame('dojo-drop'), '23', '2.499999999999999999'), /minimum 2.5/);
@@ -79,7 +79,8 @@ describe('Exact wager per split attempt', () => {
 
   it('rejects invalid router requests without constructing clients', async () => {
     await assert.rejects(playGame({ game: 'dino-dough', amountApe: '3', spin: '4' }), /0 attempts/);
-    await assert.rejects(playGame({ game: 'blocks', amountApe: '23', spin: '4', survive: 2 }), /requires --loop/);
+    await assert.rejects(playGame({ game: 'blocks', amountApe: '23', spin: '4', survive: 2 }), /slot machines only/);
+    await assert.rejects(playGame({ game: 'blocks', amountApe: '23', betSplit: '4', survive: 2 }), /requires --loop/);
   });
 
   it('does not submit after a failed exact-spin preflight', async () => {
@@ -109,7 +110,7 @@ describe('Exact wager per split attempt', () => {
         );
         if (url.endsWith('/lib/wallet.js')) source = source.replace(
           'export function createClients(account) {',
-          'export function createClients(account) { return { publicClient: { async getBalance() { return BigInt(process.env.SPIN_TEST_BALANCE); }, async readContract({functionName}) { return ["MAX_SPINS", "MAX_GAMES", "MAX_RUNS", "maxBalls"].includes(functionName) ? BigInt(process.env.SPIN_TEST_LIMIT) : 3n; } }, walletClient: { async writeContract() { throw new Error("Unexpected transaction submission"); } } };'
+          'export function createClients(account) { return { publicClient: { async getBalance() { return BigInt(process.env.SPIN_TEST_BALANCE); }, async getBlockNumber() { return 100n; }, async readContract({functionName}) { if (functionName === "paused") return false; if (functionName === "maxForgesAllowed") return 15; if (functionName === "getPlayValue") return [50000000000000000000n, 123000000000000000n, 50123000000000000000n]; return ["MAX_SPINS", "MAX_GAMES", "MAX_RUNS", "maxBalls"].includes(functionName) ? BigInt(process.env.SPIN_TEST_LIMIT) : 3n; } }, walletClient: { async writeContract() { throw new Error("Unexpected transaction submission"); } } };'
         );
         if (url.endsWith('/lib/games/base.js')) source = source.replace(
           '// Total transaction value = bet amount + VRF fee',
@@ -131,7 +132,8 @@ describe('Exact wager per split attempt', () => {
     try {
       for (const key of ['blocks', 'jungle-plinko', 'cosmic-plinko', 'primes', 'speed-keno',
         'dino-dough', 'bubblegum-heist', 'geez-diggerz', 'sushi-showdown', 'dojo-drop', 'reel-pirates', 'blizzard-blitz', 'gimboz-galaxy']) {
-        for (const flag of (['primes', 'speed-keno'].includes(key) ? ['--bet-split'] : ['--spin', '--bet-split'])) {
+        const flags = resolveGame(key).type === 'slots' ? ['--bet-split', '--spin'] : ['--bet-split'];
+        for (const flag of flags) {
           for (const args of [['play', key, '23', flag, '4', '--json'],
             ['bet', '--game', key, '--amount', '23', flag, '4']]) {
             const result = run(args);
@@ -150,6 +152,18 @@ describe('Exact wager per split attempt', () => {
         assert.equal(bonus.wager, parseEther('100').toString());
         assert.deepEqual(bonus.config, { split: 1, bonus: true });
       }
+      for (const args of [['play', 'forge', '50', '5', '--spin', '10', '--json'],
+        ['play', 'forge', '--bet', '10', '--forges', '5', '--json'],
+        ['bet', '--game', 'scrapforge', '--bet', '10', '--forges', '5']]) {
+        const forge = run(args);
+        assert.equal(forge.wager, parseEther('50').toString());
+        assert.deepEqual(forge.config, { split: 5, tier: 0, stake_per_forge_ape: 10 });
+        assert.equal(forge.strictPreflight, true);
+      }
+      const quote = run(['game', 'forge', '--quote', '--bet', '10', '--forges', '5', '--json']);
+      assert.equal(quote.forges, 5);
+      assert.equal(quote.wager.ape, '50');
+      assert.equal(quote.transaction_value.ape, '50.123');
       // A loop budget capped to the available balance must be used for sizing.
       const loop = run(['play', 'dino-dough', '23', '--spin', '4', '--loop', '--max-games', '1', '--json'],
         { limit: '15', balance: '19' });

@@ -144,7 +144,7 @@ describe('Blizzard Blitz', () => {
       const out = execFileSync(process.execPath, [cli, 'play', ...args, '--validate-only', '--json'], { encoding: 'utf8' });
       assert.equal(JSON.parse(out).status, 'valid');
     }
-    const help = execFileSync(process.execPath, [cli, 'game', 'blizzard'], { encoding: 'utf8' });
+    const help = execFileSync(process.execPath, [cli, 'game', 'blizzard', '--help', '--verbose'], { encoding: 'utf8' });
     for (const text of ['--bonus', '--spin', '--split', 'BNF', '100 APE', '1 <= split <= 20']) assert.ok(help.includes(text), text);
   });
 

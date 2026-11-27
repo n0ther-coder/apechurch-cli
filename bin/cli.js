@@ -223,6 +223,7 @@ import {
   computeCooldownMs,
 } from '../lib/strategy.js';
 import { configGetters, playGame, resolveGame } from '../lib/games/index.js';
+import { parseGamePayloadOverrides } from '../lib/games/base.js';
 import { SPLIT_GAME_TYPES, getBetSplitValue, getBetSplitOptionName, isLoopBetSplit, resolveLoopBetSplit, validateSpinUsage, resolveSpinWager, resolveLiveSpinWager, applySpinConfig } from '../lib/split-spin.js';
 import { formatGamePaytable, getGamePaytable } from '../lib/game-paytable.js';
 import { getBaccaratWagerLimits, inferBaccaratWager, parseBaccaratBet } from '../lib/games/baccarat.js';
@@ -237,8 +238,8 @@ import { validateDojoDropWager } from '../lib/games/dojo-drop.js';
 import { validateBlizzardBlitzWager } from '../lib/games/blizzard-blitz.js';
 import { validateGimbozGalaxyWager } from '../lib/games/gimboz-galaxy.js';
 import {
-  getScrapForgeLimits, getScrapForgeSelection, inspectScrapForgeSubmission, parseScrapForgeRoundId, parseScrapForgeSimulationSender,
-  quoteScrapForge, readScrapForgeRound, SCRAP_FORGE_BNF, SCRAP_FORGE_GAME, simulateScrapForge, validateScrapForgeTransactionHash,
+  getScrapForgeLimits, getScrapForgeSelection, inspectScrapForgeSubmission, normalizeScrapForgeWagerAliases, parseScrapForgeRoundId, parseScrapForgeSimulationSender,
+  getScrapForgePlaySelection, quoteScrapForge, readScrapForgeSettlement, SCRAP_FORGE_BNF, SCRAP_FORGE_GAME, simulateScrapForge, validateScrapForgeTransactionHash,
 } from '../lib/games/scrap-forge.js';
 import { validateSlotBonusOptions } from '../lib/games/cascade-slots.js';
 import {
@@ -377,7 +378,19 @@ import { emptyR2Target, parseR2EmptyTarget } from '../lib/r2-empty.js';
 import { resolveR2ScriptObjectKey, syncR2Scripts } from '../lib/r2-scripts.js';
 
 // --- CLI Setup ---
-const program = new Command();
+class CliCommand extends Command {
+  createCommand(name) {
+    return new CliCommand(name);
+  }
+
+  documentHelp(definition) {
+    this.helpDefinition = definition;
+    return this.addHelpText('after', () => renderCommandHelp(definition));
+  }
+}
+
+const program = new CliCommand();
+let verboseHelp = false;
 const PACKAGE_VERSION = pkg.version || '0.0.0';
 const VERSION_METADATA = Object.freeze({
   version: PACKAGE_VERSION,
@@ -466,16 +479,19 @@ const SIMPLE_GAME_HELP_BNF_LINES = Object.freeze([
   '<baccarat-parts> ::= <number>                      ; positive decimal weights with at most 18 decimal places',
   '<baccarat-side> ::= "PLAYER" | "BANKER" | "TIE"',
 ]);
+const SPIN_ALIAS_DESCRIPTION = 'Deprecated alias for --bet-split on slot machines only.';
+const SPIN_ALIAS_BNF = '<spin> ::= <ape> ; deprecated alias for --bet-split on slot machines only';
 const PLAY_STATELESS_OPTION_LINES = Object.freeze([
   '--auto                  Random stateless game selection when no game is specified',
   '--risk <risk>           Bear Dice, Blocks, Plinko, Monkey Match, and Primes risk',
   '--grid <grid>           Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)',
   '--split <count>         Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots',
+  '--forges <count>        Scrap Forge alias for --split',
   '--survive <count>       All-or-nothing survival attempts for Bear Dice and Blocks',
   '--bet-split <ape>       Exact APE per independent attempt; single-game sequences require --loop',
-  '--spin <ape>            Alias for slots, Plinko, and Blocks',
+  `--spin <ape>            ${SPIN_ALIAS_DESCRIPTION}`,
   '--bonus                 Blizzard Blitz / Gimboz Galaxy: one bonus purchase, minimum 100 APE',
-  '--bet <bet>             Roulette/Baccarat bet payload; optional BET=CHIPS entries',
+  '--bet <bet>             Roulette or Baccarat bet payload. In Scrap Forge, the APE stake per forge.',
   '--chips <integer>     Roulette chips purchased; defaults to the sum in --bet',
   '--shuffle             Roulette: sample a structurally equivalent bet allocation',
   '--cover <cover>         ApeStrong cover or Gimboz Smash random cover',
@@ -804,17 +820,6 @@ function installColorOutputMode() {
   forceColorOutput();
 }
 
-function formatHelpBnfSection(lines = []) {
-  return `
-Grammar (BNF):
-  ${lines.join('\n  ')}
-
-Notes:
-  - Pass \`--numbers\` as a single CLI token, for example \`--numbers 1,7,13,25,40\`.
-  - Run \`${BINARY_NAME} game <name>\` for per-game grammar and constraints.
-`;
-}
-
 function formatHelpOptionGroup(title, lines = []) {
   if (!Array.isArray(lines) || lines.length === 0) return '';
   return `${title}:\n  ${lines.join('\n  ')}`;
@@ -832,10 +837,14 @@ function formatInlineHelpSection(title, lines = [], fallback = 'None.') {
 }
 
 function withHelpOption(lines = []) {
-  return [...lines, INLINE_HELP_OPTION_LINE];
+  return [
+    ...lines, INLINE_HELP_OPTION_LINE,
+    '--help --verbose       Include grammar in the full help (short form: -h -v)',
+    '--bnf                  Print only the command grammar',
+  ];
 }
 
-function formatCommandHelpAppendix({
+function renderCommandHelp({
   actions = [],
   parameters = [],
   options = [],
@@ -850,16 +859,14 @@ ${formatInlineHelpSection('Parameters', parameters)}
 
 ${formatInlineHelpSection('Options', withHelpOption(options))}
 
-${formatInlineHelpSection('Grammar (BNF)', bnf)}
-
-${formatInlineHelpSection('Examples', examples)}
+${verboseHelp ? `${formatInlineHelpSection('Grammar (BNF)', bnf)}\n\n` : ''}${formatInlineHelpSection('Examples', examples)}
 
 ${formatInlineHelpSection('Notes', notes)}
 `;
 }
 
-function formatTopLevelHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getTopLevelCommandHelp() {
+  return {
     actions: ['None. Choose one top-level command from the command list above.'],
     parameters: [
       '<command>    One top-level command such as install, wallet, play, history, or blackjack',
@@ -881,14 +888,14 @@ function formatTopLevelHelpAppendix() {
       `${BINARY_NAME} help commands`,
     ],
     notes: [
-      'Inline help is command-specific. Prefer `<command> --help` when you need actions, parameters, options, BNF, and examples.',
+      'Inline help is command-specific. Use `<command> --help` for actions, parameters, options and examples. Add --verbose for grammar.',
       TOP_LEVEL_ENVIRONMENT_HELP.trim(),
     ],
-  });
+  };
 }
 
-function formatInstallHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getInstallCommandHelp() {
+  return {
     actions: ['None. `install` performs setup or reinstall behavior directly.'],
     parameters: ['None.'],
     options: [
@@ -913,11 +920,11 @@ function formatInstallHelpAppendix() {
       `${PASS_ENV_VAR} supplies the local wallet password for non-interactive install/signing.`,
       `${PROFILE_URL_ENV_VAR} overrides the username/profile API endpoint.`,
     ],
-  });
+  };
 }
 
-function formatUninstallHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getUninstallCommandHelp() {
+  return {
     actions: ['None. `uninstall` removes local CLI data after confirmation.'],
     parameters: ['None.'],
     options: ['-y, --yes              Skip the confirmation prompt'],
@@ -930,11 +937,11 @@ function formatUninstallHelpAppendix() {
       `Deletes local data under ${APECHURCH_DIR}.`,
       'Make sure you still control the original private key outside this local installation before removing the encrypted wallet.',
     ],
-  });
+  };
 }
 
-function formatWalletHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getWalletCommandHelp() {
+  return {
     actions: [
       'status                 Show encrypted-wallet status and local signing metadata',
       'new                    Import/create and select another encrypted local wallet',
@@ -983,11 +990,11 @@ function formatWalletHelpAppendix() {
       `--chunk-size defaults to ${DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString()} and is an initial maximum; oversized/timed-out RPC ranges shrink and the learned size is reused.`,
       'The private key is never exported by this CLI; signing decrypts locally only when needed.',
     ],
-  });
+  };
 }
 
-function formatBucketHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getBucketCommandHelp() {
+  return {
     actions: [
       'bucket:log             Manage and synchronize bot logs',
       'bucket:script          Manage and synchronize JSON command scripts',
@@ -1068,11 +1075,11 @@ function formatBucketHelpAppendix() {
       `${PASS_ENV_VAR} unlocks saved credentials. status -v and list -v deliberately print secrets; normal status/list do not contact R2 or verify connectivity.`,
       'Setup and credential security guide: docs/BUCKETS.md in the source repository.',
     ],
-  });
+  };
 }
 
-function formatStatusHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getStatusCommandHelp() {
+  return {
     actions: ['None. `status` reads the selected wallet/profile state directly.'],
     parameters: ['None.'],
     options: ['--json                 Emit JSON output only'],
@@ -1082,11 +1089,11 @@ function formatStatusHelpAppendix() {
       `${BINARY_NAME} status --json`,
     ],
     notes: ['Shows wallet balance, GP balance, house balance when present, username, persona, pause state, and unfinished games.'],
-  });
+  };
 }
 
-function formatScriptHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getScriptCommandHelp() {
+  return {
     actions: [
       'write <nome_script>   Write a JSON command script from the remaining command tokens',
       'watch <nome_script>   Watch and relaunch a JSON command script until interrupted',
@@ -1138,33 +1145,33 @@ function formatScriptHelpAppendix() {
       'Watch state records the next scheduled attempt and wake delay; delays of at least five seconds are printed explicitly.',
       'watch prefixes each attempt/status line with a cyan local timestamp, including condition failures and launches.',
     ],
-  });
+  };
 }
 
-function formatPauseHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getPauseCommandHelp() {
+  return {
     actions: ['None. `pause` sets the local profile pause flag to true.'],
     parameters: ['None.'],
     options: [],
     bnf: ['<pause-command> ::= "pause"'],
     examples: [`${BINARY_NAME} pause`],
     notes: ['Outputs a JSON status payload.'],
-  });
+  };
 }
 
-function formatContinueHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getContinueCommandHelp() {
+  return {
     actions: ['None. `continue` sets the local profile pause flag to false.'],
     parameters: ['None.'],
     options: [],
     bnf: ['<continue-command> ::= "continue"'],
     examples: [`${BINARY_NAME} continue`],
     notes: ['Outputs a JSON status payload.'],
-  });
+  };
 }
 
-function formatRegisterHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getRegisterCommandHelp() {
+  return {
     actions: ['None. `register` registers or updates username/persona directly.'],
     parameters: ['None.'],
     options: [
@@ -1182,11 +1189,11 @@ function formatRegisterHelpAppendix() {
       `${BINARY_NAME} register --username smith --persona aggressive`,
     ],
     notes: ['Requires the selected local wallet because registration signs locally.'],
-  });
+  };
 }
 
-function formatProfileHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getProfileCommandHelp() {
+  return {
     actions: [
       'show                   Show the effective local profile for the selected wallet',
       'set                    Update one or more profile fields',
@@ -1226,11 +1233,11 @@ function formatProfileHelpAppendix() {
       'Mutating flags require the explicit `profile set` action.',
       '--referral is local-only and affects future game transactions only.',
     ],
-  });
+  };
 }
 
-function formatBetHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getBetCommandHelp() {
+  return {
     actions: ['None. `bet` places one stateless wager selected by --game.'],
     parameters: ['None. `bet` uses required named options instead of positional parameters.'],
     options: [
@@ -1239,11 +1246,12 @@ function formatBetHelpAppendix() {
       '--risk <risk>          Bear Dice, Blocks, Plinko, Monkey Match, and Primes risk',
       '--grid <grid>          Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)',
       '--split <count>        Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots',
+      '--forges <count>       Scrap Forge alias for --split',
       '--survive <count>      All-or-nothing survival attempts for Bear Dice and Blocks',
       '--bet-split <ape>      Exact APE per independent attempt; leave unused budget unspent',
-      '--spin <ape>           Alias for slots, Plinko, and Blocks',
+      `--spin <ape>           ${SPIN_ALIAS_DESCRIPTION}`,
       '--bonus                Blizzard Blitz / Gimboz Galaxy: one bonus purchase, minimum 100 APE',
-      '--bet <bet>            Roulette or baccarat bet payload',
+      '--bet <bet>            Roulette or Baccarat bet payload. In Scrap Forge, the APE stake per forge.',
       '--chips <integer>     Roulette chips purchased; defaults to the sum in --bet',
       '--shuffle             Roulette: sample a structurally equivalent bet allocation',
       '--cover <cover>        ApeStrong cover or Gimboz Smash random cover',
@@ -1261,9 +1269,11 @@ function formatBetHelpAppendix() {
       '--gp-ape <points>      Override local GP estimation for this run',
     ],
     bnf: [
-      '<bet-command> ::= "bet" "--game" <stateless-game> [ "--amount" <ape> ] <bet-option>*',
+      '<bet-command> ::= "bet" "--game" <stateless-game> [ "--amount" <ape> ] <bet-option>* | <forge-bet>',
       '<bet-option> ::= "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--cutoff" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | "--resilient" | "--no-resilient" | "--gp-ape" <points>',
+      SPIN_ALIAS_BNF,
       ...SIMPLE_GAME_HELP_BNF_LINES,
+      ...SCRAP_FORGE_BNF.filter((line) => !/^<forge-(command|name|action)>/.test(line)),
     ],
     examples: [
       `${BINARY_NAME} bet --game roulette --amount 10 --bet RED`,
@@ -1277,19 +1287,19 @@ function formatBetHelpAppendix() {
     ],
     notes: [
       'Use `play` for loop mode, stateful games, or random stateless selection.',
-      `Baccarat requires --bet and can infer --amount from numbered legs. Other games require --amount. See ${BINARY_NAME} game baccarat for bet syntax.`,
+      `Baccarat can infer --amount from numbered legs. Scrap Forge can infer its exact wager from --bet and --forges. See ${BINARY_NAME} game <name> for each grammar.`,
       'Blocks accepts either --split for independent rolls or --survive for compounding rolls, never both.',
-      '--bet-split sets exact APE per independent attempt. Native split games derive and cap the count; --spin is an alias only for slots, Plinko, and Blocks. Fees are additional.',
-      'Native --bet-split/--spin rejects zero attempts, invalid sizes, --split, --survive, and positional counts. Single-game --bet-split and Blocks with explicit --survive require play --loop and a total budget. Numbered Baccarat bets can infer that budget. Safety controls can stop the loop earlier. Survival steps belong to each whole game. Dynamic bet strategies conflict with fixed single-game stakes.',
+      '--bet-split sets exact APE per independent attempt. Native split games derive and cap the count. --spin is a deprecated alias for slot machines only. Fees are additional.',
+      'Native batching rejects zero attempts, invalid sizes, and explicit counts. Scrap Forge accepts a denomination with an explicit forge count. Single-game --bet-split and Blocks with explicit --survive require play --loop and a total budget. Numbered Baccarat bets can infer that budget. Safety controls can stop the loop earlier. Survival steps belong to each whole game. Dynamic bet strategies conflict with fixed single-game stakes.',
       'Blizzard Blitz: base default 10 spins, range 1-20, minimum 2.5 APE per spin. --bonus buys one five-free-spin round for the amount (minimum 100 APE; reference stake amount / 32); rejects --split, --bet-split, --spin and positional counts. Fees are additional.',
       'Gimboz Galaxy: base default 10 spins, range 1-10, minimum 3 APE per spin. --bonus buys one round (minimum 100 APE; reference stake amount / 17), starting with 3 free spins and at most 6. Rejects explicit counts, --spin and --bet-split. Fees are additional.',
       `Run ${BINARY_NAME} game <name> for per-game parameter details.`,
     ],
-  });
+  };
 }
 
-function formatPlayHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getPlayCommandHelp() {
+  return {
     actions: [
       'None at the play-command level.',
       'When [game] is stateful, the next positional token is forwarded as that game action.',
@@ -1315,14 +1325,16 @@ function formatPlayHelpAppendix() {
       ]),
     ],
     bnf: [
-      '<play-command> ::= "play" [ <play-positional> ] <play-option>*',
+      '<play-command> ::= "play" [ <play-positional> ] <play-option>* | <forge-play>',
       '<play-positional> ::= <stateless-game> [ <ape> <token>* ] | <stateful-game> [ <stateful-head> ] [ <token> ]',
       '<stateful-head> ::= <ape> | "resume" | "status" | "clear" | "payouts" | "table" | <token>',
       '<play-option> ::= <play-stateless-option> | <play-stateful-option> | <play-shared-option>',
       '<play-stateless-option> ::= "--auto" | "--risk" <risk> | "--grid" <grid> | "--split" <split> | "--survive" <survive> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <cover> | "--range" <range> | "--cutoff" <multiplier> | "--out-range" <out-range> | "--picks" <picks> | "--numbers" <token> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
+      SPIN_ALIAS_BNF,
       '<play-stateful-option> ::= "--auto" [ <auto-mode> ] | "--game-id" <game-id> | "--display" <display> | "--side" <ape-nonnegative> | "--solver-max-states" <count> | "--solver-timeout-ms" <count> | "--solver" [ <auto-mode> | "winston-ladder" ] | "--tile" <token> | "--cashout-after" <count> | "--resilient" | "--no-resilient"',
       '<play-shared-option> ::= "--game" <game-name> | "--amount" <ape> | "--strategy" <persona> | "--loop" | "--resilient" | "--no-resilient" | "--delay" <seconds> | "--human" [ <human-range> ] | "--max-games" <count> | "--max-balance" <ape> | "--min-profit" <pnl-threshold> | "--take-profit" <pnl-threshold> | "--stop-loss" <pnl-threshold> | "--target-x" <multiplier-x> | "--target-profit" <pnl-threshold> | "--retrace" <pnl-threshold> | "--recover-loss" <pnl-threshold> | "--giveback-profit" <pnl-threshold> | "--min-balance" <ape-nonnegative> | "--max-loss" <pnl-threshold> | "--bankroll" <ape> | "--bankroll-cap" <ape> | "--bankroll-stop" <ape-nonnegative> | "--bet-strategy" <bet-strategy> | "--max-bet" <ape> | "--min-bet" <ape> | "--gp-ape" <points> | "-v" | "--verbose" | "--json" | "--validate-only"',
       ...SIMPLE_GAME_HELP_BNF_LINES,
+      ...SCRAP_FORGE_BNF.filter((line) => !/^<forge-(command|name|action)>/.test(line)),
       ...COMMON_BNF_LINES.filter((line) => !line.startsWith('<ape') && !line.startsWith('<points>')),
     ],
     examples: [
@@ -1340,6 +1352,7 @@ function formatPlayHelpAppendix() {
       `${BINARY_NAME} play roulette 10 RED --loop --min-profit 25 --max-loss 20`,
       `${BINARY_NAME} play roulette --bet RED --loop --bankroll 500 --bet-strategy bankroll-fraction=0.09 --max-bet 100 --min-bet 5`,
       `${BINARY_NAME} play roulette 10 RED --validate-only`,
+      `${BINARY_NAME} play forge --bet 10 --forges 10 --validate-only`,
     ],
     notes: [
       'Stateless game options apply only to fire-and-forget games routed through stateless game handlers.',
@@ -1347,15 +1360,15 @@ function formatPlayHelpAppendix() {
       'Shared play / loop options apply across selected stateless and stateful play surfaces.',
       'Pass `--numbers` as a single CLI token, for example `--numbers 1,7,13,25,40`.',
       'Blocks accepts either --split for independent rolls or --survive for compounding rolls, never both.',
-      '--bet-split sets exact APE per independent attempt. Native split games derive and cap the count; --spin is an alias only for slots, Plinko, and Blocks. Fees are additional.',
-      'Native --bet-split/--spin rejects zero attempts, invalid sizes, --split, --survive, and positional counts. Single-game --bet-split and Blocks with explicit --survive require play --loop and a total budget. Numbered Baccarat bets can infer that budget. Safety controls can stop the loop earlier. Survival steps belong to each whole game. Dynamic bet strategies conflict with fixed single-game stakes.',
+      '--bet-split sets exact APE per independent attempt. Native split games derive and cap the count. --spin is a deprecated alias for slot machines only. Fees are additional.',
+      'Native batching rejects zero attempts, invalid sizes, and explicit counts. Scrap Forge accepts a denomination with an explicit forge count. Single-game --bet-split and Blocks with explicit --survive require play --loop and a total budget. Numbered Baccarat bets can infer that budget. Safety controls can stop the loop earlier. Survival steps belong to each whole game. Dynamic bet strategies conflict with fixed single-game stakes.',
       'Blizzard Blitz: base default 10 spins, range 1-20, minimum 2.5 APE per spin. --bonus buys one five-free-spin round for the amount (minimum 100 APE; reference stake amount / 32); rejects --split, --bet-split, --spin and positional counts. Fees are additional.',
       'Gimboz Galaxy: base default 10 spins, range 1-10, minimum 3 APE per spin. --bonus buys one round (minimum 100 APE; reference stake amount / 17), starting with 3 free spins and at most 6. Rejects explicit counts, --spin and --bet-split. Fees are additional.',
       'Bare `play` does not auto-run a random game; use `play --auto` or pass a game.',
       'For stateful resume/action through `play`, prefer `--game-id <id>` because `--game <name>` selects the target game.',
-      `Run ${BINARY_NAME} game <name> for per-game config grammar, e.g. ${BINARY_NAME} game baccarat.`,
+      `Run ${BINARY_NAME} game <name> for per-game options, e.g. ${BINARY_NAME} game baccarat.`,
     ],
-  });
+  };
 }
 
 function formatPathEnvNotice(label, resolvedPath, envVar) {
@@ -1408,8 +1421,8 @@ function printBotList() {
   console.log(lines.join('\n'));
 }
 
-function formatBotHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getBotCommandHelp() {
+  return {
     actions: [
       'omitted                List discovered bots and loader paths',
       '<name>                 Run the named discovered bot',
@@ -1447,11 +1460,11 @@ function formatBotHelpAppendix() {
       'Bot-specific options are documented by each bot, not by the loader.',
       formatBotLoadErrors(),
     ].filter(Boolean),
-  });
+  };
 }
 
-function formatContestHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getContestCommandHelp() {
+  return {
     actions: [
       'omitted                Show contest info and current wallet eligibility/status',
       'register               Register the selected wallet for the contest',
@@ -1469,11 +1482,11 @@ function formatContestHelpAppendix() {
       `Eligibility limit: total wagered must be below ${CONTEST_WAGER_LIMIT} APE.`,
       `Contest end date: ${formatTerminalTimestamp(CONTEST_END_DATE)}.`,
     ],
-  });
+  };
 }
 
-function formatHistoryHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getHistoryCommandHelp() {
+  return {
     actions: [
       'omitted                Read cached history for [address] or the selected local wallet',
       '--list                 List wallets with local cached history files',
@@ -1520,11 +1533,11 @@ function formatHistoryHelpAppendix() {
       '`--url` and `--ids` affect terminal scoreboard reference columns; JSON keeps both fields.',
       `Use ${BINARY_NAME} wallet download --from-block 0 to rebuild history from genesis.`,
     ],
-  });
+  };
 }
 
-function formatScoreboardHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getScoreboardCommandHelp() {
+  return {
     actions: [
       'omitted                Build/read cached scoreboards for [address] or the selected local wallet',
       '--list                 List wallets with cached scoreboards or derivable history',
@@ -1559,11 +1572,11 @@ function formatScoreboardHelpAppendix() {
       `--chunk-size defaults to ${DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString()} and is the initial maximum; adaptive reductions are reused for the rest of the run.`,
       'If both --ids and --url are passed in terminal mode, the last one wins for the reference column.',
     ],
-  });
+  };
 }
 
-function formatFeesHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getFeesCommandHelp() {
+  return {
     actions: [
       'scan    Read observed GameEnded logs for one game and update compact fee aggregates',
       'report  Read the local compact fee log and compare the selected wallet to the rest of the game',
@@ -1598,11 +1611,11 @@ function formatFeesHelpAppendix() {
       `Default cap: ${DEFAULT_FEE_ANALYSIS_CAP_BYTES / (1024 * 1024)} MiB per game.`,
       'The report action does not call the RPC.',
     ],
-  });
+  };
 }
 
-function formatGamesHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getGamesCommandHelp() {
+  return {
     actions: ['None. `games` lists the supported game catalog directly.'],
     parameters: ['None.'],
     options: [
@@ -1618,20 +1631,20 @@ function formatGamesHelpAppendix() {
       `${BINARY_NAME} games --json`,
     ],
     notes: ['Use `game <name>` for one game\'s aliases, parameters, and contract metadata.'],
-  });
+  };
 }
 
-function formatGameHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getGameCommandHelp() {
+  return {
     actions: [
-      'omitted                Print metadata and grammar for one selected game.',
+      'omitted                Print options and examples for one selected game.',
       '--paytable             Resolve the game paytable without starting a game.',
       '--limits               Read live Baccarat or published Scrap Forge wager limits.',
       '--transaction          Inspect a historical Scrap Forge submission via ApeChain RPC.',
       '--quote                Read a Scrap Forge wager and randomness fee for an exact configuration.',
       '--round                Read a Scrap Forge round and its linked Vault pull records.',
     ],
-    parameters: ['<name>                 Supported canonical game key, alias, or display name'],
+    parameters: ['<name>                 Game key, alias, display name, or unique prefix'],
     options: [
       '--json                 Emit JSON output',
       '--paytable             Show the selected paytable instead of metadata',
@@ -1646,12 +1659,13 @@ function formatGameHelpAppendix() {
       '--risk <risk>          Risk or difficulty used by play',
       '--grid <grid>          Blocks grid used by play',
       '--split <count>        Independent split count used by play',
+      '--forges <count>       Scrap Forge alias for --split',
       '--survive <count>      Compounding survival count used by play',
       '--bet-split <ape>      Native split games: exact APE per attempt; requires --amount',
-      '--spin <ape>           Alias for slots, Plinko, and Blocks',
+      `--spin <ape>           ${SPIN_ALIAS_DESCRIPTION}`,
       '--bonus                Blizzard Blitz / Gimboz Galaxy: one bonus purchase, minimum 100 APE',
       '--picks <count>        Keno pick count used by play',
-      '--bet <bet>            Roulette or Baccarat bet',
+      '--bet <bet>            Roulette or Baccarat bet. In Scrap Forge, the APE stake per forge.',
       '--chips <integer>     Roulette chips purchased; defaults to the sum in --bet',
       '--shuffle             Roulette: sample a structurally equivalent bet allocation',
       '--cover <count>        ApeStrong or Gimboz Smash cover',
@@ -1663,9 +1677,11 @@ function formatGameHelpAppendix() {
     ],
     bnf: [
       '<game-command> ::= "game" <game-name> [ "--paytable" <paytable-option>* | "--limits" ] [ "--json" ] | <forge-command>',
-      '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--bet-split" <ape> | "--spin" <ape> | "--bonus" | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--cutoff" <multiplier> | "--amount" <ape> | "--side" <ape>',
-      '<game-name> ::= <stateless-game> | "blackjack" | "bj" | "cash-dash" | "cashdash" | "dash" | "hi-lo-nebula" | "hilonebula" | "hilo" | "nebula" | "video-poker" | "vp"',
-      '<stateless-game> ::= <game-key> | <game-alias>',
+      '<paytable-option> ::= "--risk" <token> | "--grid" <grid> | "--split" <integer> | "--survive" <integer> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" | "--picks" <integer> | "--bet" <token> | "--chips" <roulette-chips> | "--shuffle" | "--cover" <integer> | "--range" <range> | "--out-range" <range> | "--cutoff" <multiplier> | "--amount" <ape> | "--side" <ape>',
+      SPIN_ALIAS_BNF,
+      '<game-name> ::= <game-key> | <game-alias> | <game-display-name> | <game-prefix>',
+      '<game-prefix> ::= <token> ; a prefix that identifies exactly one game',
+      '; Exact keys, aliases, and names take priority. Unique prefixes ignore case, spaces, hyphens, and underscores.',
       ...SCRAP_FORGE_BNF,
       ...ROULETTE_HELP_BNF_LINES,
     ],
@@ -1674,169 +1690,79 @@ function formatGameHelpAppendix() {
       `${BINARY_NAME} game baccarat`,
       `${BINARY_NAME} game blackjack`,
       `${BINARY_NAME} game video-poker --json`,
+      `${BINARY_NAME} game forge --limits`,
       `${BINARY_NAME} game keno --paytable`,
       `${BINARY_NAME} game speed-keno --paytable --picks 3 --split 1`,
       `${BINARY_NAME} game jungle-plinko --paytable --risk 4 --split 1 --json`,
       `${BINARY_NAME} game video-poker --paytable --amount 25 --json`,
       `${BINARY_NAME} game forge --limits`,
-      `${BINARY_NAME} game scrap-forge --paytable --spin 500 --split 8 --json`,
+      `${BINARY_NAME} game scrap-forge --paytable --bet 500 --forges 8 --json`,
       `${BINARY_NAME} game forge --transaction <submission-hash> --reveal <reveal-hash> --trace --json`,
       `${BINARY_NAME} game forge --transaction <submission-hash> --vault-reveal <vault-reveal-hash> --json`,
-      `${BINARY_NAME} game forge --quote --spin 10 --split 10 --json`,
-      `${BINARY_NAME} game forge --quote --spin 10 --split 1 --simulate-from <address> --json`,
+      `${BINARY_NAME} game forge --quote --bet 10 --forges 10 --json`,
+      `${BINARY_NAME} game forge --quote --bet 10 --forges 1 --simulate-from <address> --json`,
       `${BINARY_NAME} game forge --round <id> --json`,
     ],
     notes: [
-      'Without --paytable, the output includes game parameters, grammar, aliases, ABI status, and contract address.',
+      'Without an inspection action, output includes game options, aliases, ABI status, and the contract address.',
+      'Use game <name> --help --verbose for the named game reference with grammar, or game <name> --bnf for grammar alone.',
+      'Ambiguous prefixes return the matching game keys. In JSON, these are listed in candidates.',
       'Paytable output always includes every paytable-changing parameter and its resolved value, plus overall min_multiplier and max_multiplier.',
       'Play defaults are reused. A required parameter without a fixed play default produces an error naming the missing option.',
       'Paytable parameters are accepted only with --paytable.',
       'Split games with --split greater than 1 and games without a statically enumerable paytable show only overall multiplier bounds.',
     ],
-  });
+  };
 }
 
-function formatBaccaratPlayHelp() {
-  return [
-    formatInlineHelpSection('Usage', [
-      `${BINARY_NAME} play baccarat [<amount>] [<bet>] [options]`,
-      `${BINARY_NAME} play --game baccarat [--amount <ape>] [--bet <bet>] [options]`,
-      `${BINARY_NAME} bet --game baccarat [--amount <ape>] --bet <bet> [options]`,
-      `${BINARY_NAME} game baccarat [--paytable [--amount <ape>] --bet <bet> | --limits] [--json]`,
-    ]),
-    formatInlineHelpSection('Command behavior', [
-      'play selects defaults from the persona and supports repeated hands through --loop.',
-      'bet submits one explicitly configured wager and always emits JSON. It requires --game and --bet for Baccarat.',
-      'game displays metadata. With --paytable it calculates the payout multipliers for all three outcomes without submitting a wager.',
-      'play and bet are separate commands with different required inputs, defaults and options.',
-    ]),
-    formatInlineHelpSection('Play parameters', [
-      'Select baccarat to play this game. The shortest form is `play baccarat`.',
-      '<amount> is the total wager in positive decimal APE. For play, use a positional amount or --amount.',
-      '<bet> is optional with play and required with bet. Use --amount with a bare side in bet or game --paytable.',
-      'PLAYER, BANKER or TIE places the entire wager on that outcome.',
-      'For a combined bet, pair a PLAYER or BANKER leg with a TIE leg. Put each weight before its label.',
-      'Quote a numbered bet as one shell argument when omitting the positional amount or passing it to --bet.',
-    ]),
-    formatInlineHelpSection('Options', [
-      '--game baccarat        Select the game with play or bet. A positional play game takes precedence.',
-      '--amount <ape>         Total wager, or total budget with --bet-split. A positional play amount takes precedence.',
-      '--bet <bet>            Takes precedence over the positional bet.',
-      '--strategy <name>      Persona for play. Choose conservative, balanced, aggressive or degen.',
-      '--timeout <ms>         Result wait. Use 0 to submit without waiting for settlement.',
-      ...LOOP_HELP_OPTION_LINES,
-      '--take-profit <value>  Alias for --min-profit.',
-      '--stop-loss <value>    Alias for --max-loss.',
-      '--bet-split <ape>      Fixed wager per hand with --loop. Uses the explicit or inferred total amount as the budget.',
-      '--json                 Emit JSON output with play. The bet command always uses JSON.',
-      '--validate-only        Check play arguments without wagering.',
-      '--gp-ape <points>       Override estimated GP earned per APE for this run.',
-      '--resilient            Retry transient failures. --no-resilient disables inherited retry mode.',
-      '--x-gameId <uint256>    Override the generated gameData identifier.',
-      '--x-ref <address>      Override the referral address from the profile.',
-      '--x-userRandomWord <bytes32> Override the generated client randomness.',
-      '-v, --verbose          Technical progress output with play.',
-      '-h, --help             Show command help.',
-      '--paytable             game only. Requires --bet. A numbered bet can supply the amount. Add --json for structured output.',
-      '--limits               game only. Read the live per-hand minimum from the tracker via RPC.',
-      'For bet, use only --game, --amount, --bet, --timeout, --gp-ape, the expert overrides, retry flags and help.',
-      'Loop controls and --bet-split belong to play. For game, --amount and --bet require --paytable.',
-    ]),
-    formatInlineHelpSection('Grammar (EBNF)', [
-      'Square brackets mean optional, braces mean repetition, and | separates alternatives. Quoted words are literal CLI tokens.',
-      '<command> ::= "apechurch-cli" [ "--color" ] ( <play> | <bet-command> | <game-command> )',
-      '<play> ::= "play" ( "baccarat" [ <ape> [ <positional-bet> ] | <bet-token> ] | "--game" "baccarat" ) { <play-option> }',
-      '<play-option> ::= "--game" "baccarat" | "--amount" <ape> | "--bet" <bet-token> | "--strategy" <persona> | "--timeout" <ms> | "--bet-split" <ape> | "--json" | "--validate-only" | "-v" | "--verbose" | <common-option> | <loop-option>',
-      '<bet-command> ::= "bet" "--game" "baccarat" [ "--amount" <ape> ] "--bet" <bet-token> { <bet-option> }',
-      '<bet-option> ::= "--timeout" <ms> | <common-option>',
-      '<game-command> ::= "game" "baccarat" [ "--paytable" [ "--amount" <ape> ] "--bet" <bet-token> | "--limits" ] [ "--json" ] [ <help> ]',
-      '<common-option> ::= "--gp-ape" <points> | "--resilient" | "--no-resilient" | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | <help>',
-      STATEFUL_SHARED_BNF_LINES[2].replaceAll('<stateful-loop-option>', '<loop-option>'),
-      STATEFUL_SHARED_BNF_LINES[0],
-      ...BET_STRATEGY_HELP_LINES,
-      '<positional-bet> ::= <bet-token> | <leg> { <leg> }',
-      '<bet-token> ::= one shell argument containing <bet-payload>',
-      '<bet-payload> ::= <side> | <leg> { <separator> <leg> }',
-      '<leg> ::= <weight> <separator> <side>',
-      '<side> ::= "PLAYER" | "BANKER" | "TIE"',
-      '<separator> ::= one or more spaces or commas',
-      '<ape> ::= positive decimal APE amount with at most 18 decimal places',
-      '<weight> ::= positive decimal parts with at most 18 decimal places',
-      '<ape-nonnegative> ::= nonnegative decimal APE amount',
-      '<number> ::= decimal number',
-      '<integer> ::= unsigned decimal integer',
-      '<count> ::= positive integer',
-      '<ms> ::= nonnegative integer milliseconds',
-      '<seconds> ::= nonnegative decimal seconds',
-      '<points> ::= positive decimal GP per APE',
-      '<persona> ::= "conservative" | "balanced" | "aggressive" | "degen"',
-      '<human-range> ::= [ "weighted:" ] <count> "-" <count> | "true" | "false" | "1" | "0" | "yes" | "no" | "y" | "n"',
-      '<uint256> ::= decimal or 0x-prefixed hexadecimal integer in 0..2^256-1',
-      '<address> ::= "0x" followed by 40 hexadecimal characters',
-      '<bytes32> ::= "0x" followed by 64 hexadecimal characters',
-      '<help> ::= "-h" | "--help"',
-    ]),
-    formatInlineHelpSection('Constraints and split budgets', [
-      'Named options may be reordered. play requires baccarat either positionally or through --game.',
-      'The --human range endpoints are positive integer seconds, with the upper endpoint at least the lower endpoint.',
-      'Bet labels are case-insensitive. Each side can occur once. A combined bet uses at most one of PLAYER and BANKER, optionally with TIE in either order.',
-      'Without an amount, the sum of numbered legs supplies the amount in APE. With an amount, the numbers are proportional weights.',
-      'Each lane receives the per-hand wager multiplied by its weight and divided by the total weight. Whole-wei allocation uses the largest remainder, with ties favoring the main side.',
-      'Each selected lane must receive at least 1 wei after allocation. The total per hand must meet the live minimum enforced by the on-chain tracker. The VRF fee is additional.',
-      `Read the live minimum with ${BINARY_NAME} game baccarat --limits --json. Offline play --validate-only checks the allocation and reports the resolved lane amounts.`,
-      '--bet-split requires play --loop. The amount is the total budget and --bet-split is the stake scaled across the bet legs on each hand.',
-      'The maximum hand count is floor(budget / bet-split). Any smaller remainder stays unspent. Payouts do not replenish the budget. Fees are additional.',
-      'Balance checks and loop stop conditions may stop execution earlier. --min-bet and --max-bet must permit the exact split wager.',
-      '--bet-split supports the flat bet strategy. --spin, --split and --survive do not apply to Baccarat.',
-      'Percentage PnL thresholds use the controlled wager as their basis. Profit and loss thresholds use settled net PnL including costs.',
-    ]),
-    formatInlineHelpSection('Defaults', [
-      'Without --loop, play runs one hand. With a bare side or no bet and no amount, the active persona sizes the wager from available balance.',
-      'Loop mode starts from a base amount of 10 APE when no amount is supplied or inferred. The bankroll-fraction strategy sizes each hand from its bankroll.',
-      'Play uses the saved persona (balanced by default) unless --strategy is supplied.',
-      'If the bet is omitted, conservative selects BANKER. Balanced, aggressive and degen pick PLAYER or BANKER at random.',
-      'Result timeout is 30000 ms for play and 0 ms for bet.',
-      'Loop bet strategy defaults to flat. The fixed loop delay defaults to 3 s, or 0 s when --human is supplied alone.',
-      'Bare --human uses weighted:3-9. Stop thresholds and exact bet splitting are opt-in.',
-      'game defaults to metadata output. A paytable uses the explicit amount or the sum of the numbered legs.',
-      'play and game default to plain output. --json, --verbose and --validate-only are opt-in.',
-      'Game identifiers and client randomness are generated unless overridden. Referral and GP estimation use the profile defaults.',
-    ]),
-    formatInlineHelpSection('Examples', [
-      `${BINARY_NAME} play baccarat`,
-      `${BINARY_NAME} play baccarat 10 BANKER`,
-      `${BINARY_NAME} play baccarat "35 BANKER 5 TIE"`,
-      '  Infers 40 APE and wagers 35 APE on BANKER and 5 APE on TIE.',
-      `${BINARY_NAME} play baccarat 100 "35 BANKER 5 TIE"`,
-      '  Wagers 87.5 APE on BANKER and 12.5 APE on TIE.',
-      `${BINARY_NAME} play baccarat 52 --bet "42 BANKER 10 TIE"`,
-      `${BINARY_NAME} bet --game baccarat --amount 52 --bet "42 BANKER 10 TIE"`,
-      `${BINARY_NAME} game baccarat --paytable --amount 40 --bet "35 BANKER 5 TIE"`,
-      '  Calculates Player 0x, Banker 1.70625x and Tie 2x of 40 APE. The returned amounts are 0, 68.25 and 80 APE.',
-      `${BINARY_NAME} play baccarat 40 PLAYER --bet "35 BANKER 5 TIE" --validate-only`,
-      '  Resolves to 35 APE on BANKER plus 5 APE on TIE. The positional PLAYER is overridden.',
-      `${BINARY_NAME} play baccarat 200 --bet "35 BANKER 5 TIE" --bet-split 40 --loop`,
-      '  Budget 200 APE, wager 40 APE per hand, up to 5 hands.',
-      `${BINARY_NAME} play baccarat 150 "42 BANKER 10 TIE" --bet-split 50 --loop`,
-      '  Budget 150 APE, up to 3 hands of 50 APE. Each hand allocates 50 × 42 / 52 to BANKER and 50 × 10 / 52 to TIE before wei rounding.',
-      '  Append --validate-only to either split example to inspect the plan without wagering.',
-    ]),
-  ].join('\n\n');
-}
+const BACCARAT_GAME_BNF = Object.freeze([
+  '; Square brackets mean optional, braces mean repetition, and | separates alternatives. Quoted words are literal CLI tokens.',
+  '<command> ::= "apechurch-cli" [ "--color" ] ( <play> | <bet-command> | <game-command> )',
+  '<play> ::= "play" ( "baccarat" [ <ape> [ <positional-bet> ] | <bet-token> ] | "--game" "baccarat" ) { <play-option> }',
+  '<play-option> ::= "--game" "baccarat" | "--amount" <ape> | "--bet" <bet-token> | "--strategy" <persona> | "--timeout" <ms> | "--bet-split" <ape> | "--json" | "--validate-only" | "-v" | "--verbose" | <common-option> | <loop-option>',
+  '<bet-command> ::= "bet" "--game" "baccarat" [ "--amount" <ape> ] "--bet" <bet-token> { <bet-option> }',
+  '<bet-option> ::= "--timeout" <ms> | <common-option>',
+  '<game-command> ::= "game" "baccarat" [ "--paytable" [ "--amount" <ape> ] "--bet" <bet-token> | "--limits" ] [ "--json" ] [ <help> ]',
+  '<common-option> ::= "--gp-ape" <points> | "--resilient" | "--no-resilient" | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32> | <help>',
+  STATEFUL_SHARED_BNF_LINES[2].replaceAll('<stateful-loop-option>', '<loop-option>'),
+  STATEFUL_SHARED_BNF_LINES[0],
+  ...BET_STRATEGY_HELP_LINES,
+  '<positional-bet> ::= <bet-token> | <leg> { <leg> }',
+  '<bet-token> ::= one shell argument containing <bet-payload>',
+  '<bet-payload> ::= <side> | <leg> { <separator> <leg> }',
+  '<leg> ::= <weight> <separator> <side>',
+  '<side> ::= "PLAYER" | "BANKER" | "TIE"',
+  '<separator> ::= one or more spaces or commas',
+  '<ape> ::= positive decimal APE amount with at most 18 decimal places',
+  '<weight> ::= positive decimal parts with at most 18 decimal places',
+  '<ape-nonnegative> ::= nonnegative decimal APE amount',
+  '<number> ::= decimal number',
+  '<integer> ::= unsigned decimal integer',
+  '<count> ::= positive integer',
+  '<ms> ::= nonnegative integer milliseconds',
+  '<seconds> ::= nonnegative decimal seconds',
+  '<points> ::= positive decimal GP per APE',
+  '<persona> ::= "conservative" | "balanced" | "aggressive" | "degen"',
+  '<human-range> ::= [ "weighted:" ] <count> "-" <count> | "true" | "false" | "1" | "0" | "yes" | "no" | "y" | "n"',
+  '<uint256> ::= decimal or 0x-prefixed hexadecimal integer in 0..2^256-1',
+  '<address> ::= "0x" followed by 40 hexadecimal characters',
+  '<bytes32> ::= "0x" followed by 64 hexadecimal characters',
+  '<help> ::= "-h" | "--help"',
+]);
 
-function formatCommandsHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getCommandsCommandHelp() {
+  return {
     actions: ['None. `commands` prints the terminal command index directly.'],
     parameters: ['None.'],
     options: [],
     bnf: ['<commands-command> ::= "commands"'],
     examples: [`${BINARY_NAME} commands`],
     notes: ['For exhaustive command-specific inline help, run `<command> --help`.'],
-  });
+  };
 }
 
-function formatHelpCommandAppendix() {
-  return formatCommandHelpAppendix({
+function getHelpCommandHelp() {
+  return {
     actions: [
       'omitted                List available help topics',
       'loop                   Loop mode and safety controls',
@@ -1861,11 +1787,11 @@ function formatHelpCommandAppendix() {
       `${BINARY_NAME} help wallet --json`,
     ],
     notes: ['Use `<command> --help` for the complete inline reference for a specific command.'],
-  });
+  };
 }
 
-function formatSendHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getSendCommandHelp() {
+  return {
     actions: ['None. `send` transfers the selected asset directly.'],
     parameters: [
       '<asset>                Transfer asset: APE or GP',
@@ -1885,11 +1811,11 @@ function formatSendHelpAppendix() {
       `${BINARY_NAME} send GP 250 0x1234567890abcdef1234567890abcdef12345678 --json`,
     ],
     notes: ['wAPE is not transferable through this CLI because the tracker contract does not expose transfer().'],
-  });
+  };
 }
 
-function formatHouseHelpAppendix() {
-  return formatCommandHelpAppendix({
+function getHouseCommandHelp() {
+  return {
     actions: [
       'omitted/status/info    Show global House stats and selected-wallet position',
       'deposit <amount>       Deposit APE into The House',
@@ -1916,10 +1842,10 @@ function formatHouseHelpAppendix() {
       `Withdraw fee: ${(HOUSE_WITHDRAW_FEE * 100).toFixed(0)}%.`,
       'The displayed house_yield is the current HOUSE price multiplier since launch, not annualized APY.',
     ],
-  });
+  };
 }
 
-function formatStatefulCommandHelpAppendix(gameKey) {
+function getStatefulCommandHelp(gameKey) {
   const gameHelp = {
     blackjack: {
       actions: [
@@ -2089,23 +2015,15 @@ function formatStatefulCommandHelpAppendix(gameKey) {
     },
   }[gameKey];
 
-  return formatCommandHelpAppendix(gameHelp);
+  return gameHelp;
 }
 
-program.addHelpText('after', formatTopLevelHelpAppendix());
+program.documentHelp(getTopLevelCommandHelp());
 
-function printConfigBnf(cfg = {}) {
-  const lines = Array.isArray(cfg?.bnf)
+function getConfigBnf(cfg = {}) {
+  return Array.isArray(cfg?.bnf)
     ? cfg.bnf
     : (typeof cfg?.bnf === 'string' && cfg.bnf.trim() ? [cfg.bnf] : []);
-  if (lines.length === 0) {
-    return;
-  }
-
-  console.log('      BNF:');
-  for (const line of lines) {
-    console.log(`        ${line}`);
-  }
 }
 
 function isPublicGameConfigEntry(cfg) {
@@ -2952,7 +2870,7 @@ function createGameCatalogEntry(game) {
     description: game.description,
     abiVerified: Boolean(game.abiVerified),
     contract: game.contract,
-    config: game.config,
+    config: gameConfigForOutput(game.config),
   };
 }
 
@@ -3034,7 +2952,6 @@ function getVideoPokerCatalogEntry() {
 function listSupportedGameCatalogEntries() {
   return [
     ...GAME_REGISTRY.map((game) => createGameCatalogEntry(game)),
-    { ...SCRAP_FORGE_GAME, displayName: getGameDisplayName(SCRAP_FORGE_GAME) },
     getBlackjackCatalogEntry(),
     getCashDashCatalogEntry(),
     getHiLoNebulaCatalogEntry(),
@@ -3065,6 +2982,232 @@ function resolveCatalogGameEntry(input) {
   return listSupportedGameCatalogEntries().find((game) => (
     getCatalogEntryLookupValues(game).some((value) => normalizeCatalogLookupInput(value) === requested)
   )) || null;
+}
+
+function findGameDetailsMatches(input) {
+  const exact = resolveCatalogGameEntry(input);
+  if (exact) return [exact];
+
+  const compact = (value) => normalizeCatalogLookupInput(value).replace(/[\s_-]+/g, '');
+  const requested = compact(input);
+  if (!requested || requested === 'scrap') return [];
+
+  const fullMatches = [];
+  const prefixMatches = [];
+  for (const game of listSupportedGameCatalogEntries()) {
+    const values = getCatalogEntryLookupValues(game);
+    if (game.key === 'video-poker') values.push('Gimboz Poker');
+    const names = values.map(compact);
+    if (names.includes(requested)) fullMatches.push(game);
+    else if (names.some((name) => name.startsWith(requested))) prefixMatches.push(game);
+  }
+  return fullMatches.length ? fullMatches : prefixMatches;
+}
+
+function formatAmbiguousGameName(name, candidates) {
+  return `Ambiguous game name: "${name}". Choose one of: ${candidates.join(', ')}.`;
+}
+
+function getPublicGameConfigEntries(game) {
+  return Object.entries(game.config ?? {}).filter(([, entry]) => isPublicGameConfigEntry(entry));
+}
+
+function gameConfigForOutput(config) {
+  if (!config) return config;
+  return Object.fromEntries(Object.entries(config).map(([field, entry]) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [field, entry];
+    const { bnf, ...metadata } = entry;
+    return [field, metadata];
+  }));
+}
+
+const STATELESS_GAME_EXAMPLES = Object.freeze({
+  'ape-strong': '10 --cover 50',
+  baccarat: '10 --bet BANKER',
+  'bear-dice': '10 --risk 0 --survive 2',
+  blocks: '10 --grid 3x3 --risk 0 --split 2',
+  'cosmic-plinko': '10 --risk 0 --split 10',
+  'gimboz-smash': '10 --range 1-50',
+  'glyde-or-crash': '10 --cutoff 2x',
+  'jungle-plinko': '10 --risk 0 --split 10',
+  keno: '10 --picks 3 --numbers 1,7,13',
+  'monkey-match': '10 --risk 0',
+  primes: '10 --risk 0 --split 2',
+  roulette: '10 --bet RED=3,BLACK=1',
+  'scrap-forge': '100 --forges 10',
+  'speed-keno': '10 --picks 3 --numbers 1,7,13 --split 2',
+});
+
+const GAME_PAYTABLE_EXAMPLES = Object.freeze({
+  baccarat: ' --amount 10 --bet BANKER',
+  blackjack: ' --amount 10 --side 1',
+  roulette: ' --amount 10 --bet RED=3,BLACK=1',
+  'scrap-forge': ' --bet 10 --forges 10',
+  'video-poker': ` --amount ${VIDEO_POKER_MIN_BET_APE}`,
+});
+
+function getGameReferenceBnf(game, stateful) {
+  if (game.key === 'scrap-forge') return SCRAP_FORGE_BNF;
+  if (game.key === 'baccarat') return BACCARAT_GAME_BNF;
+  if (stateful) return [
+    `<game-command> ::= "game" "${game.key}" [ "--paytable"${game.key === 'video-poker' ? ' "--amount" <video-poker-bet>' : game.key === 'blackjack' ? ' [ "--side" <ape-nonnegative> "--amount" <ape> ]' : ''} ] [ "--json" ]`,
+    `<play-command> ::= "play" ( "${game.key}" | "--game" "${game.key}" ) [ <${game.key}-head>${game.key === 'cash-dash' ? ' [ <cash-dash-tile> ]' : ''} ] ( <${game.key}-option> | "--game-id" <game-id> | "--validate-only" )*`,
+    ...stateful.bnf,
+  ];
+  const entries = getPublicGameConfigEntries(game);
+  const selection = entries.map(([field, cfg]) => {
+    const cliName = getGameConfigCliName(game, field);
+    return `"--${cliName}"${cfg.flag ? '' : ` <${field === 'multiplier' ? 'multiplier' : cliName}>`}`;
+  });
+  const paytable = selection.filter((line) => !line.startsWith('"--numbers"') && (SPLIT_GAME_TYPES.includes(game.type) || !line.startsWith('"--bet-split"')));
+  if (SPLIT_GAME_TYPES.includes(game.type) || game.type === 'roulette') paytable.push('"--amount" <ape>');
+  return [
+    `<game-command> ::= "game" "${game.key}" [ "--paytable" <paytable-option>* ] [ "--json" ]`,
+    `<paytable-option> ::= ${paytable.join(' | ')}`,
+    `<play-command> ::= "play" "${game.key}" [ <ape> <positional-config>* ] <game-option>* [ "--validate-only" ]`,
+    `<bet-command> ::= "bet" "--game" "${game.key}" "--amount" <ape> <game-option>*`,
+    `<game-option> ::= <stateless-option>${selection.length ? ` | ${selection.join(' | ')}` : ''}`,
+    '<stateless-option> ::= "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
+    ...new Set(entries.flatMap(([, cfg]) => getConfigBnf(cfg))),
+  ];
+}
+
+function formatGameConfigOption(game, field, cfg) {
+  const name = getGameConfigCliName(game, field);
+  const syntax = PLAY_STATELESS_OPTION_LINES.find((line) => line.split(/\s{2,}/, 1)[0].split(' ')[0] === `--${name}`)
+    ?.split(/\s{2,}/, 1)[0] ?? `--${name}`;
+  const { min, max } = getGameConfigDisplayRange(game, field);
+  const defaultValue = getGameConfigDisplayDefault(game, field);
+  const labels = [...(cfg.cliAliases ?? []).map((alias) => syntax.replace(`--${name}`, `--${alias}`)), syntax];
+  const lines = [`${labels.join(', ')}  ${cfg.description || ''}`.trimEnd()];
+  const detail = [];
+  if (cfg.cliRange) lines.push(`  ${cfg.cliRange}`);
+  else if (min !== undefined && max !== undefined) detail.push(`Range ${min}–${max}.`);
+  if (field === 'picks') detail.push(`Play defaults to ${defaultValue} random picks. Bet defaults to 5. An explicit number list sets the actual count.`);
+  else if (defaultValue !== undefined) detail.push(`Default ${defaultValue}.`);
+  if (detail.length) lines.push(`  ${detail.join(' ')}`);
+  for (const choice of cfg.options ?? []) {
+    const label = name === 'grid' ? choice.label : `${choice.publicValue ?? choice.value} (${choice.label})`;
+    lines.push(`  ${label}${choice.desc ? `  ${choice.desc}` : ''}`);
+  }
+  return lines;
+}
+
+function getStatelessGameHelpSections(game) {
+  const entries = getPublicGameConfigEntries(game);
+  const base = [
+    '--timeout <ms>  Poll for settlement after the submission receipt. Defaults to 30000 for play and 0 for bet. Use 0 to skip settlement polling.',
+    ...entries.filter(([field]) => ['betSplit', 'spin'].includes(field))
+      .flatMap(([field, cfg]) => formatGameConfigOption(game, field, cfg)),
+  ];
+  const wagerFields = new Set(['betSplit', 'spin', 'balls', 'games', 'spins', 'runs', 'rolls', 'bonus']);
+  const wager = entries.filter(([field]) => wagerFields.has(field) && !['betSplit', 'spin'].includes(field));
+  const selection = entries.filter(([field]) => !wagerFields.has(field));
+  const tests = [
+    '--validate-only  With play, validate the command locally and print JSON without opening the wallet or sending a transaction.',
+    '--x-gameId <uint256>  Override the generated round ID for a single round. Use a fresh ID for a new wager.',
+    '--x-ref <address>  Override the referral address in the signed play request.',
+    '--x-userRandomWord <bytes32>  Override the client randomness in the signed play request.',
+  ];
+  if (game.key === 'scrap-forge') tests.push('--simulate-from <address>  With game --quote, simulate the exact play by eth_call without signing.');
+
+  return [
+    formatInlineHelpSection('Stateless game options', base),
+    wager.length && formatInlineHelpSection('Wager and attempts', wager.flatMap(([field, cfg]) => formatGameConfigOption(game, field, cfg))),
+    selection.length && formatInlineHelpSection('Bet configuration', selection.flatMap(([field, cfg]) => formatGameConfigOption(game, field, cfg))),
+    formatInlineHelpSection('Testing and payload overrides', tests),
+  ].filter(Boolean);
+}
+
+function getStatefulGameHelpSections(stateful) {
+  const specific = stateful.options.filter((line) =>
+    !STATEFUL_SHARED_HELP_OPTION_LINES.includes(line) && !LOOP_HELP_OPTION_LINES.includes(line));
+  const isCommon = (line) => /^--(?:auto|solver)\s/.test(line);
+  const sections = [
+    formatInlineHelpSection('Stateful game options', [
+      '--game-id <id>  Select an unfinished game with play. Direct game commands use --game <id>.',
+      '--display <mode>  Choose full, simple or json gameplay output.',
+      ...specific.filter(isCommon),
+      ...PLAY_STATEFUL_OPTION_LINES.filter((line) => /^--(?:no-)?resilient\s/.test(line)),
+    ]),
+    formatInlineHelpSection('Game actions', stateful.actions),
+  ];
+  const settings = specific.filter((line) => !isCommon(line));
+  if (settings.length) sections.push(formatInlineHelpSection('Bet and solver configuration', settings));
+  sections.push(formatInlineHelpSection('Testing', [
+    '--validate-only  With play, check arguments locally and print JSON without opening the wallet or starting a game.',
+  ]));
+  return sections;
+}
+
+function printGameReference(entry, { json = false, bnfOnly = false } = {}) {
+  const game = resolveGame(entry.key) ?? entry;
+  if (json && !bnfOnly) {
+    console.log(JSON.stringify({ ...game, displayName: entry.displayName, config: gameConfigForOutput(game.config) }));
+    return;
+  }
+  const stateful = entry.type === 'stateful' ? getStatefulCommandHelp(game.key) : null;
+  const grammar = bnfOnly || verboseHelp ? getGameReferenceBnf(game, stateful) : [];
+  if (bnfOnly) {
+    console.log(grammar.join('\n'));
+    return;
+  }
+
+  const inspection = [
+    '--paytable  Show the gross payout table or known bounds without wagering.',
+    '--json  Return structured metadata or inspection results.',
+    '--help --verbose, -h -v  Include the grammar with the reference.',
+    '--bnf  Print only the grammar.',
+  ];
+  const examples = [
+    `${BINARY_NAME} game ${game.key} --paytable${GAME_PAYTABLE_EXAMPLES[game.key] ?? (SPLIT_GAME_TYPES.includes(game.type) ? ' --split 1' : '')}`,
+  ];
+  if (SPLIT_GAME_TYPES.includes(game.type) && game.key !== 'scrap-forge') inspection.push(
+    '--amount <ape>  Total wager for paytable calculations that depend on the exact stake or split.',
+  );
+  if (game.key === 'roulette') inspection.push(
+    '--bet <bet> and --amount <ape>  Required for the Roulette paytable. The amount sets the total wager for chip allocation.',
+  );
+  if (game.key === 'baccarat') inspection.push(
+    '--limits  Read the live minimum wager and minimum selected-side allocation.',
+    '--bet <bet>  Select the paytable bet. --amount supplies the wager for bare sides or sets the total for weighted legs.',
+  );
+  if (game.key === 'scrap-forge') {
+    inspection.push(
+      '--limits  Show the published tiers and count ceilings.',
+      '--quote  Read the live wager and VRF fee before gas. Use --bet, or supply --amount and --forges.',
+      '--amount <ape>  Total wager to reconcile with the denomination and forge count.',
+      '--round <id>  Read outcomes, Vault pulls and the cash settlement status.',
+      '--transaction <hash>  Inspect a historical play and its receipt.',
+      '--reveal <hash>  Match the Forge reveal to --transaction. Add --trace to read native APE transfers where the RPC supports it.',
+      '--vault-reveal <hash>  With --transaction, match a separate Vault draw receipt.',
+    );
+    examples.push(
+      `${BINARY_NAME} game forge --quote --bet 10 --forges 1 --simulate-from <address>`,
+      `${BINARY_NAME} game forge --transaction <play-hash> --reveal <reveal-hash> --vault-reveal <vault-reveal-hash>`,
+    );
+  }
+  if (game.key === 'blackjack') inspection.push('--side <ape>  Include a Player side bet in the paytable. A positive side bet requires --amount.');
+  if (game.key === 'video-poker') inspection.push(`--amount <ape>  Required for the paytable. Valid wagers are ${VIDEO_POKER_BET_AMOUNTS_TEXT} APE.`);
+  const playArgs = stateful
+    ? (game.key === 'video-poker' ? VIDEO_POKER_MIN_BET_APE : 25)
+    : STATELESS_GAME_EXAMPLES[game.key] ?? '10 --split 1';
+  examples.push(`${BINARY_NAME} play ${game.key} ${playArgs} --validate-only`);
+  if (game.key === 'scrap-forge') examples.push(
+    `${BINARY_NAME} play forge --bet 10 --forges 10 --validate-only`,
+    '  Both play examples select ten forges at 10 APE each, for a 100 APE base wager.',
+  );
+  if (stateful) examples.push(...stateful.examples.filter((example) => !example.includes(' --loop')));
+
+  console.log([
+    `${entry.displayName.toUpperCase()}\n  ${entry.description}`,
+    `  Type: ${game.type}\n  Key: ${game.key}${game.aliases?.length ? `\n  Aliases: ${game.aliases.join(', ')}` : ''}\n  ABI verified: ${Boolean(game.abiVerified)}\n  Contract: ${game.contract}`,
+    ...(stateful ? getStatefulGameHelpSections(stateful) : getStatelessGameHelpSections(game)),
+    formatInlineHelpSection('Inspection and output', inspection),
+    ...(stateful ? [formatInlineHelpSection('Notes', stateful.notes)] : []),
+    ...(verboseHelp ? [formatInlineHelpSection('Grammar (BNF)', grammar)] : []),
+    formatInlineHelpSection('Examples', examples),
+  ].join('\n\n'));
 }
 
 function resolveStatefulPlayGame(input) {
@@ -3399,7 +3542,60 @@ function getDeprecatedAttemptOptionMessage(optionName, gameEntry = null) {
   return `Option ${optionName} was renamed. ${hint}`;
 }
 
+function normalizeScrapForgePlayArgs(opts, { amountArg, configArgs = [], rawArgs = [] } = {}) {
+  const incompatible = ['--auto', '--bonus', '--risk', '--grid', '--survive', '--chips', '--shuffle',
+    '--cover', '--range', '--cutoff', '--out-range', '--picks', '--numbers',
+    '--game-id', '--display', '--side', '--solver', '--solver-max-states', '--solver-timeout-ms', '--tile', '--cashout-after']
+    .find((flag) => rawArgsIncludeOption(rawArgs, flag));
+  if (incompatible) throw new Error(`${incompatible} is unavailable for Scrap Forge.`);
+  if (opts.betStrategy !== undefined && String(opts.betStrategy).trim().toLowerCase() !== 'flat') {
+    throw new Error('Scrap Forge requires a fixed wager and the flat betting strategy.');
+  }
+  if (configArgs.length > 1) throw new Error('Scrap Forge accepts one positional forge count.');
+  const namedWager = normalizeScrapForgeWagerAliases(opts);
+  const selection = getScrapForgePlaySelection({
+    ...namedWager,
+    amount: amountArg ?? namedWager.amount,
+    split: configArgs[0] ?? namedWager.split,
+  });
+  if ((amountArg !== undefined && namedWager.amount !== undefined) || (configArgs[0] !== undefined && namedWager.split !== undefined)) {
+    const named = getScrapForgePlaySelection({
+      ...namedWager,
+      amount: namedWager.amount ?? amountArg,
+      split: namedWager.split ?? configArgs[0],
+    });
+    if (selection.round_wager_ape !== named.round_wager_ape || selection.forges !== named.forges) {
+      throw new Error('Conflicting positional and named Scrap Forge wager or forge count.');
+    }
+  }
+  if ((opts.minBet !== undefined && Number(opts.minBet) > selection.round_wager_ape)
+    || (opts.maxBet !== undefined && Number(opts.maxBet) < selection.round_wager_ape)) {
+    throw new Error('Scrap Forge wager is outside the configured --min-bet / --max-bet limits.');
+  }
+  opts.split = String(selection.forges);
+  opts.spin = undefined;
+  opts.betSplit = undefined;
+  opts.bet = undefined;
+  opts.forges = undefined;
+  return String(selection.round_wager_ape);
+}
+
+function formatScrapForgeResultLines(details) {
+  const round = details?.forge_round;
+  if (!round) return [];
+  const lines = [`   Forges: ${round.outcomes.map(({ outcome }) => outcome).join(', ')}`];
+  if (round.vault_draw) {
+    const nftPulls = round.vault_draw.pulls.filter(({ kind_code }) => kind_code === 1);
+    lines.push(`   Vault: ${details.vault_cash_payout.ape} APE cash, ${nftPulls.length} NFT prize(s).`);
+    for (const pull of nftPulls) {
+      lines.push(`   NFT listing ${pull.listing_id} (${pull.delivery}), Vault mark ${pull.amount_or_value.ape} APE.`);
+    }
+  }
+  return lines;
+}
+
 function getAttemptOptionUsageError({ gameEntry = null, rawArgs = [], opts = {} } = {}) {
+  if (opts.forges !== undefined && gameEntry?.key !== SCRAP_FORGE_GAME.key) return '--forges is only for Scrap Forge.';
   for (const optionName of DEPRECATED_ATTEMPT_OPTIONS) {
     if (rawArgsIncludeOption(rawArgs, optionName)) {
       return getDeprecatedAttemptOptionMessage(optionName, gameEntry);
@@ -3408,6 +3604,9 @@ function getAttemptOptionUsageError({ gameEntry = null, rawArgs = [], opts = {} 
 
   try { validateSpinUsage(gameEntry, opts); } catch (error) { return error.message; }
   try { validateSlotBonusOptions(gameEntry, opts); } catch (error) { return error.message; }
+  if (opts.loop && opts.xGameId !== undefined && Number(opts.maxGames) !== 1) {
+    return '--x-gameId is only for a single round because repeated games need fresh IDs.';
+  }
 
   if (gameEntry?.type === 'blocks' && opts.split !== undefined && opts.survive !== undefined) {
     return 'Options --split and --survive cannot be used together for Blocks.';
@@ -3436,7 +3635,23 @@ function getAttemptOptionUsageError({ gameEntry = null, rawArgs = [], opts = {} 
     return `Option --split is only for Blocks, Plinko, Primes, Speed Keno, and slots. ${gameEntry.name} does not support repeated split attempts.`;
   }
 
+  if (gameEntry) {
+    const supported = new Set(getPublicGameConfigEntries(gameEntry)
+      .flatMap(([field, cfg]) => [getGameConfigCliName(gameEntry, field), ...(cfg.cliAliases ?? [])])
+      .map((name) => `--${name}`));
+    const unsupported = ['--risk', '--bet', '--range', '--out-range', '--cutoff', '--picks', '--numbers']
+      .find((flag) => rawArgsIncludeOption(rawArgs, flag) && !supported.has(flag));
+    if (unsupported) return `Option ${unsupported} is unavailable for ${gameEntry.name}.`;
+  }
   return null;
+}
+
+function parsePlayTimeout(value) {
+  const milliseconds = Number(value);
+  if (!/^\d+$/.test(String(value).trim()) || !Number.isSafeInteger(milliseconds)) {
+    throw new Error('timeout must be a non-negative integer.');
+  }
+  return milliseconds;
 }
 
 function validateStatefulAmount(amount, gameKey) {
@@ -3530,6 +3745,28 @@ function validateStatefulStartOptions(gameKey, opts = {}) {
   }
 }
 
+function validateStatefulPlayFlags(gameKey, opts, rawArgs) {
+  const statelessOnly = PLAY_STATELESS_OPTION_LINES
+    .map((line) => line.split(/\s/, 1)[0])
+    .filter((flag) => flag !== '--auto');
+  const invalid = statelessOnly.find((flag) => rawArgsIncludeOption(rawArgs, flag));
+  if (invalid) throw new Error(`${invalid} is unavailable for ${gameKey}.`);
+
+  const blackjackOnly = ['--side', '--solver-max-states', '--solver-timeout-ms'];
+  const cashDashOnly = ['--tile', '--cashout-after'];
+  const unrelated = [
+    ...(gameKey === 'blackjack' ? [] : blackjackOnly),
+    ...(gameKey === 'cash-dash' ? [] : cashDashOnly),
+  ].find((flag) => rawArgsIncludeOption(rawArgs, flag));
+  if (unrelated) throw new Error(`${unrelated} is unavailable for ${gameKey}.`);
+  if (['cash-dash', 'video-poker'].includes(gameKey) && typeof opts.solver === 'string') {
+    throw new Error(`--solver for ${gameKey} is a switch and takes no mode.`);
+  }
+  if (opts.display !== undefined && !['full', 'simple', 'json'].includes(opts.display)) {
+    throw new Error('--display must be full, simple, or json.');
+  }
+}
+
 function parsePositiveIntegerForValidation(value, optionName) {
   const text = String(value ?? '').trim();
   const parsed = Number(text);
@@ -3571,13 +3808,17 @@ function validateStatefulPlayDispatch(dispatch) {
   const action = String(dispatch.action || '').trim().toLowerCase();
   const validActions = {
     blackjack: ['hit', 'stand', 'double', 'split', 'insurance', 'surrender', 'resume', 'status', 'clear'],
-    'cash-dash': ['resume', 'status', 'payouts', 'table', 'clear', 'guess', 'tile', 'pick'],
-    'hi-lo-nebula': ['resume', 'status', 'payouts', 'table', 'clear'],
+    'cash-dash': ['resume', 'status', 'payouts', 'table', 'clear', 'guess', 'tile', 'pick', 'random', 'r', 'cashout', 'cash', 'c'],
+    'hi-lo-nebula': ['resume', 'status', 'payouts', 'table', 'clear', 'higher', 'high', 'h', 'lower', 'low', 'l', 'same', 'push', 's', 'cashout', 'cash', 'c'],
     'video-poker': ['resume', 'status', 'payouts', 'table', 'clear'],
   }[dispatch.game.key] || [];
 
   if (!validActions.includes(action)) {
     throw new Error(`Unknown ${dispatch.game.key} action: ${dispatch.action}`);
+  }
+  if (dispatch.game.key === 'cash-dash' && ['guess', 'tile', 'pick'].includes(action)) {
+    if (dispatch.amount === undefined) throw new Error('Tile required for this Cash Dash action.');
+    validateCashDashTile(String(dispatch.amount).toLowerCase() === 'r' ? 'random' : dispatch.amount);
   }
 
   return formatPlayValidationPayload({
@@ -3797,6 +4038,13 @@ function validateStatelessPlayTarget({
       delete gameConfig.split;
       delete gameConfig.survive;
       gameConfig[amountField] = normalizeWagerAmount(exactBet);
+    }
+    if (fixedGame.key === SCRAP_FORGE_GAME.key) {
+      const { round_wager_ape, wager_per_forge_ape } = getScrapForgePlaySelection({
+        amount: amountInput, split: gameConfig.split,
+      });
+      gameConfig.amount = String(round_wager_ape);
+      gameConfig.stake_per_forge_ape = wager_per_forge_ape;
     }
     const validationAmount = fixedGame.type === 'baccarat' ? amountInput : amountInput ?? '1';
     validateResolvedGameConfig(fixedGame, gameConfig, { amountInput: validationAmount });
@@ -4576,7 +4824,7 @@ program
   .option('--username <name>', 'Username for your bot')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
   .option('-y, --quick', 'Skip optional interactive prompts, use defaults')
-  .addHelpText('after', formatInstallHelpAppendix())
+  .documentHelp(getInstallCommandHelp())
   .action(async (opts) => {
     const isInteractive = !opts.quick && !opts.username;
 
@@ -4735,7 +4983,7 @@ program
   .command('uninstall')
   .description(`Remove local ${BINARY_NAME} data from this machine`)
   .option('-y, --yes', 'Skip confirmation')
-  .addHelpText('after', formatUninstallHelpAppendix())
+  .documentHelp(getUninstallCommandHelp())
   .action(async (opts) => {
     if (!fs.existsSync(APECHURCH_DIR)) {
       console.log(`\nNo local ${BINARY_NAME} data found. Nothing to remove.\n`);
@@ -4778,7 +5026,7 @@ for (const [commandName, type] of [['bucket', 'log'], ['bucket:log', 'log'], ['b
     .option('-t, --timeout <seconds>', 'For presign, set the URL timeout in seconds')
     .option('-f, --force', 'Overwrite presign output files without prompting')
     .option('-r, --recursive', 'For sync, include all subfolders below the selected relative path (logs and scripts)')
-    .addHelpText('after', formatBucketHelpAppendix())
+    .documentHelp(getBucketCommandHelp())
     .action(async (action = 'status', value, opts) => {
       const normalizedAction = String(action || 'status').trim().toLowerCase();
       const actionValue = value === undefined ? null : String(value);
@@ -5162,7 +5410,7 @@ program
   .option('--from-block <n>', 'Start block for wallet history download or backfill')
   .option('--to-block <n>', 'End block for wallet history download (default latest)')
   .option('--chunk-size <n>', 'Initial maximum block span per history log query; oversized/timed-out ranges shrink automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
-  .addHelpText('after', formatWalletHelpAppendix())
+  .documentHelp(getWalletCommandHelp())
   .action(async (action, address, opts) => {
     if (opts.list) {
       const wallets = listStoredWallets();
@@ -5567,7 +5815,7 @@ program
   .command('status')
   .description('Show current wallet, balance, profile, and unfinished local games')
   .option('--json', 'Output JSON only')
-  .addHelpText('after', formatStatusHelpAppendix())
+  .documentHelp(getStatusCommandHelp())
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: opts.json });
     const profile = loadProfile(account.address);
@@ -5664,7 +5912,7 @@ const scriptCommand = program
   .description('Write, read, and watch JSON command scripts')
   .allowUnknownOption(true)
   .helpOption(false)
-  .addHelpText('after', formatScriptHelpAppendix())
+  .documentHelp(getScriptCommandHelp())
   .action(async () => {
     const rawTokens = process.argv.slice(2);
     const scriptIndex = rawTokens.indexOf('script');
@@ -5728,7 +5976,7 @@ const scriptCommand = program
 program
   .command('pause')
   .description('Pause autonomous play')
-  .addHelpText('after', formatPauseHelpAppendix())
+  .documentHelp(getPauseCommandHelp())
   .action(() => {
     const profile = loadProfile();
     saveProfile({ ...profile, paused: true });
@@ -5738,7 +5986,7 @@ program
 program
   .command('continue')
   .description('Continue autonomous play')
-  .addHelpText('after', formatContinueHelpAppendix())
+  .documentHelp(getContinueCommandHelp())
   .action(() => {
     const profile = loadProfile();
     saveProfile({ ...profile, paused: false });
@@ -5753,7 +6001,7 @@ program
   .description('Register or change username')
   .option('--username <name>', 'New username')
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
-  .addHelpText('after', formatRegisterHelpAppendix())
+  .documentHelp(getRegisterCommandHelp())
   .action(async (opts) => {
     const account = await getWalletWithPrompt({ json: true });
     const profile = loadProfile();
@@ -5781,7 +6029,7 @@ program
 program
   .command('profile [action]')
   .description('Profile management (show, set)')
-  .addHelpText('after', formatProfileHelpAppendix())
+  .documentHelp(getProfileCommandHelp())
   .option('--username <name>', `Register or change username (same as ${BINARY_NAME} register --username)`)
   .option('--persona <name>', 'conservative | balanced | aggressive | degen')
   .option('--referral <address>', 'Referral wallet address for future game transactions')
@@ -5901,15 +6149,16 @@ program
   .command('bet')
   .description('Place one manual stateless-game wager')
   .requiredOption('--game <type>', GAME_LIST)
-  .option('--amount <ape>', 'Wager amount (inferred from numbered Baccarat bets when omitted)')
+  .option('--amount <ape>', 'Wager amount (can be inferred in Baccarat and Scrap Forge)')
   .option('--risk <risk>', 'Risk level for Bear Dice, Blocks, Plinko, Monkey Match, and Primes', '0')
   .option('--grid <grid>', 'Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)')
   .option('--split <count>', 'Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots')
+  .option('--forges <count>', 'Scrap Forge alias for --split')
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
   .option('--bet-split <ape>', 'Exact APE per independent attempt; single-game sequences require --loop')
-  .option('--spin <ape>', 'Alias for --bet-split in slots, Plinko, and Blocks')
+  .option('--spin <ape>', SPIN_ALIAS_DESCRIPTION)
   .option('--bonus', 'Blizzard Blitz / Gimboz Galaxy: buy one bonus round; amount is purchase cost, minimum 100 APE')
-  .option('--bet <bet>', 'Roulette/Baccarat bet; Roulette supports BET=CHIPS entries')
+  .option('--bet <bet>', 'Roulette or Baccarat bet, or Scrap Forge stake per forge in APE')
   .option('--chips <integer>', 'Roulette chips purchased with the total wager (default: sum in --bet)')
   .option('--shuffle', 'Roulette: random equivalent with identical types, chip counts and joint win probabilities')
   .option('--cover <cover>', 'ApeStrong cover or Gimboz Smash random cover')
@@ -5929,16 +6178,19 @@ program
   .option('--resilient', 'Retry transient transaction, contract/RNG, network, gas, and RPC failures')
   .option('--no-resilient', 'Disable inherited resilient retry mode')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
-  .addHelpText('after', formatBetHelpAppendix())
+  .documentHelp(getBetCommandHelp())
   .action(async (opts) => {
     const gameEntry = resolveGame(opts.game);
-    if (!gameEntry && resolveCatalogGameEntry(opts.game)?.readOnly) {
-      failPlayValidation(new Error('Scrap Forge is read-only. Use game scrap-forge to inspect it.'));
-      return;
-    }
     const rawCliArgs = process.argv.slice(2);
     if (rejectResilientValueOption(rawCliArgs, { json: true })) {
       return;
+    }
+    if (gameEntry?.key === SCRAP_FORGE_GAME.key) {
+      try {
+        opts.amount = normalizeScrapForgePlayArgs(opts, { rawArgs: rawCliArgs });
+      } catch (error) {
+        return failPlayValidation(error);
+      }
     }
     const attemptOptionUsageError = getAttemptOptionUsageError({ gameEntry, rawArgs: rawCliArgs, opts });
     if (attemptOptionUsageError) {
@@ -5982,7 +6234,10 @@ program
       }
     }
 
+    let timeoutMs;
     try {
+      timeoutMs = parsePlayTimeout(opts.timeout);
+      parseGamePayloadOverrides(opts);
       if (gameEntry?.type === 'baccarat') {
         opts.amount ??= inferBaccaratWager(opts.bet);
         if (opts.amount !== undefined) validateResolvedGameConfig(gameEntry, { bet: opts.bet }, { amountInput: opts.amount });
@@ -6029,7 +6284,6 @@ program
       return;
     }
     
-    const timeoutMs = parseNonNegativeInt(opts.timeout, 'timeout');
     const profile = loadProfile();
     let gpPerApe;
 
@@ -6072,7 +6326,9 @@ program
       });
       console.log(JSON.stringify(response));
     } catch (error) {
-      console.error(JSON.stringify({ error: error.message }));
+      console.error(JSON.stringify({ error: error.message, ...error.accounting,
+        ...(error.gameId !== undefined ? { gameId: error.gameId, game_url: error.game_url, tx: error.tx } : {}),
+      }));
       process.exit(1);
     }
   });
@@ -6092,11 +6348,12 @@ program
   .option('--risk <risk>', 'Risk level for Bear Dice, Blocks, Plinko, Monkey Match, and Primes')
   .option('--grid <grid>', 'Blocks grid: 2x2, 3x3, or 4x4 (default: 3x3)')
   .option('--split <count>', 'Independent attempts for Blocks, Plinko, Primes, Speed Keno, and slots')
+  .option('--forges <count>', 'Scrap Forge alias for --split')
   .option('--survive <count>', 'All-or-nothing survival attempts for Bear Dice and Blocks')
   .option('--bet-split <ape>', 'Exact APE per independent attempt; single-game sequences require --loop')
-  .option('--spin <ape>', 'Alias for --bet-split in slots, Plinko, and Blocks')
+  .option('--spin <ape>', SPIN_ALIAS_DESCRIPTION)
   .option('--bonus', 'Blizzard Blitz / Gimboz Galaxy: buy one bonus round; amount is purchase cost, minimum 100 APE')
-  .option('--bet <bet>', 'Roulette/Baccarat bet; Roulette supports BET=CHIPS entries')
+  .option('--bet <bet>', 'Roulette or Baccarat bet, or Scrap Forge stake per forge in APE')
   .option('--chips <integer>', 'Roulette chips purchased with the total wager (default: sum in --bet)')
   .option('--shuffle', 'Roulette: random equivalent with identical types, chip counts and joint win probabilities')
   .option('--cover <cover>', 'ApeStrong cover or Gimboz Smash random cover')
@@ -6149,7 +6406,7 @@ program
   .option('-v, --verbose', 'Show technical progress logs')
   .option('--json', 'JSON output only')
   .addOption(new Option('--validate-only', 'Validate play arguments without starting a game').hideHelp())
-  .addHelpText('after', formatPlayHelpAppendix())
+  .documentHelp(getPlayCommandHelp())
   .action(async (gameArg, amountArg, configArgs, opts) => {
     if (rejectResilientValueOption(process.argv.slice(2), opts)) {
       return;
@@ -6179,6 +6436,7 @@ program
       '--amount',
       '--risk',
       '--split',
+      '--forges',
       '--survive',
       '--balls',
       '--spin',
@@ -6240,17 +6498,18 @@ program
           error: `No game selection provided. Use ${BINARY_NAME} play --auto for automatic random play, or pass an explicit game/amount.`,
         }));
       } else if (playCommand) {
-        console.log(playCommand.helpInformation());
+        playCommand.outputHelp();
       }
       return;
     }
 
     const statefulDispatch = resolveStatefulPlayDispatch({ gameArg, amountArg, configArgs, opts });
     if (statefulDispatch) {
-      if (opts.betSplit !== undefined) failPlayValidation(new Error('--bet-split is only for supported stateless games.'));
-      if (opts.spin !== undefined) failPlayValidation(new Error('--spin is only for split games.'));
-      if (opts.bonus !== undefined) failPlayValidation(new Error('--bonus requires an explicitly selected Blizzard Blitz or Gimboz of the Galaxy game.'));
-      if (opts.chips !== undefined || opts.shuffle) failPlayValidation(new Error('--chips and --shuffle are only for Roulette.'));
+      try {
+        validateStatefulPlayFlags(statefulDispatch.game.key, opts, process.argv.slice(2));
+      } catch (error) {
+        return failPlayValidation(error);
+      }
       if (opts.validateOnly) {
         try {
           console.log(JSON.stringify(validateStatefulPlayDispatch(statefulDispatch)));
@@ -6296,7 +6555,8 @@ program
         recoverLoss,
         givebackProfit,
       } = parseLoopTerminalOptions(opts));
-      playTimeoutMs = parseNonNegativeInt(opts.timeout, 'timeout');
+      playTimeoutMs = parsePlayTimeout(opts.timeout);
+      parseGamePayloadOverrides(opts);
     } catch (error) {
       console.error(JSON.stringify({ error: error.message }));
       process.exit(1);
@@ -6336,11 +6596,20 @@ program
     if (gameInput) {
       fixedGame = resolveGame(gameInput);
       if (!fixedGame) {
-        const error = resolveCatalogGameEntry(gameInput)?.readOnly
-          ? 'Scrap Forge is read-only. Use game scrap-forge to inspect it.'
-          : `Unknown game: ${gameInput}. Available: ${GAME_LIST}`;
+        const error = `Unknown game: ${gameInput}. Available: ${GAME_LIST}`;
         console.error(JSON.stringify({ error }));
         process.exit(1);
+      }
+    }
+
+    if (fixedGame?.key === SCRAP_FORGE_GAME.key) {
+      try {
+        amountInput = normalizeScrapForgePlayArgs(opts, {
+          amountArg, configArgs: normalizedConfigArgs, rawArgs: process.argv.slice(2),
+        });
+        normalizedConfigArgs = [];
+      } catch (error) {
+        return failPlayValidation(error);
       }
     }
 
@@ -6691,7 +6960,12 @@ program
 
       // Determine wager (betOverride from betting strategy takes precedence in loop mode)
       let wagerApe;
-      if (loopBetSplitPlan) {
+      if (fixedGame?.key === SCRAP_FORGE_GAME.key) {
+        wagerApe = Number(amountInput);
+        if (wagerApe > availableApe || (betOverride !== null && betOverride < wagerApe)) {
+          return { shouldStop: true, reason: 'insufficient_balance', counted: false, completed: false };
+        }
+      } else if (loopBetSplitPlan) {
         wagerApe = Number(loopBetSplitPlan.amount);
         // An exact wager is never shrunk to the wallet balance or the final remainder.
         if (loopBetSplitPlan.wagerWei > balance - parseEther(String(GAS_RESERVE_APE))) {
@@ -6984,7 +7258,8 @@ program
         };
       }
 
-      const wagerApeString = loopBetSplitPlan?.amount ?? spinPlan?.amount ?? (amountInput && (betOverride === null || (betStrategyName === 'flat' && Number(betOverride) === Number(amountInput)))
+      const wagerApeString = gameEntry.key === SCRAP_FORGE_GAME.key ? amountInput
+        : loopBetSplitPlan?.amount ?? spinPlan?.amount ?? (amountInput && (betOverride === null || (betStrategyName === 'flat' && Number(betOverride) === Number(amountInput)))
         ? normalizeWagerAmount(amountInput)
         : formatApeAmount(wagerApe));
 
@@ -7031,6 +7306,7 @@ program
             publicClient,
             gameEntry,
             config: gameConfig,
+            amountApe: wagerApeString,
           });
           const sessionMinBalanceApe = typeof maxLoss === 'number' ? Math.max(balanceApe - maxLoss, 0) : null;
           const estimateMinBalanceApe = minBalance !== null && sessionMinBalanceApe !== null
@@ -7168,6 +7444,7 @@ program
             game_url: playResponse.game_url,
             wager_ape: wagerApeString,
             config: playResponse.config,
+            ...(playResponse.details ? { details: playResponse.details } : {}),
             result: playResponse.result ? {
               payout_ape: playResponse.result.payout_ape,
               won,
@@ -7200,7 +7477,9 @@ program
               ? formatBearDiceResultLines(playResponse.result.details)
               : (playResponse.game === 'glyde-or-crash'
                   ? formatGlydeOrCrashResultLines(playResponse.result.details)
-                  : []);
+                  : playResponse.game === SCRAP_FORGE_GAME.key
+                    ? formatScrapForgeResultLines(playResponse.result.details)
+                    : []);
 
             console.log(outcomeLine);
             for (const line of detailLines) {
@@ -7261,9 +7540,12 @@ program
         process.exitCode = 1;
         if (!loopMode && !opts.json && error.accounting) reportLoopFailure(createLoopStats(), { game: gameEntry.key, error, loop: false });
         if (opts.json) {
-          console.error(JSON.stringify({ error: error.message, ...(error.accounting ?? {}) }));
+          console.error(JSON.stringify({ error: error.message, ...error.accounting,
+            ...(error.gameId !== undefined ? { gameId: error.gameId, game_url: error.game_url, tx: error.tx } : {}),
+          }));
         } else {
           console.error(`\n❌ Error: ${error.message}\n`);
+          if (error.game_url) console.error(`Check this round before submitting again: ${error.game_url}`);
         }
         // Return error indicator - let loop decide whether to stop
         return {
@@ -7607,7 +7889,7 @@ const botCommand = program
   .option('-h, --help', 'Show bot loader help, or pass help through to a named bot')
   .option('--list', 'List discovered bots')
   .addOption(new Option('--validate-only', 'Validate bot arguments without running').hideHelp())
-  .addHelpText('after', formatBotHelpAppendix())
+  .documentHelp(getBotCommandHelp())
   .action(async (name, args, opts) => {
     if (opts.help && !name) {
       botCommand.outputHelp();
@@ -7676,7 +7958,7 @@ program
   .command('contest [action]')
   .description('Agent contest info and registration')
   .option('--json', 'JSON output')
-  .addHelpText('after', formatContestHelpAppendix())
+  .documentHelp(getContestCommandHelp())
   .action(async (action, opts) => {
     const now = new Date();
     const contestEnded = now >= CONTEST_END_DATE;
@@ -7944,7 +8226,7 @@ program
   .option('--to-block <n>', 'End block for --refresh sync (default latest)')
   .option('--chunk-size <n>', 'Initial maximum block span for --refresh; oversized/timed-out ranges shrink automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .option('--json', 'JSON output')
-  .addHelpText('after', formatHistoryHelpAppendix())
+  .documentHelp(getHistoryCommandHelp())
   .action(async (address, opts, command) => {
     if (opts.list) {
       const addresses = listHistoryWalletAddresses();
@@ -8183,7 +8465,7 @@ program
   .option('--to-block <n>', 'End block for --refresh sync (default latest)')
   .option('--chunk-size <n>', 'Initial maximum block span for --refresh; oversized/timed-out ranges shrink automatically', DEFAULT_HISTORY_SYNC_CHUNK_SIZE.toString())
   .option('--json', 'JSON output')
-  .addHelpText('after', formatScoreboardHelpAppendix())
+  .documentHelp(getScoreboardCommandHelp())
   .action(async (address, opts, command) => {
     if (opts.list) {
       const addresses = [...new Set([
@@ -8304,7 +8586,7 @@ program
   .option('--cap-mb <n>', 'Per-game fee log cap in MiB', String(DEFAULT_FEE_ANALYSIS_CAP_BYTES / (1024 * 1024)))
   .option('-y, --yes', 'Skip the unlimited scan confirmation prompt')
   .option('--json', 'JSON output')
-  .addHelpText('after', formatFeesHelpAppendix())
+  .documentHelp(getFeesCommandHelp())
   .action(async (action = 'report', game, opts) => {
     const normalizedAction = String(action || 'report').trim().toLowerCase();
     if (!['scan', 'report'].includes(normalizedAction)) {
@@ -8398,7 +8680,7 @@ program
   .option('-l, --list', 'Print a plain text list of play command forms')
   .option('--stats', 'Append the full Game Stats catalog, using local history when available')
   .option('--json', 'JSON output')
-  .addHelpText('after', formatGamesHelpAppendix())
+  .documentHelp(getGamesCommandHelp())
   .action(async (opts) => {
     const localWalletAddress = getWalletAddress();
     let history = loadHistory(localWalletAddress || undefined);
@@ -8462,12 +8744,13 @@ program
   .option('--risk <risk>', 'Risk or difficulty used by play')
   .option('--grid <grid>', 'Blocks grid used by play')
   .option('--split <count>', 'Independent split count used by play')
+  .option('--forges <count>', 'Scrap Forge alias for --split')
   .option('--survive <count>', 'Compounding survival count used by play')
   .option('--bet-split <ape>', 'Exact APE per independent attempt; single-game sequences require --loop')
-  .option('--spin <ape>', 'Alias for --bet-split in slots, Plinko, and Blocks')
+  .option('--spin <ape>', SPIN_ALIAS_DESCRIPTION)
   .option('--bonus', 'Blizzard Blitz / Gimboz Galaxy: buy one bonus round; amount is purchase cost, minimum 100 APE')
   .option('--picks <count>', 'Keno pick count used by play')
-  .option('--bet <bet>', 'Roulette or Baccarat bet')
+  .option('--bet <bet>', 'Roulette or Baccarat bet, or Scrap Forge stake per forge in APE')
   .option('--chips <integer>', 'Roulette chips purchased with the total wager (default: sum in --bet)')
   .option('--shuffle', 'Roulette: random equivalent with identical types, chip counts and joint win probabilities')
   .option('--cover <cover>', 'ApeStrong or Gimboz Smash cover')
@@ -8476,11 +8759,20 @@ program
   .option('--cutoff <x>', 'Glyde or Crash target multiplier')
   .option('--amount <ape>', 'Wager when the paytable depends on it')
   .option('--side <ape>', 'Blackjack player side bet')
-  .addHelpText('after', formatGameHelpAppendix())
+  .documentHelp(getGameCommandHelp())
   .action(async (name, opts) => {
-    const matchedCatalogEntry = resolveCatalogGameEntry(name);
+    const matches = findGameDetailsMatches(name);
+    if (matches.length > 1) {
+      const candidates = matches.map(({ key }) => key).sort();
+      const error = formatAmbiguousGameName(name, candidates);
+      process.exitCode = 1;
+      if (opts.json) console.log(JSON.stringify({ error, candidates }));
+      else console.error(error);
+      return;
+    }
+    const [matchedCatalogEntry] = matches;
     const paytableOnlyOption = [
-      ['risk', '--risk'], ['grid', '--grid'], ['split', '--split'],
+      ['risk', '--risk'], ['grid', '--grid'], ['split', '--split'], ['forges', '--forges'],
       ['survive', '--survive'], ['betSplit', '--bet-split'], ['spin', '--spin'], ['bonus', '--bonus'], ['picks', '--picks'],
       ['bet', '--bet'], ['chips', '--chips'], ['shuffle', '--shuffle'], ['cover', '--cover'], ['range', '--range'],
       ['outRange', '--out-range'], ['cutoff', '--cutoff'],
@@ -8490,19 +8782,20 @@ program
     const forgeInspection = opts.transaction !== undefined || opts.reveal !== undefined || opts.vaultReveal !== undefined || opts.trace;
     const forgeRound = opts.round !== undefined;
     const simulation = opts.simulateFrom !== undefined;
-    if (forgeInspection || forgeRound || opts.quote || simulation || (matchedCatalogEntry?.readOnly && !opts.paytable)) {
+    const isForge = matchedCatalogEntry?.key === SCRAP_FORGE_GAME.key;
+    if (forgeInspection || forgeRound || opts.quote || simulation || (isForge && (!opts.paytable || opts.limits))) {
       try {
-        if (!matchedCatalogEntry?.readOnly) throw new Error('These inspection options are supported for Scrap Forge.');
+        if (!isForge) throw new Error('These inspection options are supported for Scrap Forge.');
         if (simulation && !opts.quote) throw new Error('--simulate-from requires --quote.');
         if ([opts.limits, opts.paytable, forgeInspection, forgeRound, opts.quote].filter(Boolean).length > 1) {
           throw new Error('Scrap Forge accepts one of --limits, --transaction, --paytable, --round, or --quote per command.');
         }
         if (paytableOnlyOption && !opts.quote) throw new Error('Scrap Forge wager options require --paytable or --quote.');
         if (opts.quote) {
-          const unrelated = Object.keys(opts).find((key) => opts[key] !== undefined && !['json', 'quote', 'simulateFrom', 'spin', 'betSplit', 'amount', 'split'].includes(key));
+          const unrelated = Object.keys(opts).find((key) => opts[key] !== undefined && !['json', 'quote', 'simulateFrom', 'spin', 'betSplit', 'bet', 'amount', 'split', 'forges'].includes(key));
           if (unrelated) throw new Error(`Invalid quote option: --${unrelated.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}.`);
           const selection = getScrapForgeSelection(opts);
-          if (!selection) throw new Error('--quote requires --spin or --bet-split, or both --amount and --split.');
+          if (!selection) throw new Error('--quote requires --bet or both --amount and --forges.');
           const sender = simulation ? parseScrapForgeSimulationSender(opts.simulateFrom) : null;
           const { publicClient } = createClients();
           const quote = sender ? await simulateScrapForge(publicClient, selection, sender) : await quoteScrapForge(publicClient, selection);
@@ -8514,7 +8807,14 @@ program
         } else if (forgeRound) {
           const id = parseScrapForgeRoundId(opts.round);
           const { publicClient } = createClients();
-          console.log(JSON.stringify(await readScrapForgeRound(publicClient, id), null, opts.json ? 0 : 2));
+          const settlement = await readScrapForgeSettlement(publicClient, id);
+          if (!settlement.player) throw new Error('Scrap Forge round not found.');
+          console.log(JSON.stringify({
+            ...settlement.details.forge_round,
+            settlement_status: settlement.hasEnded ? 'complete' : 'pending',
+            cash_payout: settlement.hasEnded
+              ? { wei: settlement.payoutWei.toString(), ape: formatEther(settlement.payoutWei) } : null,
+          }, null, opts.json ? 0 : 2));
         } else if (forgeInspection) {
           if (opts.transaction === undefined) throw new Error('--reveal, --vault-reveal, and --trace require --transaction.');
           if (opts.trace && opts.reveal === undefined) throw new Error('--trace requires --reveal.');
@@ -8536,28 +8836,8 @@ program
               console.log(`  ${tier.wager_per_forge_ape} APE/forge | 1–${tier.max_forges} forges | up to ${tier.max_round_wager_ape} APE | ${tier.capsules_per_amp} ${tier.capsule_class} capsule(s)/AMP`);
             }
           }
-        } else if (opts.json) {
-          console.log(JSON.stringify({ ...matchedCatalogEntry, grammar: SCRAP_FORGE_BNF }));
         } else {
-          console.log([
-            'SCRAP FORGE', matchedCatalogEntry.description,
-            `Aliases: ${matchedCatalogEntry.aliases.join(', ')}`,
-            `Contract: ${matchedCatalogEntry.contract}`,
-            'ABI verified: false',
-            '', ...SCRAP_FORGE_BNF,
-            '', 'Omit paytable options for all material multipliers. A stake alone selects one forge.',
-            'Payouts are gross. An AMP opens the selected tier’s Vault capsules. Complete round odds are unknown.',
-            '', 'Examples',
-            `  ${BINARY_NAME} game forge --limits`,
-            `  ${BINARY_NAME} game scrap-forge --paytable --spin 500 --split 8`,
-            `  ${BINARY_NAME} game scrapforge --paytable --amount 150 --split 15 --json`,
-            `  ${BINARY_NAME} game forge --transaction <hash> --json`,
-            `  ${BINARY_NAME} game forge --transaction <submission-hash> --reveal <reveal-hash> --trace --json`,
-            `  ${BINARY_NAME} game forge --transaction <submission-hash> --vault-reveal <vault-reveal-hash> --json`,
-            `  ${BINARY_NAME} game forge --quote --spin 10 --split 10 --json`,
-            `  ${BINARY_NAME} game forge --quote --spin 10 --split 1 --simulate-from <address> --json`,
-            `  ${BINARY_NAME} game forge --round <id> --json`,
-          ].join('\n'));
+          printGameReference(matchedCatalogEntry, opts);
         }
       } catch (error) {
         const message = sanitizeError(error);
@@ -8619,409 +8899,7 @@ program
       return;
     }
 
-    // Handle blackjack specially (stateful game)
-    if (matchedCatalogEntry?.key === 'blackjack') {
-      const blackjack = getBlackjackCatalogEntry();
-      if (opts.json) {
-        console.log(JSON.stringify(blackjack));
-        return;
-      }
-      console.log(`
-${'═'.repeat(60)}
-  ${blackjack.displayName.toUpperCase()}
-${'═'.repeat(60)}
-
-  Classic H17 blackjack card game. Play against the dealer, aim for 21.
-  Dealer hits soft 17. Includes auto-play bot with H17-aware strategy.
-
-  Type:     ${blackjack.type}
-  Key:      ${blackjack.key}
-  Aliases:  ${blackjack.aliases.join(', ')}
-  ABI verified: ${blackjack.abiVerified}
-  Contract: ${blackjack.contract}
-
-${'─'.repeat(60)}
-  COMMANDS
-${'─'.repeat(60)}
-
-  ${BINARY_NAME} blackjack <amount>      Start new game with bet
-  ${BINARY_NAME} blackjack resume        Resume unfinished games in queue
-  ${BINARY_NAME} blackjack status        Check current game state
-
-${'─'.repeat(60)}
-  OPTIONS
-${'─'.repeat(60)}
-
-  --auto [mode]   Auto-play the hand
-  --solver [mode] Show a suggested action in manual mode (default: best)
-  --side <ape>    Player side bet amount
-  --solver-max-states <n>
-                 Best-EV search state cap; default 50000. Raise only if
-                 complex hands hit the fallback warning; lower to bound CPU.
-  --solver-timeout-ms <ms>
-                 Best-EV worker timeout; default 5000. Timeout falls back
-                 to simple strategy without blocking the main CLI process.
-  --loop          Keep playing until balance runs out
-  --max-balance <ape>  Stop when balance reaches this amount
-  --min-profit <ape-or-percent>  Stop when net session PnL reaches this profit
-  --target-x <x>  Latest-game gross P/W target, e.g. 2x (max 2 decimals)
-  --target-profit <ape-or-percent>  Net profit: APE on latest game; whole % on cumulative session
-  --retrace <ape-or-percent>  Net loss: APE on latest game; whole % on cumulative session
-  --recover-loss <ape-or-percent>  Arm at -<ape> net P&L; stop at break-even/profit
-  --giveback-profit <ape-or-percent>  Arm at +<ape> net P&L; stop at break-even/loss
-  --min-balance <ape>  Stop when balance drops to this amount
-  --max-loss <ape-or-percent>  Stop when net session PnL reaches this loss
-  --bankroll <ape>  Alias for --max-loss
-  --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
-  --bankroll-stop <ape> Stop when remaining net bankroll is at or below it
-
-${'─'.repeat(60)}
-  GRAMMAR (BNF)
-${'─'.repeat(60)}
-
-  <amount> ::= <ape>
-  <ape> ::= <number>            ; decimal APE amount; value > 0
-  <side> ::= <number>           ; decimal APE amount; value >= 0
-  <solver-states> ::= <integer> ; positive exact-EV search cap; defaults 50000/150000
-  <solver-timeout-ms> ::= <integer> ; positive exact-EV worker timeout; defaults 5000/30000
-  <auto-mode> ::= "simple" | "best" | "max"
-
-${'─'.repeat(60)}
-  ACTIONS (during game)
-${'─'.repeat(60)}
-
-  h / hit         Draw another card
-  s / stand       Keep current hand
-  d / double      Double bet, take one card, stand
-  x / split       Split pair into two hands
-  i / insurance   Take insurance (dealer shows Ace)
-  r / surrender   Forfeit half bet, end hand
-
-${'─'.repeat(60)}
-  EXAMPLES
-${'─'.repeat(60)}
-
-  ${BINARY_NAME} blackjack 10                   Play one hand, 10 APE
-  ${BINARY_NAME} blackjack 25 --side 1          Add 1 APE player side bet
-  ${BINARY_NAME} blackjack 25 --auto            Bot plays one hand
-  ${BINARY_NAME} blackjack 25 --auto best       Exact EV solver
-  ${BINARY_NAME} blackjack 25 --auto best --solver-max-states 100000
-                                           Give complex exact-EV branches more CPU budget
-  ${BINARY_NAME} blackjack 25 --auto best --solver-timeout-ms 3000
-                                           Cap exact-EV wall-clock latency
-  ${BINARY_NAME} blackjack 25 --auto max        Exact EV solver with 150000 states / 30000 ms
-  ${BINARY_NAME} blackjack 25 --solver max      Manual play with worker and simple suggestions
-  ${BINARY_NAME} blackjack 25 --auto --loop     Bot grinds until broke
-  ${BINARY_NAME} blackjack 10 --auto --loop --max-balance 500
-                                           Bot plays until 500 APE balance
-  ${BINARY_NAME} blackjack 10 --auto --loop --target-x 2.5x
-                                           Stop after any 2.5x-or-better hand
-  ${BINARY_NAME} blackjack 10 --auto --loop --recover-loss 25
-                                           Stop once a 25 APE drawdown returns to break-even/profit
-  ${BINARY_NAME} blackjack 10 --auto --loop --min-profit 40
-                                           Stop once net session PnL reaches +40 APE
-
-${'═'.repeat(60)}
-`);
-      return;
-    }
-
-    if (matchedCatalogEntry?.key === 'cash-dash') {
-      const cashDash = getCashDashCatalogEntry();
-      if (opts.json) {
-        console.log(JSON.stringify(cashDash));
-        return;
-      }
-      console.log(`
-${'═'.repeat(60)}
-  ${cashDash.displayName.toUpperCase()}
-${'═'.repeat(60)}
-
-  Stateful ladder game. Each row has one hidden death tile.
-  A safe pick advances the run and compounds the available payout;
-  a death tile ends the run. Cash out after any resolved safe row.
-
-  Type:     ${cashDash.type}
-  Key:      ${cashDash.key}
-  Aliases:  ${cashDash.aliases.join(', ')}
-  ABI verified: ${cashDash.abiVerified}
-  Contract: ${cashDash.contract}
-
-${'─'.repeat(60)}
-  COMMANDS
-${'─'.repeat(60)}
-
-  ${BINARY_NAME} cash-dash <amount>    Start new run with bet
-  ${BINARY_NAME} cash-dash resume      Resume unfinished games in queue
-  ${BINARY_NAME} cash-dash status      Check current game state
-  ${BINARY_NAME} cash-dash payouts     Show verified row payout table
-  ${BINARY_NAME} cash-dash cashout     End the current run and collect
-  ${BINARY_NAME} cash-dash guess <tile> Continue with a tile pick
-
-${'─'.repeat(60)}
-  OPTIONS
-${'─'.repeat(60)}
-
-  --tile <tile>   Opening tile: 1-7 or random; manual mode prompts when omitted
-  --auto [mode]   Auto-play the run
-  --cashout-after <rows> Auto-play cashes out after N safe rows
-  --solver        Show the best continuation suggestion in manual mode
-  --loop          Keep starting new runs until a stop condition triggers
-  --max-games <count> Stop after N runs in loop mode
-  --max-balance <ape> Stop when balance reaches this amount
-  --min-profit <ape-or-percent> Stop when net session PnL reaches this profit
-  --target-x <x> Latest-game gross P/W target, e.g. 2x (max 2 decimals)
-  --target-profit <ape-or-percent> Net profit: APE on latest game; whole % on cumulative session
-  --min-balance <ape> Stop when balance drops to this amount
-  --max-loss <ape-or-percent> Stop when net session PnL reaches this loss
-  --bankroll <ape> Alias for --max-loss
-  --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
-  --bankroll-stop <ape> Stop when remaining net bankroll is at or below it
-  --retrace <ape-or-percent> Net loss: APE on latest game; whole % on cumulative session
-  --recover-loss <ape-or-percent> Arm at -<ape> net P&L; stop at break-even/profit
-  --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
-  --bet-strategy <name> Betting strategy for loop mode; supports bankroll-fraction=<0..1>
-  --max-bet <ape> Maximum bet amount for progressive strategies
-  --min-bet <ape> Minimum bet amount floor for dynamic strategies
-  --display <mode> Display mode: full, simple, json
-  --game <id>     Specify game ID (for resume/action)
-
-${'─'.repeat(60)}
-  GRAMMAR (BNF)
-${'─'.repeat(60)}
-
-  <amount> ::= <ape>
-  <ape> ::= <number>            ; decimal APE amount; value > 0
-  <tile> ::= "random" | <integer>
-  <auto-mode> ::= "simple" | "best"
-
-${'─'.repeat(60)}
-  ACTIONS (during game)
-${'─'.repeat(60)}
-
-  1..N / guess N  Pick a tile in the active row
-  r / random      Pick a random tile
-  c / cashout     Bank current winnings and end the run
-
-${'─'.repeat(60)}
-  EXAMPLES
-${'─'.repeat(60)}
-
-  ${BINARY_NAME} cash-dash 25                  Play one run, prompts for opening tile
-  ${BINARY_NAME} cash-dash 25 --tile 3         Open with tile 3
-  ${BINARY_NAME} cash-dash 25 --solver         Manual play with best suggestion
-  ${BINARY_NAME} cash-dash 25 --auto           Auto cashes first safe row
-  ${BINARY_NAME} cash-dash 25 --auto --cashout-after 3
-                                        Auto targets three safe rows
-  ${BINARY_NAME} cash-dash 25 --auto best --loop --max-games 20
-                                        Continuous Cash Dash auto-play
-  ${BINARY_NAME} cash-dash guess 2             Continue the current run with tile 2
-  ${BINARY_NAME} cash-dash cashout             End the current run and collect
-
-${'═'.repeat(60)}
-`);
-      return;
-    }
-
-    if (matchedCatalogEntry?.key === 'hi-lo-nebula') {
-      const hiLoNebula = getHiLoNebulaCatalogEntry();
-      if (opts.json) {
-        console.log(JSON.stringify(hiLoNebula));
-        return;
-      }
-      console.log(`
-${'═'.repeat(60)}
-  ${hiLoNebula.displayName.toUpperCase()}
-${'═'.repeat(60)}
-
-  Sequential rank-only card prediction game. Guess HIGHER, LOWER,
-  or SAME against the current card. Each correct guess advances the
-  streak and increases the next cashout value; a miss loses everything.
-  The verified contract samples ranks 2..A uniformly with replacement.
-
-  Type:     ${hiLoNebula.type}
-  Key:      ${hiLoNebula.key}
-  Aliases:  ${hiLoNebula.aliases.join(', ')}
-  ABI verified: ${hiLoNebula.abiVerified}
-  Contract: ${hiLoNebula.contract}
-
-${'─'.repeat(60)}
-  COMMANDS
-${'─'.repeat(60)}
-
-  ${BINARY_NAME} hi-lo-nebula <amount>  Start new game with bet
-  ${BINARY_NAME} hi-lo-nebula resume    Resume unfinished games in queue
-  ${BINARY_NAME} hi-lo-nebula status    Check current game state
-  ${BINARY_NAME} hi-lo-nebula payouts   Show verified payout table
-
-${'─'.repeat(60)}
-  OPTIONS
-${'─'.repeat(60)}
-
-  --auto [mode]   Auto-play the run
-  --solver [mode] Show a continuation suggestion in manual mode (default: best)
-  --loop          Keep starting new runs until a stop condition triggers
-  --max-games <count> Stop after N runs in loop mode
-  --max-balance <ape>  Stop when balance reaches this amount
-  --min-profit <ape-or-percent> Stop when net session PnL reaches this profit
-  --target-x <x> Latest-game gross P/W target, e.g. 2x (max 2 decimals)
-  --target-profit <ape-or-percent> Net profit: APE on latest game; whole % on cumulative session
-  --min-balance <ape> Stop when balance drops to this amount
-  --max-loss <ape-or-percent> Stop when net session PnL reaches this loss
-  --bankroll <ape> Alias for --max-loss
-  --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
-  --bankroll-stop <ape> Stop when remaining net bankroll is at or below it
-  --retrace <ape-or-percent> Net loss: APE on latest game; whole % on cumulative session
-  --recover-loss <ape-or-percent> Arm at -<ape> net P&L; stop at break-even/profit
-  --giveback-profit <ape-or-percent> Arm at +<ape> net P&L; stop at break-even/loss
-  --bet-strategy <name> Betting strategy for loop mode; supports bankroll-fraction=<0..1>
-  --max-bet <ape> Maximum bet amount for progressive strategies
-  --min-bet <ape> Minimum bet amount floor for dynamic strategies
-  --display <mode> Display mode: full, simple, json
-  --game <id>     Specify game ID (for resume/action)
-
-${'─'.repeat(60)}
-  GRAMMAR (BNF)
-${'─'.repeat(60)}
-
-  <amount> ::= <ape>
-  <ape> ::= <number>            ; decimal APE amount; value > 0
-  <auto-mode> ::= "simple" | "best" | "winston-ladder"
-
-${'─'.repeat(60)}
-  HI-LO AUTO / SOLVER MODES
-${'─'.repeat(60)}
-
-  simple          Cash first available payout; otherwise pick highest hit rate
-  best            Net-EV continuation solver with VRF and jackpot snapshot
-  winston-ladder  Two-game, seven-guess ladder; target is net of recorded costs
-
-${'─'.repeat(60)}
-  ACTIONS (during game)
-${'─'.repeat(60)}
-
-  h / high        Guess the next rank will be higher
-  l / lower       Guess the next rank will be lower
-  s / same        Guess the next rank will match
-  c / cashout     Bank current winnings and end the round
-
-${'─'.repeat(60)}
-  EXAMPLES
-${'─'.repeat(60)}
-
-  ${BINARY_NAME} hi-lo-nebula 25                Play one run, 25 APE
-  ${BINARY_NAME} hi-lo-nebula 25 --solver       Manual play with best suggestion
-  ${BINARY_NAME} hi-lo-nebula 25 --solver winston-ladder
-                                          Manual play with ladder suggestions
-  ${BINARY_NAME} hi-lo-nebula 25 --auto         Simple auto-play
-  ${BINARY_NAME} hi-lo-nebula 25 --auto best    Net-EV auto-play with VRF/jackpot snapshot
-  ${BINARY_NAME} hi-lo-nebula 25 --auto winston-ladder
-                                          Two-game target ladder auto-play
-  ${BINARY_NAME} hi-lo-nebula 25 --auto best --loop --max-games 20
-                                          Continuous Hi-Lo auto-play
-  ${BINARY_NAME} hi-lo-nebula 25 --auto best --loop --max-loss 20
-                                          Stop after a 20 APE session drawdown
-  ${BINARY_NAME} hi-lo-nebula lower             Continue the current run with LOWER
-  ${BINARY_NAME} hi-lo-nebula cashout           End the current run and collect
-
-${'═'.repeat(60)}
-`);
-      return;
-    }
-    
-    // Handle video-poker specially (stateful game)
-    if (matchedCatalogEntry?.key === 'video-poker') {
-      const videoPoker = getVideoPokerCatalogEntry();
-      if (opts.json) {
-        console.log(JSON.stringify(videoPoker));
-        return;
-      }
-      console.log(`
-${'═'.repeat(60)}
-  ${videoPoker.displayName.toUpperCase()} (GIMBOZ POKER)
-${'═'.repeat(60)}
-
-  Jacks or Better video poker. Get dealt 5 cards, choose which
-  to discard, and draw replacements. Pair of Jacks+ wins.
-  Max bet (400 APE) qualifies for progressive jackpot on Royal Flush.
-
-  Type:     ${videoPoker.type}
-  Key:      ${videoPoker.key}
-  Aliases:  ${videoPoker.aliases.join(', ')}
-  ABI verified: ${videoPoker.abiVerified}
-  Contract: ${videoPoker.contract}
-
-${'─'.repeat(60)}
-  COMMANDS
-${'─'.repeat(60)}
-
-  ${BINARY_NAME} video-poker <amount>    Start new game (10/25/50/100/250/400 APE)
-  ${BINARY_NAME} video-poker resume      Resume unfinished games in queue
-  ${BINARY_NAME} video-poker status      Check current game state
-  ${BINARY_NAME} video-poker payouts     Show payout table
-
-${'─'.repeat(60)}
-  OPTIONS
-${'─'.repeat(60)}
-
-  --auto [mode]   Auto-play the hand
-  --loop          Keep playing until balance runs out
-  --max-balance <ape>  Stop when balance reaches this amount
-  --min-profit <ape-or-percent>  Stop when net session PnL reaches this profit
-  --target-x <x>  Latest-game gross P/W target, e.g. 2x (max 2 decimals)
-  --target-profit <ape-or-percent>  Net profit: APE on latest game; whole % on cumulative session
-  --retrace <ape-or-percent>  Net loss: APE on latest game; whole % on cumulative session
-  --recover-loss <ape-or-percent>  Arm at -<ape> net P&L; stop at break-even/profit
-  --giveback-profit <ape-or-percent>  Arm at +<ape> net P&L; stop at break-even/loss
-  --min-balance <ape>  Stop when balance drops to this amount
-  --max-loss <ape-or-percent>  Stop when net session PnL reaches this loss
-  --bankroll <ape>  Alias for --max-loss
-  --bankroll-cap <ape> Cap allocated bankroll; exit when net capital exceeds it
-  --bankroll-stop <ape> Stop when remaining net bankroll is at or below it
-
-${'─'.repeat(60)}
-  GRAMMAR (BNF)
-${'─'.repeat(60)}
-
-  <amount> ::= ${VIDEO_POKER_BET_BNF}
-  <auto-mode> ::= "simple" | "best"
-
-${'─'.repeat(60)}
-  PAYOUTS (multiplier x bet)
-${'─'.repeat(60)}
-
-  Royal Flush        250x  (+Jackpot at max bet)
-  Straight Flush      50x
-  Four of a Kind      25x
-  Full House           9x
-  Flush                6x
-  Straight             4x
-  Three of a Kind      3x
-  Two Pair             2x
-  Jacks or Better      1x
-
-${'─'.repeat(60)}
-  EXAMPLES
-${'─'.repeat(60)}
-
-  ${BINARY_NAME} video-poker ${VIDEO_POKER_MIN_BET_APE}              Play one hand, ${VIDEO_POKER_MIN_BET_APE} APE
-  ${BINARY_NAME} video-poker ${VIDEO_POKER_MAX_BET_APE}             Max bet (jackpot eligible)
-  ${BINARY_NAME} video-poker 25 --auto          Bot plays one hand (simple)
-  ${BINARY_NAME} video-poker 25 --auto best     Exact EV solver
-  ${BINARY_NAME} video-poker 25 --auto --loop
-                                        Bot grinds until broke
-  ${BINARY_NAME} video-poker 25 --auto --loop --giveback-profit 40
-                                        Stop once a 40 APE run-up is given back
-  ${BINARY_NAME} video-poker 25 --auto --loop --min-profit 50
-                                        Stop once net session PnL reaches +50 APE
-
-${'═'.repeat(60)}
-`);
-      return;
-    }
-    
-    const game = resolveGame(matchedCatalogEntry?.key || name);
-    if (!game) {
+    if (!matchedCatalogEntry) {
       const error = { error: `Unknown game: ${name}`, available: listAllSupportedGameKeys() };
       process.exitCode = 1;
       if (opts.json) console.log(JSON.stringify(error));
@@ -9029,60 +8907,7 @@ ${'═'.repeat(60)}
       return;
     }
 
-    if (opts.json) {
-      console.log(JSON.stringify({
-        ...game,
-        displayName: getGameDisplayName(game),
-        abiVerified: Boolean(game.abiVerified),
-      }));
-    } else {
-      const displayName = getGameDisplayName(game);
-      console.log(`\n${'═'.repeat(60)}`);
-      console.log(`  ${displayName.toUpperCase()}`);
-      console.log(`${'═'.repeat(60)}\n`);
-      console.log(`  ${game.description}\n`);
-      console.log(`  Type:     ${game.type}`);
-      console.log(`  Key:      ${game.key}`);
-      if (Array.isArray(game.aliases) && game.aliases.length > 0) {
-        console.log(`  Aliases:  ${game.aliases.join(', ')}`);
-      }
-      console.log(`  ABI verified: ${Boolean(game.abiVerified)}`);
-      console.log(`  Contract: ${game.contract}\n`);
-      if (game.key === 'baccarat') console.log(`${formatBaccaratPlayHelp()}\n`);
-      
-      if (game.config) {
-        console.log(`${'─'.repeat(60)}`);
-        console.log('  PARAMETERS');
-        console.log(`${'─'.repeat(60)}\n`);
-        for (const [param, cfg] of Object.entries(game.config).filter(([, entry]) => isPublicGameConfigEntry(entry))) {
-          const cliName = getGameConfigCliName(game, param);
-          const range = getGameConfigDisplayRange(game, param);
-          const displayDefault = getGameConfigDisplayDefault(game, param);
-
-          console.log(`  --${cliName}`);
-          if (range.min !== undefined) console.log(`      Range:   ${range.min} - ${range.max}`);
-          if (displayDefault !== undefined) console.log(`      Default: ${displayDefault}`);
-          if (cfg.description) console.log(`      ${cfg.description}`);
-          printConfigBnf(cfg);
-          if (cfg.examples) {
-            console.log('      Examples:');
-            for (const ex of cfg.examples) {
-              if (typeof ex === 'object' && ex.value !== undefined) {
-                const parts = [];
-                if (ex.value !== undefined) parts.push(`${ex.value}`);
-                if (ex.winChance) parts.push(`${ex.winChance} win`);
-                if (ex.payout) parts.push(`→ ${ex.payout}`);
-                console.log(`        ${parts.join(' ')}`);
-              } else {
-                console.log(`        ${ex}`);
-              }
-            }
-          }
-          console.log('');
-        }
-      }
-      console.log(`${'═'.repeat(60)}\n`);
-    }
+    printGameReference(matchedCatalogEntry, opts);
   });
 
 // ============================================================================
@@ -9091,7 +8916,7 @@ ${'═'.repeat(60)}
 program
   .command('commands')
   .description('Show the compact command index')
-  .addHelpText('after', formatCommandsHelpAppendix())
+  .documentHelp(getCommandsCommandHelp())
   .action(() => {
     console.log(`
 🦍 APE CHURCH CLI - COMMAND INDEX
@@ -10354,9 +10179,10 @@ ${'═'.repeat(70)}
     • Actions
     • Parameters
     • Options
-    • Grammar (BNF)
     • Examples
     • Notes
+
+  Add --verbose (or -v) to --help for grammar with help. Use --bnf for grammar alone.
 
 ${'─'.repeat(70)}
   COMMON ENTRY POINTS
@@ -10383,7 +10209,7 @@ program
   .command('help [topic]')
   .description('Get detailed help on a topic (loop, strategies, auto, wallet, bucket, history, house, commands)')
   .option('--json', 'JSON output')
-  .addHelpText('after', formatHelpCommandAppendix())
+  .documentHelp(getHelpCommandHelp())
   .action((topic, opts) => {
     const topics = Object.keys(HELP_TOPICS);
     
@@ -10443,7 +10269,7 @@ program
   .command('send <asset> <amount> <destination>')
   .description('Send APE or GP to an address')
   .option('--json', 'JSON output only')
-  .addHelpText('after', formatSendHelpAppendix())
+  .documentHelp(getSendCommandHelp())
   .action(async (asset, amount, destination, opts) => {
     // Validate destination address
     const dest = destination.trim();
@@ -10673,7 +10499,7 @@ program
   .command('house [action] [amount]')
   .description('The House - stake APE, earn from player losses')
   .option('--json', 'JSON output only')
-  .addHelpText('after', formatHouseHelpAppendix())
+  .documentHelp(getHouseCommandHelp())
   .action(async (action, amount, opts) => {
     const { publicClient } = createClients();
 
@@ -10995,7 +10821,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
-  .addHelpText('after', formatStatefulCommandHelpAppendix('blackjack'))
+  .documentHelp(getStatefulCommandHelp('blackjack'))
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('blackjack', action, amount, opts);
   });
@@ -11040,7 +10866,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
-  .addHelpText('after', formatStatefulCommandHelpAppendix('cash-dash'))
+  .documentHelp(getStatefulCommandHelp('cash-dash'))
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('cash-dash', action, amount, opts);
   });
@@ -11084,7 +10910,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
-  .addHelpText('after', formatStatefulCommandHelpAppendix('hi-lo-nebula'))
+  .documentHelp(getStatefulCommandHelp('hi-lo-nebula'))
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('hi-lo-nebula', action, amount, opts);
   });
@@ -11126,7 +10952,7 @@ program
   .option('--max-bet <ape>', 'Maximum bet amount (safety cap for progressive strategies)')
   .option('--min-bet <ape>', 'Minimum bet amount floor for dynamic strategies')
   .option('--gp-ape <points>', 'Override GP earned per APE for this run')
-  .addHelpText('after', formatStatefulCommandHelpAppendix('video-poker'))
+  .documentHelp(getStatefulCommandHelp('video-poker'))
   .action(async (action, amount, opts) => {
     return runStatefulGameCommand('video-poker', action, amount, opts);
   });
@@ -11134,6 +10960,53 @@ program
 // ============================================================================
 // PARSE
 // ============================================================================
+function getDocumentationRequest(args) {
+  const delimiter = args.indexOf('--');
+  const tokens = delimiter === -1 ? args : args.slice(0, delimiter);
+  const commandIndex = tokens.findIndex((token) => !token.startsWith('-'));
+  const commandName = tokens[commandIndex];
+  const command = commandName === undefined ? program : program.commands.find(
+    (candidate) => candidate.name() === commandName || candidate.aliases().includes(commandName),
+  );
+  const operands = commandIndex === -1 ? [] : tokens.slice(commandIndex + 1);
+  // Script write captures a downstream command. Named bot help is forwarded.
+  const flags = commandName === 'script' && operands[0] === 'write'
+    ? tokens.slice(0, commandIndex + 3) : tokens;
+  const bnfOnly = flags.includes('--bnf');
+  const combined = flags.includes('-hv') || flags.includes('-vh');
+  const help = combined || flags.includes('--help') || flags.includes('-h');
+  const verbose = combined || flags.includes('--verbose') || flags.includes('-v');
+  const name = command?.name() === 'game' ? getHelpGameOperand(command, operands) : undefined;
+  const forwardBotHelp = commandName === 'bot' && operands[0] && !operands[0].startsWith('-');
+  if (!bnfOnly && (!help || (!verbose && !name) || forwardBotHelp)) return null;
+  return { command, commandName, name, verbose, bnfOnly };
+}
+
+function getHelpGameOperand(command, operands) {
+  for (let index = 0; index < operands.length; index += 1) {
+    const token = operands[index];
+    if (!token.startsWith('-')) return token;
+    if (command.options.some((option) => option.long === token && option.required)) index += 1;
+  }
+  return undefined;
+}
+
+function printDocumentation({ command, commandName, name, verbose, bnfOnly }) {
+  if (!command) throw new Error(`Unknown command: ${commandName}`);
+  verboseHelp = verbose && !bnfOnly;
+  if (name) {
+    const matches = findGameDetailsMatches(name);
+    if (!matches.length) throw new Error(`Unknown game: ${name}`);
+    if (matches.length > 1) throw new Error(formatAmbiguousGameName(name, matches.map(({ key }) => key).sort()));
+    printGameReference(matches[0], { bnfOnly });
+  } else if (bnfOnly) {
+    console.log(command.helpDefinition.bnf.join('\n'));
+  } else {
+    command.outputHelp();
+  }
+}
+
+const documentationRequest = getDocumentationRequest(process.argv.slice(2));
 const topLevelVersionArgs = getTopLevelVersionArgs();
 installJsonMetadataConsoleHooks();
 installColorOutputMode();
@@ -11142,7 +11015,7 @@ if (topLevelVersionArgs.isJson) {
   process.exit(0);
 }
 
-if (!topLevelVersionArgs.isVersionRequest) {
+if (!topLevelVersionArgs.isVersionRequest && !documentationRequest?.bnfOnly) {
   printInvocationVersion();
 }
 // Capital controls are optional flags, never positional configuration. Reject
@@ -11157,7 +11030,8 @@ program.hook('preAction', (_program, command) => {
 });
 
 try {
-  await program.parseAsync(process.argv);
+  if (documentationRequest) printDocumentation(documentationRequest);
+  else await program.parseAsync(process.argv);
 } catch (error) {
   process.exitCode = error.exitCode ?? 1;
   if (process.argv.includes('--json')) {
@@ -11169,7 +11043,7 @@ try {
 }
 
 // Show update notification if available (after command completes)
-if (notifier) {
+if (notifier && !documentationRequest?.bnfOnly) {
   notifier.notify({
     isGlobal: true,
     message: `Update available: {currentVersion} → {latestVersion}\nRun: npm i -g ${PACKAGE_NAME}`,

@@ -207,6 +207,11 @@ export const GAME_REGISTRY = [
         ],
         examples: ['4', '5'],
       },
+      shuffle: {
+        flag: true,
+        description: 'Sample an equivalent allocation with identical bet types, chip counts and joint win probabilities.',
+        bnf: ['<shuffle> ::= "--shuffle"'],
+      },
     },
     /**
      * Bet type mappings: user input → on-chain bet type value
@@ -585,6 +590,7 @@ export const GAME_REGISTRY = [
     abiVerified: true,
     config: {
       multiplier: {
+        cliName: 'cutoff',
         min: 1.01,
         max: 10000,
         default: '2x',
@@ -686,20 +692,20 @@ export const GAME_REGISTRY = [
     config: {
       spins: {
         min: 1, max: 20, default: 10, cliName: 'split',
-        description: 'Paid base spins sharing the total wager; minimum 2.5 APE per spin. Free spins are included in the settled result. --spin instead sets exact APE per paid spin within the amount budget, leaving the remainder unspent.',
+        description: 'Paid base spins share the total wager, with a minimum 2.5 APE per spin. Free spins are included in the settled result. --bet-split sets exact APE per paid spin within the amount budget.',
         bnf: [
-          '<blizzard-command> ::= "play" <blizzard-game> <ape> [ <split> | "--split" <split> | "--spin" <ape> | "--bonus" ] <play-shared-option>*',
+          '<blizzard-command> ::= "play" <blizzard-game> <ape> [ <split> | "--split" <split> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" ] <play-shared-option>*',
           '<blizzard-game> ::= "blizzard-blitz" | "blizzardblitz" | "blizzard"',
           '<split> ::= <integer>',
           '; 1 <= split <= 20; default 10; total wager >= 2.5 APE × split',
-          '; --spin maximizes count <= 20 within the amount budget; fees are additional',
+          '; --bet-split maximizes count <= 20 within the amount budget; fees are additional',
           '; duplicate positional/named counts must agree; malformed counts are errors',
           '; also accepts timeout and entropy/referral overrides; shared grammar and loop/stop/bet-strategy controls: see play --help',
         ],
       },
       bonus: {
         cliName: 'bonus', flag: true, default: false,
-        description: 'Buy one bonus round instead of base spins. Amount is the full purchase cost (minimum 100 APE), with a reference spin stake of amount / 32. Rejects --split, --spin and positional counts. Fees are additional; loop repeats purchases.',
+        description: 'Buy one bonus round instead of base spins. Amount is the full purchase cost (minimum 100 APE), with a reference spin stake of amount / 32. Rejects --split, exact-stake flags and positional counts. Fees are additional; loop repeats purchases.',
         bnf: ['<bonus-option> ::= "--bonus"', '; one bonus purchase; amount >= 100 APE; five free spins; default: base play'],
       },
       gameDataOrder: 'spins-first-uint8-bonus', minBetPerSpinApe: 2.5,
@@ -722,16 +728,16 @@ export const GAME_REGISTRY = [
     config: {
       spins: {
         min: 1, max: 10, default: 10, cliName: 'split',
-        description: 'Purchased base spins sharing the total wager; minimum 3 APE per spin. Cascades, board refills and awarded bonus spins are included in settlement. --spin sets exact APE per purchased spin within the amount budget, leaving the remainder unspent.',
+        description: 'Purchased base spins sharing the total wager; minimum 3 APE per spin. Cascades, board refills and awarded bonus spins are included in settlement. --bet-split sets exact APE per purchased spin within the amount budget, leaving the remainder unspent.',
         bnf: [
           '<galaxy-game> ::= "gimboz-galaxy" | "gimbozgalaxy" | "galaxy"',
-          '<galaxy-play> ::= "play" <galaxy-game> <ape> [ <split> | "--split" <split> | "--spin" <ape> | "--bet-split" <ape> | "--bonus" ] <galaxy-play-option>*',
-          '<galaxy-bet> ::= "bet" "--game" <galaxy-game> "--amount" <ape> [ "--split" <split> | "--spin" <ape> | "--bet-split" <ape> | "--bonus" ] <bet-option>*',
-          '<galaxy-table> ::= "game" <galaxy-game> "--paytable" [ "--amount" <ape> ] [ "--split" <split> | "--spin" <ape> | "--bet-split" <ape> | "--bonus" ] [ "--json" ]',
+          '<galaxy-play> ::= "play" <galaxy-game> <ape> [ <split> | "--split" <split> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" ] <galaxy-play-option>*',
+          '<galaxy-bet> ::= "bet" "--game" <galaxy-game> "--amount" <ape> [ "--split" <split> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" ] <bet-option>*',
+          '<galaxy-table> ::= "game" <galaxy-game> "--paytable" [ "--amount" <ape> ] [ "--split" <split> | "--bet-split" <ape> | "--spin" <spin> | "--bonus" ] [ "--json" ]',
           '<galaxy-play-option> ::= <play-shared-option> | "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <bytes32>',
           '<split> ::= <integer> ; 1 <= split <= 10; default 10',
           '<ape> ::= <positive-decimal> ; at most 18 decimal places',
-          '; base amount >= 3 APE × split; --spin and --bet-split require an amount budget',
+          '; base amount >= 3 APE × split; --bet-split and its deprecated alias --spin require an amount budget',
           '; exact stake >= 3 APE; count = min(floor(budget / stake), 10); unused budget is not wagered',
           '; exact-stake options conflict with each other and explicit counts; duplicate positional/named counts must agree',
           '; loop, stop limits, bet strategies, timeout, retry, JSON, validation, and entropy/referral controls use the shared command grammar; see play --help and bet --help',
@@ -747,6 +753,7 @@ export const GAME_REGISTRY = [
     vrf: { type: 'slots-dynamic', baseGas: 550000, perUnitGas: 200000, executorFee: 'per-spin' },
   },
 
+  SCRAP_FORGE_GAME,
   // ===========================================================================
   // DOJO DROP - Blades, persistent bonus drops, and column chests
   // ===========================================================================
@@ -767,12 +774,12 @@ export const GAME_REGISTRY = [
         cliName: 'split',
         description: 'Independent paid spins, with the total wager split across them. Minimum 2.5 APE per spin. Bonus drops do not add to this count.',
         bnf: [
-          '<dojo-command> ::= "play" <dojo-game> <ape> [ <split> | "--split" <split> | "--spin" <ape> ] <play-shared-option>*',
+          '<dojo-command> ::= "play" <dojo-game> <ape> [ <split> | "--split" <split> | "--bet-split" <ape> | "--spin" <spin> ] <play-shared-option>*',
           '<dojo-game> ::= "dojo-drop" | "dojodrop" | "dojo"',
           '<split> ::= <integer>',
           '; semantic constraint: 1 <= value <= 15; default: 15',
           '; total wager >= 2.5 APE × split; invalid counts and smaller totals fail before wallet access',
-          '; --spin maximizes count within budget/live limit and leaves the remainder unspent; it rejects explicit counts',
+          '; --bet-split maximizes count within budget/live limit, leaves the remainder unspent and rejects explicit counts',
           '; duplicate positional/named counts must agree; bonus drops are automatic, with no bonus buy',
           '; timeout, entropy/referral, loop/stop/bet-strategy, retry and JSON options: see play --help',
         ],
@@ -996,6 +1003,7 @@ export const GAME_REGISTRY = [
 
 // Exact stakes use native batching where available, otherwise a finite play loop.
 for (const game of GAME_REGISTRY) {
+  if (game.config.betSplit) continue;
   if (['blocks', 'plinko', 'primes', 'speedkeno', 'slots'].includes(game.type)) {
     game.config.betSplit = {
       cliName: 'bet-split',
@@ -1011,10 +1019,11 @@ for (const game of GAME_REGISTRY) {
       game.config.betSplit.description = 'Exact APE per independent attempt. Without --survive, batch independent rolls within the transaction budget and native count limit. With --survive, require play --loop and spend a finite total session budget on whole survival games, keeping their internal steps. Cannot be combined with --split or positional counts. Fees are additional.';
       game.config.betSplit.bnf.push('; with --survive: requires play --loop; budget counts whole games, not internal survival steps');
     }
-    if (['blocks', 'plinko', 'slots'].includes(game.type)) {
+    if (game.type === 'slots') {
       game.config.spin = { ...game.config.betSplit, cliName: 'spin',
-        description: 'Alias for --bet-split. Use only one of the two names.',
-        bnf: ['<spin> ::= <ape>', '; alias for --bet-split; slots, Plinko, and Blocks only'] };
+        deprecated: true,
+        description: 'Deprecated alias for --bet-split. Use only one of the two names.',
+        bnf: ['<spin> ::= <ape> ; deprecated alias for --bet-split on slot machines only'] };
     }
   } else {
     game.config.betSplit = {
@@ -1034,7 +1043,6 @@ for (const game of GAME_REGISTRY) {
 export const ABI_VERIFIED_SYMBOL = '✔︎';
 
 const SUPPLEMENTAL_DISPLAY_GAMES = Object.freeze([
-  SCRAP_FORGE_GAME,
   Object.freeze({
     key: 'blackjack',
     name: 'Blackjack',

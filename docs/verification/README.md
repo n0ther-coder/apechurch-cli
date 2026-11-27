@@ -21,7 +21,7 @@ Each `*_CONTRACT.md` file below is the maintainer-facing evidence bundle for one
 | Glyde or Crash | `GLYDE_OR_CRASH_CONTRACT.md` | Fixed-target crash tuple, live getter snapshot, exact settlement formula, and quantized RTP surface |
 | Hi-Lo Nebula | `HI_LO_NEBULA_CONTRACT.md` | Stateful rank-only draw model, streak actions, jackpot getter, and verified paytable |
 | Reel Pirates | `REEL_PIRATES_CONTRACT.md` | Unverified-contract source trail, observed play payload, and known public mechanics |
-| Scrap Forge | [SCRAP_FORGE_CONTRACT.md](./SCRAP_FORGE_CONTRACT.md) | Read-only submission evidence, historical fee breakdown, and unresolved ABI and Vault settlement |
+| Scrap Forge | [SCRAP_FORGE_CONTRACT.md](./SCRAP_FORGE_CONTRACT.md) | Live wager simulation, historical fees, separate Vault settlement and open ABI and refund evidence |
 | Sushi Showdown | `SUSHI_SHOWDOWN_CONTRACT.md` | Similar-match slots trail, `7`-symbol asymmetric reels, ordered paytable, and exact RTP |
 | Monkey Match | `MONKEY_MATCH_CONTRACT.md` | Five-draw multiplicity model, live mode constants, and exact combinatorial RTP |
 | Bear-A-Dice | `BEAR_DICE_CONTRACT.md` | Verified 2d6 payout table, custom gas limit, and difficulty/run matrices |

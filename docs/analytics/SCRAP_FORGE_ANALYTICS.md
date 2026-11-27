@@ -24,13 +24,11 @@ base wagers in native APE before randomness and network gas.
 | Aluminum | Uncommon | 2× | 59,000 |
 | Stainless Steel | Rare | 4× | 25,600 |
 | Brass | Rare | 10× | 7,500 |
-| Copper | Epic | 25× in the output table | 1,930 |
+| Copper | Epic | 25× | 1,930 |
 | Tungsten Carbide | Premium | 50× | 570 |
 | AMP | Special | Vault pull | 10,000 |
 
-The Copper rule example instead implies 10×. Use 25× when reproducing the
-displayed table and carry the discrepancy until settlement evidence resolves
-it. Material multipliers are component awards. The AMP Vault has a separate
+Material multipliers are component awards. The AMP Vault has a separate
 payout distribution, so 50× does not establish a total round maximum.
 
 The official rules say that one VRF word determines a round and advertise an
@@ -90,6 +88,12 @@ within the wager and never added to the submitted value a second time.
 Network gas is additional. Given a fixed extra cost `F` and a compatible
 valuation of cash and any NFT payout, all-in RTP would be
 `n × E[X] / (n × b + F)`. An unknown NFT mark leaves marked PnL unknown.
+
+The live stake and VRF fee come from the Forge Lens. At block 55,949,865,
+one 10 APE forge quoted 0.121 APE in VRF fees, or 1.21% of the base wager
+before gas. Each round is quoted separately. The CLI's realized cash
+results use metal payouts and delivered APE prizes. The Vault's listing
+marks describe the reported in-kind awards separately.
 
 The CLI can read observed payments to the player through documented Forge
 and ClaimManager paths in a matching reveal. It also lists NFT-shaped

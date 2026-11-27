@@ -4,7 +4,7 @@
 
 Compact syntax and comparison notes for all Ape Church CLI games.
 
-The CLI currently implements 25 playable games. Of those, 21 are ABI-verified and marked with `✔︎`; `Blizzard Blitz`, `Dojo Drop`, `Gimboz of the Galaxy` and `Reel Pirates` are playable but not ABI-verified. Wallet history tracks 27 distinct Ape Church games by also including history-only coverage for `Rico's Revenge` and `Cult Quest`.
+The CLI currently implements 26 playable games. Of those, 21 are ABI-verified and marked with `✔︎`; `Blizzard Blitz`, `Dojo Drop`, `Gimboz of the Galaxy`, `Reel Pirates`, and `Scrap Forge` are in the ABI verification backlog. Wallet history tracks 28 distinct Ape Church games by also including history-only coverage for `Rico's Revenge` and `Cult Quest`.
 
 Treat published running RTP values as observed snapshots, not guaranteed long-run returns. For ABI-backed tuple layouts, payout matrices, and maintainer-facing verification evidence, follow the per-game links in `docs/verification/`. For compact exact outcome distributions meant to help choose variants, see [docs/analytics/README.md](./analytics/README.md).
 
@@ -22,8 +22,8 @@ Ordering: alphabetical by game title.
 | Baccarat ✔︎ | `play baccarat <amt> <bet>` | `--game baccarat --amount X --bet Y` | - |
 | Bear-A-Dice ✔︎ | `play bear-dice <amt>` | `--game bear-dice --amount X --risk Y --survive Z` | `bear`, `dice` |
 | Blackjack ✔︎ | `blackjack <amt>` | `blackjack <amt> --side X --auto best` | `bj` |
-| Gimboz of the Galaxy | `play gimboz-galaxy <amt> [<split>]` | `--game gimboz-galaxy --amount X [--split Y \| --spin Z \| --bet-split Z \| --bonus]` | `gimbozgalaxy`, `galaxy` |
-| Blizzard Blitz | `play blizzard-blitz <amt> [<split>]` | `--game blizzard-blitz --amount X [--split Y \| --spin Z \| --bonus]` | `blizzardblitz`, `blizzard` |
+| Gimboz of the Galaxy | `play gimboz-galaxy <amt> [<split>]` | `--game gimboz-galaxy --amount X [--split Y \| --bet-split Z \| --bonus]` | `gimbozgalaxy`, `galaxy` |
+| Blizzard Blitz | `play blizzard-blitz <amt> [<split>]` | `--game blizzard-blitz --amount X [--split Y \| --bet-split Z \| --bonus]` | `blizzardblitz`, `blizzard` |
 | Blocks ✔︎ | `play blocks <amt> <risk> <survive>` | `--game blocks --amount X --risk Y --grid 2x2\|3x3\|4x4 [--split Z \| --survive Z]` | - |
 | Bubblegum Heist ✔︎ | `play bubblegum-heist <amt> <split>` | `--game bubblegum-heist --amount X --split Y` | `bubblegumheist`, `bubblegum`, `heist` |
 | Cash Dash ✔︎ | `cash-dash <amt>` | `cash-dash <amt> --auto --cashout-after N` | `cashdash`, `dash` |
@@ -40,6 +40,7 @@ Ordering: alphabetical by game title.
 | Primes ✔︎ | `play primes <amt> <risk> <split>` | `--game primes --amount X --risk Y --split Z` | - |
 | Reel Pirates | `play reel-pirates <amt> <split>` | `--game reel-pirates --amount X --split Y` | `reelpirates`, `pirates`, `reel` |
 | Roulette ✔︎ | `play roulette <amt> <bet>` | `--game roulette --amount X --bet Y` | - |
+| Scrap Forge | `play scrap-forge <amt> [<count>]` | `--game scrap-forge --bet X --forges Y` | `scrapforge`, `forge` |
 | Speed Keno ✔︎ | `play speed-keno <amt>` | `--game speed-keno --amount X --picks Y --split Z` | `speedkeno`, `skeno`, `speed` |
 | Sushi Showdown ✔︎ | `play sushi-showdown <amt> <split>` | `--game sushi-showdown --amount X --split Y` | `sushishowdown`, `sushi` |
 | Video Poker ✔︎ / Gimboz Poker | `video-poker <amt>` | `video-poker <amt> --auto best` | `vp` |
@@ -82,9 +83,10 @@ For simple `play` games, the CLI accepts any positive APE amount that can be par
 `--bet-split <APE>` fixes the exact wager per independent attempt. Native
 split games derive a count within the transaction budget and contract limit:
 `play dino-dough 23 --bet-split 4` wagers 20 APE over five spins and leaves
-3 APE unspent. Slots, Plinko, and Blocks retain `--spin` as an alias; Primes
-and Speed Keno accept only `--bet-split`. Native batching rejects `--split`,
-`--survive`, `--bonus`, and positional attempt counts. Blocks with explicit
+3 APE unspent. Slot machines also accept the deprecated alias `--spin`.
+Native batching rejects `--split`, `--survive`, `--bonus`, and positional
+attempt counts. Scrap Forge accepts a denomination with an explicit
+forge count. Blocks with explicit
 `--survive` instead requires `--loop` and funds independent whole survival
 games from a total session budget, retaining their internal steps.
 
@@ -417,20 +419,20 @@ six free spins. The wipe charges only ordinary tiles, excluding Black Holes.
 <ape> ::= <positive-decimal> ; at most 18 decimal places
 ; base wager ≥ 3 APE × split; duplicate named/positional counts must agree
 ; exact stake ≥ 3 APE; maximizes count ≤ 10 within budget; remainder unspent
-; --spin and --bet-split conflict with each other and explicit counts
+; --spin is deprecated. Use --bet-split for an exact stake without explicit counts.
 ; --bonus: full purchase ≥ 100 APE, encoded count 1, reference amount ⁄ 17
 ; --bonus rejects counts and exact-stake options; fees and gas additional
 ```
 
 `bet --game galaxy --amount <ape>` accepts the same named game options.
-`game galaxy --paytable [--amount <ape>]` accepts `--split`, `--spin`,
+`game galaxy --paytable [--amount <ape>]` accepts `--split`, deprecated `--spin`,
 `--bet-split` or `--bonus`, and optional `--json`. Standard loop, stop,
 bet-strategy, bankroll, retry, timeout and expert controls use the
 [shared command grammar](COMMAND_REFERENCE.md).
 
 ```bash
 apechurch-cli play galaxy 30 --split 10 --validate-only --json
-apechurch-cli play gimbozgalaxy 25 --spin 4 --validate-only --json
+apechurch-cli play gimbozgalaxy 25 --bet-split 4 --validate-only --json
 apechurch-cli play gimboz-galaxy 170 --bonus --validate-only --json
 apechurch-cli game galaxy --paytable --bonus --json
 ```
@@ -461,16 +463,17 @@ spin multiplier, advertised up to 4,096×; this is not a verified whole-game cap
 <bonus> ::= "play" <game> <ape> "--bonus"
 <split> ::= <integer> ; 1 ≤ value ≤ 20; default 10
 ; base total ≥ 2.5 APE × split
-; --spin sets exact APE per paid spin, maximizes count within budget/limit,
+; --bet-split sets exact APE per paid spin, maximizes count within budget/limit,
 ; and leaves unused budget unspent; it rejects explicit counts
 ; --bonus buys one five-free-spin round for amount ≥ 100 APE,
-; reference stake = amount / 32; rejects --split, --spin and positional counts
+; reference stake = amount / 32; rejects --split, exact-stake flags and positional counts
+; --spin is deprecated
 ; normal loop/stop/bet-strategy, timeout, retry, JSON and expert controls apply
 ```
 
 ```bash
 apechurch-cli play blizzard 25 --split 10 --validate-only --json
-apechurch-cli play blizzardblitz 23 --spin 4 --validate-only --json
+apechurch-cli play blizzardblitz 23 --bet-split 4 --validate-only --json
 apechurch-cli play blizzard 100 --bonus --validate-only --json
 apechurch-cli bet --game blizzard --amount 25 --split 10
 apechurch-cli game blizzard --paytable --bonus --json
@@ -505,8 +508,9 @@ Results and replay masks are read from the contract.
 <table> ::= "game" <game> "--paytable" [ "--amount" <ape> ] [ "--split" <split> | "--bet-split" <ape> | "--spin" <ape> ] [ "--json" ]
 <amount> ::= <ape>              ; total wager >= 2.5 APE × split
 <split> ::= <integer>           ; 1 <= value <= 15; default 15
-; --split <split> is the named count form; --spin <ape> sets APE per spin
-; --spin rejects explicit counts and leaves unused budget unspent
+; --split <split> is the named count form; --bet-split <ape> sets APE per spin
+; --bet-split rejects explicit counts and leaves unused budget unspent
+; --spin is deprecated
 ; conflicting counts, malformed counts, and insufficient totals are errors
 ; standard loop/stop/bet-strategy, retry, timeout, JSON and expert controls apply
 ; bonus drops are automatic; no separate bonus-buy option
@@ -727,11 +731,11 @@ Batched prime-or-zero number game. Risk controls the numeric range and fixed mul
 
 ## Scrap Forge
 
-Read-only slot catalog entry. Aliases are `scrapforge` and `forge`. View
-game help, UI wager limits, material awards, live Lens quotes and simulations,
-ordered round outcomes, Vault pull records and correlated reveal evidence with
-`game scrap-forge` and the
-[Scrap Forge command grammar](COMMAND_REFERENCE.md#scrap-forge-read-only).
+Slot with AMP Vault prizes. Aliases are `scrapforge` and `forge`. Use
+`play forge 100 10` or `bet --game forge --bet 10 --forges 10` for ten
+forges of 10 APE each. View the wager limits, component paytable, quotes,
+ordered outcomes, Vault pulls and reveal evidence with `game forge`.
+See the [Scrap Forge command grammar](COMMAND_REFERENCE.md#scrap-forge).
 
 The official site accepts 10, 50, 100, 500 or 1,000 APE per forge. The
 corresponding count maxima are 15, 15, 15, 8 and 4, with a round minimum of
@@ -739,6 +743,11 @@ corresponding count maxima are 15, 15, 15, 8 and 4, with a round minimum of
 the advertised AMP marginal is 1%. A hit opens Standard or Premium Vault
 capsules. The official frontend's 96.3% model includes an assumed Vault
 contribution of 9.0 percentage points.
+
+The Lens quotes VRF at submission. Sender gas is additional. Public examples
+route 2.5% to FeeReceiver from within the stake. Cash results account for
+metal awards and delivered APE Vault prizes. NFT deliveries and listing
+marks are reported separately. Loops stop when settlement is pending.
 
 - ABI verified: false. [Contract and fee evidence](verification/SCRAP_FORGE_CONTRACT.md).
 - [Material paytable, count limits and conditional statistics](analytics/SCRAP_FORGE_ANALYTICS.md).

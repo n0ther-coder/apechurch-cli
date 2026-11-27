@@ -184,15 +184,19 @@ For per-game argument grammar such as roulette bets, baccarat combined bets, and
 |-----------|-------------------|
 | `ape-strong` | `apestrong`, `strong` |
 | `bear-dice` | `bear`, `dice` |
+| `blizzard-blitz` | `blizzardblitz`, `blizzard` |
 | `bubblegum-heist` | `bubblegumheist`, `bubblegum`, `heist` |
 | `cosmic-plinko` | `cosmic` |
 | `dino-dough` | `dinodough`, `dino` |
+| `dojo-drop` | `dojodrop`, `dojo` |
 | `geez-diggerz` | `geezdiggerz`, `geez`, `diggerz` |
+| `gimboz-galaxy` | `gimbozgalaxy`, `galaxy` |
 | `gimboz-smash` | `gimbozsmash`, `smash` |
 | `glyde-or-crash` | `glyde`, `glyde-crash`, `glydecrash`, `speed-crash`, `speedcrash`, `crash` |
 | `jungle-plinko` | `jungleplinko`, `jungle` |
 | `monkey-match` | `monkeymatch`, `monkey` |
 | `reel-pirates` | `reelpirates`, `pirates`, `reel` |
+| `scrap-forge` | `scrapforge`, `forge` |
 | `speed-keno` | `speedkeno`, `skeno`, `speed` |
 | `sushi-showdown` | `sushishowdown`, `sushi` |
 | `blackjack` | `bj` |
@@ -626,11 +630,12 @@ Notes:
 | `--risk <risk>` | Public risk level for Bear-A-Dice, Blocks, Plinko, Monkey Match, or Primes |
 | `--grid <grid>` | Blocks board dimensions: exactly `2x2`, `3x3`, or `4x4`; default `3x3` |
 | `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
+| `--forges <count>` | Scrap Forge alias for `--split` |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--bet-split <ape>` | Exact APE per independent attempt; native batching or a finite single-game `play --loop` |
-| `--spin <ape>` | Alias for `--bet-split` only in slots, Plinko, and Blocks; rejected for Primes and Speed Keno |
+| `--spin <ape>` | Deprecated alias for `--bet-split` on slot machines only |
 | `--bonus` | Blizzard Blitz / Gimboz Galaxy: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts, `--bet-split`, and `--spin` |
-| `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET=CHIPS` counts |
+| `--bet <bet>` | Roulette or Baccarat bet payload. In Scrap Forge, the stake per forge in APE. |
 | `--shuffle` | Roulette: randomize selections while preserving types, chip counts, all joint win probabilities and exact payouts; bounded search fails before submission |
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
 | `--cover <cover>` | ApeStrong cover, or a randomized Gimboz Smash cover |
@@ -647,9 +652,8 @@ Notes:
 
 `--split <count>` divides the full wager across an explicit number of independent
 attempts. `--bet-split <APE>` fixes the exact wager per independent attempt.
-An explicit supported stateless game is required. `--spin` is an alias only
-for slots, Jungle/Cosmic Plinko, and Blocks. Primes and Speed Keno accept
-only `--bet-split`. Supplying both names is an error.
+An explicit supported stateless game is required. On slot machines only,
+`--spin <APE>` is a deprecated alias for `--bet-split`. Supply one name per command.
 
 For native split games (Blocks, Plinko, Primes, Speed Keno, and slots), the
 amount is a budget for one transaction. The CLI takes the integer part of
@@ -674,8 +678,7 @@ apechurch-cli play blocks 23 --bet-split 4 --survive 3 --loop
 These commands allow at most five independent 4-APE games, leaving 3 APE
 unwagered. In Bear-A-Dice and Blocks with explicit `--survive`, each game
 retains its three internal survival steps; those steps are not three
-independent 4-APE wagers. Blocks retains `--spin` as an equivalent alias
-in this mode too. Roulette chip values and Baccarat weights are resolved against the per-game
+independent 4-APE wagers. Roulette chip values and Baccarat weights are resolved against the per-game
 stake. A numbered Baccarat bet can supply an implicit total budget.
 Safety controls
 can stop the loop earlier and apply after each completed game. All existing
@@ -695,9 +698,10 @@ the next wager. Stateful games do not accept `--bet-split`.
 Amounts use integer wei arithmetic and accept up to 18 decimal places.
 Zero/negative amounts, malformed numbers, zero attempts, and out-of-range
 bet sizes fail before wallet access. Blizzard Blitz, Dojo Drop, and Reel
-Pirates require at least 2.5 APE per attempt. Gimboz Galaxy requires 3 APE. Native `--bet-split`/`--spin`
-cannot be combined with `--split`, `--survive`, `--bonus`, or positional
-attempt counts; risk and number selections remain valid. Blocks uses
+Pirates require at least 2.5 APE per attempt. Gimboz Galaxy requires 3 APE.
+Native `--bet-split` rejects explicit attempt counts and bonus mode.
+Scrap Forge accepts a denomination with an explicit forge count.
+Risk and number selections remain valid where supported. Blocks uses
 independent rolls in native batch mode. With explicit `--survive`, it uses
 the finite whole-game loop described above instead of native batching.
 
@@ -799,7 +803,7 @@ number with at most two decimals followed by `x`, for example `2x`.
 `<multiplier-x> ::= <integer> [ "." <digit> [ <digit> ] ] "x"`.
 These thresholds do not create wallet balance limits. See [ACCOUNTING.md](ACCOUNTING.md).
 
-The positional tail after `<ape>` is game-specific. See [GAMES_REFERENCE.md](./GAMES_REFERENCE.md) or `apechurch-cli game <name>` for the exact grammar per stateless game.
+The positional tail after `<ape>` is game-specific. See [GAMES_REFERENCE.md](./GAMES_REFERENCE.md) or `apechurch-cli game <name> --bnf` for the game grammar.
 
 When using `--bet-strategy bankroll-fraction=<fraction>`, omit the positional wager amount. Prefer named game-configuration flags such as `--bet RED`, `--cover 50`, or `--survive 5` so numeric config values are not mistaken for an explicit wager amount.
 
@@ -817,11 +821,12 @@ These options apply only to fire-and-forget games handled by the stateless game 
 | `--risk <risk>` | Public risk level for Bear-A-Dice, Blocks, Plinko, Monkey Match, or Primes |
 | `--grid <grid>` | Blocks board dimensions: exactly `2x2`, `3x3`, or `4x4`; default `3x3` |
 | `--split <count>` | Independent attempts for Blocks (`1-5`), Plinko, Primes, Speed Keno, and slots |
+| `--forges <count>` | Scrap Forge alias for `--split` |
 | `--survive <count>` | All-or-nothing survival attempts for Bear-A-Dice and Blocks |
 | `--bet-split <ape>` | Exact APE per independent attempt; native batching or a finite single-game `play --loop` |
-| `--spin <ape>` | Alias for `--bet-split` only in slots, Plinko, and Blocks; rejected for Primes and Speed Keno |
+| `--spin <ape>` | Deprecated alias for `--bet-split` on slot machines only |
 | `--bonus` | Blizzard Blitz / Gimboz Galaxy: buy one bonus round for the amount, minimum 100 APE; rejects explicit counts, `--bet-split`, and `--spin` |
-| `--bet <bet>` | Roulette or baccarat bet payload; Roulette accepts positive integer `BET=CHIPS` counts |
+| `--bet <bet>` | Roulette or Baccarat bet payload. In Scrap Forge, the stake per forge in APE. |
 | `--shuffle` | Roulette: randomize selections while preserving types, chip counts, all joint win probabilities and exact payouts; bounded search fails before submission |
 | `--chips <integer>` | Roulette purchased chip count; defaults to sum in `--bet`. Larger warns and continues; smaller fails before transaction submission |
 | `--cover <cover>` | ApeStrong cover, or a randomized Gimboz Smash cover |
@@ -1020,13 +1025,24 @@ Reference columns stay hidden in terminal tables unless `--url` or `--ids` is pa
 <games-option> ::= "-l" | "--list" | "--stats" | "--json"
 ```
 
-The catalog includes Scrap Forge inspection. `--list` lists executable
-play forms.
+`--list` lists executable play forms, including Scrap Forge.
 
 ### `game <name>`
 
+`game <name>` and `game <name> --help` show the applicable stateless or
+stateful gameplay options, followed by game-specific settings, testing and
+inspection options, and examples. Shared play and loop controls are listed
+in `play --help`.
+
+All commands use `--help --verbose` or `-h -v` to include BNF with help.
+Use `--bnf` to print the grammar alone. For example, `game forge --bnf`
+prints the Scrap Forge grammar and `game --bnf` prints the command grammar.
+To check a gameplay example locally, use `play <name> ... --validate-only`.
+
 ```bnf
 <game-command> ::= "game" <game-name> [ "--paytable" <game-paytable-option>* | "--limits" ] [ "--json" ]
+<game-name> ::= <game-key> | <game-alias> | <game-display-name> | <game-prefix>
+<game-prefix> ::= <token> ; identifies one game by the start of a key, alias, or display name
 <game-paytable-option> ::= "--risk" <token>
                        | "--grid" <grid>
                        | "--split" <integer>
@@ -1044,7 +1060,12 @@ play forms.
                        | "--side" <ape>
 ```
 
-`<name>` accepts supported canonical game keys and the alias set listed in [Game Aliases](#game-aliases).
+`<name>` accepts canonical keys, [explicit aliases](#game-aliases), display
+names, and unique prefixes for every catalog entry. Case is ignored. Lookup
+also accepts forms that omit or change spaces, hyphens, and underscores.
+An exact match takes precedence over a prefix. For example, `game scrapf`
+resolves to Scrap Forge, `game "Gimboz Poker"` resolves to Video Poker, and
+`game gimboz --json` returns the matching keys in `candidates`.
 
 With `--paytable`, the command does not create a game or transaction. Plain output uses tables; `--json` emits a bot-ready object. Both formats always include every parameter that can change the selected paytable, with the value used for the calculation, and the overall gross `min_multiplier` and `max_multiplier` before transaction fees.
 
@@ -1071,7 +1092,7 @@ JSON multipliers are decimal strings; repeating ratios use up to 18 fractional d
 Fixed `play` defaults are reused. If a required paytable parameter has no fixed default, the command fails and names the missing option. Roulette requires `--bet` and `--amount`. Baccarat requires `--bet` and can infer the wager from the sum of numbered legs. The wager determines exact wei-level payouts. Use `game baccarat --limits --json` to read the live minimum per hand. Roulette paytables accept the same optional `--chips`, `--shuffle`, and `BET=CHIPS` entries as play; see [all Roulette selectors and geometry](GAMES_REFERENCE.md#roulette-). Inside groups expand to merged native straight bets, with group shares rounded down to wei. Shuffle preserves all joint win probabilities and the exact payout distribution; preview and later play are independent samples. Chip value is total wager divided by purchased chips, defaulting to the sum in the bet list. Unallocated chips and division dust remain in the multiplier denominator; count mismatches follow the same warning/error rules as play. Video Poker requires `--amount` because the maximum bet enables its progressive jackpot. A split greater than one suppresses payout enumeration and reports only the overall bounds. Where wager rounding affects those bounds, `--amount` is required and included among the resolved parameters. A static single-attempt paytable is listed when the repository can enumerate it, including for stateful games with fixed payouts. The `400 APE` Video Poker jackpot is dynamic, so that configuration reports bounds only. Dynamic or insufficiently verified outcome spaces also report bounds only, and an unknowable public bound is represented by `null` rather than an invented value.
 
 Gimboz of the Galaxy accepts `play gimboz-galaxy <total-APE> [<split>]`,
-`--split`, `--spin` or `--bet-split` for base play (1–10 spins, default 10,
+`--split` or `--bet-split` for base play (1–10 spins, default 10,
 minimum 3 APE per spin); aliases `gimbozgalaxy`, `galaxy`. Exact-stake mode
 leaves unused budget unspent. `--bonus` buys one round for the full amount,
 minimum 100 APE, with three initial free spins and one possible +3 extension.
@@ -1085,9 +1106,9 @@ See [contract and complete game BNF](verification/GIMBOZ_GALAXY_CONTRACT.md)
 and [analytics](analytics/GIMBOZ_GALAXY_ANALYTICS.md).
 
 Blizzard Blitz accepts `play blizzard <total-APE> [<split>]`, `--split`, or
-`--spin <APE>` for base play (1–20 paid spins, default 10, at least 2.5 APE
+`--bet-split <APE>` for base play (1–20 paid spins, default 10, at least 2.5 APE
 per spin). `--bonus` buys one bonus round with five free spins for the full
-amount, at least 100 APE. It rejects `--split`, `--spin` and positional
+amount, at least 100 APE. It rejects `--split`, exact-stake flags and positional
 counts. The bonus reference stake is amount / 32; gross payout ratios and
 net PnL use the full purchase cost. `bet --game blizzard` accepts the same
 named options; `game blizzard --paytable [--bonus]` exposes component symbol
@@ -1097,14 +1118,20 @@ controls apply. Live VRF/executor costs and receipt gas remain separate.
 See [contract evidence](verification/BLIZZARD_BLITZ_CONTRACT.md) and
 [analytics](analytics/BLIZZARD_BLITZ_ANALYTICS.md).
 
-#### Scrap Forge read-only
+#### Scrap Forge
 
 ```bnf
 <forge-game> ::= "scrap-forge" | "scrapforge" | "forge"
-<forge-command> ::= "game" <forge-game> [ <forge-action> ] [ "--json" ]
+<forge-play> ::= "play" ( <forge-game> | "--game" <forge-game> ) [ <wager> [ <count> ] ] <forge-wager-option>* ( <forge-stateless-option> | <play-shared-option> )*
+<forge-bet> ::= "bet" "--game" <forge-game> <forge-wager-option>+ <forge-stateless-option>*
+<forge-wager-option> ::= "--amount" <wager> | <forge-count-option> | <forge-stake>
+<forge-stateless-option> ::= "--timeout" <integer> | "--x-gameId" <uint256> | "--x-ref" <address> | "--x-userRandomWord" <hash> | "--gp-ape" <points> | "--resilient" | "--no-resilient"
+<forge-command> ::= "game" <forge-name> [ <forge-action> ] [ "--json" ]
+<forge-name> ::= <forge-game> | <game-display-name> | <game-prefix> ; must resolve to Scrap Forge
 <forge-action> ::= "--limits" | "--quote" <forge-selection> [ "--simulate-from" <address> ] | "--round" <uint256> | "--transaction" <hash> [ "--reveal" <hash> [ "--trace" ] ] [ "--vault-reveal" <hash> ] | "--paytable" [ <forge-selection> ]
-<forge-selection> ::= <forge-stake> [ "--split" <count> ] [ "--amount" <wager> ] | "--amount" <wager> "--split" <count>
-<forge-stake> ::= ( "--spin" | "--bet-split" ) <ape-per-forge>
+<forge-selection> ::= <forge-stake> [ <forge-count-option> ] [ "--amount" <wager> ] | "--amount" <wager> <forge-count-option>
+<forge-stake> ::= ( "--bet" | "--bet-split" | "--spin" ) <ape-per-forge> ; --spin is deprecated
+<forge-count-option> ::= ( "--forges" | "--split" ) <count>
 <ape-per-forge> ::= "10" | "50" | "100" | "500" | "1000"
 <count> ::= <integer>
 <wager> ::= <integer>
@@ -1112,6 +1139,35 @@ See [contract evidence](verification/BLIZZARD_BLITZ_CONTRACT.md) and
 <uint256> ::= <integer>
 <address> ::= "0x" <hex-digit>{40}
 ```
+
+`--forges <count>` is an alias for `--split` and sets the number of paid
+forges in a round. `--bet <ape>` is an alias for `--bet-split` and sets the
+stake per forge. With a total wager, the stake per forge is total ÷ count.
+With `--bet`, the total wager is stake per forge × count before fees. Use
+one named option for the stake and one for the count. The commands
+`play forge 100 --forges 10` and `play forge --bet 10 --forges 10` both
+select ten forges at 10 APE each. In `play`, the count can also follow the
+positional wager.
+
+A stake per forge alone selects one forge. A total alone also selects one
+forge in `play` or `bet`. With both a total and a stake per forge, an
+omitted count is inferred by division. The stake and count must match an
+allowed configuration exactly. AMP occurs automatically. Random game
+selection excludes Forge, and loops
+repeat the same wager with the flat betting strategy. `--x-gameId` is for
+a single round. Use `--validate-only` on `play` to validate arguments
+locally and see the resolved count, base wager and stake per forge. The live
+path uses the standard wallet balance reserve and checks
+the current quote and gas estimation before signing. It makes one
+submission attempt per round.
+
+`--timeout` waits for settlement after submission confirmation (default
+30,000 ms for `play`, 0 for `bet`). A round can remain pending while the
+Vault draws or awaits delivery. A loop stops on a pending result or a
+transaction error. Preserve the round ID and use `--round` or refresh
+wallet history to check the original round. NFT marks and reported nominal
+payout are listed separately from cash PnL. Refunds and AMP with no linked
+draw require separate evidence of the cash payment.
 
 `--limits` uses the dated official UI snapshot. Choose 1–15 forges at
 10/50/100 APE, 1–8 at 500, or 1–4 at 1,000. Base wager is stake × count.
@@ -1164,18 +1220,23 @@ payout, metal payout, capsule spend, and matched Vault pull records when
 linked. A round can be ended while Vault delivery remains pending. Pull
 records expose listing IDs rather than NFT token IDs, and
 `amount_or_value` is a Vault field whose meaning depends on prize kind.
+`settlement_status` applies the CLI's settlement checks. `cash_payout` is
+available when those checks pass.
 
 ```bash
 apechurch-cli game forge
+apechurch-cli play forge 100 10 --validate-only
+apechurch-cli play forge --bet 10 --forges 10 --json
+apechurch-cli bet --game scrapforge --amount 100 --forges 10 --timeout 30000
 apechurch-cli game forge --limits
 apechurch-cli game scrap-forge --paytable
-apechurch-cli game scrap-forge --paytable --spin 500 --split 8
-apechurch-cli game scrapforge --paytable --amount 150 --split 15 --json
+apechurch-cli game scrap-forge --paytable --bet 500 --forges 8
+apechurch-cli game scrapforge --paytable --amount 150 --forges 15 --json
 apechurch-cli game forge --transaction <hash> --json
 apechurch-cli game forge --transaction <submission-hash> --reveal <reveal-hash> --trace --json
 apechurch-cli game forge --transaction <submission-hash> --vault-reveal <vault-reveal-hash> --json
-apechurch-cli game forge --quote --spin 10 --split 10 --json
-apechurch-cli game forge --quote --spin 10 --split 1 --simulate-from <address> --json
+apechurch-cli game forge --quote --bet 10 --forges 10 --json
+apechurch-cli game forge --quote --bet 10 --forges 1 --simulate-from <address> --json
 apechurch-cli game forge --round <id> --json
 ```
 
@@ -1183,7 +1244,7 @@ See [contract evidence](verification/SCRAP_FORGE_CONTRACT.md) and
 [analytics](analytics/SCRAP_FORGE_ANALYTICS.md).
 
 Dojo Drop accepts `play dojo-drop <total-APE> [<split>]`, `--split`, and the
-`--spin <APE>` alternative, with 1–15 paid spins (default 15 for count
+`--bet-split <APE>` alternative, with 1–15 paid spins (default 15 for count
 mode). The total must cover at least 2.5 APE per paid spin; the default
 therefore needs 37.5 APE. Counts must be integers, conflicting counts fail, and invalid explicit wagers fail
 before wallet access. Fees are additional. Its paytable reports a dated

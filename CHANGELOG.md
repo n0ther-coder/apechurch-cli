@@ -6,6 +6,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [38.0.0]
+
+### Added
+- Play Scrap Forge by exact denomination and forge count using the live Lens
+  quote and mandatory gas preflight.
+- Track cash payouts and AMP Vault delivery in CLI results, pending-play
+  reconciliation, and wallet history. Report NFT prizes and marks separately.
+- Document Forge wager selection, fees, and settlement evidence in the
+  command and game references.
+
+### Fixed
+- Resolve game names, explicit aliases, and unique prefixes consistently
+  for `game` actions. List matching game keys when a prefix is ambiguous.
+- Group each game's supported options, testing flags, and examples in its
+  help. Include grammar with verbose help or print it alone with `--bnf`.
+- Validate stateless payload overrides and result timeouts before wallet access,
+  and reject gameplay options that would otherwise be ignored.
+- Restrict the deprecated `--spin` alias to slot machines. Use `--bet-split`
+  for exact stakes in other eligible games.
+- Clarify how Scrap Forge splits a total wager into paid forges and show
+  the allowed counts for each stake.
+- Add `--bet` and `--forges` as Scrap Forge aliases for the stake per forge
+  and the number of forges in one round.
+
 ## [37.4.0]
 
 ### Added

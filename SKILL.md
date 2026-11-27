@@ -424,12 +424,11 @@ apechurch-cli play sushi-showdown 10 10  # 10 APE, 10 spins
 **Exact stake per independent attempt:** `play <split-game> <budget-APE> --bet-split <APE>`
 maximizes native independent attempts within the budget and contract limit.
 `play dino-dough 23 --bet-split 4` wagers 20 APE as five 4-APE spins; 3 APE
-remains unspent and fees are additional. Slots, Plinko, and Blocks retain
-`--spin` as an alias. Primes and Speed Keno accept only `--bet-split`.
+remains unspent and fees are additional. Slot machines also accept the deprecated alias `--spin`.
 Native batching rejects `--split`, `--survive`, `--bonus`, and positional
 counts. Live limits and successful gas estimation are required. Blocks with
 `--survive` uses a finite `--loop` of whole games instead of native batching;
-both `--bet-split` and its `--spin` alias preserve the internal survival steps.
+`--bet-split` preserves the internal survival steps.
 
 Single-game stateless calls instead require `--loop` and consume a finite
 session wager budget: `play roulette 23 --bet-split 4 --bet RED --loop`
@@ -440,26 +439,30 @@ strategies and stateful games are incompatible. Offline validation checks
 both modes; native paytables accept the option with an explicit budget.
 See the [command reference](docs/COMMAND_REFERENCE.md#bet).
 
-**Gimboz of the Galaxy:** `play gimboz-galaxy <total-APE> [--split <1-10> | --spin <APE> | --bet-split <APE> | --bonus]`; aliases `gimbozgalaxy`, `galaxy`. Base default: 10 spins, minimum 3 APE each. Exact-stake mode leaves unused budget unspent and conflicts with explicit counts. Bonus mode buys one round for the full amount (minimum 100 APE, reference stake amount ⁄ 17), starts with three free spins and can extend once to six. It rejects counts and exact-stake options. Fees use live `getVRFFee(550000 + 200000 × encoded count)` plus `EXECUTOR_FEE() × encoded count`; bonus encodes one purchase. Loop, stops and bet strategies apply to full purchase costs. Board Wipes continue the same spin; Warp thresholds are 100 base and 300 bonus. Settlement and optional offsets/free-spin counts are read from the contract. Component awards are separate from unverified whole-game maxima, probabilities and RTP. See [contract](docs/verification/GIMBOZ_GALAXY_CONTRACT.md) and [analytics](docs/analytics/GIMBOZ_GALAXY_ANALYTICS.md).
+**Gimboz of the Galaxy:** `play gimboz-galaxy <total-APE> [--split <1-10> | --bet-split <APE> | --bonus]`; aliases `gimbozgalaxy`, `galaxy`. Base default: 10 spins, minimum 3 APE each. Exact-stake mode leaves unused budget unspent and conflicts with explicit counts. Bonus mode buys one round for the full amount (minimum 100 APE, reference stake amount ⁄ 17), starts with three free spins and can extend once to six. It rejects counts and exact-stake options. Fees use live `getVRFFee(550000 + 200000 × encoded count)` plus `EXECUTOR_FEE() × encoded count`; bonus encodes one purchase. Loop, stops and bet strategies apply to full purchase costs. Board Wipes continue the same spin; Warp thresholds are 100 base and 300 bonus. Settlement and optional offsets/free-spin counts are read from the contract. Component awards are separate from unverified whole-game maxima, probabilities and RTP. See [contract](docs/verification/GIMBOZ_GALAXY_CONTRACT.md) and [analytics](docs/analytics/GIMBOZ_GALAXY_ANALYTICS.md).
 
-**Blizzard Blitz:** `play blizzard <total-APE> [--split <1-20> | --spin <APE> | --bonus]`. Base default: 10 paid spins. Exact-stake mode leaves the unused budget unspent. Bonus mode buys one round with five free spins: amount is the full purchase cost (minimum 100 APE), reference stake amount / 32; explicit counts and `--spin` conflict with `--bonus`. Live fees: `getVRFFee(550000 + 200000 × encoded spins)` plus `EXECUTOR_FEE() × encoded spins`, with one encoded spin for bonus purchases and separate actual gas. Standard loop, stop and bet-strategy controls apply to purchase costs. Optional JSON enrichment returns contract reel offsets; no exact RTP, full distribution or overall maximum is asserted. The paytable separates symbol awards from whole-game bounds. See [contract](docs/verification/BLIZZARD_BLITZ_CONTRACT.md) and [analytics](docs/analytics/BLIZZARD_BLITZ_ANALYTICS.md).
+**Blizzard Blitz:** `play blizzard <total-APE> [--split <1-20> | --bet-split <APE> | --bonus]`. Base default: 10 paid spins. Exact-stake mode leaves the unused budget unspent. Bonus mode buys one round with five free spins: amount is the full purchase cost (minimum 100 APE), reference stake amount / 32; explicit counts and exact-stake flags conflict with `--bonus`. Live fees: `getVRFFee(550000 + 200000 × encoded spins)` plus `EXECUTOR_FEE() × encoded spins`, with one encoded spin for bonus purchases and separate actual gas. Standard loop, stop and bet-strategy controls apply to purchase costs. Optional JSON enrichment returns contract reel offsets; no exact RTP, full distribution or overall maximum is asserted. The paytable separates symbol awards from whole-game bounds. See [contract](docs/verification/BLIZZARD_BLITZ_CONTRACT.md) and [analytics](docs/analytics/BLIZZARD_BLITZ_ANALYTICS.md).
 
 **Dojo Drop:** `play dojo-drop <total-APE> [--split <1-15>]` also accepts a positional count. Default: 15 paid spins, requiring at least 37.5 APE total. Invalid or conflicting counts and totals below 2.5 APE per spin fail before wallet access. Fees are additional: `getVRFFee(500000 + 150000 × split)` plus `EXECUTOR_FEE() × split`, with actual gas accounted separately. `game dojo-drop --paytable` reports the dated 1,000x gross cap without enumerating outcomes. Settled JSON includes on-chain spin details; no theoretical RTP is asserted. See [contract notes](docs/verification/DOJO_DROP_CONTRACT.md) and [analytics](docs/analytics/DOJO_DROP_ANALYTICS.md).
 
 **Reel Pirates note:** playable but not ABI verified; the observed gameplay tx uses `(numSpins, gameId, ref, userRandomWord)` and the exact cascade odds are not public in this repo.
 
-**Scrap Forge:** read-only catalog entry. Use `game forge --limits`,
-`game scrap-forge --paytable --spin 500 --split 8`, or
+**Scrap Forge:** `play forge 100 10` and `bet --game forge --bet-split 10 --split 10`
+place ten exact 10 APE forges. A total alone selects one forge. Loops use
+the flat strategy and stop on pending settlement. Cash PnL records
+metal awards and delivered APE prizes, with NFT marks reported separately.
+Use `game forge --limits`,
+`game scrap-forge --paytable --bet-split 500 --split 8`, or
 `game scrapforge --transaction <hash> --json`. A successful submission is
 an acceptance signal. Add `--reveal <hash>` to correlate the ApeVRF
 receipt, and `--trace` to inspect Forge and ClaimManager APE payments.
 Keep receipt transfer evidence separate from complete settlement and PnL.
-Use `game forge --quote --spin 10 --split 10` for a live Lens quote
+Use `game forge --quote --bet-split 10 --split 10` for a live Lens quote
 before sender gas, and `game forge --round <id>` for ordered outcomes,
 metal payout, capsule spend, and linked Vault draw data.
 Add `--simulate-from <address>` to a quote for a read-only play simulation.
 Use `--transaction <hash> --vault-reveal <hash>` for a separate Vault reveal.
-See [grammar](docs/COMMAND_REFERENCE.md#scrap-forge-read-only) and
+See [grammar](docs/COMMAND_REFERENCE.md#scrap-forge) and
 [analytics](docs/analytics/SCRAP_FORGE_ANALYTICS.md).
 **Current max payout:** `333x` for Dino Dough, `100x` for Bubblegum Heist, `50x` for Geez Diggerz, and `500x` for Sushi Showdown.
 **Aliases:** `dinodough`, `dino`, `bubblegumheist`, `bubblegum`, `heist`, `geezdiggerz`, `geez`, `diggerz`, `sushishowdown`, `sushi`

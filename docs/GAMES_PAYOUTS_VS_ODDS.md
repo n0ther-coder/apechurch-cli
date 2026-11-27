@@ -576,7 +576,7 @@ The following supported games are not included because the local repo does not c
 | Gimboz of the Galaxy | Component awards and replay agreement do not establish full base/bonus distributions, exact profit frequency, RTP or overall maximum; see [analytics](analytics/GIMBOZ_GALAXY_ANALYTICS.md). |
 | Blizzard Blitz | Base and bonus-buy distributions, exact profit frequency and RTP are unverified. Component awards and reel frequencies do not establish full outcomes or a maximum; see [analytics](analytics/BLIZZARD_BLITZ_ANALYTICS.md). |
 | Dojo Drop | The dated 1,000× cap is a bound, not a profit probability or exact RTP. The full stochastic model is unverified; see [analytics](analytics/DOJO_DROP_ANALYTICS.md). |
-| Scrap Forge | Official frontend weights cover material awards and the 1% AMP marginal. The 50× top material component does not bound the combined payout, and complete Vault probabilities and game RNG remain unverified. See [analytics](analytics/SCRAP_FORGE_ANALYTICS.md). |
+| Scrap Forge | Official frontend weights cover material awards and the 1% AMP marginal. The 50× top material component is a per-forge award. The combined payout bound, Vault odds and game RNG remain unverified. The CLI tracks cash payouts separately from NFT marks. See [analytics](analytics/SCRAP_FORGE_ANALYTICS.md). |
 | Blackjack ✔︎ | Main game is statistical/policy-dependent under the live H17 rule surface where the dealer hits soft 17, and side-bet win-rate surfaces are not represented as reusable exact mode rows. |
 | Cash Dash ✔︎ | Whole-run results depend on cash-out policy and the chosen target depth. |
 | Hi-Lo Nebula ✔︎ | Whole-run results depend on cash-out policy, current-rank decisions, and live jackpot state. |

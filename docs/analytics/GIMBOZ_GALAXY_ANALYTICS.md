@@ -14,7 +14,7 @@ bonus free spins in gross payout `G`. With actual stake `b`, the gross ratio
 is `R = G ⁄ b`: loss `R < 1`, draw `R = 1`, profit `R > 1`. A positive payout
 can still be a loss. Compare integer wei without display rounding.
 A multi-spin session uses `R_session = ΣG_i ⁄ Σb_i` and has a different
-distribution. The budget remainder from `--spin` is not wagered.
+distribution. The budget remainder from `--bet-split` is not wagered.
 
 For a purchased bonus, the denominator is the **full purchase cost**. A
 synthetic 170 APE purchase has a 10 APE reference stake (`170 ⁄ 17`) and
@@ -133,7 +133,7 @@ historical consistency check. No live wager was made for verification.
 
 A stake-independent linear model would preserve full-spin ratios at a fixed
 mode and count, but exact wei rounding, mutable tables, house clipping and
-acceptance limits must also be proven. With a fixed budget, changing `--spin`
+acceptance limits must also be proven. With a fixed budget, changing `--bet-split`
 can change the count as well as the stake, changing session risk even under
 a linear model. No exact stake-invariant probabilities are asserted here.
 

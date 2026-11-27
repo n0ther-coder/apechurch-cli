@@ -3,9 +3,13 @@ import { test } from 'node:test';
 import { decodeAbiParameters, encodeAbiParameters, encodeEventTopics, encodeFunctionData, parseAbi, parseEther, zeroAddress } from 'viem';
 import { GAME_CONTRACT_ABI, SCRAP_FORGE_CONTRACT } from '../../lib/constants.js';
 import { getGamePaytable } from '../../lib/game-paytable.js';
+import { prepareGameTransaction } from '../../lib/games/index.js';
+import { playSlots } from '../../lib/games/slots.js';
+import { reconcilePendingPlay } from '../../lib/games/pending.js';
+import { analyzeWalletHistory } from '../../lib/wallet-analysis.js';
 import {
   getScrapForgeLimits, getScrapForgeSelection, inspectScrapForgeSubmission, parseScrapForgeRoundId,
-  quoteScrapForge, readScrapForgeRound, SCRAP_FORGE_GAME, SCRAP_FORGE_LENS, simulateScrapForge,
+  quoteScrapForge, readScrapForgeRound, readScrapForgeSettlement, SCRAP_FORGE_GAME, SCRAP_FORGE_LENS, simulateScrapForge,
 } from '../../lib/games/scrap-forge.js';
 import { resolveGame, resolveGameDisplayName } from '../../registry.js';
 
@@ -30,18 +34,56 @@ test('exposes all UI tier limits and only prices exact configurations', () => {
   assert.equal(table.material_paytable[0].payout_ape, '2');
   assert.equal(table.material_paytable.reduce((sum, { weight }) => sum + weight, table.amp_weight), table.probability_weight_denominator);
   assert.equal(table.probability_source, 'official_frontend_model');
-  assert.match(table.notes[0], /Copper/);
+  assert.deepEqual(table.notes, []);
   assert.throws(() => getGamePaytable(SCRAP_FORGE_GAME, { spin: '10', amount: '11' }), /exact count/);
   assert.throws(() => getGamePaytable(SCRAP_FORGE_GAME, { amount: '4000' }), /Specify/);
   assert.throws(() => getGamePaytable(SCRAP_FORGE_GAME, { amount: '4000', split: '5' }), /stake per forge/);
   assert.throws(() => getGamePaytable(SCRAP_FORGE_GAME, { bonus: true }), /unavailable/);
 });
 
-test('registry resolves the display title without enabling execution', () => {
+test('registry resolves each Forge alias for explicit execution', () => {
   for (const alias of [SCRAP_FORGE_GAME.key, ...SCRAP_FORGE_GAME.aliases]) {
-    assert.equal(resolveGame(alias), null);
+    assert.equal(resolveGame(alias), SCRAP_FORGE_GAME);
     assert.equal(resolveGameDisplayName({ gameKey: alias }), 'Scrap Forge');
   }
+});
+
+test('prepares the exact simulated Forge payload and stops on a failed or ambiguous submission', async () => {
+  const fee = parseEther('0.121');
+  const account = { address: PLAYER };
+  const publicClient = {
+    getBlockNumber: async () => 444n,
+    readContract: async ({ functionName, args }) => {
+      if (functionName === 'paused') return false;
+      if (functionName === 'maxForgesAllowed') return 15;
+      assert.equal(functionName, 'getPlayValue');
+      assert.deepEqual(args, [0, 1]);
+      return [parseEther('10'), fee, parseEther('10') + fee];
+    },
+  };
+  const options = { account, publicClient, xGameId: String(ID), xRef: PLAYER, xUserRandomWord: ENTROPY };
+  const prepared = await prepareGameTransaction({ ...options, game: 'forge', spin: '10' });
+  assert.equal(prepared.request.value, parseEther('10.121'));
+  assert.equal(prepared.transactionFeeWei, fee);
+  assert.deepEqual(prepared.config, { split: 1, tier: 0, stake_per_forge_ape: 10 });
+  const payloadTypes = [{ type: 'uint8' }, { type: 'uint8' }, { type: 'uint256' }, { type: 'address' }, { type: 'bytes32' }];
+  assert.deepEqual(decodeAbiParameters(payloadTypes, prepared.request.args[1]), [0, 1, ID, zeroAddress, ENTROPY]);
+
+  let submissions = 0;
+  const play = () => playSlots({ ...options, gameEntry: SCRAP_FORGE_GAME, wager: parseEther('10'), split: '1',
+    walletClient: { async writeContract(request) {
+      submissions++;
+      assert.deepEqual(request.args, prepared.request.args);
+      assert.equal(request.value, prepared.request.value);
+      throw new Error('RPC connection closed during broadcast');
+    } },
+  });
+  publicClient.estimateContractGas = async () => { throw new Error('preflight rejected'); };
+  await assert.rejects(play, /Scrap Forge wager failed contract preflight/);
+  assert.equal(submissions, 0);
+  publicClient.estimateContractGas = async () => 700000n;
+  await assert.rejects(play, (error) => error.gameId === String(ID) && /connection closed/.test(error.message));
+  assert.equal(submissions, 1);
 });
 
 const HASH = `0x${'ab'.repeat(32)}`;
@@ -262,10 +304,12 @@ test('reads Forge outcomes and linked Vault pulls without equating reported payo
   const info = {
     player: PLAYER, tier: 0, forges: 3, betAmount: parseEther('10'),
     bucketIndexes: [0, 9, 2], totalPayout: parseEther('112'), metalPayout: parseEther('12'),
-    capsuleSpend: parseEther('100'), vault: VAULT, vaultRequestId: 123n, hasEnded: true, owed: false,
+    capsuleSpend: parseEther('100'), vault: VAULT, vaultRequestId: 123n, hasEnded: true, owed: false, timestamp: 100n,
   };
   let vaultId = 123n;
   let readCount = 0;
+  let drawStatus = 4;
+  const pull = { forgeIndex: 1, kind: 1, delivery: 0, capsule: 0, listingId: 789n, amountOrValue: parseEther('80') };
   const chain = {
     getBlockNumber: async () => 555n,
     readContract: async (request) => {
@@ -278,9 +322,7 @@ test('reads Forge outcomes and linked Vault pulls without equating reported payo
       }
       assert.equal(request.address, SCRAP_FORGE_LENS);
       assert.equal(request.functionName, 'getVaultPulls');
-      return [VAULT, vaultId, 4, 1, 1, [
-        { forgeIndex: 1, kind: 1, delivery: 0, capsule: 0, listingId: 789n, amountOrValue: parseEther('80') },
-      ]];
+      return [VAULT, vaultId, drawStatus, 1, 1, [pull]];
     },
   };
   const round = await readScrapForgeRound(chain, parseScrapForgeRoundId(ID.toString()));
@@ -291,6 +333,31 @@ test('reads Forge outcomes and linked Vault pulls without equating reported payo
   assert.deepEqual(round.outcomes.map(({ outcome }) => outcome), ['Cast Iron', 'AMP', 'Zinc']);
   assert.equal(round.vault_draw.pulls[0].listing_id, '789');
   assert.equal(round.vault_draw.pulls[0].amount_or_value.ape, '80');
+  const payload = { status: 'pending', contract: SCRAP_FORGE_CONTRACT, gameId: String(ID), wager_wei: parseEther('30').toString() };
+  const history = [];
+  const reconcile = () => reconcilePendingPlay(payload, { publicClient: chain, walletAddress: PLAYER, saveHistoryFn: (row) => history.push(row) });
+  pull.delivery = 1;
+  const pending = await reconcile();
+  assert.equal(pending.status, 'pending');
+  assert.equal(pending.details.forge_round.vault_draw.pulls[0].delivery, 'claimable');
+  assert.equal(history.length, 0);
+  drawStatus = 5;
+  assert.equal((await readScrapForgeSettlement(chain, ID)).hasEnded, false);
+  drawStatus = 4;
+  pull.delivery = 3;
+  const claimed = await reconcile();
+  assert.equal(claimed.status, 'complete');
+  assert.equal(claimed.result.payout_ape, '12');
+  assert.equal(claimed.result.details.forge_round.vault_draw.pulls[0].amount_or_value.ape, '80');
+  assert.equal(history[0].payout_wei, parseEther('12').toString());
+  pull.kind = 0;
+  assert.equal((await readScrapForgeSettlement(chain, ID)).payoutWei, parseEther('92'));
+  pull.forgeIndex = 0;
+  assert.equal((await readScrapForgeSettlement(chain, ID)).hasEnded, false);
+  pull.forgeIndex = 1;
+  info.vaultRequestId = 0n;
+  assert.equal((await readScrapForgeSettlement(chain, ID)).hasEnded, false);
+  info.vaultRequestId = 123n;
   vaultId = 124n;
   await assert.rejects(readScrapForgeRound(chain, ID), /linked to this round/);
   info.hasEnded = false;
@@ -301,6 +368,42 @@ test('reads Forge outcomes and linked Vault pulls without equating reported payo
   await assert.rejects(readScrapForgeRound(chain, ID), /not found/);
   assert.throws(() => parseScrapForgeRoundId((2n ** 256n).toString()), /uint256/);
   assert.throws(() => parseScrapForgeRoundId('-1'), /uint256/);
+});
+
+test('wallet history hydrates Forge play logs and excludes nominal payouts while AMP is pending or delivered as an NFT', async () => {
+  const hash = `0x${'03'.repeat(32)}`;
+  let delivery = 1;
+  const chain = {
+    getBlockNumber: async () => 10n,
+    getLogs: async ({ topics }) => topics
+      ? [{ address: SCRAP_FORGE_CONTRACT, blockNumber: 8n, logIndex: 0, transactionHash: hash,
+        data: encodeAbiParameters([{ type: 'uint256' }], [ID]) }]
+      : [{ address: SCRAP_FORGE_CONTRACT, blockNumber: 9n, logIndex: 0, transactionHash: REVEAL_HASH,
+        args: { user: PLAYER, gameId: ID, buyIn: parseEther('20'), payout: parseEther('102') } }],
+    getTransaction: async () => ({ from: PLAYER, value: parseEther('20.122') }),
+    getTransactionReceipt: async () => ({ logs: [], gasUsed: 500000n, effectiveGasPrice: 100000000000n }),
+    readContract: async ({ functionName }) => {
+      if (functionName === 'getGameInfo') return {
+        player: PLAYER, tier: 0, forges: 2, betAmount: parseEther('10'),
+        bucketIndexes: [0, 9], totalPayout: parseEther('102'), metalPayout: parseEther('2'),
+        capsuleSpend: parseEther('100'), vault: VAULT, vaultRequestId: 7n, hasEnded: true, owed: false, timestamp: 100n,
+      };
+      if (functionName === 'getVaultPulls') return [VAULT, 7n, 4, 1, 1, [
+        { forgeIndex: 1, kind: 1, delivery, capsule: 0, listingId: 9n, amountOrValue: parseEther('90') },
+      ]];
+      assert.equal(functionName, 'balanceOf');
+      return 0n;
+    },
+  };
+  const pending = (await analyzeWalletHistory(chain, PLAYER)).recent_games[0];
+  assert.equal(pending.settled, false);
+  assert.equal(pending.payout_wei, undefined);
+  delivery = 0;
+  const settled = (await analyzeWalletHistory(chain, PLAYER)).recent_games[0];
+  assert.equal(settled.play_tx, hash);
+  assert.equal(settled.payout_wei, parseEther('2').toString());
+  assert.equal(settled.contract_fee_wei, parseEther('0.122').toString());
+  assert.equal(settled.details.forge_round.vault_draw.pulls[0].amount_or_value.ape, '90');
 });
 
 test('links a separate Vault reveal by its round request and fulfillment events', async () => {

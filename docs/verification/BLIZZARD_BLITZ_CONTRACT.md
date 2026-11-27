@@ -34,17 +34,17 @@ that failure does not refresh the earlier source-verification observation.
 
 ```bnf
 <game> ::= "blizzard-blitz" | "blizzardblitz" | "blizzard"
-<base> ::= "play" <game> <ape> [ <split> | "--split" <split> | "--spin" <ape> ]
+<base> ::= "play" <game> <ape> [ <split> | "--split" <split> | "--bet-split" <ape> ]
 <bonus> ::= "play" <game> <ape> "--bonus"
-<bet> ::= "bet" "--game" <game> "--amount" <ape> [ "--split" <split> | "--spin" <ape> | "--bonus" ]
-<table> ::= "game" <game> "--paytable" [ "--amount" <ape> ] [ "--split" <split> | "--spin" <ape> | "--bonus" ] [ "--json" ]
+<bet> ::= "bet" "--game" <game> "--amount" <ape> [ "--split" <split> | "--bet-split" <ape> | "--bonus" ]
+<table> ::= "game" <game> "--paytable" [ "--amount" <ape> ] [ "--split" <split> | "--bet-split" <ape> | "--bonus" ] [ "--json" ]
 <split> ::= <integer> ; decimal integer, 1 ≤ value ≤ 20; base default 10
 ; base: total amount ≥ 2.5 APE × split
-; --spin: exact paid-spin stake ≥ 2.5 APE; count = min(floor(amount / spin), 20)
+; --bet-split: exact paid-spin stake ≥ 2.5 APE; count = min(floor(amount / spin), 20)
 ; only count × spin is wagered; any budget remainder is unspent
 ; --bonus: amount is the full purchase cost ≥ 100 APE; exactly one purchase
-; --bonus rejects --split, --spin and positional counts
-; --spin rejects explicit counts; duplicate named/positional counts must agree
+; --bonus rejects --split, --bet-split and positional counts
+; --bet-split rejects explicit counts; duplicate named/positional counts must agree
 ```
 
 Amounts are positive decimal APE values with at most 18 decimal places.
@@ -129,7 +129,7 @@ The same symbol has different frequencies on different reels. The linked
 analytics note lists exact per-reel counts and their uniform-stop
 conditional probabilities for both modes, retaining the earlier pooled
 table. Counts do not establish the complete loss/draw/win distribution,
-its invariance under `--spin`, or the probability of a maximum payout.
+its invariance under `--bet-split`, or the probability of a maximum payout.
 
 ## Settlement and replay
 

@@ -36,10 +36,10 @@ be at least `2.5 APE × paid spins`; for example, ten spins require 25 APE
 and the default requires 37.5 APE. `--split` or a positional count selects
 the paid count. Free spins and cascades do not add to the paid count.
 
-With `--spin <APE>`, the amount is a budget and the exact paid-spin stake
+With `--bet-split <APE>`, the amount is a budget and the exact paid-spin stake
 must be at least 2.5 APE. The count is `min(floor(amount ⁄ spin), 15)`,
 subject to live limits; only `count × spin` is wagered and any remainder
-stays unspent. Explicit counts conflict with `--spin`.
+stays unspent. Explicit counts conflict with `--bet-split`.
 
 Normal loop, stop, strategy, timeout, retry, JSON and expert entropy/referral
 controls follow the [command reference](../COMMAND_REFERENCE.md). The CLI

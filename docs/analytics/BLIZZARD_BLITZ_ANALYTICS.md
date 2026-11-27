@@ -22,7 +22,7 @@ and transaction gas are excluded from this ratio; net PnL subtracts them.
 Compare settled integer wei directly (`G < b`, `G = b`, `G > b`), rather
 than rounding a displayed multiplier. A multi-spin session instead uses
 `R_session = ΣG_i ⁄ Σb_i`; its loss/draw/win probabilities need not equal
-those of one paid spin. The budget remainder left by `--spin` is not wagered.
+those of one paid spin. The budget remainder left by `--bet-split` is not wagered.
 
 For `--bonus`, use the **full purchase cost** as the denominator: a 128 APE
 purchase has a 4 APE bonus reference stake (`128 ⁄ 32`), but its gross ratio
@@ -152,7 +152,7 @@ probabilities would be invariant under changing `b` at a **fixed paid-spin
 count and game mode**. The available evidence does not establish that full
 model: exact integer rounding, payout clipping and stake-dependent limits
 must also be checked. Consequently no exact bet-invariant percentages are
-claimed. With a fixed budget, changing `--spin` can change the paid-spin
+claimed. With a fixed budget, changing `--bet-split` can change the paid-spin
 count as well as the stake, changing the session distribution even in a
 linear model.
 
@@ -194,12 +194,12 @@ reduction or equal EV is not asserted without the stochastic/rounding model.
 
 Base play selects 1–20 paid spins, default 10, at least 2.5 APE per spin.
 The total amount is split across paid spins; free spins add no paid wager.
-`--spin <APE>` treats amount as a budget and wagers only
+`--bet-split <APE>` treats amount as a budget and wagers only
 `min(floor(budget ⁄ spin), 20) × spin`, leaving the remainder unspent.
 
 `--bonus` buys one round for at least 100 APE. The full amount is the gross
 wager, with a reference stake of amount ⁄ 32. It conflicts with explicit
-counts and `--spin`; `--loop --bonus` repeats purchases. Normal loop, stop,
+counts and `--bet-split`; `--loop --bonus` repeats purchases. Normal loop, stop,
 strategy, retry, timeout and JSON controls remain available.
 
 ```text

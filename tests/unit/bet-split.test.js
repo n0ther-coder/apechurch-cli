@@ -79,7 +79,7 @@ describe('Finite exact-stake single-game loops', () => {
     let runNumber = 0;
     const run = (game, extra = [], settings = {}) => {
       const child = spawnSync(process.execPath, ['--loader', loader, cli,
-        'play', game, settings.budget ?? '23', settings.flag ?? '--bet-split', settings.stake ?? '4', '--loop', ...(settings.human ? [] : ['--json']), '--delay', '0', ...extra], {
+        'play', game, settings.budget ?? '23', '--bet-split', settings.stake ?? '4', '--loop', ...(settings.human ? [] : ['--json']), '--delay', '0', ...extra], {
         encoding: 'utf8', timeout: 10000, input: settings.human ? 'y\n' : undefined,
         env: { ...process.env, APECHURCH_CLI_CONFIG_DIR: path.join(directory, String(++runNumber)),
           APECHURCH_CLI_SUPPRESS_VERSION_BANNER: '1', NODE_NO_WARNINGS: '1',
@@ -107,12 +107,10 @@ describe('Finite exact-stake single-game loops', () => {
       }
       // Winning does not refill a wager-volume budget.
       assert.equal(run('ape-strong', [], { payouts: '2' }).completed_games, 5);
-      for (const flag of ['--bet-split', '--spin']) {
-        const blocks = run('blocks', ['--survive', '3'], { flag });
-        assert.equal(blocks.completed_games, 5);
-        assert.equal(blocks.bet_split.wagered_ape, '20');
-        assert.ok(blocks.games_detail.every(detail => detail.config.survive === 3 && detail.config.compounding === true && detail.config.split === undefined));
-      }
+      const blocks = run('blocks', ['--survive', '3']);
+      assert.equal(blocks.completed_games, 5);
+      assert.equal(blocks.bet_split.wagered_ape, '20');
+      assert.ok(blocks.games_detail.every(detail => detail.config.survive === 3 && detail.config.compounding === true && detail.config.split === undefined));
       for (const [controls, payouts, count] of [
         [['--max-games', '2'], '0', 2], [['--max-loss', '6'], '0', 2],
         [['--stop-loss', '6'], '0', 2], [['--min-balance', '95'], '0', 2],
