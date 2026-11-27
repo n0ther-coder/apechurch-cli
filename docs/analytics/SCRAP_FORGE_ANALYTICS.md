@@ -74,6 +74,56 @@ Contract RNG and the actual complete Vault odds and valuation are still
 unverified, so the model cannot establish exact all-in RTP, complete
 round bounds, variance, or profit odds.
 
+For one forge, the frontend weights give the metal payout component
+`M = metal payout / wager` a mean of `0.873` and a second moment of
+`4.4661254`, with zero metal payout in the AMP outcome. Its variance is
+`3.7039964` in squared wager units.
+
+Under the exclusive material-or-AMP model above, if the conditional mean
+AMP prize is `9` wager units, the total multiplier variance is
+`4.3487564 + 0.01 × Var(AMP prize / wager | AMP)`. The first term is a
+modeled lower bound, attained if every AMP paid exactly its modeled mean.
+The second term requires the Vault prize distribution at the chosen tier.
+
+## Paytable comparison with Cosmic Plinko Modest
+
+The comparison uses one forge and one
+[Cosmic Plinko Modest](COSMIC_PLINKO_ANALYTICS.md#modest) ball (`--risk 1`).
+Payouts are gross multiples of the wager, before VRF and gas.
+Each fixed multiplier is paired with all multipliers in the other paytable
+that minimize the absolute difference. Matching runs in both directions.
+When an outcome appears in multiple rows, each row shows the same
+unconditional probability for that outcome.
+
+| Scrap Forge | Probability | Cosmic Plinko (modest) | Probability |
+|---|---:|---:|---:|
+| Cast Iron · 0.2× | 37.0835% | 0.3× | 80.3674% |
+| Steel · 0.5× | 28.9164% | 0.5× | 9.7589% |
+| Zinc · 1× | 14.2001% | 0.5× | 9.7589% |
+| Lead · 1.5× | 9.3400% | 2× | 5.7405% |
+| Aluminum · 2× | 5.9000% | 2× | 5.7405% |
+| Stainless Steel · 4× | 2.5600% | 5× | 2.2962% |
+| Brass · 10× | 0.7500% | 11× | 1.0333% |
+| Copper · 25× | 0.1930% | 25× | 0.4592% |
+| Tungsten Carbide · 50× | 0.0570% | 50× | 0.2296% |
+| AMP · variable Vault award | 1.0000% | 100× | 0.1148% |
+
+| Gross payout | Scrap Forge | Cosmic Plinko (modest) |
+|---|---:|---:|
+| Exactly 2× | 5.90% | 5.74% |
+| At least 2× | 9.46% | 9.87% |
+| At least 10× | 1.00% | 1.61% |
+| At least 25× | 0.25% | 0.80% |
+
+Scrap Forge pays 1× or 1.5× in 23.54% of forges in the frontend model.
+Every Modest result below 2× pays either 0.3× or 0.5×, for a combined
+90.13% probability.
+
+The Forge percentages use unconditional frontend weights for metal awards.
+AMP is a separate 1% outcome. Including it puts the modeled probability
+of at least 2× between 9.46% and 10.46%, depending on the share of Vault
+awards that reach twice the wager at the selected denomination.
+
 ## Accounting
 
 ```text

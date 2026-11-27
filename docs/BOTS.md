@@ -344,7 +344,7 @@ Unless a bot has more specific implementation instructions, and documents those 
 - `--gp-ape <points>`: forwarded to each CLI play launched by the bot.
 - `--human [range]`: bots propagate this to every child CLI play and nested bot. Bare `--human` uses the weighted 3-9s profile; `weighted:3-9` is the explicit serialized form of that profile, while ranges such as `2-17` use a uniform random seconds window. Bots that manage child run loops may also apply it internally between child runs.
 - `--delay <seconds>`: fixed pacing between one bot routine and the next. It is added on top of `--human` at that routine boundary and is never forwarded to child CLI plays or nested bots.
-- `--preflight <seconds>`: delayed start before the bot begins its first routine. On an interactive terminal, Enter skips the current wait and Ctrl+C aborts. It is never forwarded to child CLI plays or nested bots.
+- `--preflight <seconds|pnl>`: delayed start before the bot begins its first routine. On an interactive terminal, Enter skips the current wait and Ctrl+C aborts. It is never forwarded to child CLI plays or nested bots.
 
 Other options are invalid unless the bot explicitly defines them.
 
@@ -352,14 +352,26 @@ Use `ctx.session.parseStandardBotArgs(ctx.args)` first, then parse the returned 
 
 ### Interactive preflight wait
 
+With `--preflight pnl`, one APE of absolute net PnL from the previous
+`script watch` cycle gives one minute of preflight. For example, a cycle
+with `total_pnl_ape` of `-2.5` gives a 150-second preflight in addition to
+the watcher's `--every` interval. A cycle covers the full root bot run,
+including rotated log segments and any pending reconciliation. The local
+summary must be complete and match the previous cycle and selected wallet.
+For a first or interrupted cycle, a missing or invalid summary, or a direct launch, the
+bot's declared preflight default applies. The fallback is 10 seconds when
+the bot has no declared default. A numeric value continues to use seconds.
+Each preflight is capped at the Node.js timer limit of 2,147,483,647 ms.
+
 Implement the startup delay with the shared wait helper:
 
 ```js
 await ctx.session.waitForStandardBotPreflight(loopControls, {
-  defaultSeconds: 0,
   sleep: ctx.sleep,
 });
 ```
+
+Pass `defaultSeconds` if the bot declares a startup default, including zero.
 
 `waitForStandardBotPreflight` retains the duration parsing of
 `getStandardBotPreflightDelayMs` and returns `disabled`, `elapsed` or `skipped`.
@@ -367,6 +379,8 @@ For a positive delay with interactive stdin and stderr, it prints a hint on
 stderr and accepts Enter to skip that wait. It preserves Ctrl+C interruption,
 restores terminal mode and removes keyboard listeners before returning.
 Other keys do not start the bot. JSON stdout remains unchanged.
+Under `script watch`, Ctrl+C exits the watcher immediately and signals the
+running script's process group. This also applies during `--every`.
 
 Without an interactive terminal, it performs the configured timed wait through
 the supplied `sleep` function or a normal timer. Zero delay does not attach

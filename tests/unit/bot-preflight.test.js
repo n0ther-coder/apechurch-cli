@@ -1,7 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { PassThrough } from 'node:stream';
-import { waitForStandardBotPreflight } from '../../lib/bots/session.js';
+import {
+  getStandardBotPreflightDelayMs,
+  parseApeToWei,
+  parseStandardBotArgs,
+  waitForStandardBotPreflight,
+} from '../../lib/bots/session.js';
 
 function terminal({ raw = false, flowing = false } = {}) {
   const input = new PassThrough();
@@ -20,6 +25,42 @@ function assertDetached(t) {
 }
 
 describe('Interactive bot preflight', () => {
+  it('converts either sign of watcher PnL to minutes and preserves a real zero', () => {
+    const { loopControls } = parseStandardBotArgs(['--preflight=pnl']);
+    assert.equal(getStandardBotPreflightDelayMs(loopControls, undefined, parseApeToWei('-12.5')), 750_000);
+    assert.equal(getStandardBotPreflightDelayMs(loopControls, undefined, parseApeToWei('12.5')), 750_000);
+    assert.equal(getStandardBotPreflightDelayMs(loopControls, 20, 0n), 0);
+    assert.equal(getStandardBotPreflightDelayMs(loopControls, 0), 0);
+    assert.equal(getStandardBotPreflightDelayMs(loopControls, 2.5), 2_500);
+    assert.equal(getStandardBotPreflightDelayMs(loopControls), 10_000);
+    assert.throws(() => parseStandardBotArgs(['--delay', 'pnl']), /non-negative/);
+  });
+
+  it('caps the preflight at the maximum delay of one Node.js timer', async () => {
+    const controls = { preflight: 'pnl' };
+    const previousPnlWei = parseApeToWei('40000');
+    assert.equal(getStandardBotPreflightDelayMs({ preflight: '2147483.646' }), 2_147_483_646);
+    assert.equal(getStandardBotPreflightDelayMs({ preflight: '2147483.647' }), 2_147_483_647);
+    assert.equal(getStandardBotPreflightDelayMs({ preflight: '2147483.648' }), 2_147_483_647);
+    assert.equal(getStandardBotPreflightDelayMs(controls, undefined, previousPnlWei), 2_147_483_647);
+    const sleeps = [];
+    assert.equal(await waitForStandardBotPreflight(controls, {
+      input: { isTTY: false }, previousPnlWei, sleep: async ms => sleeps.push(ms),
+    }), 'elapsed');
+    assert.deepEqual(sleeps, [2_147_483_647]);
+
+    const t = terminal();
+    let interrupted = false;
+    const wait = waitForStandardBotPreflight(controls, {
+      ...t, previousPnlWei, onInterrupt: () => { interrupted = true; },
+    });
+    assert.match(t.messages.join(''), /Preflight: 2147483\.647 s/);
+    t.input.emit('data', Buffer.from('\u0003'));
+    await assert.rejects(wait, /Preflight interrupted/);
+    assert.equal(interrupted, true);
+    assertDetached(t);
+  });
+
   it('does nothing for a disabled preflight and validates negative delays', async () => {
     const t = terminal();
     assert.equal(await waitForStandardBotPreflight({ preflight: '0' }, t), 'disabled');

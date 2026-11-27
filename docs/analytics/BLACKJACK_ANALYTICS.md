@@ -55,7 +55,11 @@ The player-side variance is dominated by the `500x` Diamond Sevens row.
 
 ## What Is Not Exact Here
 
-- Main-hand Blackjack RTP is not represented as a closed-form pre-deal distribution in this repo.
+- The CLI's main-hand RTP estimate is **100.05321%** from a seeded Monte
+  Carlo simulation of 5,000,000 single-deck H17 games, with no side bets or
+  fees (seed `0xA13ECAFE`). The estimate depends on the simulator's play
+  policy. The stored reference provides RTP only, so main-hand variance
+  is unavailable from that estimate. [CLI RTP reference](../../lib/rtp.js)
 - A live-state solver can compute exact EV for a specific observed state, but that is not the same artifact as a compact full-game analytics table.
 - Insurance is state-dependent: it is only offered on a dealer Ace and depends on the actual remaining deck state. This note does not collapse it to a single unconditional row.
 

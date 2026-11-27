@@ -1161,6 +1161,188 @@ describe('CLI Commands Integration Tests', () => {
       assert.match(output, /--every must be a positive integer/);
       assert.doesNotMatch(output, /Script not found/);
     });
+
+    it('exits the watcher on Ctrl+C during the interval and a child preflight', async () => {
+      resetBotFixtures();
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs'),
+        [SCR_DIR_ENV]: path.join(CONFIG_OVERRIDE_ROOT, 'scripts'),
+      };
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'watch-interrupt',
+        script: `import { PassThrough } from 'node:stream';
+
+export default async function (ctx) {
+  if (!ctx.args.includes('preflight')) return 0;
+  const input = new PassThrough();
+  input.isTTY = true;
+  input.setRawMode = () => input;
+  queueMicrotask(() => input.emit('data', Buffer.from([3])));
+  await ctx.session.waitForStandardBotPreflight({ preflight: '3600' }, {
+    input, output: { isTTY: true, write() {} },
+  });
+  return 0;
+}`,
+      });
+
+      for (const phase of ['interval', 'preflight']) {
+        assert.equal(cli(`script write ${phase} bot watch-interrupt ${phase}`, { env }).code, 0);
+        const watcher = spawn(process.execPath, [CLI_PATH, 'script', 'watch', phase, '--every', '3600'], {
+          env: buildCliEnv({ env }),
+          stdio: ['ignore', 'ignore', 'pipe'],
+        });
+        const code = await new Promise((resolve, reject) => {
+          let output = '';
+          let sentInterrupt = false;
+          const timeout = setTimeout(() => {
+            watcher.kill('SIGTERM');
+            watcher.kill('SIGKILL');
+            reject(new Error(`Watcher did not stop during ${phase}. ${output}`));
+          }, 6000);
+          watcher.stderr.setEncoding('utf8').on('data', (chunk) => {
+            output += chunk;
+            if (phase === 'interval' && !sentInterrupt && output.includes('Script exited with code 0')) {
+              sentInterrupt = true;
+              watcher.kill('SIGINT');
+            }
+          });
+          watcher.once('error', (error) => {
+            clearTimeout(timeout);
+            reject(error);
+          });
+          watcher.once('exit', (code) => {
+            clearTimeout(timeout);
+            resolve(code);
+          });
+        });
+        assert.equal(code, 130, phase);
+      }
+
+      const watchDir = path.join(CONFIG_OVERRIDE_ROOT, 'watch');
+      const states = fs.readdirSync(watchDir).map((file) =>
+        JSON.parse(fs.readFileSync(path.join(watchDir, file), 'utf8')));
+      assert.equal(states.length, 2);
+      for (const state of states) {
+        assert.equal(state.watcher_pid, null);
+        assert.equal(state.stop_reason, 'interrupted');
+        assert.equal(state.next_attempt_at_utc, null);
+      }
+      assert.equal(states.find((state) => state.script === 'preflight.json')?.child_exit_signal, 'SIGINT');
+    });
+
+    it('uses the preceding watcher cycle PnL across resume, interruption and wallet changes', async () => {
+      resetBotFixtures();
+      writeSelectedWalletFixture(CONFIG_OVERRIDE_ROOT, CONFIG_OVERRIDE_WALLET);
+      const logDir = path.join(CONFIG_OVERRIDE_ROOT, 'bot-logs');
+      const scrDir = path.join(CONFIG_OVERRIDE_ROOT, 'scripts');
+      const tracePath = path.join(CONFIG_OVERRIDE_ROOT, 'preflight-trace.jsonl');
+      const env = {
+        [CONFIG_DIR_ENV]: CONFIG_OVERRIDE_ROOT,
+        [LOG_DIR_ENV]: logDir,
+        [SCR_DIR_ENV]: scrDir,
+      };
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'watch-child',
+        script: `export default function () {
+  return { summary: { status: 'complete', total_wager_ape: '1', total_pnl_ape: '987' } };
+}`,
+      });
+      writeBotFixture({
+        baseDir: CONFIG_OVERRIDE_ROOT,
+        folderName: 'watch-preflight',
+        script: `import fs from 'node:fs';
+
+const tracePath = ${JSON.stringify(tracePath)};
+export default async function (ctx) {
+  const { loopControls } = ctx.session.parseStandardBotArgs(ctx.args);
+  const attempt = fs.existsSync(tracePath) ? fs.readFileSync(tracePath, 'utf8').trim().split('\\n').length : 0;
+  const sleeps = [];
+  if (!ctx.resumeRequested) {
+    await ctx.session.waitForStandardBotPreflight(loopControls, { sleep: async ms => sleeps.push(ms) });
+  }
+  await ctx.botJson('watch-child');
+  fs.appendFileSync(tracePath, JSON.stringify({
+    sleeps,
+    previous: process.env.APECHURCH_CLI_WATCH_PREVIOUS_CYCLE_ID ?? null,
+    cycle: process.env.APECHURCH_CLI_WATCH_CYCLE_ID,
+    resumedFrom: ctx.resumeSummary?.watch_cycle_id ?? null,
+  }) + '\\n');
+
+  if (attempt === 0) {
+    ctx.resetRunSummaryLog({ status: 'complete', total_wager_ape: '1', total_pnl_ape: '-1' });
+    return { summary: { status: 'pending', pending_play: {
+      contract: '0x1111111111111111111111111111111111111111',
+      gameId: '42', tx: '${BOT_LOG_TX_A}',
+    } } };
+  }
+  if (attempt === 2) {
+    ctx.updateRunSummary({ status: 'running', total_wager_ape: '1', total_pnl_ape: '99' });
+    process.kill(process.pid, 'SIGINT');
+    await new Promise(resolve => setTimeout(resolve, 3_000));
+  }
+  if (attempt === 3) {
+    ctx.resetRunSummaryLog({ status: 'complete', total_wager_ape: '1', total_pnl_ape: '1.25' });
+    return { summary: { status: 'complete', total_wager_ape: '0', total_pnl_ape: '0' } };
+  }
+  return { summary: { status: 'complete', total_wager_ape: '1', total_pnl_ape: attempt === 1 ? '-1.5' : '1.25' } };
+}`,
+      });
+      assert.equal(cli('script write preflight-cycle bot watch-preflight --preflight pnl', { env }).code, 0);
+      const watcher = spawn(process.execPath, [CLI_PATH, 'script', 'watch', 'preflight-cycle', '--every', '1'], {
+        env: buildCliEnv({ env }),
+        stdio: ['ignore', 'ignore', 'pipe'],
+      });
+      const exits = await new Promise((resolve, reject) => {
+        let output = '';
+        let changedWallet = false;
+        const timeout = setTimeout(() => {
+          watcher.kill('SIGTERM');
+          reject(new Error(`The preflight watcher failed to finish. ${output}`));
+        }, 15_000);
+        const exitCodes = () => [...output.matchAll(/Script exited with code (\d+)/g)].map((match) => Number(match[1]));
+        watcher.stderr.setEncoding('utf8').on('data', (chunk) => {
+          output += chunk;
+          const codes = exitCodes();
+          if (codes.length === 4 && !changedWallet) {
+            writeSelectedWalletFixture(CONFIG_OVERRIDE_ROOT, HISTORY_FIXTURE_WALLET);
+            changedWallet = true;
+          }
+          if (codes.length === 5) watcher.kill('SIGINT');
+        });
+        watcher.once('error', (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+        watcher.once('close', () => {
+          clearTimeout(timeout);
+          resolve(exitCodes());
+        });
+      });
+
+      assert.deepEqual(exits, [75, 0, 130, 0, 0]);
+      const trace = fs.readFileSync(tracePath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+      const [first, resumed, interrupted, fallback, switched] = trace;
+      assert.deepEqual(trace.map(({ sleeps }) => sleeps), [[10_000], [], [150_000], [10_000], [10_000]]);
+      assert.equal(resumed.cycle, first.cycle);
+      assert.equal(resumed.resumedFrom, first.cycle);
+      assert.equal(interrupted.previous, first.cycle);
+      assert.equal(fallback.previous, interrupted.cycle);
+      assert.equal(switched.previous, fallback.cycle);
+      assert.equal(new Set(trace.map(({ cycle }) => cycle)).size, 4);
+
+      const summaries = listBotLogFiles(logDir, 'watch-preflight')
+        .map((file) => readBotLogFile(logDir, 'watch-preflight', file));
+      assert.ok(summaries.some((log) => log.status === 'interrupted' && !log.watch_cycle_summary));
+      const afterRotation = summaries.find((log) => log.watch_cycle_id === fallback.cycle && log.watch_cycle_summary);
+      assert.equal(afterRotation?.total_pnl_ape, '0');
+      assert.equal(afterRotation?.watch_cycle_summary.total_pnl_ape, '1.25');
+      assert.equal(summaries.find((log) => log.watch_cycle_id === switched.cycle)?.watch_wallet_address, HISTORY_FIXTURE_WALLET);
+      assert.ok(listBotLogFiles(logDir, 'watch-child').every((file) =>
+        !Object.hasOwn(readBotLogFile(logDir, 'watch-child', file), 'watch_cycle_id')));
+    });
   });
 
   describe('games command', () => {

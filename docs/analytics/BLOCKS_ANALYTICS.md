@@ -108,6 +108,32 @@ Dead counts already have multiplier `0`, so the formula includes the fail-fast l
 
 The maximum whole-game multiplier is the per-roll cap raised to the selected roll count. At five rolls this ranges from `248,832x` for `2x2 Low` to `9,765,625,000,000,000,000,000x` for either `4x4` risk mode.
 
+## Exact payout variance
+
+Let `Y` be the single-board gross multiplier, including zero on a dead
+board. Compute `M1 = sum(p * Y)` and `M2 = sum(p * Y^2)` from the exact
+board counts and payouts above. For `X = payout / total wager`, independent
+rolls give:
+
+```text
+Var(X) for --split N   = (M2 - M1^2) / N
+Var(X) for --survive N = M2^N - M1^(2N)
+```
+
+The table gives `--survive` variance, rounded to six decimal places. Its
+one-roll column also gives the `--split 1` variance. For any other split
+count, divide the unrounded one-roll variance by the count. The model
+uses gross multipliers before fees and wei rounding.
+
+| Grid | Risk | 1 roll | 2 rolls | 3 rolls | 4 rolls | 5 rolls |
+|------|------|-------:|--------:|--------:|--------:|--------:|
+| `2x2` | Low | 0.929325 | 2.637243 | 5.813637 | 11.757858 | 22.917231 |
+| `2x2` | High | 17.013353 | 321.923810 | 5,799.687774 | 104,221.210074 | 1,872,618.348623 |
+| `3x3` | Low | 5.851977 | 45.478122 | 315.173078 | 2,152.035573 | 14,663.973112 |
+| `3x3` | High | 31.554458 | 1,056.124092 | 34,365.830031 | 1,117,335.484284 | 36,327,029.636491 |
+| `4x4` | Low | 21.181184 | 489.203254 | 10,849.719455 | 240,216.777735 | 5,318,093.944363 |
+| `4x4` | High | 28.110119 | 844.071110 | 24,561.890317 | 714,007.273827 | 20,755,295.462962 |
+
 ## Sources
 
 1. [Blocks contract verification notes](../verification/BLOCKS_CONTRACT.md) — current address, tuple layout, grid mapping, gas formula, read surface, and verified payout tables.
